@@ -4,6 +4,10 @@ call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
 call pathogen#infect()
 
+syntax on
+filetype on
+filetype plugin indent on
+
 set foldmethod=indent
 set foldlevel=99
 
@@ -15,10 +19,6 @@ map <c-h> <c-w>h
 map <leader>td <Plug>TaskList
 
 map <leader>u :GundoToggle<CR>
-
-syntax on
-filetype on
-filetype plugin indent on
 
 let g:pyflakes_use_quickfix = 0
 let g:pep8_map='<leader>8'
@@ -63,4 +63,5 @@ set shiftwidth=4
 set autoindent
 set mouse=a
 
-#autocmd BufEnter * lcd %:p:h
+autocmd BufEnter * lcd %:p:h
+
