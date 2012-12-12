@@ -16,15 +16,15 @@
 [submodule "vim/bundle/surround"]
 	path = vim/bundle/surround
 	url = https://github.com/tpope/vim-surround.git
-[submodule "vim/bundle/github-color"]
-	path = vim/bundle/github-color
-	url = https://github.com/zachwill/github.vim.git
-[submodule "vim/bundle/zenburn-color"]
-	path = vim/bundle/zenburn-color
-	url = https://github.com/jnurmine/Zenburn.git
-[submodule "vim/bundle/solarized-color"]
-	path = vim/bundle/solarized-color
-	url = https://github.com/altercation/vim-colors-solarized.git
 [submodule "vim/bundle/syntastic"]
 	path = vim/bundle/syntastic
 	url = https://github.com/scrooloose/syntastic.git
+[submodule "vim/bundle/color-github"]
+	path = vim/bundle/color-github
+	url = https://github.com/zachwill/github.vim.git
+[submodule "vim/bundle/color-zenburn"]
+	path = vim/bundle/color-zenburn
+	url = https://github.com/jnurmine/Zenburn.git
+[submodule "vim/bundle/color-solarized"]
+	path = vim/bundle/color-solarized
+	url = https://github.com/altercation/vim-colors-solarized.git
