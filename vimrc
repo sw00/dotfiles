@@ -1,27 +1,49 @@
+" filetype checking off so we can load pathogen
 filetype off
 
 call pathogen#runtime_append_all_bundles()
 call pathogen#helptags()
-call pathogen#infect()
 
-syntax on
+" set filetype and indentation
 filetype on
+syntax on
 filetype plugin indent on
 
+" tab stop info
+set tabstop=4
+set shiftwidth=4
+set noexpandtab
+
+"a autindent and allow mouse everywhere
+set autoindent
+set mouse=a
+
+" set the themes and stuff
+if has("gui_running")
+	set guifont=SourceCodePro
+	set background=light
+    colorscheme solarized
+else
+	set t_Co=256
+    colorscheme github 
+endif
+
+" for python code folds
 set foldmethod=indent
 set foldlevel=99
 
+" easier mapping for minibufferexplorer plugin
 map <c-j> <c-w>j 
 map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
 
-map <leader>td <Plug>TaskList
+"map <leader>td <Plug>TaskList
 
-map <leader>u :GundoToggle<CR>
+"map <leader>u :GundoToggle<CR>
 
-let g:pyflakes_use_quickfix = 0
-let g:pep8_map='<leader>8'
+"let g:pyflakes_use_quickfix = 0
+"let g:pep8_map='<leader>8'
 
 au FileType python set omnifunc=pythoncomplete#Complete
 let g:SuperTabDefaultCompletionType = "context"
@@ -47,21 +69,10 @@ if 'VIRTUAL_ENV' in os.environ:
     execfile(activate_this, dict(__file__=activate_this))
 EOF
 
-if has("gui_running")
-	set t_Co=256
-    colorscheme github
-else
-	set t_Co=256
-    colorscheme github 
-endif
 
 set number 
 	noremap <F2> :set nonumber!<CR>
 
-set tabstop=4
-set shiftwidth=4
-set autoindent
-set mouse=a
 
-autocmd BufEnter * lcd %:p:h
+"autocmd BufEnter * lcd %:p:h
 
