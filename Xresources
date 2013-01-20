@@ -2,7 +2,7 @@
 URxvt*.termName: rxvt-256color
 
 ! Other options
-URxvt*.geometry: 80x30
+URxvt*.geometry: 80x28
 URxvt*.borderless: true 
 URxvt*.internalBorder: 1
 
@@ -32,7 +32,7 @@ URxvt*.scrollBar: plain
 URxvt*.font: xft:Ubuntu Mono:pixelsize=14,style=regular
 !xft settings
 Xft*.dpi: 96
-Xft*.antialias: true
+Xft*.antialias: false
 Xft*.hinting: full
 
 
@@ -40,7 +40,7 @@ Xft*.hinting: full
 !Urxvt*.icon: /usr/share
 
 ! ------------Color scheme----------------
-urxvt*foreground:       #7f8f9f
+URxvt*foreground:       #7f8f9f
 ! black + red
 !urxvt*color0:     #3f3f3f
 urxvt*color0:      #101010
