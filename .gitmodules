@@ -32,3 +32,9 @@
 [submodule "urxvt/perls"]
 	path = urxvt/perls
 	url = https://github.com/muennich/urxvt-perls.git
+[submodule "vim/indent/mako"]
+	path = vim/indent/mako
+	url = https://github.com/vim-scripts/mako.vim--Torborg.git
+[submodule "vim/syntax/mako"]
+	path = vim/syntax/mako
+	url = https://github.com/vim-scripts/mako.vim.git
