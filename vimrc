@@ -21,7 +21,7 @@ set mouse=a
 " set the themes and stuff
 if has("gui_running")
 	set guifont=SourceCodePro
-	set background=light
+	set background=dark
     colorscheme solarized
 else
 	set t_Co=256
