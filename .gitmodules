@@ -38,3 +38,9 @@
 [submodule "vim/syntax/mako"]
 	path = vim/syntax/mako
 	url = https://github.com/vim-scripts/mako.vim.git
+[submodule "vim/bundle/nerdtree"]
+	path = vim/bundle/nerdtree
+	url = https://github.com/scrooloose/nerdtree.git
+[submodule "vim/bundle/json"]
+	path = vim/bundle/json
+	url = https://github.com/elzr/vim-json.git

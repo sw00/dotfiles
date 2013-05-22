@@ -1,4 +1,7 @@
+set nocompatible
+
 " filetype checking off so we can load pathogen
+filetype on
 filetype off
 
 call pathogen#runtime_append_all_bundles()
@@ -9,24 +12,15 @@ filetype on
 syntax on
 filetype plugin indent on
 
-" tab stop info
-set tabstop=2
-set shiftwidth=2
+" set all tabs to be 4 spaces
+set softtabstop=4
+set shiftwidth=4
 set expandtab
 
 "a autindent and allow mouse everywhere
 set autoindent
 set mouse=a
 
-" set the themes and stuff
-if has("gui_running")
-	set guifont=SourceCodePro
-	set background=dark
-    colorscheme solarized
-else
-	set t_Co=256
-    colorscheme github 
-endif
 
 " for python code folds
 set foldmethod=indent
@@ -37,13 +31,17 @@ map <c-j> <c-w>j
 map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
+let g:miniBufExplMapWindowNavVim = 1 
+let g:miniBufExplMapCTabSwitchBufs = 1 
 
 "map <leader>td <Plug>TaskList
 
 "map <leader>u :GundoToggle<CR>
 
-"let g:pyflakes_use_quickfix = 0
-"let g:pep8_map='<leader>8'
+" pyflakes-8
+let g:pyflakes_use_quickfix = 0
+let g:pep8_map='<leader>8'
+autocmd BufWritePost *.py call Flake8()
 
 au FileType python set omnifunc=pythoncomplete#Complete
 let g:SuperTabDefaultCompletionType = "context"
@@ -76,3 +74,15 @@ set number
 
 "autocmd BufEnter * lcd %:p:h
 
+" set the themes and stuff
+if has("gui_running")
+	set guifont=SourceCodePro
+	set background=dark
+    colorscheme solarized
+else
+	set t_Co=256
+    colorscheme github 
+endif
+
+" backspace over everything in insert mode
+set bs=indent
