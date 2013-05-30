@@ -86,3 +86,11 @@ endif
 
 " backspace over everything in insert mode
 set bs=indent
+
+" CPAN JSON tidier
+map <leader>jt  <Esc>:%!json_xs -f json -t json-pretty<CR>
+" change filetype automatically
+au BufRead,BufNewFile *.json set filetype=json
+au BufRead,BufNewFile *.py set filetype=python
+
+
