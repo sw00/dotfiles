@@ -53,3 +53,6 @@
 [submodule "vim/bundle/pytest"]
 	path = vim/bundle/pytest
 	url = https://github.com/alfredodeza/pytest.vim.git
+[submodule "vim/bundle/virtualenv"]
+	path = vim/bundle/virtualenv
+	url = git://github.com/jmcantrell/vim-virtualenv.git
