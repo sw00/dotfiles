@@ -10,8 +10,8 @@ let g:SuperTabDefaultCompletionType = "context"
 let g:syntastic_python_checkers=['pylint', 'flake8']
 
 " pyflakes-8
+noremap <leader>8 :call Flake8()<CR>
 let g:pyflakes_use_quickfix = 0
-let g:pep8_map='<leader>8'
 " autocmd BufWritePost *.py call Flake8()
 
 py << EOF
