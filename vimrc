@@ -34,6 +34,11 @@ let g:miniBufExplMapWindowNavVim = 1
 " fixes losing syntax bug
 let g:miniBufExplForceSyntaxEnable = 1
 
+"taglist
+let Tlist_Use_Right_Window = 1
+let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
+map <leader>t :TlistToggle<CR>
+
 "map <leader>td <Plug>TaskList
 
 "map <leader>u :GundoToggle<CR>
@@ -57,6 +62,8 @@ if has("gui_running")
     colorscheme solarized
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
+    " fix path issue - gui vim doesn't load .zshrc
+    let $PATH="/usr/local/bin:/usr/local/share/python:".$PATH
 else
     set t_Co=256
     colorscheme github 
