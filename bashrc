@@ -101,5 +101,3 @@ fi
 if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
     . /etc/bash_completion
 fi
-
-export PATH=$PATH:'/home/sett/Development/google_appengine'
