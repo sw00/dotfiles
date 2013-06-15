@@ -26,7 +26,7 @@ if has('autocmd')
 			\ | endif
 	endif
 	if !exists('g:colors_name')
-		let g:colors_name = 'default'
+		let g:colors_name = 'github'
 	endif
 	let s:colors_name = g:colors_name
 	au BufEnter *
@@ -35,7 +35,6 @@ if has('autocmd')
 			\ | exe 'colors' s:new_colors
 		\ | endif
 endif
-let s:colors_name='github'
 
 execute pathogen#infect()
 

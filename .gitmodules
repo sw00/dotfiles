@@ -62,3 +62,6 @@
 [submodule "vim/bundle/powerline"]
 	path = vim/bundle/powerline
 	url = git://github.com/Lokaltog/powerline.git
+[submodule "vim/bundle/color-distinguished"]
+	path = vim/bundle/color-distinguished
+	url = git://github.com/Lokaltog/vim-distinguished.git
