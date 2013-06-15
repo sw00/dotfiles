@@ -1,7 +1,6 @@
 " because this is 2013
 set nocompatible
 
-colorscheme github 
 " buffer-specific colorschemes
 if has('autocmd')
 	" change colorscheme depending on current buffer
@@ -36,6 +35,7 @@ if has('autocmd')
 			\ | exe 'colors' s:new_colors
 		\ | endif
 endif
+let s:colors_name='github'
 
 execute pathogen#infect()
 
@@ -59,6 +59,10 @@ set bs=indent
 "a autindent and allow mouse everywhere
 set autoindent
 set mouse=a
+
+" powerline
+set laststatus=2
+set rtp+=~/.vim/bundle/powerline/powerline/bindings/vim
 
 " for python code folds
 set foldmethod=indent
@@ -97,7 +101,7 @@ nmap <leader>a <Esc>:Ack!
 
 " set the themes and stuff
 if has("gui_running")
-    set guifont=Source\ Code\ Pro
+    set guifont=Source\ Code\ Pro\ for\ Powerline
     set background=light
     set guioptions-=L
     set guioptions-=r
