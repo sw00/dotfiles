@@ -43,6 +43,10 @@ execute pathogen#infect()
 syntax on
 filetype plugin indent on
 
+" set line numbering
+set number 
+noremap <F2> :set nonumber!<CR>
+
 " set all tabs to be 4 spaces
 set softtabstop=4
 set shiftwidth=4
@@ -59,6 +63,9 @@ set mouse=a
 " for python code folds
 set foldmethod=indent
 set foldlevel=99
+
+"supertab
+let g:SuperTabDefaultCompletionType = "context"
 
 " easier mapping for minibufferexplorer plugin
 map <c-j> <c-w>j 
@@ -80,17 +87,13 @@ map <leader>t :TlistToggle<CR>
 "map <leader>u :GundoToggle<CR>
 
 map <leader>n :NERDTreeToggle<CR>
+let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr']
 
-map <leader>j :RopeGotoDefinition<CR>
-map <leader>r :RopeRename<CR>
-
-"jedi global options
-let g:jedi#use_tabs_not_buffers = 0
-
+let g:syntastic_mode_map = { 'mode': 'passive',
+                           \ 'active_filetypes': ['python', 'javascript'],
+                           \ 'passive_filetypes': ['puppet'] }
 nmap <leader>a <Esc>:Ack!
 
-set number 
-noremap <F2> :set nonumber!<CR>
 
 " set the themes and stuff
 if has("gui_running")
@@ -98,7 +101,6 @@ if has("gui_running")
     set background=light
     set guioptions-=L
     set guioptions-=r
-    colorscheme solarized
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
     " fix path issue - gui vim doesn't load .zshrc
