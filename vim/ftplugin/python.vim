@@ -1,5 +1,5 @@
 " set colorscheme
-colorscheme solarized
+let b:colors_name='solarized'
 
 " tab completion
 set omnifunc=pythoncomplete#Complete
