@@ -1,7 +1,7 @@
 " because this is 2013
 set nocompatible
 
- buffer-specific colorschemes
+" buffer-specific colorschemes
 if has('autocmd')
 	" change colorscheme depending on current buffer
 	" if desired, you may set a user-default colorscheme before this point,
