@@ -1,5 +1,6 @@
 " set colorscheme
-let b:colors_name='solarized'
+"let b:colors_name='solarized'
+colorscheme solarized
 
 "jedi global options
 let g:jedi#use_tabs_not_buffers = 0
