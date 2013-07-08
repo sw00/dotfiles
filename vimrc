@@ -82,6 +82,9 @@ let g:miniBufExplMapWindowNavVim = 1
 " fixes losing syntax bug
 let g:miniBufExplForceSyntaxEnable = 1
 
+" powerline
+set rtp+=~/dotfiles/vim/bundle/powerline/bindings/vim
+
 "taglist
 let Tlist_Use_Right_Window = 1
 let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
@@ -102,14 +105,19 @@ nmap <leader>a <Esc>:Ack!
 
 " set the themes and stuff
 if has("gui_running")
+    colorscheme solarized
     set guifont=Source\ Code\ Pro\ for\ Powerline
     set background=light
-    set guioptions-=L
     set guioptions-=r
+    set guioptions-=L
+    set guioptions-=T
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
     " fix path issue - gui vim doesn't load .zshrc
     let $PATH="/usr/local/bin:/usr/local/share/python:".$PATH
+    lcd ~
+    "yank to clipboard
+    set clipboard+=unnamed
 else
     set t_Co=256
 endif
