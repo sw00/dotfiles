@@ -40,7 +40,7 @@ ZSH_THEME="blinks"
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
-plugins=(osx git colorize brew npm pip python rvm ssh-agent)
+plugins=(osx vi-mode git git-extras brew npm pip python rvm) 
 
 source $ZSH/oh-my-zsh.sh
 
@@ -48,9 +48,6 @@ source $ZSH/oh-my-zsh.sh
 # ------------------------------------------------------------------
 # PATH stuff, of course
 PATH=/usr/local/bin:/usr/local/share/python:$PATH
-
-# vim alias
-alias vi='vim'
 
 # tmux alias
 alias tmux="TERM=screen-256color-bce tmux"
@@ -61,3 +58,4 @@ alias tmux="TERM=screen-256color-bce tmux"
 
 #zsh completions
 fpath=(/usr/local/share/zsh-completions $fpath)
+source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
