@@ -57,8 +57,6 @@ if has("gui_running")
 
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
-    " fix path issue - gui vim doesn't load .zshrc
-    let $PATH="/usr/local/bin:/usr/local/share/python:".$PATH
     "yank to clipboard
     set clipboard+=unnamed
 else
