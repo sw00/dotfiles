@@ -17,24 +17,12 @@
 [submodule "vim/bundle/syntastic"]
 	path = vim/bundle/syntastic
 	url = https://github.com/scrooloose/syntastic.git
-[submodule "vim/bundle/color-github"]
-	path = vim/bundle/color-github
-	url = https://github.com/zachwill/github.vim.git
-[submodule "vim/bundle/color-zenburn"]
-	path = vim/bundle/color-zenburn
-	url = https://github.com/jnurmine/Zenburn.git
 [submodule "vim/bundle/color-solarized"]
 	path = vim/bundle/color-solarized
 	url = https://github.com/altercation/vim-colors-solarized.git
 [submodule "urxvt/perls"]
 	path = urxvt/perls
 	url = https://github.com/muennich/urxvt-perls.git
-[submodule "vim/indent/mako"]
-	path = vim/indent/mako
-	url = https://github.com/vim-scripts/mako.vim--Torborg.git
-[submodule "vim/syntax/mako"]
-	path = vim/syntax/mako
-	url = https://github.com/vim-scripts/mako.vim.git
 [submodule "vim/bundle/nerdtree"]
 	path = vim/bundle/nerdtree
 	url = https://github.com/scrooloose/nerdtree.git
@@ -62,9 +50,6 @@
 [submodule "vim/bundle/powerline"]
 	path = vim/bundle/powerline
 	url = git://github.com/Lokaltog/powerline.git
-[submodule "vim/bundle/color-distinguished"]
-	path = vim/bundle/color-distinguished
-	url = git://github.com/Lokaltog/vim-distinguished.git
 [submodule "vim/bundle/ack"]
 	path = vim/bundle/ack
 	url = https://github.com/mileszs/ack.vim.git
