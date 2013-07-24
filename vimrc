@@ -8,34 +8,16 @@ execute pathogen#infect()
 colorscheme solarized
 set background=light
 
-" set filetype and indentation
-syntax on
-filetype plugin indent on
-
 " set line numbering
 set number 
 noremap <F2> :set nonumber!<CR>
 
-" set all tabs to be 4 spaces
-set softtabstop=4
-set shiftwidth=4
-set smarttab
-set expandtab
-
-" backspace over indents in insert mode
-set bs=indent
-
 "a autoindent and allow mouse everywhere
-set autoindent
 set mouse=a
 
 " powerline
 set laststatus=2
 set rtp+=~/.vim/bundle/powerline/powerline/bindings/vim
-
-" for python code folds
-set foldmethod=indent
-set foldlevel=99
 
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
@@ -68,13 +50,11 @@ let g:syntastic_mode_map = { 'mode': 'passive',
 nmap <leader>a <Esc>:Ack!
 
 
-" set the themes and stuff
+" set the gui options and stuff
 if has("gui_running")
+    set guioptions=egma
     set guifont=Source\ Code\ Pro\ for\ Powerline
-    set background=light
-    set guioptions-=r
-    set guioptions-=L
-    set guioptions-=T
+
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
     " fix path issue - gui vim doesn't load .zshrc
