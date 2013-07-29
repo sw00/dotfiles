@@ -17,7 +17,7 @@ set mouse=a
 
 " powerline
 set laststatus=2
-set rtp+=~/.vim/bundle/powerline/powerline/bindings/vim
+set rtp+=~/dotfiles/powerline/powerline/bindings/vim
 
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
@@ -60,6 +60,7 @@ if has("gui_running")
     "yank to clipboard
     set clipboard+=unnamed
 else
+    set encoding=utf-8
     set t_Co=256
 endif
 
