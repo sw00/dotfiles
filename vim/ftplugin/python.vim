@@ -1,3 +1,7 @@
+" python code folding
+set smarttab
+set foldmethod=indent
+
 "jedi global options
 let g:jedi#use_tabs_not_buffers = 0
 
