@@ -59,3 +59,6 @@ PATH=/usr/local/bin:$PATH
 #zsh completions
 fpath=(/usr/local/share/zsh-completions $fpath)
 source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+#rbenv/shoms autocompletion
+if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
