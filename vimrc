@@ -15,6 +15,10 @@ noremap <F2> :set nonumber!<CR>
 "a autoindent and allow mouse everywhere
 set mouse=a
 
+"clipboard support for osx
+vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
+nmap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+
 " powerline
 set laststatus=2
 set rtp+=~/dotfiles/powerline/powerline/bindings/vim
@@ -58,7 +62,7 @@ if has("gui_running")
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
     "yank to clipboard
-    set clipboard+=unnamed
+    "set clipboard+=unnamed
 else
     set encoding=utf-8
     set t_Co=256
