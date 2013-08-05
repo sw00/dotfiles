@@ -17,7 +17,7 @@ set mouse=a
 
 "clipboard support for osx
 vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
-nmap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 
 " powerline
 set laststatus=2
