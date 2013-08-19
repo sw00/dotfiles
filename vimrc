@@ -19,9 +19,8 @@ set mouse=a
 vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
 imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 
-" powerline
-set laststatus=2
-set rtp+=~/dotfiles/powerline/powerline/bindings/vim
+" enable powerline fonts
+let g:airline_powerline_fonts=1
 
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
