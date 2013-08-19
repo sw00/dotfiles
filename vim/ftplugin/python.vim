@@ -6,11 +6,10 @@ set foldmethod=indent
 let g:jedi#use_tabs_not_buffers = 0
 
 " syntastic
-let g:syntastic_python_checkers=['pylint', 'flake8']
+let g:syntastic_python_checkers=['flake8']
 
 " pyflakes-8
-noremap <leader>8 :call Flake8()<CR>
-let g:pyflakes_use_quickfix = 0
+noremap <leader>8 :Errors<CR>
 
 " Pytest stuff
 nmap <silent><Leader>tf <Esc>:Pytest file<CR>
