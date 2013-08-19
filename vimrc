@@ -10,7 +10,7 @@ set background=light
 
 " set line numbering
 set number 
-noremap <F2> :set nonumber!<CR>
+noremap <F2> :NumbersToggle<CR>
 
 "a autoindent and allow mouse everywhere
 set mouse=a
