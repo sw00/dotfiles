@@ -47,7 +47,7 @@ source $ZSH/oh-my-zsh.sh
 # Customize to your needs...
 # ------------------------------------------------------------------
 # PATH stuff, of course
-PATH=/usr/local/bin:$PATH
+PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
 # tmux alias
 #alias tmux="TERM=screen-256color-bce tmux"
