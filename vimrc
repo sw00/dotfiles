@@ -5,8 +5,7 @@ set nocompatible
 execute pathogen#infect()
 
 " set colorscheme
-colorscheme solarized
-set background=light
+colorscheme Tomorrow-Night
 
 " set line numbering
 set number 
@@ -16,8 +15,10 @@ noremap <F2> :NumbersToggle<CR>
 set mouse=a
 
 "clipboard support for osx
-vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
-imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+if has("macunix")
+    vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
+    imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+endif
 
 " enable powerline fonts
 let g:airline_powerline_fonts=1
@@ -61,7 +62,7 @@ if has("gui_running")
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 
     "yank to clipboard
-    "set clipboard+=unnamed
+    set clipboard+=unnamed
 else
     set encoding=utf-8
     set t_Co=256
