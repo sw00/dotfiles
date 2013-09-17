@@ -5,7 +5,7 @@ set nocompatible
 execute pathogen#infect()
 
 " set colorscheme
-colorscheme hybrid
+colorscheme Tomorrow-Night
 
 " set line numbering
 noremap <F2> :NumbersToggle<CR>
@@ -56,7 +56,7 @@ nmap <leader>a <Esc>:Ack!
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma
-    set guifont=Source\ Code\ Pro\ for\ Powerline
+    set guifont=Source\ Code\ Pro\ For\ Powerline
 
     " ctrl-tab cycles current buffer
     let g:miniBufExplMapCTabSwitchBufs = 1 

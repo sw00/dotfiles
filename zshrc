@@ -40,15 +40,13 @@ ZSH_THEME="ys"
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
-plugins=(osx colorize vi-mode git git-extras pip python tmux) 
+plugins=(colorize vi-mode git git-extras pip python tmux) 
 
 source $ZSH/oh-my-zsh.sh
 
 # Customize to your needs...
 # ------------------------------------------------------------------
-# osx locale stuff
-export LC_ALL=en_GB.UTF-8
-export LANG=en_GB.UTF-8
+#export TERM=xterm-256color
 
 #
 export EDITOR=vim
@@ -63,8 +61,6 @@ PATH=/usr/local/bin:/usr/local/sbin:$PATH
 [ -s "$HOME/.pythonbrew/etc/bashrc" ] && source "$HOME/.pythonbrew/etc/bashrc"
 
 #zsh completions
-fpath=(/usr/local/share/zsh-completions $fpath)
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 #rbenv/shoms autocompletion
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
