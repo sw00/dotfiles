@@ -46,6 +46,12 @@ source $ZSH/oh-my-zsh.sh
 
 # Customize to your needs...
 # ------------------------------------------------------------------
+# osx locale stuff
+export LC_ALL=en_GB.UTF-8
+export LANG=en_GB.UTF-8
+
+#
+export EDITOR=vim
 # PATH stuff, of course
 PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
