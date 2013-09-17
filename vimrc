@@ -5,10 +5,9 @@ set nocompatible
 execute pathogen#infect()
 
 " set colorscheme
-colorscheme Tomorrow-Night
+colorscheme hybrid
 
 " set line numbering
-set number 
 noremap <F2> :NumbersToggle<CR>
 
 "a autoindent and allow mouse everywhere
