@@ -1,0 +1,16 @@
+[user]
+	email = sett.wai@gmail.com
+	name = sw00
+[core]
+	editor = $EDITOR
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+[color "status"]
+	changed = "yellow "
+	untracked = "dim "
+[gitreview]
+	username = sw00
+[push]
+	default = simple
