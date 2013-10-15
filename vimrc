@@ -10,8 +10,8 @@ colorscheme hybrid
 " set line numbering
 noremap <F2> :NumbersToggle<CR>
 
-"a autoindent and allow mouse everywhere
-set mouse=a
+" convenience mapping
+map :Q<CR> :q<CR>
 
 "clipboard support for osx
 if has("macunix")
@@ -25,24 +25,25 @@ let g:airline_powerline_fonts=1
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
 
-" easier mapping for minibufferexplorer plugin
+" easier mapping for navigating viewports
 map <c-j> <c-w>j 
 map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
-" use above bindings to navigate windows
-let g:miniBufExplMapWindowNavVim = 1 
 " fixes losing syntax bug
 let g:miniBufExplForceSyntaxEnable = 1
+" cycle buffers like this
+noremap <c-w>] :bn<CR>
+noremap <c-w>[ :bp<CR>
+" overload my bufunload, etc..
+nmap <leader>bd :MBEbd<CR>
+nmap <leader>bw :MBEbw<CR>
+nmap <leader>bun :MBEbun<CR>
 
 "taglist
 let Tlist_Use_Right_Window = 1
 let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
 map <leader>t :TlistToggle<CR>
-
-"map <leader>td <Plug>TaskList
-
-"map <leader>u :GundoToggle<CR>
 
 map <leader>N :NERDTreeToggle<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr']
@@ -52,18 +53,9 @@ let g:syntastic_mode_map = { 'mode': 'passive',
                            \ 'passive_filetypes': ['puppet'] }
 nmap <leader>a <Esc>:Ack!
 
-
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma
     set guifont=Source\ Code\ Pro\ for\ Powerline
-
-    " ctrl-tab cycles current buffer
-    let g:miniBufExplMapCTabSwitchBufs = 1 
-    "yank to clipboard
-    set clipboard+=unnamed
-else
-    set encoding=utf-8
-    set t_Co=256
 endif
 

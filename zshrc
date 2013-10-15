@@ -53,7 +53,7 @@ export LANG=en_GB.UTF-8
 #
 export EDITOR=vim
 # PATH stuff, of course
-PATH=/usr/local/bin:/usr/local/sbin:$PATH
+PATH=/usr/local/bin:/usr/local/sbin:/usr/local/share/npm/bin:$PATH
 
 # tmux alias
 #alias tmux="TERM=screen-256color-bce tmux"
@@ -68,3 +68,5 @@ source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 #rbenv/shoms autocompletion
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
+
+source virtualenvwrapper.sh
