@@ -2,6 +2,11 @@
 set smarttab
 set foldmethod=indent
 
+" tabs
+set tabstop=4
+set shiftwidth=4
+set smartindent
+
 "jedi global options
 let g:jedi#use_tabs_not_buffers = 0
 
