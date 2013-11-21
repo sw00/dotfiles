@@ -1,72 +1,39 @@
 # Path to your oh-my-zsh configuration.
 ZSH=$HOME/.oh-my-zsh
 
-# Set name of the theme to load.
-# Look in ~/.oh-my-zsh/themes/
-# Optionally, if you set this to "random", it'll load a random theme each
-# time that oh-my-zsh is loaded.
+# theme to load from ~/.oh-my-zsh/themes/
 ZSH_THEME="ys"
 
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
+# zsh-specific aliases
+alias zshconfig="vi ~/.zshrc"
+alias ohmyzsh="vi ~/.oh-my-zsh"
 
-# Set to this to use case-sensitive completion
-# CASE_SENSITIVE="true"
+# disable command auto-correct
+DISABLE_CORRECTION="true"
 
-# Comment this out to disable bi-weekly auto-update checks
-# DISABLE_AUTO_UPDATE="true"
+# disable setting terminal title automatically
+DISABLE_AUTO_TITLE="true"
 
-# Uncomment to change how often before auto-updates occur? (in days)
-# export UPDATE_ZSH_DAYS=13
+# disable marking untracked files in repos as dirty (for speed)
+DISABLE_UNTRACKED_FILES_DIRTY="true"
 
-# Uncomment following line if you want to disable colors in ls
-# DISABLE_LS_COLORS="true"
+# load some plugins from ~/.oh-my-zsh/plugins/*)
+plugins=(osx colorize vi-mode git git-extras pip python tmux virtualenv virtualenvwrapper) 
 
-# Uncomment following line if you want to disable autosetting terminal title.
-# DISABLE_AUTO_TITLE="true"
-
-# Uncomment following line if you want to disable command autocorrection
-# DISABLE_CORRECTION="true"
-
-# Uncomment following line if you want red dots to be displayed while waiting for completion
-# COMPLETION_WAITING_DOTS="true"
-
-# Uncomment following line if you want to disable marking untracked files under
-# VCS as dirty. This makes repository status check for large repositories much,
-# much faster.
-# DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
-# Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-plugins=(osx colorize vi-mode git git-extras pip python tmux) 
+# re-enable some common CLI stuff
+bindkey "^A" beginning-of-line
+bindkey "^E" end-of-line
 
 source $ZSH/oh-my-zsh.sh
 
-# Customize to your needs...
-# ------------------------------------------------------------------
-# osx locale stuff
-export LC_ALL=en_GB.UTF-8
-export LANG=en_GB.UTF-8
-
-#
+# use vim
 export EDITOR=vim
-# PATH stuff, of course
-PATH=/usr/local/bin:/usr/local/sbin:/usr/local/share/npm/bin:$PATH
 
-# tmux alias
-#alias tmux="TERM=screen-256color-bce tmux"
+# the PATH
+PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
-#pythonbrew alias
-#alias pythonbrew="/usr/local/share/python/site-packages
-[ -s "$HOME/.pythonbrew/etc/bashrc" ] && source "$HOME/.pythonbrew/etc/bashrc"
+# load local aliases
+[[ -f ~/.aliases ]] && source ~/.aliases
 
-#zsh completions
-fpath=(/usr/local/share/zsh-completions $fpath)
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-#rbenv/shoms autocompletion
-if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
-
-source virtualenvwrapper.sh
+# load local config
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
