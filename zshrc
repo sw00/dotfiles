@@ -18,11 +18,7 @@ DISABLE_AUTO_TITLE="true"
 DISABLE_UNTRACKED_FILES_DIRTY="true"
 
 # load some plugins from ~/.oh-my-zsh/plugins/*)
-plugins=(osx colorize vi-mode git git-extras pip python tmux virtualenv virtualenvwrapper) 
-
-# re-enable some common CLI stuff
-bindkey "^A" beginning-of-line
-bindkey "^E" end-of-line
+plugins=(osx colorize git git-extras pip python tmux virtualenv virtualenvwrapper)
 
 source $ZSH/oh-my-zsh.sh
 

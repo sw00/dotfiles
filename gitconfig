@@ -13,4 +13,4 @@
 [gitreview]
 	username = sw00
 [push]
-	default = simple
+	default = current

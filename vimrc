@@ -59,3 +59,5 @@ if has("gui_running")
     set guifont=Source\ Code\ Pro\ for\ Powerline
 endif
 
+" set .pp to ruby filetye for syntax highlighting
+au BufNewFile,BufRead *.pp set filetype=ruby
