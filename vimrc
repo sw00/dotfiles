@@ -9,6 +9,7 @@ colorscheme hybrid
 
 " set line numbering
 noremap <F2> :NumbersToggle<CR>
+set number
 
 " convenience mapping
 map :Q<CR> :q<CR>
@@ -49,7 +50,7 @@ map <leader>N :NERDTreeToggle<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr']
 
 let g:syntastic_mode_map = { 'mode': 'passive',
-                           \ 'active_filetypes': ['python', 'javascript'],
+                           \ 'active_filetypes': ['python', 'javascript', 'coffeescript'],
                            \ 'passive_filetypes': ['puppet'] }
 nmap <leader>a <Esc>:Ack!
 
