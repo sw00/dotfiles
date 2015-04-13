@@ -62,3 +62,9 @@ endif
 
 " set .pp to ruby filetye for syntax highlighting
 au BufNewFile,BufRead *.pp set filetype=ruby
+
+" tell vim where to put its backup files
+set backupdir=/private/tmp
+
+" tell vim where to put swap files
+set dir=/private/tmp
