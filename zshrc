@@ -12,7 +12,7 @@ alias ohmyzsh="vi ~/.oh-my-zsh"
 DISABLE_CORRECTION="true"
 
 # disable setting terminal title automatically
-DISABLE_AUTO_TITLE="true"
+DISABLE_AUTO_TITLE="false"
 
 # disable marking untracked files in repos as dirty (for speed)
 DISABLE_UNTRACKED_FILES_DIRTY="true"
