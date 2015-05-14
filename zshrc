@@ -33,3 +33,6 @@ PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
 # load local config
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
+# use z
+. `brew --prefix`/etc/profile.d/z.sh
