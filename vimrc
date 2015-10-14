@@ -15,8 +15,8 @@ set number
 map :Q<CR> :q<CR>
 
 "clipboard support for osx
-set clipboard=unnamed
 if has("macunix")
+    set clipboard=unnamed
     vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
     imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 endif
