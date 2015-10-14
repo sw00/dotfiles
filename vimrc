@@ -61,6 +61,7 @@ nmap <leader>a <Esc>:Ack!
 if has("gui_running")
     set guioptions=egma
     set guifont=Source\ Code\ Pro\ for\ Powerline
+    colorscheme atom-dark
 endif
 
 " set .pp to ruby filetye for syntax highlighting
