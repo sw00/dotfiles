@@ -23,6 +23,8 @@ endif
 
 " enable powerline fonts
 let g:airline_powerline_fonts=1
+" enable airline bufflist
+let g:airline#extensions#tabline#enabled = 1
 
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
@@ -32,11 +34,11 @@ map <c-j> <c-w>j
 map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
-" fixes losing syntax bug
-let g:miniBufExplForceSyntaxEnable = 1
+
 " cycle buffers like this
 noremap <c-w>] :bn<CR>
 noremap <c-w>[ :bp<CR>
+
 " overload my bufunload, etc..
 nmap <leader>bd :MBEbd<CR>
 nmap <leader>bw :MBEbw<CR>
