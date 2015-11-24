@@ -5,7 +5,7 @@ set nocompatible
 execute pathogen#infect()
 
 " set colorscheme
-colorscheme Tomorrow-Night-Eighties
+colorscheme grb256
 
 " set line numbering
 noremap <F2> :NumbersToggle<CR>
@@ -13,6 +13,20 @@ set number
 
 " highlight line
 set cursorline
+
+" highlight search term
+set hlsearch
+" only case-sensitive when search term contains uppercase
+set ignorecase smartcase
+
+" don't backup at all
+set nobackup
+set nowritebackup
+set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
+set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
+
+" read file automatically when changed outside of vim
+set autoread
 
 " convenience mapping
 map :Q<CR> :q<CR>
@@ -73,7 +87,7 @@ endif
 let g:ctrlp_custom_ignore = ['\v[\/](bower_components|node_modules|target|dist)']
 
 " nerdtree
-map <leader>n :NERDTreeToggle<CR>
+map <leader>N :NERDTreeToggle<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
 " syntastic
@@ -85,18 +99,10 @@ nmap <leader>a <Esc>:Ack!
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma
-    set guifont=Source\ Code\ Pro\ for\ Powerline
+    set guifont=Source\ Code\ Pro\ Light\ for\ Powerline
     colorscheme atom-dark
 endif
 
 " set .pp to ruby filetye for syntax highlighting
 au BufNewFile,BufRead *.pp set filetype=ruby
 
-" indentation rules for javascript
-au BufNewFile,BufRead *.js set tabstop=2 softtabstop=4 shiftwidth=4 expandtab
-
-" tell vim where to put its backup files
-set backupdir=/private/tmp
-
-" tell vim where to put swap files
-set dir=/private/tmp
