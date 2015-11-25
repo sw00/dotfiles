@@ -46,9 +46,6 @@
 [submodule "vim/bundle/sleuth"]
 	path = vim/bundle/sleuth
 	url = https://github.com/tpope/vim-sleuth.git
-[submodule "powerline"]
-	path = powerline
-	url = https://github.com/Lokaltog/powerline
 [submodule "vim/bundle/numbers"]
 	path = vim/bundle/numbers
 	url = https://github.com/myusuf3/numbers.vim.git
