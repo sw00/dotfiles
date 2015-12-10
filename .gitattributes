@@ -1,0 +1,1 @@
+crypt/mopidy.conf filter=git-crypt diff=git-crypt
