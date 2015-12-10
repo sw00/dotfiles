@@ -14,6 +14,11 @@ set number
 " highlight line
 set cursorline
 
+" speed up vim
+set ttyfast
+set lazyredraw
+set synmaxcol=120
+
 " highlight search term
 set hlsearch
 " only case-sensitive when search term contains uppercase
