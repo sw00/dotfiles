@@ -24,11 +24,12 @@ set hlsearch
 " only case-sensitive when search term contains uppercase
 set ignorecase smartcase
 
-" don't backup at all
-set nobackup
-set nowritebackup
+" set swapfile and backupdir
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
+
+"shell config
+set shell=/bin/zsh\ -l
 
 " read file automatically when changed outside of vim
 set autoread
@@ -39,8 +40,8 @@ map :Q<CR> :q<CR>
 "clipboard support for osx
 if has("macunix")
     set clipboard=unnamed
-"    vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
-"    imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+    vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
+    imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 endif
 
 " enable powerline fonts
@@ -59,6 +60,9 @@ map <c-h> <c-w>h
 
 " maximise current window without closing others
 map <F5> <C-W>_<C-W><Bar>
+
+" allow switching buffers without saving
+set hidden
 
 " cycle buffers like this
 nnoremap <Tab> :bn<CR>
@@ -90,8 +94,10 @@ endif
 
 " ctrl-p
 let g:ctrlp_custom_ignore = ['\v[\/](bower_components|node_modules|target|dist)']
+nnoremap <C-P><C-P> :CtrlPBuffer<CR>
 
 " nerdtree
+map <F3> :NERDTreeFind<CR>
 map <leader>N :NERDTreeToggle<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
