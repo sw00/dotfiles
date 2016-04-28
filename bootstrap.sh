@@ -23,7 +23,18 @@ function tmux(){
     ln -sf "${BASE_DIR}/tmux.conf" ~/.tmux.conf
 }
 
-INIT_LIST=(vim zsh tmux)
+function spacemacs(){
+    echo "Bootstrapping spacemacs config"
+    ln -sf "${BASE_DIR}/spacemacs" ~/.spacemacs
+}
+
+function leiningen(){
+    echo "Bootstrapping leiningen config"
+    [[ ! -d ~/.lein ]] && mkdir ~/.lein
+    ln -sf "${BASE_DIR}/lein/profiles.clj" ~/.lein/profiles.clj
+}
+
+INIT_LIST=(vim zsh tmux spacemacs leiningen)
 
 for func in ${INIT_LIST[@]}
 do
