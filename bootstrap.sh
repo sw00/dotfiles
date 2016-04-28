@@ -41,3 +41,5 @@ do
     $func
     unset $func
 done
+
+unset BASE_DIR
