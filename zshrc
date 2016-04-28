@@ -28,15 +28,6 @@ export EDITOR=vim
 # the PATH
 PATH=/usr/local/bin:/usr/local/sbin:$PATH
 
-# load local aliases
-[[ -f ~/.aliases ]] && source ~/.aliases
-
-# load local config
-[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
-
-# use z
-. `brew --prefix`/etc/profile.d/z.sh
-
 # extraction magick
 extract () {
     if [ -f $1 ] ; then
@@ -57,3 +48,20 @@ extract () {
         echo "'$1' is not a valid file"
     fi
 }
+
+# idempotent path add
+pathadd() {
+    if [ -d "$1" ] && [[ ":$PATH:" != *":$1:"* ]]; then
+        export PATH="${PATH:+"$PATH:"}$1"
+    fi
+}
+
+# load local aliases
+[[ -f ~/.aliases ]] && source ~/.aliases
+
+# load local config
+[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+
+# use z
+. `brew --prefix`/etc/profile.d/z.sh
+
