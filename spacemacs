@@ -250,6 +250,27 @@ layers configuration.
 This is the place where most of your configurations should be done. Unless it is
 explicitly specified that a variable should be set before a package is loaded,
 you should place your code here."
+  (add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
+
+  ;; paredit mappings to behave like legendary tpope's
+  ;; https://github.com/tpope/vim-sexp-mappings-for-regular-people
+  (define-key evil-normal-state-map ">)" 'paredit-forward-slurp-sexp)
+  (define-key evil-normal-state-map "<)" paredit-forward-barf-sexp)
+  (define-key evil-normal-state-map "<(" paredit-backward-slurp-sexp)
+  (define-key evil-normal-state-map ">(" paredit-backward-barf-sexp)
+
+  (define-key evil-normal-state-map "cse(" paredit-surround-round)
+  (define-key evil-normal-state-map "cse)" paredit-surround-round)
+
+  (define-key evil-normal-state-map "cse[" paredit-surround-square)
+  (define-key evil-normal-state-map "cse]" paredit-surround-square)
+
+  (define-key evil-normal-state-map "cse{" paredit-surround-curly)
+  (define-key evil-normal-state-map "cse}" paredit-surround-curly)
+
+  (define-key evil-normal-state-map "cse<" paredit-surround-angled)
+  (define-key evil-normal-state-map "cse>" paredit-surround-angled)
+
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
