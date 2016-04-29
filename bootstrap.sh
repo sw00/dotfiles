@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-BASE_DIR="$(dirname ${BASH_SOURCE})"
+BASE_DIR="$(pwd ${BASH_SOURCE})"
 cd $BASE_DIR;
 
 git pull origin master;
