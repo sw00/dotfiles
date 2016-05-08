@@ -7,9 +7,15 @@ execute pathogen#infect()
 " set colorscheme
 colorscheme grb256
 
+" remap leader key
+let mapleader=","
+
 " set line numbering
 noremap <F2> :NumbersToggle<CR>
 set number
+
+" Switch between the last two files
+nnoremap <leader><leader> <c-^>
 
 " highlight line
 set cursorline
@@ -29,7 +35,7 @@ set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 
 "shell config
-set shell=/bin/zsh\ -l
+set shell=/usr/local/bin/zsh\ -l
 
 " read file automatically when changed outside of vim
 set autoread
@@ -58,9 +64,6 @@ map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
 
-" maximise current window without closing others
-map <F5> <C-W>_<C-W><Bar>
-
 " allow switching buffers without saving
 set hidden
 
@@ -72,10 +75,17 @@ nnoremap <S-Tab> :bp<CR>
 nmap <C-b>q :BD<CR>
 nmap <C-b>c :bd<CR>
 
+"rails vim
+nmap <silent> <leader>t :TestNearest<CR>
+nmap <silent> <leader>T :TestFile<CR>
+nmap <silent> <leader>a :TestSuite<CR>
+nmap <silent> <leader>l :TestLast<CR>
+nmap <silent> <leader>g :TestVisit<CR>
+
 "taglist
 let Tlist_Use_Right_Window = 1
 let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
-map <leader>t :TlistToggle<CR>
+map <F2> :TlistToggle<CR>
 
 " The Silver Searcher
 if executable('ag')
