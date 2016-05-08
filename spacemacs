@@ -10,7 +10,7 @@ values."
    ;; Base distribution to use. This is a layer contained in the directory
    ;; `+distribution'. For now available distributions are `spacemacs-base'
    ;; or `spacemacs'. (default 'spacemacs)
-   dotspacemacs-distribution 'spacemacs-base
+   dotspacemacs-distribution 'spacemacs
    ;; List of additional paths where to look for configuration layers.
    ;; Paths must have a trailing slash (i.e. `~/.mycontribs/')
    dotspacemacs-configuration-layer-path '()
@@ -41,7 +41,7 @@ values."
    ;; wrapped in a layer. If you need some configuration for these
    ;; packages, then consider creating a layer. You can also put the
    ;; configuration in `dotspacemacs/user-config'.
-   dotspacemacs-additional-packages '(evil-paredit)
+   dotspacemacs-additional-packages '()
    ;; A list of packages and/or extensions that will not be install and loaded.
    dotspacemacs-excluded-packages '()
    ;; If non-nil spacemacs will delete any orphan packages, i.e. packages that
@@ -250,27 +250,8 @@ layers configuration.
 This is the place where most of your configurations should be done. Unless it is
 explicitly specified that a variable should be set before a package is loaded,
 you should place your code here."
-  (add-hook 'emacs-lisp-mode-hook 'evil-paredit-mode)
-
-  ;; paredit mappings to behave like legendary tpope's
-  ;; https://github.com/tpope/vim-sexp-mappings-for-regular-people
-  (define-key evil-normal-state-map ">)" 'paredit-forward-slurp-sexp)
-  (define-key evil-normal-state-map "<)" paredit-forward-barf-sexp)
-  (define-key evil-normal-state-map "<(" paredit-backward-slurp-sexp)
-  (define-key evil-normal-state-map ">(" paredit-backward-barf-sexp)
-
-  (define-key evil-normal-state-map "cse(" paredit-surround-round)
-  (define-key evil-normal-state-map "cse)" paredit-surround-round)
-
-  (define-key evil-normal-state-map "cse[" paredit-surround-square)
-  (define-key evil-normal-state-map "cse]" paredit-surround-square)
-
-  (define-key evil-normal-state-map "cse{" paredit-surround-curly)
-  (define-key evil-normal-state-map "cse}" paredit-surround-curly)
-
-  (define-key evil-normal-state-map "cse<" paredit-surround-angled)
-  (define-key evil-normal-state-map "cse>" paredit-surround-angled)
-
+  ;; use paredit-like bindings
+  (sp-use-paredit-bindings)
   )
 
 ;; Do not write anything past this comment. This is where Emacs will
