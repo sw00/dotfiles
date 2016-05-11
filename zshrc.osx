@@ -55,6 +55,9 @@ source $(brew --prefix nvm)/nvm.sh
 # QT 5.2
 pathadd "/usr/local/Cellar/qt52/5.2.1/bin"
 
+# MONO
+export MONO_GAC_PREFIX="/usr/local"
+
 # easy local docker initialisation
 docker_init(){
   if [[ $1 = "" ]]; then
