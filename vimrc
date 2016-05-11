@@ -10,8 +10,10 @@ colorscheme grb256
 " remap leader key
 let mapleader=","
 
+" quick save
+nnoremap <F2> :w<CR>
+
 " set line numbering
-noremap <F2> :NumbersToggle<CR>
 set number
 
 " Switch between the last two files
@@ -53,7 +55,7 @@ endif
 " enable powerline fonts
 let g:airline_powerline_fonts=1
 " enable airline bufflist
-let g:airline#extensions#tabline#enabled = 1
+" let g:airline#extensions#tabline#enabled = 1
 
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
@@ -85,7 +87,7 @@ nmap <silent> <leader>g :TestVisit<CR>
 "taglist
 let Tlist_Use_Right_Window = 1
 let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
-map <F2> :TlistToggle<CR>
+map <F7> :TlistToggle<CR>
 
 " The Silver Searcher
 if executable('ag')
@@ -99,24 +101,27 @@ if executable('ag')
   let g:ctrlp_use_caching = 0
 
   " use ag with ack.vim
-  let g:ackprg = 'ag --nogroup --nocolor --column'
+"  let g:ackprg = 'ag --nogroup --nocolor --column'
+  let g:ackprg = 'ag --vimgrep'
 endif
+
+" ack.vim
+nmap <leader>a <Esc>:Ack!
 
 " ctrl-p
 let g:ctrlp_custom_ignore = ['\v[\/](bower_components|node_modules|target|dist)']
+
 nnoremap <C-P><C-P> :CtrlPBuffer<CR>
 
 " nerdtree
-map <F3> :NERDTreeFind<CR>
-map <leader>N :NERDTreeToggle<CR>
+nmap <silent> <F3> :NERDTreeToggle<CR>
+nmap <F3><F3> :NERDTreeFind<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
 " syntastic
 let g:syntastic_mode_map = { 'mode': 'passive',
                            \ 'active_filetypes': ['python', 'javascript', 'coffeescript'],
                            \ 'passive_filetypes': ['puppet'] }
-nmap <leader>a <Esc>:Ack!
-
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma
