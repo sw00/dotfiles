@@ -7,9 +7,6 @@
 [submodule "vim/bundle/syntastic"]
 	path = vim/bundle/syntastic
 	url = https://github.com/scrooloose/syntastic.git
-[submodule "tag-linux/urxvt/perls"]
-	path = tag-linux/urxvt/perls
-	url = https://github.com/muennich/urxvt-perls.git
 [submodule "vim/bundle/nerdtree"]
 	path = vim/bundle/nerdtree
 	url = https://github.com/scrooloose/nerdtree.git
