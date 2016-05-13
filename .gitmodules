@@ -21,13 +21,13 @@
 	url = https://github.com/ervandew/supertab.git
 [submodule "vim/bundle/virtualenv"]
 	path = vim/bundle/virtualenv
-	url = git://github.com/jmcantrell/vim-virtualenv.git
+	url = https://github.com/jmcantrell/vim-virtualenv.git
 [submodule "oh-my-zsh"]
 	path = oh-my-zsh
-	url = git://github.com/robbyrussell/oh-my-zsh.git
+	url = https://github.com/robbyrussell/oh-my-zsh.git
 [submodule "vim/bundle/jedi-vim"]
 	path = vim/bundle/jedi-vim
-	url = git://github.com/davidhalter/jedi-vim.git
+	url = https://github.com/davidhalter/jedi-vim.git
 [submodule "vim/bundle/ack"]
 	path = vim/bundle/ack
 	url = https://github.com/mileszs/ack.vim.git
@@ -48,16 +48,16 @@
 	url = https://github.com/bling/vim-airline.git
 [submodule "vim/bundle/coffee-script"]
 	path = vim/bundle/coffee-script
-	url = git@github.com:kchmck/vim-coffee-script.git
+	url = https://github.com/kchmck/vim-coffee-script.git
 [submodule "vim/bundle/tern"]
 	path = vim/bundle/tern
-	url = git@github.com:marijnh/tern_for_vim.git
+	url = https://github.com/marijnh/tern_for_vim.git
 [submodule "vim/bundle/vim-rails"]
 	path = vim/bundle/vim-rails
-	url = git@github.com:tpope/vim-rails.git
+	url = https://github.com/tpope/vim-rails.git
 [submodule "vim/bundle/vim-test"]
 	path = vim/bundle/vim-test
-	url = git@github.com:janko-m/vim-test.git
+	url = https://github.com/janko-m/vim-test.git
 [submodule "vim/bundle/vim-commentary"]
 	path = vim/bundle/vim-commentary
-	url = git@github.com:tpope/vim-commentary.git
+	url = https://github.com/tpope/vim-commentary.git
