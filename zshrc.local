@@ -1,59 +1,52 @@
-# run any .[directory]rc file when cding
-#function DirectoryRC {
-#  export DIRRC=".${PWD##*/}rc"
-#
-#  if [[ -r $DIRRC ]]; then
-#    echo "±§± RC file found, running $DIRRC"
-#    . ${PWD}/$DIRRC
-#  fi
-#}
-#
-#chpwd_functions=(${chpwd_functions[@]} "DirectoryRC")
-
 # osx locale stuff
 export LC_ALL=en_GB.UTF-8
 export LANG=en_GB.UTF-8
- 
-# don't use system python path
-export PYTHONPATH=$(brew --prefix)/lib/python2.7/site-packages:$PYTHONPATH
+
+# PATH shenanigans
+
+# local user's bin
+pathadd "$HOME/bin"
+
+# powerline
+pathadd "/Users/sett/dotfiles/powerline/scripts"
 
 # golang path
 pathadd "/usr/local/opt/go/libexec/bin"
- 
+
+# android tools
+pathadd "$ANDROIDSDK/tools:$ANDROIDSDK/platform-tools"
+
+# QT 5.2
+pathadd "/usr/local/Cellar/qt52/5.2.1/bin"
+
+# use brew python's site-packages instead of system
+export PYTHONPATH=$(brew --prefix)/lib/python2.7/site-packages:$PYTHONPATH
+
 #zsh completions
 fpath=(/usr/local/share/zsh-completions $fpath)
-source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
- 
+
 #rbenv/shims autocompletion
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
- 
+
 # source virtualenvwrapper
-#source /usr/local/bin/virtualenvwrapper.sh
+[[ -f /usr/local/bin/virtualenvwrapper.sh ]] && source /usr/local/bin/virtualenvwrapper.sh
 PIP_REQUIRE_VIRTUALENV=true
- 
+
 # android sdk installation for phonegap and stuff
 ANDROIDSDK=$HOME/Development/adt-bundle-mac-x86_64-20130917/sdk
 ANDROIDNDK=$HOME/Development/android-ndk-r9
 ANDROIDNDKVER=r9
 ANDROIDAPI=18
-pathadd "$ANDROIDSDK/tools:$ANDROIDSDK/platform-tools"
-
-# powerline
-pathadd "/Users/sett/dotfiles/powerline/scripts"
-
-# local user's bin
-pathadd "$HOME/bin"
 
 # JAVA
 export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_31.jdk/Contents/Home"
 #export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.7.0_76.jdk/Contents/Home"
 
 # NVM
-export NVM_DIR=~/.nvm
-source $(brew --prefix nvm)/nvm.sh
-
-# QT 5.2
-pathadd "/usr/local/Cellar/qt52/5.2.1/bin"
+if [[ $(type -f nvm) ]]; then
+  export NVM_DIR=~/.nvm
+  source $(brew --prefix nvm)/nvm.sh
+fi
 
 # MONO
 export MONO_GAC_PREFIX="/usr/local"
