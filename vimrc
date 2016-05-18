@@ -36,9 +36,6 @@ set ignorecase smartcase
 set backupdir=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 
-"shell config
-set shell=/usr/local/bin/zsh\ -l
-
 " read file automatically when changed outside of vim
 set autoread
 
@@ -120,7 +117,7 @@ let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn'
 
 " syntastic
 let g:syntastic_mode_map = { 'mode': 'passive',
-                           \ 'active_filetypes': ['python', 'javascript', 'coffeescript'],
+                           \ 'active_filetypes': ['python', 'javascript', 'coffeescript', 'ruby'],
                            \ 'passive_filetypes': ['puppet'] }
 " set the gui options and stuff
 if has("gui_running")
