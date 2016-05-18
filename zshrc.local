@@ -66,3 +66,11 @@ docker_init(){
   [[ $(docker-machine status "$MACHINE") != "Running" ]] && docker-machine start dev
   eval $(docker-machine env "$MACHINE")
 }
+
+docker_deinit(){
+  unset DOCKER_TLS_VERIFY
+  unset DOCKER_HOST
+  unset DOCKER_CERT_PATH
+  unset DOCKER_MACHINE_NAME
+}
+
