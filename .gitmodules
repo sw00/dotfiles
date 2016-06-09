@@ -64,3 +64,6 @@
 [submodule "vim/bundle/vim-ruby"]
 	path = vim/bundle/vim-ruby
 	url = https://github.com/vim-ruby/vim-ruby.git
+[submodule "vim/bundle/apiblueprint"]
+	path = vim/bundle/apiblueprint
+	url = https://github.com/kylef/apiblueprint.vim.git
