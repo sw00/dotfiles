@@ -122,7 +122,7 @@ let g:syntastic_mode_map = { 'mode': 'passive',
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma
-    set guifont=Source\ Code\ Pro\ Light\ for\ Powerline
+    set guifont=Source\ Code\ Pro\ for\ Powerline
     colorscheme atom-dark
 endif
 
