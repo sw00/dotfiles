@@ -47,10 +47,10 @@ export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_31.jdk/Contents/Hom
 #export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.7.0_76.jdk/Contents/Home"
 
 # NVM
-#if [[ $(which nvm) ]]; then
-#  export NVM_DIR=~/.nvm
-#  source $(brew --prefix nvm)/nvm.sh
-#fi
+if [[ $(which nvm) ]]; then
+  export NVM_DIR=~/.nvm
+  source $(brew --prefix nvm)/nvm.sh
+fi
 
 # MONO
 export MONO_GAC_PREFIX="/usr/local"
