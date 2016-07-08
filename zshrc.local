@@ -51,6 +51,9 @@ fi
 # MONO
 export MONO_GAC_PREFIX="/usr/local"
 
+# DotNET
+source dnvm.sh
+
 # easy local docker initialisation
 docker_init(){
   if [[ $1 = "" ]]; then
