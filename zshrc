@@ -65,3 +65,4 @@ pathadd() {
 # load local config
 [[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
 
+[[ -f ~/.secrets.sh ]] && source ~/.secrets.sh
