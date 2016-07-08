@@ -4,9 +4,6 @@ promptinit
 
 prompt walters
 
-# the PATH
-PATH=/usr/local/bin:/usr/local/sbin:$PATH
-
 # use z
 . `brew --prefix`/etc/profile.d/z.sh
 
