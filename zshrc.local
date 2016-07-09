@@ -2,26 +2,6 @@
 export LC_ALL=en_GB.UTF-8
 export LANG=en_GB.UTF-8
 
-# PATH shenanigans
-
-# local user's bin
-pathadd "$HOME/bin"
-
-# powerline
-pathadd "/Users/sett/dotfiles/powerline/scripts"
-
-# golang path
-pathadd "/usr/local/opt/go/libexec/bin"
-
-# android tools
-pathadd "$ANDROIDSDK/tools:$ANDROIDSDK/platform-tools"
-
-# QT 5.2
-pathadd "/usr/local/Cellar/qt52/5.2.1/bin"
-
-# pyenv
-if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
-
 #zsh completions
 fpath=(/usr/local/share/zsh-completions $fpath)
 
@@ -29,47 +9,23 @@ fpath=(/usr/local/share/zsh-completions $fpath)
 [[ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
   source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
-#rbenv/shims autocompletion
+# PATH shenanigans
+pathadd "$HOME/bin"
+pathadd "/Users/sett/dotfiles/powerline/scripts"
+
+# pyenv
+if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
+
+# rbenv
 if which rbenv > /dev/null; then eval "$(rbenv init -)"; fi
 
-# android sdk installation for phonegap and stuff
-ANDROIDSDK=$HOME/Development/adt-bundle-mac-x86_64-20130917/sdk
-ANDROIDNDK=$HOME/Development/android-ndk-r9
-ANDROIDNDKVER=r9
-ANDROIDAPI=18
+# nodenv
+if which nodenv > /dev/null; then eval "$(nodenv init -)"; fi
 
 # JAVA
 export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_31.jdk/Contents/Home"
 #export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.7.0_76.jdk/Contents/Home"
 
-# NVM
-# if [[ $(which nvm) ]]; then
-#   export NVM_DIR=~/.nvm
-#   source $(brew --prefix nvm)/nvm.sh
-# fi
-
-# MONO
-export MONO_GAC_PREFIX="/usr/local"
-
 # DotNET
 source dnvm.sh
-
-# easy local docker initialisation
-docker_init(){
-  if [[ $1 = "" ]]; then
-    MACHINE="dev"
-  else
-    MACHINE=$1
-  fi
-
-  [[ $(docker-machine status "$MACHINE") != "Running" ]] && docker-machine start dev
-  eval $(docker-machine env "$MACHINE")
-}
-
-docker_deinit(){
-  unset DOCKER_TLS_VERIFY
-  unset DOCKER_HOST
-  unset DOCKER_CERT_PATH
-  unset DOCKER_MACHINE_NAME
-}
 
