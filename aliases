@@ -1,3 +1,10 @@
 alias abacaxi="brew update && brew doctor && brew outdated"
 alias doco="docker-compose"
 alias doma=docker-machine
+
+# git
+alias gco="git checkout"
+alias gst="git status"
+alias gc="git commit"
+alias ga="git add"
+alias gl="git log"
