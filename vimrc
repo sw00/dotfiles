@@ -49,11 +49,6 @@ if has("macunix")
     imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 endif
 
-" enable powerline fonts
-let g:airline_powerline_fonts=1
-" enable airline bufflist
-" let g:airline#extensions#tabline#enabled = 1
-
 "supertab
 let g:SuperTabDefaultCompletionType = "context"
 
