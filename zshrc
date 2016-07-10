@@ -4,6 +4,9 @@ promptinit
 
 prompt walters
 
+# case insensitive tab completion
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
 # use z
 . `brew --prefix`/etc/profile.d/z.sh
 
