@@ -25,6 +25,7 @@ values."
      ;; ----------------------------------------------------------------
      ;; auto-completion
      ;; better-defaults
+     osx
      emacs-lisp
      clojure
      ;; git
