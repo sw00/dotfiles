@@ -5,7 +5,7 @@ set nocompatible
 execute pathogen#infect()
 
 " set colorscheme
-colorscheme grb256
+colorscheme onedark
 
 " remap leader key
 let mapleader=","
