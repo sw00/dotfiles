@@ -26,6 +26,11 @@ extract () {
     fi
 }
 
+# get backgrounded job
+bg_job () {
+  jobs | awk '{ print $4 }'
+}
+
 # easy local docker initialisation
 docker_init () {
   if [[ $1 = "" ]]; then
