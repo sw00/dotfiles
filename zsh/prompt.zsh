@@ -5,9 +5,10 @@ zstyle ':vcs_info:git:*' stagedstr '%B%F{yellow}+%f%b'
 zstyle ':vcs_info:git:*' formats '[%b%c]'
 zstyle ':vcs_info:git:*' check-for-staged-changes true
 
+job="%1(j.%B%F{red}*%f%b.)"
+PROMPT="%B%(?..[%?] )%b%n@%U%m%u$job> "
+
 set_prompt() { 
-	job="%1(j.%B%F{red}*%f%b.)"
-	PROMPT="%B%(?..[%?] )%b%n@%U%m%u$job> "
 	RPROMPT="%F{green}%16<..<%~%f%<< $vcs_info_msg_0_"
 }
 
