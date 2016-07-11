@@ -2,6 +2,8 @@ autoload -Uz compinit promptinit
 compinit
 promptinit
 
+export EDITOR="/usr/local/bin/vim"
+
 # case insensitive tab completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
