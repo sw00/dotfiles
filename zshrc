@@ -4,6 +4,8 @@ promptinit
 
 export EDITOR="/usr/local/bin/vim"
 
+bindkey '^R' history-incremental-search-backward
+
 # case insensitive tab completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
