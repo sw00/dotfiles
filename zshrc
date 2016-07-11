@@ -2,8 +2,6 @@ autoload -Uz compinit promptinit
 compinit
 promptinit
 
-prompt walters
-
 # case insensitive tab completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
@@ -11,7 +9,9 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 . `brew --prefix`/etc/profile.d/z.sh
 
 # load zsh functions
-[[ -f ~/.zsh/functions ]] && source ~/.zsh/functions
+for function in ~/.zsh/*; do
+  source $function
+done
 
 # load local aliases
 [[ -f ~/.aliases ]] && source ~/.aliases
