@@ -3,6 +3,8 @@ compinit
 promptinit
 
 export EDITOR="/usr/local/bin/vim"
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE="10000"
 
 bindkey '^R' history-incremental-search-backward
 
