@@ -1,3 +1,4 @@
 config/mopidy/mopidy.conf filter=git-crypt diff=git-crypt
 ssh/** filter=git-crypt diff=git-crypt
 secrets.sh filter=git-crypt diff=git-crypt
+exercism.json filter=git-crypt diff=git-crypt
