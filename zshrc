@@ -7,6 +7,7 @@ HISTFILE="$HOME/.zsh_history"
 HISTSIZE="10000"
 
 bindkey '^R' history-incremental-search-backward
+bindkey -e # emacs prompt
 
 # case insensitive tab completion
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
