@@ -43,21 +43,12 @@
 [submodule "vim/bundle/tern"]
 	path = vim/pack/sw00/start/tern
 	url = https://github.com/marijnh/tern_for_vim.git
-[submodule "vim/bundle/vim-rails"]
-	path = vim/bundle/vim-rails
-	url = https://github.com/tpope/vim-rails.git
-[submodule "vim/bundle/vim-test"]
-	path = vim/bundle/vim-test
-	url = https://github.com/janko-m/vim-test.git
 [submodule "vim/bundle/vim-commentary"]
 	path = vim/pack/sw00/start/vim-commentary
 	url = https://github.com/tpope/vim-commentary.git
 [submodule "vim/bundle/vim-ruby"]
-	path = vim/bundle/vim-ruby
+	path = vim/pack/sw00/start/vim-ruby
 	url = https://github.com/vim-ruby/vim-ruby.git
-[submodule "vim/bundle/apiblueprint"]
-	path = vim/bundle/apiblueprint
-	url = https://github.com/kylef/apiblueprint.vim.git
 [submodule "vim/bundle/lightline"]
 	path = vim/pack/sw00/start/lightline
 	url = https://github.com/itchyny/lightline.vim.git

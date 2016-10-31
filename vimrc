@@ -1,9 +1,6 @@
 " because this is 2013
 set nocompatible
 
-" load pathogen modules
-execute pathogen#infect()
-
 " set colorscheme
 colorscheme onedark
 
