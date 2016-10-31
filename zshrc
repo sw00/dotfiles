@@ -2,9 +2,19 @@ autoload -Uz compinit promptinit
 compinit
 promptinit
 
-export EDITOR="/usr/local/bin/vim"
+export EDITOR="vi"
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE="10000"
+SAVEHIST="10000"
+
+setopt APPEND_HISTORY
+setopt SHARE_HISTORY
+setopt INC_APPEND_HISTORY
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_VERIFY
+
+setopt AUTO_CD
 
 bindkey '^R' history-incremental-search-backward
 bindkey -e # emacs prompt
