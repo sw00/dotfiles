@@ -1,47 +1,47 @@
 [submodule "vim/bundle/fugitive"]
-	path = vim/bundle/fugitive
+	path = vim/pack/sw00/start/fugitive
 	url = https://github.com/tpope/vim-fugitive.git
 [submodule "vim/bundle/surround"]
-	path = vim/bundle/surround
+	path = vim/pack/sw00/start/surround
 	url = https://github.com/tpope/vim-surround.git
 [submodule "vim/bundle/syntastic"]
-	path = vim/bundle/syntastic
+	path = vim/pack/sw00/start/syntastic
 	url = https://github.com/scrooloose/syntastic.git
 [submodule "vim/bundle/nerdtree"]
-	path = vim/bundle/nerdtree
+	path = vim/pack/sw00/start/nerdtree
 	url = https://github.com/scrooloose/nerdtree.git
 [submodule "vim/bundle/json"]
-	path = vim/bundle/json
+	path = vim/pack/sw00/start/json
 	url = https://github.com/elzr/vim-json.git
 [submodule "vim/bundle/ctrlp"]
-	path = vim/bundle/ctrlp
+	path = vim/pack/sw00/start/ctrlp
 	url = https://github.com/kien/ctrlp.vim.git
 [submodule "vim/bundle/supertab"]
-	path = vim/bundle/supertab
+	path = vim/pack/sw00/start/supertab
 	url = https://github.com/ervandew/supertab.git
 [submodule "vim/bundle/jedi-vim"]
-	path = vim/bundle/jedi-vim
+	path = vim/pack/sw00/start/jedi-vim
 	url = https://github.com/davidhalter/jedi-vim.git
 [submodule "vim/bundle/ack"]
-	path = vim/bundle/ack
+	path = vim/pack/sw00/start/ack
 	url = https://github.com/mileszs/ack.vim.git
 [submodule "vim/bundle/bufkill"]
-	path = vim/bundle/bufkill
+	path = vim/pack/sw00/start/bufkill
 	url = https://github.com/vim-scripts/bufkill.vim.git
 [submodule "vim/bundle/sensible"]
-	path = vim/bundle/sensible
+	path = vim/pack/sw00/start/sensible
 	url = https://github.com/tpope/vim-sensible.git
 [submodule "vim/bundle/sleuth"]
-	path = vim/bundle/sleuth
+	path = vim/pack/sw00/start/sleuth
 	url = https://github.com/tpope/vim-sleuth.git
 [submodule "vim/bundle/numbers"]
-	path = vim/bundle/numbers
+	path = vim/pack/sw00/start/numbers
 	url = https://github.com/myusuf3/numbers.vim.git
 [submodule "vim/bundle/coffee-script"]
 	path = vim/bundle/coffee-script
 	url = https://github.com/kchmck/vim-coffee-script.git
 [submodule "vim/bundle/tern"]
-	path = vim/bundle/tern
+	path = vim/pack/sw00/start/tern
 	url = https://github.com/marijnh/tern_for_vim.git
 [submodule "vim/bundle/vim-rails"]
 	path = vim/bundle/vim-rails
@@ -50,7 +50,7 @@
 	path = vim/bundle/vim-test
 	url = https://github.com/janko-m/vim-test.git
 [submodule "vim/bundle/vim-commentary"]
-	path = vim/bundle/vim-commentary
+	path = vim/pack/sw00/start/vim-commentary
 	url = https://github.com/tpope/vim-commentary.git
 [submodule "vim/bundle/vim-ruby"]
 	path = vim/bundle/vim-ruby
@@ -59,5 +59,5 @@
 	path = vim/bundle/apiblueprint
 	url = https://github.com/kylef/apiblueprint.vim.git
 [submodule "vim/bundle/lightline"]
-	path = vim/bundle/lightline
+	path = vim/pack/sw00/start/lightline
 	url = https://github.com/itchyny/lightline.vim.git
