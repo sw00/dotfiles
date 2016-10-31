@@ -29,3 +29,6 @@ data.location=~/ownCloud/tasks
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/solarized-light-256.theme
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/no-color.theme
 
+context.mhisa=+mhisa or project:mhisa
+context.tw=+tw
+context.nb=+nb
