@@ -52,3 +52,6 @@
 [submodule "vim/bundle/lightline"]
 	path = vim/pack/sw00/start/lightline
 	url = https://github.com/itchyny/lightline.vim.git
+[submodule "vim/pack/sw00/start/vim-go"]
+	path = vim/pack/sw00/start/vim-go
+	url = https://github.com/fatih/vim-go.git
