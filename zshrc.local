@@ -29,3 +29,5 @@ if which nodenv > /dev/null; then eval "$(nodenv init -)"; fi
 # DotNET
 source dnvm.sh
 
+# Android
+export ANDROID_HOME=/usr/local/opt/android-sdk
