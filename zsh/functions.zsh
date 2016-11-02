@@ -31,18 +31,6 @@ bg_job () {
   jobs | awk '{ print $4 }'
 }
 
-# easy local docker initialisation
-docker_init () {
-  if [[ $1 = "" ]]; then
-    MACHINE="dev"
-  else
-    MACHINE=$1
-  fi
-
-  [[ $(docker-machine status "$MACHINE") != "Running" ]] && docker-machine start dev
-  eval $(docker-machine env "$MACHINE")
-}
-
 docker_deinit () {
   unset DOCKER_TLS_VERIFY
   unset DOCKER_HOST
