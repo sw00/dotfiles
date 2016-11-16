@@ -38,3 +38,7 @@ docker_deinit () {
   unset DOCKER_MACHINE_NAME
 }
 
+mdv () {
+  pandoc $1 | lynx -stdin
+}
+
