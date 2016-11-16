@@ -66,13 +66,6 @@ nnoremap <S-Tab> :bp<CR>
 nmap <C-b>q :BD<CR>
 nmap <C-b>c :bd<CR>
 
-"rails vim
-nmap <silent> <leader>t :TestNearest<CR>
-nmap <silent> <leader>tf :TestFile<CR>
-nmap <silent> <leader>ts :TestSuite<CR>
-nmap <silent> <leader>tl :TestLast<CR>
-nmap <silent> <leader>tv :TestVisit<CR>
-
 "taglist
 let Tlist_Use_Right_Window = 1
 let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
