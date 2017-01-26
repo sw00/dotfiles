@@ -12,7 +12,9 @@ setopt SHARE_HISTORY
 setopt INC_APPEND_HISTORY
 setopt HIST_IGNORE_DUPS
 setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_IGNORE_SPACE
 setopt HIST_VERIFY
+
 
 setopt AUTO_CD
 
@@ -29,6 +31,8 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 for function in ~/.zsh/*; do
   source $function
 done
+
+source /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.zsh
 
 # load local aliases
 [[ -f ~/.aliases ]] && source ~/.aliases

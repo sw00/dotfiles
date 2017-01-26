@@ -36,6 +36,9 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 " read file automatically when changed outside of vim
 set autoread
 
+" disable bell
+set visualbell
+
 " convenience mapping
 map :Q<CR> :q<CR>
 
