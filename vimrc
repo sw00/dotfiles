@@ -1,6 +1,26 @@
 " because this is 2013
 set nocompatible
 
+" Load plugins using vim-plug
+call plug#begin()
+Plug 'tpope/vim-sensible'
+Plug 'tpope/vim-sleuth'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-surround'
+Plug 'tpope/vim-commentary'
+Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
+Plug 'scrooloose/syntastic'
+Plug 'itchyny/lightline.vim'
+Plug 'qpkorr/vim-bufkill'
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+Plug 'mileszs/ack.vim'
+Plug 'ervandew/supertab'
+Plug 'myusuf3/numbers.vim'
+Plug 'elzr/vim-json', { 'for': 'json' }
+Plug 'davidhalter/jedi-vim',  { 'for': 'python' }
+Plug 'marijnh/tern_for_vim', { 'for': 'javascript' }
+call plug#end()
+
 " set colorscheme
 colorscheme onedark
 
