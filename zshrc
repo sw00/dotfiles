@@ -43,3 +43,5 @@ source /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.
 # set secrets
 [[ -f ~/.secrets.sh ]] && source ~/.secrets.sh
 
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh

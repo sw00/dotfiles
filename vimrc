@@ -12,7 +12,7 @@ Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'scrooloose/syntastic'
 Plug 'itchyny/lightline.vim'
 Plug 'qpkorr/vim-bufkill'
-Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } | Plug 'junegunn/fzf.vim'
 Plug 'mileszs/ack.vim'
 Plug 'ervandew/supertab'
 Plug 'myusuf3/numbers.vim'
@@ -42,7 +42,7 @@ set cursorline
 " speed up vim
 set ttyfast
 set lazyredraw
-set synmaxcol=120
+"set synmaxcol=120
 
 " highlight search term
 set hlsearch
@@ -99,12 +99,6 @@ if executable('ag')
   " Use ag over grep
   set grepprg=ag\ --nogroup\ --nocolor
 
-  " Use ag in CtrlP for listing files. Lightning fast and respects .gitignore
-  let g:ctrlp_user_command = 'ag %s -l --nocolor -g ""'
-
-  " ag is fast enough that CtrlP doesn't need to cache
-  let g:ctrlp_use_caching = 0
-
   " use ag with ack.vim
 "  let g:ackprg = 'ag --nogroup --nocolor --column'
   let g:ackprg = 'ag --vimgrep'
@@ -113,13 +107,13 @@ endif
 " ack.vim
 nmap <leader>a <Esc>:Ack!
 
-" ctrl-p
-let g:ctrlp_custom_ignore = ['\v[\/](bower_components|node_modules|target|dist)']
-
-nnoremap <C-P><C-P> :CtrlPBuffer<CR>
+" fzf.vim
+let g:fzf_command_prefix = 'Fzf'
+nnoremap <C-P> :FzfFiles<CR>
+nnoremap <C-P><C-P> :FzfBuffers<CR>
 
 " nerdtree
-nmap <silent> <F3> :NERDTreeToggle<CR>
+map <C-n> :NERDTreeToggle<CR>
 nmap <F3><F3> :NERDTreeFind<CR>
 let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
