@@ -109,6 +109,7 @@ nmap <leader>a <Esc>:Ack!
 
 " fzf.vim
 let g:fzf_command_prefix = 'Fzf'
+let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
 nnoremap <C-P> :FzfFiles<CR>
 nnoremap <C-P><C-P> :FzfBuffers<CR>
 
