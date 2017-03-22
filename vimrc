@@ -19,10 +19,11 @@ Plug 'myusuf3/numbers.vim'
 Plug 'elzr/vim-json', { 'for': 'json' }
 Plug 'davidhalter/jedi-vim',  { 'for': 'python' }
 Plug 'marijnh/tern_for_vim', { 'for': 'javascript' }
+Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
 call plug#end()
 
 " set colorscheme
-colorscheme onedark
+colorscheme grb256
 
 " remap leader key
 let mapleader=","
@@ -110,7 +111,9 @@ nmap <leader>a <Esc>:Ack!
 " fzf.vim
 let g:fzf_command_prefix = 'Fzf'
 let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
-nnoremap <C-P> :FzfFiles<CR>
+nnoremap <C-P> :FzfGFiles<CR>
+nnoremap <C-P>b :FzfBuffers<CR>
+nnoremap <C-T> :FzfFiles<CR>
 nnoremap <C-P><C-P> :FzfBuffers<CR>
 
 " nerdtree
