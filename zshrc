@@ -45,3 +45,4 @@ source /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.
 
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+export PATH="/usr/local/opt/qt/bin:$PATH"
