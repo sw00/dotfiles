@@ -42,3 +42,8 @@ mdv () {
   pandoc $1 | lynx -stdin
 }
 
+# clean __pycache__ files
+pyclean () {
+  find . -regex "\(.*__pycache__.*\|*.py[co]\)" -delete
+}
+
