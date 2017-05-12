@@ -18,6 +18,7 @@ Plug 'ervandew/supertab'
 Plug 'myusuf3/numbers.vim'
 Plug 'elzr/vim-json', { 'for': 'json' }
 Plug 'davidhalter/jedi-vim',  { 'for': 'python' }
+Plug 'lambdalisue/vim-pyenv', { 'for': 'python' }
 Plug 'marijnh/tern_for_vim', { 'for': 'javascript' }
 Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
 call plug#end()
