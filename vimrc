@@ -112,10 +112,23 @@ nmap <leader>a <Esc>:Ack!
 " fzf.vim
 let g:fzf_command_prefix = 'Fzf'
 let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
-nnoremap <C-P> :FzfGFiles<CR>
+nnoremap <C-P> :FzfFiles<CR>
+nnoremap <C-P>g :FzfGFiles<CR>
 nnoremap <C-P>b :FzfBuffers<CR>
-nnoremap <C-T> :FzfFiles<CR>
 nnoremap <C-P><C-P> :FzfBuffers<CR>
+
+" --column: Show column number
+"  " --line-number: Show line number
+"  " --no-heading: Do not show file headings in results
+"  " --fixed-strings: Search term as a literal string
+"  " --ignore-case: Case insensitive search
+"  " --no-ignore: Do not respect .gitignore, etc...
+"  " --hidden: Search hidden files and folders
+"  " --follow: Follow symlinks
+"  " --glob: Additional conditions for search (in this case ignore everything
+"  in the .git/ folder)
+"  " --color: Search color options
+ command! -bang -nargs=* Find call fzf#vim#grep('rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --glob "!.git/*" --color "always" '.shellescape(<q-args>), 1, <bang>0) 
 
 " nerdtree
 map <C-n> :NERDTreeToggle<CR>

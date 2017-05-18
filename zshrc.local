@@ -14,6 +14,9 @@ export PATH="/usr/local/sbin:$PATH"
 pathadd "$HOME/.bin"
 pathadd "/Users/sett/dotfiles/powerline/scripts"
 
+# make fzf use ripgrep for searching
+export FZF_DEFAULT_COMMAND='rg --files --no-ignore --hidden --follow --glob "!.git/*"'
+
 # pyenv
 if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
 if which pyenv-virtualenv-init > /dev/null; then eval "$(pyenv virtualenv-init -)"; fi
