@@ -29,8 +29,5 @@ if which nodenv > /dev/null; then eval "$(nodenv init -)"; fi
 #export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.8.0_31.jdk/Contents/Home"
 #export JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk1.7.0_76.jdk/Contents/Home"
 
-# DotNET
-source dnvm.sh
-
 # Android
 export ANDROID_HOME=/usr/local/opt/android-sdk
