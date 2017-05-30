@@ -14,9 +14,14 @@ export PATH="/usr/local/sbin:$PATH"
 pathadd "$HOME/.bin"
 pathadd "/Users/sett/dotfiles/powerline/scripts"
 
+# Golang
+export PATH=$PATH:/usr/local/opt/go/libexec/bin
+export GOPATH=$HOME/go
+
 # fzf
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 export FZF_DEFAULT_COMMAND='rg --files --no-ignore-parent --follow --hidden --glob "!.git/*"'
+#bindkey '^p' 'vim $(fzf)'
 
 # pyenv
 if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
