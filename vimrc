@@ -121,14 +121,14 @@ nnoremap <C-P><C-P> :FzfBuffers<CR>
    \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
    \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
    \ -g "!*.{min.js,swp,o,zip}" 
-   \ -g "!{.git,node_modules,vendor}/*" '
+   \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
 
  command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
 " nerdtree
 map <C-n> :NERDTreeToggle<CR>
 nmap <F3><F3> :NERDTreeFind<CR>
-let NERDTreeIgnore=['\.pyc', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
+let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
 " syntastic
 let g:syntastic_mode_map = { 'mode': 'passive',
