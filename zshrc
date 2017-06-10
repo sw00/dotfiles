@@ -1,22 +1,32 @@
-autoload -Uz compinit promptinit
-compinit
-promptinit
-
-export EDITOR="vi"
+# ZSH history options
 HISTFILE="$HOME/.zsh_history"
 HISTSIZE="10000"
 SAVEHIST="10000"
 
-setopt APPEND_HISTORY
-setopt SHARE_HISTORY
-setopt INC_APPEND_HISTORY
-setopt HIST_IGNORE_DUPS
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_IGNORE_SPACE
-setopt HIST_VERIFY
+setopt \
+  appendhistory \
+  sharehistory \
+  incappendhistory \
+  histignoredups \
+  histignorealldups \
+  histignorespace \
+  histverify
 
+# ZSH modules
+autoload -Uz compinit promptinit
+compinit
+promptinit
 
-setopt AUTO_CD
+# Miscellaneous
+setopt \
+  autocd \
+  extendedglob \
+  nomatch \
+  notify
+
+unsetopt beep
+
+export EDITOR="vi"
 
 bindkey '^R' history-incremental-search-backward
 bindkey -e # emacs prompt
@@ -42,7 +52,6 @@ source /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.
 
 # set secrets
 [[ -f ~/.secrets.sh ]] && source ~/.secrets.sh
-
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 export PATH="/usr/local/opt/qt/bin:$PATH"
