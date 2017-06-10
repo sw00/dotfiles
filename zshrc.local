@@ -9,19 +9,27 @@ fpath=(/usr/local/share/zsh-completions $fpath)
 [[ -f /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
   source /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+#zsh history subtring search
+[[ -f /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.zsh ]] && \
+  source /usr/local/opt/zsh-history-substring-search/zsh-history-substring-search.zsh
+
+# use z
+. `brew --prefix`/etc/profile.d/z.sh
+
+# fzf
+[[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
+export FZF_DEFAULT_COMMAND='rg --files --no-ignore-parent --follow --hidden --glob "!.git/*"'
+#bindkey '^p' 'vim $(fzf)'
+
 # PATH shenanigans
-export PATH="/usr/local/sbin:$PATH"
-pathadd "$HOME/.bin"
+pathadd "/usr/local/opt/qt/bin"
 pathadd "/Users/sett/dotfiles/powerline/scripts"
+pathadd "$HOME/.bin"
+pathadd "/usr/local/sbin"
 
 # Golang
 export PATH=$PATH:/usr/local/opt/go/libexec/bin
 export GOPATH=$HOME/go
-
-# fzf
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-export FZF_DEFAULT_COMMAND='rg --files --no-ignore-parent --follow --hidden --glob "!.git/*"'
-#bindkey '^p' 'vim $(fzf)'
 
 # pyenv
 if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
