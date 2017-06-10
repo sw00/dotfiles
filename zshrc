@@ -43,9 +43,9 @@ done
 [[ -f ~/.aliases ]] && source ~/.aliases
 
 # load local config
-[[ -f ~/.zshrc.local ]] && source ~/.zshrc.local
+[[ $(uname -s) = 'Darwin' ]] && source ~/.zshrc.osx
+[[ $(uname -s) = 'Linux' ]] && source ~/.zshrc.nix
 
 # set secrets
 [[ -f ~/.secrets.sh ]] && source ~/.secrets.sh
 
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
