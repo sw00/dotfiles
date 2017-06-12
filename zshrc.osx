@@ -1,6 +1,9 @@
-# osx locale stuff
-export LC_ALL=en_GB.UTF-8
-export LANG=en_GB.UTF-8
+# PATH shenanigans
+pathadd "/usr/local/sbin"
+pathadd "/usr/local/opt/qt/bin"
+pathadd "/Users/sett/dotfiles/powerline/scripts"
+pathadd "/usr/local/bin"
+pathadd "$HOME/.bin"
 
 #zsh completions
 fpath=(/usr/local/share/zsh-completions $fpath)
@@ -20,12 +23,6 @@ fpath=(/usr/local/share/zsh-completions $fpath)
 [[ -f ~/.fzf.zsh ]] && source ~/.fzf.zsh
 export FZF_DEFAULT_COMMAND='rg --files --no-ignore-parent --follow --hidden --glob "!.git/*"'
 #bindkey '^p' 'vim $(fzf)'
-
-# PATH shenanigans
-pathadd "/usr/local/opt/qt/bin"
-pathadd "/Users/sett/dotfiles/powerline/scripts"
-pathadd "$HOME/.bin"
-pathadd "/usr/local/sbin"
 
 # Golang
 export PATH=$PATH:/usr/local/opt/go/libexec/bin
