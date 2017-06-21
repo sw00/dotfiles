@@ -49,3 +49,5 @@ done
 # set secrets
 [[ -f ~/.secrets.sh ]] && source ~/.secrets.sh
 
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
