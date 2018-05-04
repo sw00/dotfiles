@@ -36,6 +36,7 @@ export GOPATH=$HOME/go
 # pyenv
 if which pyenv > /dev/null; then eval "$(pyenv init -)"; fi
 if which pyenv-virtualenv-init > /dev/null; then eval "$(pyenv virtualenv-init -)"; fi
+
 export PYENV_VIRTUALENVWRAPPER_PREFER_PYVENV="true"
 
 # rbenv

@@ -24,6 +24,7 @@ Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
 Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'AndrewRadev/splitjoin.vim', { 'for': 'go' }
 Plug 'SirVer/ultisnips'
+Plug 'lervag/vimtex', {'for': 'tex' }
 call plug#end()
 
 " set colorscheme
