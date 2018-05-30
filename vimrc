@@ -25,6 +25,10 @@ Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'AndrewRadev/splitjoin.vim', { 'for': 'go' }
 Plug 'SirVer/ultisnips'
 Plug 'lervag/vimtex', {'for': 'tex' }
+Plug 'vim-pandoc/vim-pandoc', {'for': 'pandoc'}
+Plug 'vim-pandoc/vim-pandoc-syntax', {'for': 'pandoc'}
+Plug 'junegunn/goyo.vim'
+Plug 'junegunn/limelight.vim'
 call plug#end()
 
 " set colorscheme
@@ -38,6 +42,8 @@ nnoremap <F2> :w<CR>
 
 " set line numbering
 set number
+nnoremap <F3> :NumbersToggle<CR>
+nnoremap <F4> :NumbersOnOff<CR>
 
 " Switch between the last two files
 nnoremap <leader><leader> <c-^>
@@ -131,6 +137,12 @@ nnoremap <C-P><C-P> :FzfBuffers<CR>
    \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
 
  command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
+
+" goyo & limelight
+autocmd! User GoyoEnter Limelight
+autocmd! User GoyoLeave Limelight!
+autocmd! User GoyoEnter set nonu nornu
+autocmd! User GoyoLeave set nu rnu
 
 " nerdtree
 map <C-n> :NERDTreeToggle<CR>
