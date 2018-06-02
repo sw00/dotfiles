@@ -29,6 +29,7 @@ Plug 'vim-pandoc/vim-pandoc', {'for': 'pandoc'}
 Plug 'vim-pandoc/vim-pandoc-syntax', {'for': 'pandoc'}
 Plug 'junegunn/goyo.vim'
 Plug 'junegunn/limelight.vim'
+Plug 'soli/prolog-vim'
 call plug#end()
 
 " set colorscheme
