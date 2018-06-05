@@ -3,7 +3,7 @@
 	name = sw00
 	signingkey = keybase.io/sw00
 [core]
-	editor = $EDITOR
+	editor = vim
 [color]
 	diff = auto
 	status = auto
