@@ -4,6 +4,7 @@ set -U EDITOR vim
 set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
 
 # pyenv-virtualenv
+status --is-interactive; and source (pyenv init -|psub)
 status --is-interactive; and source (pyenv virtualenv-init -|psub)
 
 # Aliases
