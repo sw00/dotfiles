@@ -9,7 +9,7 @@ Plug 'tpope/vim-fugitive'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-commentary'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
-Plug 'scrooloose/syntastic'
+Plug 'w0rp/ale'
 Plug 'itchyny/lightline.vim'
 Plug 'qpkorr/vim-bufkill'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } | Plug 'junegunn/fzf.vim'
@@ -18,7 +18,6 @@ Plug 'ervandew/supertab'
 Plug 'myusuf3/numbers.vim'
 Plug 'elzr/vim-json', { 'for': 'json' }
 Plug 'davidhalter/jedi-vim',  { 'for': 'python' }
-Plug 'lambdalisue/vim-pyenv', { 'for': 'python' }
 Plug 'marijnh/tern_for_vim', { 'for': 'javascript' }
 Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
 Plug 'fatih/vim-go', { 'for': 'go' }
@@ -150,10 +149,9 @@ map <C-n> :NERDTreeToggle<CR>
 nmap <F3><F3> :NERDTreeFind<CR>
 let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
-" syntastic
-let g:syntastic_mode_map = { 'mode': 'passive',
-                           \ 'active_filetypes': ['python', 'javascript', 'coffeescript', 'ruby'],
-                           \ 'passive_filetypes': ['puppet'] }
+" ALE
+let g:ale_lint_on_text_changed = 'never'
+
 " set the gui options and stuff
 if has("gui_running")
     set guioptions=egma

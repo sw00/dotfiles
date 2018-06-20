@@ -2,19 +2,20 @@
 set smarttab
 set foldmethod=indent
 
-" tabs
-set tabstop=4
-set shiftwidth=4
-set smartindent
+" tabs & spaces
+set textwidth=79  " lines longer than 79 columns will be broken
+set shiftwidth=4  " operation >> indents 4 columns; << unindents 4 columns
+set tabstop=4     " a hard TAB displays as 4 columns
+set expandtab     " insert spaces when hitting TABs
+set softtabstop=4 " insert/delete 4 spaces when hitting a TAB/BACKSPACE
+set shiftround    " round indent to multiple of 'shiftwidth'
+set autoindent    " align the new line indent with the previous line
 
 "jedi global options
 let g:jedi#use_tabs_not_buffers = 0
 
-" syntastic
-let g:syntastic_python_checkers=['flake8']
-
-" pyflakes-8
-noremap <leader>8 :Errors<CR>
+" ALE
+let b:ale_fixers = ['black']
 
 " Pytest stuff
 nmap <silent><Leader>tf <Esc>:Pytest file<CR>
