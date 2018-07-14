@@ -29,7 +29,10 @@ include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/dark-256.theme
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/solarized-light-256.theme
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/no-color.theme
 
-context.mhisa=+mhisa or project:mhisa
-context.tw=+tw
-context.nb=+nb
 context.unisa=+unisa
+context.cos4840=project:unisa.cos4840
+context.cos4851=project:unisa.cos4851
+context.cos4852=project:unisa.cos4852
+context.personal=project:personal
+context=personal
+urgency.uda.priority.L.coefficient=0.0
