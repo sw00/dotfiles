@@ -29,6 +29,22 @@ include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/dark-256.theme
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/solarized-light-256.theme
 #include /usr/local/Cellar/task/2.5.1/share/doc/task/rc/no-color.theme
 
+# Synchronisation
+taskd.certificate=/Users/sett/crypt/etc/taskd/sett.cert.pem
+taskd.key=/Users/sett/crypt/etc/taskd/sett.key.pem
+taskd.ca=/Users/sett/crypt/etc/taskd/x3-cross-signed.pem
+taskd.server=pico.sett.sh:53589
+taskd.credentials=sett.sh/sett/940f1c9b-60c2-44c1-8cf4-6e6e3c33cfdf
+
+# Synchronisation (inthe.am)
+# taskd.certificate=/Users/sett/crypt/etc/taskd/private.certificate.pem
+# taskd.key=/Users/sett/crypt/etc/taskd/private.key.pem
+# taskd.ca=/Users/sett/crypt/etc/taskd/inthe.am.ca.cert.pem
+# taskd.server=taskwarrior.inthe.am:53589
+# taskd.credentials=inthe_am/sett.wai/49df0e94-5dd3-43b0-8bb2-224105a53b2c
+# taskd.trust=ignore hostname
+
+# User
 context.unisa=+unisa
 context.cos4840=project:unisa.cos4840
 context.cos4851=project:unisa.cos4851
