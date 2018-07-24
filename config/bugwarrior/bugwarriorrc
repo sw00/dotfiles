@@ -1,0 +1,8 @@
+[general]
+targets = my_gmail
+log.level = INFO
+
+[my_gmail]
+service = gmail
+gmail.query = label:todo
+client_secret_path = ~/.secrets/gmail.json
