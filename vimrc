@@ -33,6 +33,10 @@ call plug#end()
 
 " set colorscheme
 colorscheme grb256
+" enable true color if supported
+if (has("termguicolors"))
+  set termguicolors
+endif
 
 " remap leader key
 let mapleader=","
