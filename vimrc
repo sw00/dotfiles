@@ -45,9 +45,9 @@ let mapleader=","
 nnoremap <F2> :w<CR>
 
 " set line numbering
-set number
 nnoremap <F3> :NumbersToggle<CR>
 nnoremap <F4> :NumbersOnOff<CR>
+let g:numbers_exclude = ['tagbar', 'nerdtree', 'Goyo']
 
 " Switch between the last two files
 nnoremap <leader><leader> <c-^>
@@ -143,7 +143,8 @@ nnoremap <C-P><C-P> :FzfBuffers<CR>
  command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
 " goyo & limelight
-autocmd! User GoyoEnter Limelight
+nmap <F12> :Goyo <bar> Limelight!!<CR>"
+autocmd! User GoyoEnter colorscheme typewriter
 autocmd! User GoyoLeave Limelight!
 autocmd! User GoyoEnter set nonu nornu
 autocmd! User GoyoLeave set nu rnu
@@ -155,13 +156,6 @@ let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', 
 
 " ALE
 let g:ale_lint_on_text_changed = 'never'
-
-" set the gui options and stuff
-if has("gui_running")
-    set guioptions=egma
-    set guifont=Source\ Code\ Pro\ for\ Powerline
-    colorscheme atom-dark
-endif
 
 " set .pp to ruby filetye for syntax highlighting
 au BufNewFile,BufRead *.pp set filetype=ruby
