@@ -133,8 +133,10 @@ let g:SuperTabDefaultCompletionType = "context"
 " deoplete completion
 let g:deoplete#enable_at_startup = 1
 
-" ALE
+" " ALE
+nnoremap <F8> <Plug>(ale_fix)
 let g:ale_lint_on_text_changed = 'never'
+let g:ale_fix_on_save = 1
 
 " numbers
 nnoremap <F3> :NumbersToggle<CR>
