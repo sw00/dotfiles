@@ -9,7 +9,6 @@ Plug 'tpope/vim-commentary'
 Plug 'gioele/vim-autoswap'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'itchyny/lightline.vim'
-Plug 'qpkorr/vim-bufkill'
 Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } | Plug 'junegunn/fzf.vim'
 Plug 'mileszs/ack.vim'
 Plug 'junegunn/goyo.vim'
@@ -97,10 +96,6 @@ map <c-h> <c-w>h
 nnoremap <Tab> :bn<CR>
 nnoremap <S-Tab> :bp<CR>
 
-" kill buffers
-nmap <C-b>q :BD<CR>
-nmap <C-b>c :bd<CR>
-
 "clipboard support for osx
 if has("macunix")
     set clipboard=unnamed
@@ -134,11 +129,6 @@ nmap <F8> <Plug>(ale_fix)
 nmap <S-F8> <Plug>(ale_toggle)
 nmap an <Plug>(ale_next_wrap)
 nmap ap <Plug>(ale_previous_wrap)
-
-" numbers
-nnoremap <F3> :NumbersToggle<CR>
-nnoremap <F4> :NumbersOnOff<CR>
-let g:numbers_exclude = ['tagbar', 'nerdtree', 'Goyo']
 
 "taglist
 let Tlist_Use_Right_Window = 1
