@@ -18,13 +18,7 @@ Plug 'junegunn/limelight.vim'
 " Completion
 Plug 'ervandew/supertab'
 Plug 'SirVer/ultisnips'
-if has('nvim')
-  Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
-else
-  Plug 'Shougo/deoplete.nvim'
-  Plug 'roxma/nvim-yarp'
-  Plug 'roxma/vim-hug-neovim-rpc'
-endif
+Plug 'maralla/completor.vim'
 
 " IDE (multiline, lint, repl,...)
 Plug 'AndrewRadev/splitjoin.vim'
@@ -33,7 +27,6 @@ Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 
 " Language support
 Plug 'davidhalter/jedi-vim', {'for': 'python'}
-Plug 'zchee/deoplete-jedi', { 'for': 'python'}
 Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
 Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
@@ -129,13 +122,12 @@ nnoremap <C-P>g :FzfGFiles<CR>
 nnoremap <C-P>b :FzfBuffers<CR>
 command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
-"supertab
+" SuperTab
 let g:SuperTabDefaultCompletionType = "context"
+let b:SuperTabContextDefaultCompletionType = '<C-x><C-u>'
+let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
 
-" deoplete completion
-let g:deoplete#enable_at_startup = 1
-
-" " ALE
+" ALE
 let g:ale_lint_on_text_changed = 'never'
 
 nmap <F8> <Plug>(ale_fix)

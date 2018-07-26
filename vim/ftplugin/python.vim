@@ -12,11 +12,20 @@ set shiftround    " round indent to multiple of 'shiftwidth'
 set autoindent    " align the new line indent with the previous line
 
 "jedi global options
-setlocal completeopt-=preview "disable docstring preview window
-let g:jedi#completions_enabled = 0 "use deoplete for completions
+let g:jedi#completions_enabled = 0 "use completor for completions
 let g:jedi#popup_on_dot = 0
-let g:jedi#show_call_signatures = 1
-let g:deoplete#sources#jedi#show_docstring = 1
+let g:jedi#popup_select_first = 0
+let g:jedi#completions_command = '' 
+let g:jedi#max_doc_height = 15
+let g:jedi#use_splits_not_buffers = 'winwidth'
+
+" show call sigantures
+set noshowmode
+let g:jedi#show_call_signatures = 2
+let g:jedi#show_call_signatures_delay = 0
+
+" completor
+let g:completor_python_binary = '/Users/sett/.pyenv/versions/3.6.5/bin/python'
 
 " ALE
 let b:ale_linters = ['flake8']
