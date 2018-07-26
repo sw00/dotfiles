@@ -6,6 +6,7 @@ Plug 'tpope/vim-sleuth'
 Plug 'tpope/vim-fugitive'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-commentary'
+Plug 'gioele/vim-autoswap'
 Plug 'scrooloose/nerdtree', { 'on': 'NERDTreeToggle' }
 Plug 'itchyny/lightline.vim'
 Plug 'qpkorr/vim-bufkill'
@@ -31,6 +32,7 @@ Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 
 " Language support
+Plug 'davidhalter/jedi-vim', {'for': 'python'}
 Plug 'zchee/deoplete-jedi', { 'for': 'python'}
 Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
 Plug 'fatih/vim-go', { 'for': 'go' }
@@ -134,9 +136,12 @@ let g:SuperTabDefaultCompletionType = "context"
 let g:deoplete#enable_at_startup = 1
 
 " " ALE
-nnoremap <F8> <Plug>(ale_fix)
 let g:ale_lint_on_text_changed = 'never'
-let g:ale_fix_on_save = 1
+
+nmap <F8> <Plug>(ale_fix)
+nmap <S-F8> <Plug>(ale_toggle)
+nmap an <Plug>(ale_next_wrap)
+nmap ap <Plug>(ale_previous_wrap)
 
 " numbers
 nnoremap <F3> :NumbersToggle<CR>

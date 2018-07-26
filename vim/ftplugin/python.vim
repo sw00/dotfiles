@@ -12,10 +12,12 @@ set shiftround    " round indent to multiple of 'shiftwidth'
 set autoindent    " align the new line indent with the previous line
 
 "jedi global options
-let g:jedi#use_tabs_not_buffers = 0
+setlocal completeopt-=preview "disable docstring preview window
+let g:jedi#completions_enabled = 0 "use deoplete for completions
 
 " ALE
-let b:ale_fixers = ['black']
+let b:ale_linters = ['flake8']
+let b:ale_fixers = ['black', 'isort']
 
 " Pytest stuff
 nmap <silent><Leader>tf <Esc>:Pytest file<CR>
