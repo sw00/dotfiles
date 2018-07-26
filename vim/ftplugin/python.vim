@@ -14,6 +14,9 @@ set autoindent    " align the new line indent with the previous line
 "jedi global options
 setlocal completeopt-=preview "disable docstring preview window
 let g:jedi#completions_enabled = 0 "use deoplete for completions
+let g:jedi#popup_on_dot = 0
+let g:jedi#show_call_signatures = 1
+let g:deoplete#sources#jedi#show_docstring = 1
 
 " ALE
 let b:ale_linters = ['flake8']
