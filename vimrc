@@ -45,6 +45,9 @@ if (has("termguicolors"))
   set termguicolors
 endif
 
+" Show whitespace chars
+set listchars=space:·,eol:¬,tab:▸~
+
 " relative numbering
 set nu rnu
 
