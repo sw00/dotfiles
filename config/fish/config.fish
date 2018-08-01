@@ -32,3 +32,4 @@ alias doco='docker-compose'
 alias doma='docker-machine'
 
 
+set -g fish_user_paths "/usr/local/opt/qt/bin" $fish_user_paths
