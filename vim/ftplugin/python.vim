@@ -24,7 +24,8 @@ set noshowmode
 let g:jedi#show_call_signatures = 2
 let g:jedi#show_call_signatures_delay = 0
 
-" completor
+" completion
+let b:SuperTabContextDefaultCompletionType = '<C-x><C-u>'
 let g:completor_python_binary = '/Users/sett/.pyenv/versions/3.6.5/bin/python'
 
 " ALE

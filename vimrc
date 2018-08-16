@@ -122,8 +122,9 @@ command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args
 
 " SuperTab
 let g:SuperTabDefaultCompletionType = "context"
-let b:SuperTabContextDefaultCompletionType = '<C-x><C-u>'
 let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
+let g:SuperTabLongestEnhanced = 1
+let g:SuperTabLongestEnhanced = 1
 
 " ALE
 let g:ale_lint_on_text_changed = 'never'
