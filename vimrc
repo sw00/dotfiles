@@ -120,6 +120,9 @@ nnoremap <C-P>g :FzfGFiles<CR>
 nnoremap <C-P>b :FzfBuffers<CR>
 command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
 
+" Completor
+let g:completor_whitelist = ["python"]
+
 " SuperTab
 let g:SuperTabDefaultCompletionType = "context"
 let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
