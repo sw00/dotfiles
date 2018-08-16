@@ -11,10 +11,6 @@ set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
 # Jump
 status --is-interactive; and . (jump shell | psub)
 
-# pyenv-virtualenv
-status --is-interactive; and source (pyenv init -|psub)
-status --is-interactive; and source (pyenv virtualenv-init -|psub)
-
 # Aliases
 alias abacaxi='brew update ; and brew doctor ; and brew outdated'
 
