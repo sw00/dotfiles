@@ -29,7 +29,7 @@ let g:completor_python_binary = '/Users/sett/.pyenv/versions/3.6.5/bin/python'
 
 " ALE
 let b:ale_linters = ['flake8']
-let b:ale_fixers = ['black', 'isort']
+let b:ale_fixers = ['black', 'isort', 'remove_trailing_lines', 'trim_whitespace']
 
 " Pytest stuff
 nmap <silent><Leader>tf <Esc>:Pytest file<CR>
