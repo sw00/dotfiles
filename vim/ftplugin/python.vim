@@ -3,7 +3,7 @@ set smarttab
 set foldmethod=indent
 
 " tabs & spaces
-set textwidth=79  " lines longer than 79 columns will be broken
+set textwidth=90  " lines longer than 79 columns will be broken
 set shiftwidth=4  " operation >> indents 4 columns; << unindents 4 columns
 set tabstop=4     " a hard TAB displays as 4 columns
 set expandtab     " insert spaces when hitting TABs
@@ -27,6 +27,8 @@ let g:jedi#show_call_signatures_delay = 0
 " completion
 let b:SuperTabContextDefaultCompletionType = '<C-x><C-u>'
 let g:completor_python_binary = '/Users/sett/.pyenv/versions/3.6.5/bin/python'
+let g:completor_auto_trigger = 0
+inoremap <expr> <Tab> pumvisible() ? "<C-N>" : "<C-R>=completor#do('complete')<CR>"
 
 " ALE
 let b:ale_linters = ['flake8']
