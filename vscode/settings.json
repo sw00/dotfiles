@@ -1,0 +1,20 @@
+
+{
+  "telemetry.enableTelemetry": false,
+  "telemetry.enableCrashReporter": false,
+  "window.zoomLevel": 0,
+  "[javascript]": {},
+  "git.autofetch": true,
+  "explorer.confirmDragAndDrop": false,
+  "files.associations": {
+    "*.jslib": "javascript"
+  },
+  "java.errors.incompleteClasspath.severity": "ignore",
+  "breadcrumbs.enabled": true,
+  "editor.formatOnSave": true,
+  "prettier.eslintIntegration": true,
+  "prettier.singleQuote": true,
+  "prettier.printWidth": 120,
+  "prettier.arrowParens": "always",
+  "prettier.trailingComma": "es5"
+}
