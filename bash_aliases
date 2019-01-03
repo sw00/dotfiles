@@ -17,5 +17,3 @@ alias ga="git add"
 alias gl="git log"
 alias gd="git diff"
 
-alias l="ls"
-alias ll="ls -al"
