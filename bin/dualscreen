@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Find your displays by running: 
+# xrandr --listmonitors
+
+HIDPI="eDP-1"
+HIDPI_POS="--right-of"
+HIDPI_SCALE="0.5x0.5"
+
+OTHER="DP-3"
+OTHER_POS="--left-of"
+OTHER_SCALE="1x1"
+
+case "$1" in
+    "on")
+	# example: xrandr --output DP-3 --auto --scale 1x1 --left-of eDP-1
+	xrandr --output $OTHER --auto --scale $OTHER_SCALE $OTHER_POS $HIDPI
+
+	xrandr --output $HIDPI --auto --scale $HIDPI_SCALE $HIDPI_POS $OTHER
+	;;
+    "off")
+	xrandr --output $HIDPI --auto --scale 1x1
+	xrandr --output $OTHER --auto --scale 1x1
+	;;
+esac
+
