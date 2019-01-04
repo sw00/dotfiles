@@ -1,8 +1,17 @@
 #!/bin/bash
 
-ip_addresses () {
-  ifconfig | awk '$1 == "inet" { print "[" $2 "] " }' | tail -n +2 | tr -d '\n'
+ip_address_command () {
+  OS=$(uname -s)
+
+  if [[ $OS == "Linux" ]]; then
+    ip address
+  elif [[ $OS == "Darwin" ]]; then
+    ifconfig
+  fi
 }
 
-ip_addresses
+main () {
+  ip_address_command | awk '$1 == "inet" { print "[" $2 "] " }' | tail -n +2 | tr -d '\n'
+}
 
+main
