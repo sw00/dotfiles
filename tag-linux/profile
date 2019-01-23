@@ -25,3 +25,10 @@ fi
 if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
+# Ubuntu make installation of Ubuntu Make binary symlink
+PATH=/home/sett/.local/share/umake/bin:$PATH
+
+# source autojump
+[ -f /usr/share/autojump/autojump.sh ] && . /usr/share/autojump/autojump.sh
+
+

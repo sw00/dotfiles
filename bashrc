@@ -106,7 +106,12 @@ fi
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
 # pyenv
-export PATH="/home/sett/.pyenv/bin:$PATH"
+export PATH="$HOME/.pyenv/bin:$PATH"
 eval "$(pyenv init -)"
 eval "$(pyenv virtualenv-init -)"
+export PYENV_ROOT="$HOME/.pyenv"
+
+# nodenv
+export PATH="$HOME/.nodenv/bin:$HOME/.nodenv/shims:$PATH"
+eval "$(nodenv init -)"
 
