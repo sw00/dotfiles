@@ -13,6 +13,7 @@ Plug 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' } | Plug 'junegu
 Plug 'mileszs/ack.vim'
 Plug 'junegunn/goyo.vim'
 Plug 'junegunn/limelight.vim'
+Plug 'weiss/textgenshi.vim'
 
 " Completion
 Plug 'ervandew/supertab'
@@ -147,13 +148,20 @@ nmap <leader>a <Esc>:Ack!
 
 if executable('rg')
   set grepprg='rg'
-  let g:ackprg='rg'
+  let g:ackprg = 'rg --vimgrep --no-heading'
+
+  let g:rg_command = '
+        \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
+        \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
+        \ -g "!*.{min.js,swp,o,zip,pyc}" 
+        \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
+
+  let g:ctrlp_user_command = g:rg_command . ' --files %s'
+  let g:ctrlp_use_caching = 0
+  let g:ctrlp_working_path_mode = 'ra'
+  let g:ctrlp_switch_buffer = 'et'
 endif
-let g:rg_command = '
-      \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
-      \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
-      \ -g "!*.{min.js,swp,o,zip}" 
-      \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
+
 
 " goyo & limelight
 nmap <F12> :Goyo <bar> Limelight!!<CR>"
