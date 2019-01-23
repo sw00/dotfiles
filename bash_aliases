@@ -1,3 +1,6 @@
+alias ..="cd .."
+alias ...="cd ../.."
+
 alias vi="nvim"
 alias vim="nvim"
 
@@ -17,3 +20,6 @@ alias ga="git add"
 alias gl="git log"
 alias gd="git diff"
 
+# python
+alias py2venv="python2 -m virtualenv"
+alias py3venv="python3 -m venv"
