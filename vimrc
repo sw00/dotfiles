@@ -22,6 +22,7 @@ Plug 'maralla/completor.vim'
 
 " IDE (multiline, lint, repl,...)
 Plug 'AndrewRadev/splitjoin.vim'
+Plug 'majutsushi/tagbar'
 Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 
@@ -62,7 +63,7 @@ set hlsearch
 " speed up vim
 set ttyfast
 set lazyredraw
-set synmaxcol=120
+set synmaxcol=0
 
 " Behaviour
 set ignorecase smartcase
@@ -138,10 +139,8 @@ nmap <S-F8> <Plug>(ale_toggle)
 nmap an <Plug>(ale_next_wrap)
 nmap ap <Plug>(ale_previous_wrap)
 
-"taglist
-let Tlist_Use_Right_Window = 1
-let Tlist_Ctags_Cmd='/usr/local/bin/ctags'
-map <F7> :TlistToggle<CR>
+"tagbar
+nmap <F7> :TagbarToggle<CR>
 
 " ackgrep etc.
 nmap <leader>a <Esc>:Ack!
