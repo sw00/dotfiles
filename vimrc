@@ -18,7 +18,13 @@ Plug 'weiss/textgenshi.vim'
 " Completion
 Plug 'ervandew/supertab'
 Plug 'SirVer/ultisnips'
-Plug 'maralla/completor.vim'
+if has('nvim')
+  Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+else
+  Plug 'Shougo/deoplete.nvim'
+  Plug 'roxma/nvim-yarp'
+  Plug 'roxma/vim-hug-neovim-rpc'
+endif
 
 " IDE (multiline, lint, repl,...)
 Plug 'AndrewRadev/splitjoin.vim'
@@ -27,7 +33,7 @@ Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 
 " Language support
-Plug 'davidhalter/jedi-vim', {'for': 'python'}
+Plug 'zchee/deoplete-jedi', { 'for': 'python' }
 Plug 'alfredodeza/pytest.vim', {'for': 'python'}
 Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
 Plug 'fatih/vim-go', { 'for': 'go' }
@@ -79,14 +85,19 @@ let mapleader=','
 imap kj <ESC>
 nnoremap <space> :nohlsearch<CR>
 
-" nvim terminal escape seq
-tnoremap kj <C-\><C-n>
-
 " Switch between the last two files
 nnoremap <leader><leader> <c-^>
 
 " quick save
 nnoremap <F2> :w<CR>
+
+if has('nvim')
+  " nvim terminal escape seq
+  tnoremap kj <C-\><C-n>
+
+  let g:python_host_prog = "/home/sett/.pyenv/shims/python2"
+  let g:python3_host_prog = "/home/sett/.pyenv/shims/python3"
+endif
 
 " convenience mappings
 map :Q<CR> :q<CR>
@@ -110,39 +121,16 @@ if has("macunix")
     imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
 endif
 
+"nvim specifics
+
 " Plugins
 " nerdtree
 map <C-n> :NERDTreeToggle<CR>
 nmap <F3><F3> :NERDTreeFind<CR>
 let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
-" fzf.vim
-let g:fzf_command_prefix = 'Fzf'
-let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
-nnoremap <C-P><C-P> :FzfFiles<CR>
-nnoremap <C-P>g :FzfGFiles<CR>
-nnoremap <C-P>b :FzfBuffers<CR>
-command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
+" rg/ack.vim
 
-" Completor
-let g:completor_whitelist = ['python']
-
-" SuperTab
-let g:SuperTabDefaultCompletionType = "context"
-let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
-
-" ALE
-let g:ale_lint_on_text_changed = 'never'
-
-nmap <F8> <Plug>(ale_fix)
-nmap <S-F8> <Plug>(ale_toggle)
-nmap an <Plug>(ale_next_wrap)
-nmap ap <Plug>(ale_previous_wrap)
-
-"tagbar
-nmap <F7> :TagbarToggle<CR>
-
-" ackgrep etc.
 nmap <leader>a <Esc>:Ack!
 
 if executable('rg')
@@ -160,7 +148,34 @@ if executable('rg')
   let g:ctrlp_working_path_mode = 'ra'
   let g:ctrlp_switch_buffer = 'et'
 endif
+"
 
+" fzf.vim
+let g:fzf_command_prefix = 'Fzf'
+let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
+nnoremap <C-P><C-P> :FzfFiles<CR>
+nnoremap <C-P>g :FzfGFiles<CR>
+nnoremap <C-P>b :FzfBuffers<CR>
+command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
+
+" deoplete
+let g:deoplete#enable_at_startup = 1
+
+" SuperTab
+let g:SuperTabDefaultCompletionType = "context"
+let g:SuperTabContextDefaultCompletionType = "<c-n>"
+" let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
+
+" ALE
+let g:ale_lint_on_text_changed = 'never'
+
+nmap <F8> <Plug>(ale_fix)
+nmap <S-F8> <Plug>(ale_toggle)
+nmap an <Plug>(ale_next_wrap)
+nmap ap <Plug>(ale_previous_wrap)
+
+"tagbar
+nmap <F7> :TagbarToggle<CR>
 
 " goyo & limelight
 nmap <F12> :Goyo <bar> Limelight!!<CR>"

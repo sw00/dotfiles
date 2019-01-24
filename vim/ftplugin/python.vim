@@ -11,21 +11,8 @@ set softtabstop=4 " insert/delete 4 spaces when hitting a TAB/BACKSPACE
 set shiftround    " round indent to multiple of 'shiftwidth'
 set autoindent    " align the new line indent with the previous line
 
-"jedi global options
-let g:jedi#completions_enabled = 1
-let g:jedi#popup_on_dot = 0
-let g:jedi#popup_select_first = 0
-" let g:jedi#completions_command = '' 
-let g:jedi#max_doc_height = 7
-let g:jedi#use_splits_not_buffers = 'winwidth'
-
-" show call sigantures
-set noshowmode
-let g:jedi#show_call_signatures = 2
-let g:jedi#show_call_signatures_delay = 0
-
-" completion
-let b:SuperTabContextDefaultCompletionType = '<C-x><C-u>'
+" deoplete-jedi
+let g:deoplete#sources#jedi#show_docstring = 1
 
 " ALE
 let b:ale_linters = ['flake8', 'autopep8']
