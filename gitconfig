@@ -30,3 +30,5 @@
 	prompt = false
 [alias]
 	dt = difftool
+[difftool "vimdiff"]
+	cmd = vimdiff \"$LOCAL\" \"$REMOTE\"
