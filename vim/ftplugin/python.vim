@@ -14,6 +14,11 @@ set autoindent    " align the new line indent with the previous line
 " deoplete-jedi
 let g:deoplete#sources#jedi#show_docstring = 1
 
+" jedi-vim
+let g:jedi#completions_enabled = 0
+let g:jedi#use_splits_not_buffers = "right"
+let g:jedi#show_call_signatures = "2"
+
 " ALE
 let b:ale_linters = ['flake8']
 let b:ale_fixers = ['autopep8', 'isort', 'remove_trailing_lines', 'trim_whitespace']

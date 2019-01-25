@@ -33,6 +33,7 @@ Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 
 " Language support
+Plug 'davidhalter/jedi-vim', { 'for': 'python' }
 Plug 'zchee/deoplete-jedi', { 'for': 'python' }
 Plug 'alfredodeza/pytest.vim', {'for': 'python'}
 Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
@@ -130,33 +131,38 @@ nmap <F3><F3> :NERDTreeFind<CR>
 let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
 
 " rg/ack.vim
-
 nmap <leader>a <Esc>:Ack!
 
 if executable('rg')
   set grepprg='rg'
-  let g:ackprg = 'rg --vimgrep --no-heading'
+  let g:ackprg = 'rg --vimgrep --no-heading --smart-case --glob "!.git/**"'
 
   let g:rg_command = '
-        \ rg --column --line-number --no-heading --fixed-strings --ignore-case --no-ignore --hidden --follow --color "always"
+        \ rg --column --line-number --no-heading --fixed-strings --smart-case --no-ignore --hidden --follow --color "always"
         \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
         \ -g "!*.{min.js,swp,o,zip,pyc}" 
         \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
-
-  let g:ctrlp_user_command = g:rg_command . ' --files %s'
-  let g:ctrlp_use_caching = 0
-  let g:ctrlp_working_path_mode = 'ra'
-  let g:ctrlp_switch_buffer = 'et'
 endif
-"
 
 " fzf.vim
 let g:fzf_command_prefix = 'Fzf'
-let g:fzf_launcher = "$HOME/.bin/fzf_iterm %s"
-nnoremap <C-P><C-P> :FzfFiles<CR>
-nnoremap <C-P>g :FzfGFiles<CR>
-nnoremap <C-P>b :FzfBuffers<CR>
-command! -bang -nargs=* Find call fzf#vim#grep(g:rg_command .shellescape(<q-args>), 1, <bang>0)
+nnoremap <c-p><c-p> :FzfFiles<CR>
+nnoremap <c-p>f :FzfFiles<CR>
+
+nnoremap <c-p>b :FzfBuffers<CR>
+nnoremap <c-p>t :FzfBTags<CR>
+nnoremap <c-p>ta :FzfTags<CR>
+
+if executable('rg')
+  nnoremap <c-p>a :FzfRg expand("<cWORD>")<CR>
+else
+  nnoremap <c-p>a :FzfAg expand("<cWORD>")<CR>
+endif
+  
+nnoremap <c-p>g :FzfGFiles<CR>
+nnoremap <c-p>gs :FzfGFiles?<CR>
+nnoremap <c-p>gc :FzfBCommits<CR>
+nnoremap <c-p>gca :FzfCommits<CR>
 
 " deoplete
 let g:deoplete#enable_at_startup = 1
@@ -168,6 +174,9 @@ let g:SuperTabContextDefaultCompletionType = "<c-n>"
 
 " ALE
 let g:ale_lint_on_text_changed = 'never'
+let g:ale_lint_on_insert_leave = 1
+let g:ale_set_highlights = 1
+let g:ale_set_balloons = 1
 
 nmap <F8> <Plug>(ale_fix)
 nmap <S-F8> <Plug>(ale_toggle)
