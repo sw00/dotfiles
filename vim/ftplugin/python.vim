@@ -11,13 +11,19 @@ set softtabstop=4 " insert/delete 4 spaces when hitting a TAB/BACKSPACE
 set shiftround    " round indent to multiple of 'shiftwidth'
 set autoindent    " align the new line indent with the previous line
 
+set omnifunc=jedi#completions
+
 " deoplete-jedi
 let g:deoplete#sources#jedi#show_docstring = 1
 
 " jedi-vim
 let g:jedi#completions_enabled = 0
 let g:jedi#use_splits_not_buffers = "right"
-let g:jedi#show_call_signatures = "2"
+
+set noshowmode " make call signature visible
+let g:jedi#show_call_signatures = 2
+let g:jedi#show_call_signatures_delay = 0
+let g:jedi#popup_complete_first = 1
 
 " ALE
 let b:ale_linters = ['flake8']
