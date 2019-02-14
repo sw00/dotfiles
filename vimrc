@@ -45,6 +45,7 @@ Plug 'lervag/vimtex', {'for': 'tex' }
 Plug 'vim-pandoc/vim-pandoc', {'for': 'pandoc'}
 Plug 'vim-pandoc/vim-pandoc-syntax', {'for': 'pandoc'}
 Plug 'soli/prolog-vim', {'for': 'prolog'}
+Plug 'thanethomson/vim-jenkinsfile'
 call plug#end()
 
 
@@ -140,7 +141,7 @@ if executable('rg')
   let g:rg_command = '
         \ rg --column --line-number --no-heading --fixed-strings --smart-case --no-ignore --hidden --follow --color "always"
         \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
-        \ -g "!*.{min.js,swp,o,zip,pyc}" 
+        \ -g "!*.{min.js,swp,o,zip,pyc}"
         \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
 endif
 
