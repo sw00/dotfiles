@@ -97,8 +97,13 @@ if has('nvim')
   " nvim terminal escape seq
   tnoremap kj <C-\><C-n>
 
-  let g:python_host_prog = "/home/sett/.pyenv/shims/python2"
-  let g:python3_host_prog = "/home/sett/.pyenv/shims/python3"
+  if has('macunix')
+    let g:python_host_prog = "/Users/sett/.pyenv/shims/python2"
+    let g:python3_host_prog = "/Users/sett/.pyenv/shims/python3"
+  else
+    let g:python_host_prog = "/home/sett/.pyenv/shims/python2"
+    let g:python3_host_prog = "/home/sett/.pyenv/shims/python3"
+  endif
 endif
 
 " convenience mappings
