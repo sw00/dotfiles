@@ -8,9 +8,6 @@ set -U EDITOR nvim
 # TimeWarrior
 set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
 
-# Jump
-status --is-interactive; and . (jump shell | psub)
-
 # Aliases
 alias abacaxi='brew update ; and brew doctor ; and brew outdated'
 
@@ -27,5 +24,3 @@ alias gd='git diff'
 alias doco='docker-compose'
 alias doma='docker-machine'
 
-
-set -g fish_user_paths "/usr/local/opt/qt/bin" $fish_user_paths
