@@ -24,6 +24,8 @@
 	required = true
 [credential]
 	helper = osxkeychain
+	helper = "/mnt/c/Program Files/Git/mingw64/libexec/git-core/git-credential-manager.exe"
+	helper = cache --timeout=144000
 [diff]
 	tool = vimdiff
 [difftool]
