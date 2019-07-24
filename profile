@@ -8,6 +8,15 @@
 # for ssh logins, install and configure the libpam-umask package.
 #umask 022
 
+# capture metadata about system for convenience
+META_OS=$(uname -s | awk '{ print tolower($0) }') #linux
+
+[[ $META_OS = 'darwin' ]] && \
+	META_OS='macos'
+
+[[ -n $(uname -r | grep Microsoft) ]] && \
+	META_OS="wsl"
+
 # if running bash
 if [ -n "$BASH_VERSION" ]; then
     # include .bashrc if it exists
@@ -25,4 +34,3 @@ fi
 if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
-
