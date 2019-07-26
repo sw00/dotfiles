@@ -1,4 +1,18 @@
 #!/bin/bash
+set -e
+
+NONDOT=(bin Brewfile scripts)
+EXCLUDE=(extra-settings iterm2 'secrets\*')
+
+case $(uname -s) in 
+	"Darwin")
+		OS=macos;;
+	"Linux")
+		OS=linux;;
+esac		
+
+[[ $OS = 'linux' && -n $(uname -r | grep Microsoft) ]] && \
+	OS='wsl'
 
 install_rcm() {
 	pushd /tmp
@@ -16,18 +30,26 @@ install_rcm() {
 	popd
 }
 
-install_rcm	
+[[ -z $(command -v rcup) ]] && \
+	install_rcm
 
-case $(uname -s) in 
-	"Darwin")
-		OS=macos;;
-	"Linux")
-		OS=linux;;
-esac		
+rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -t $OS
 
-[[ $OS = 'linux' && -n $(uname -r | grep Microsoft) ]] && \
-	OS='wsl'
+install_pyenv() {
+	git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
+	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
+		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
+		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile && \
+		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
+}
 
-rcup -t $OS
-
-
+while [ ! $# -eq 0 ]
+do
+	case "$1" in
+		--pyenv)
+			install_pyenv
+			exit
+			;;
+	esac
+	shift
+done
