@@ -4,12 +4,12 @@ set -e
 NONDOT=(bin Brewfile scripts)
 EXCLUDE=(extra-settings iterm2 'secrets\*')
 
-case $(uname -s) in 
+case $(uname -s) in
 	"Darwin")
 		OS=macos;;
 	"Linux")
 		OS=linux;;
-esac		
+esac
 
 [[ $OS = 'linux' && -n $(uname -r | grep Microsoft) ]] && \
 	OS='wsl'
@@ -35,6 +35,14 @@ install_rcm() {
 
 rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -t $OS
 
+_install_deb() {
+	pushd /tmp
+	curl -LO $1
+	debfile=$(echo $1 | rev | cut -d\/ -f1 | rev)
+	sudo dpkg -i $debfile
+	popd
+}
+
 install_pyenv() {
 	git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
 	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
@@ -43,11 +51,76 @@ install_pyenv() {
 		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
 }
 
+install_tpm() {
+	mkdir -p ~/.tmux/plugins/tpm
+	git clone --depth=1 https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+}
+
+install_ripgrep() {
+	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
+		_install_deb https://github.com/BurntSushi/ripgrep/releases/download/11.0.1/ripgrep_11.0.1_amd64.deb
+	elif [[ $OS = 'macos' ]]; then
+		brew install ripgrep
+	fi
+}
+
+install_fd() {
+	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
+		_install_deb https://github.com/sharkdp/fd/releases/download/v7.3.0/fd-musl_7.3.0_amd64.deb
+	elif [[ $OS = 'macos' ]]; then
+		brew install fd
+	fi
+}
+
+install_fzf() {
+	git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+	cd ~/.fzf && ./install
+}
+
+install_autojump() {
+	[[ $OS = 'macos' ]] && \
+		brew install autojump
+	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
+		sudo apt install -yq autojump && \
+		[[ -z $(cat ~/.profile | grep autojump) ]] && echo ". /usr/share/autojump/autojump.sh" >> ~/.profile
+}
+
+
 while [ ! $# -eq 0 ]
 do
 	case "$1" in
+		--all)
+			set +e
+			install_pyenv
+			install_tpm
+			install_ripgrep
+			install_fd
+			install_fzf
+			install_autojump
+			exit
+			;;
 		--pyenv)
 			install_pyenv
+			exit
+			;;
+		--tpm)
+			install_tpm
+			exit
+			;;
+		--rg)
+			install_ripgrep
+			exit
+			;;
+		--fd)
+			install_fd
+			exit
+			;;
+		--fzf)
+			install_fzf
+			exit
+			;;
+		--autojump)
+			install_autojump
 			exit
 			;;
 	esac
