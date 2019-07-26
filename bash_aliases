@@ -7,6 +7,7 @@ case $META_OS in
 		alias open='wslview'
 		;;
 	'linux')
+		alias abacaxi='sudo apt update'
 		alias open='xdg-open'
 		;;
 esac
