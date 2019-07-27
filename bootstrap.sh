@@ -47,9 +47,15 @@ install_pyenv() {
 	git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
 	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
 		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
-		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile && \
-		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bash_profile
+		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile && \
+		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.profile
+
+	if [[ $1 = 'with_virtualenv' ]]; then
+		mkdir -p ~/.pyenv/plugins
+		git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
+		echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.profile
 }
+
 
 install_tpm() {
 	mkdir -p ~/.tmux/plugins/tpm
@@ -85,13 +91,19 @@ install_autojump() {
 		[[ -z $(cat ~/.profile | grep autojump) ]] && echo ". /usr/share/autojump/autojump.sh" >> ~/.profile
 }
 
+install_bashit() {
+	git clone --depth=1 https://github.com/Bash-it/bash-it.git ~/.bash_it
+	cd ~/.bash_it && ./install.sh
+	sed -i "s/BASH_IT_THEME='bobby'/BASH_IT_THEME='norbu'/g" ~/.bashrc
+}
+
 
 while [ ! $# -eq 0 ]
 do
 	case "$1" in
 		--all)
 			set +e
-			install_pyenv
+			install_pyenv with_virtualenv
 			install_tpm
 			install_ripgrep
 			install_fd
@@ -100,7 +112,7 @@ do
 			exit
 			;;
 		--pyenv)
-			install_pyenv
+			install_pyenv with_virtualenv
 			exit
 			;;
 		--tpm)
@@ -121,6 +133,10 @@ do
 			;;
 		--autojump)
 			install_autojump
+			exit
+			;;
+		--bashit)
+			install_bashit
 			exit
 			;;
 	esac
