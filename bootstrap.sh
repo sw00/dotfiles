@@ -54,7 +54,12 @@ install_pyenv() {
 	if [[ $1 = 'with_virtualenv' ]]; then
 		mkdir -p ~/.pyenv/plugins
 		git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
-		echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
+		[[ -z $(cat ~/.bashrc | grep 'pyenv virtualenv-init') ]] && echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
+	fi
+
+	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
+		sudo apt-get install -yq make build-essential libssl-dev libreadline-dev libbz2-dev libsqlite3-dev 
+	fi
 }
 
 
