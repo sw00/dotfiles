@@ -3,6 +3,7 @@ set -e
 
 NONDOT=(bin Brewfile scripts)
 EXCLUDE=(extra-settings iterm2 'secrets\*')
+COPY=(profile bashrc bash_aliases gitconfig)
 
 case $(uname -s) in
 	"Darwin")
@@ -48,12 +49,12 @@ install_pyenv() {
 	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
 		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
 		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile && \
-		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.profile
+		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
 
 	if [[ $1 = 'with_virtualenv' ]]; then
 		mkdir -p ~/.pyenv/plugins
 		git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
-		echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.profile
+		echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
 }
 
 
@@ -88,7 +89,7 @@ install_autojump() {
 		brew install autojump
 	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
 		sudo apt install -yq autojump && \
-		[[ -z $(cat ~/.profile | grep autojump) ]] && echo ". /usr/share/autojump/autojump.sh" >> ~/.profile
+		[[ -z $(cat ~/.profile | grep autojump) ]] && echo ". /usr/share/autojump/autojump.sh" >> ~/.bashrc
 }
 
 install_bashit() {

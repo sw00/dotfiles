@@ -5,10 +5,12 @@ case $META_OS in
 	'wsl')
 		alias abacaxi='sudo apt update'
 		alias open='wslview'
+		alias pbcopy='clip.exe'
 		;;
 	'linux')
 		alias abacaxi='sudo apt update'
 		alias open='xdg-open'
+		alias pbcopy='xcopy -selection clipboard -i'
 		;;
 esac
 
@@ -43,3 +45,6 @@ fi
 # python
 alias py2venv="python2 -m virtualenv"
 alias py3venv="python3 -m venv"
+
+# katfs jumpbox
+alias ssj="ssh -J swai@katfs:2222"

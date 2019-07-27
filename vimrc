@@ -124,11 +124,24 @@ map <c-h> <c-w>h
 nnoremap <Tab> :bn<CR>
 nnoremap <S-Tab> :bp<CR>
 
-"clipboard support for osx
+" clipboard
+func! GetSelectedText()
+    normal gv"xy
+    let result = getreg("x")
+    return result
+endfunc
+
+" macos
 if has("macunix")
     set clipboard=unnamed
-    vmap <C-c> y:call system("pbcopy", getreg("\""))<CR>
+    vmap <C-c> y:call system("pbcopy", GetSelectedText())<CR>
     imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
+endif
+
+" wsl
+if !has("clipboard") && executable("clip.exe")
+    noremap <C-c> :call system('clip.exe', GetSelectedText())<CR>
+    noremap <C-x> :call system('clip.exe', GetSelectedText())<CR>gvx
 endif
 
 "nvim specifics
