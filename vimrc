@@ -32,6 +32,7 @@ Plug 'AndrewRadev/splitjoin.vim'
 Plug 'majutsushi/tagbar'
 Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
+Plug 'NLKNguyen/papercolor-theme'
 
 " Language support
 Plug 'davidhalter/jedi-vim', { 'for': 'python' }
@@ -52,6 +53,7 @@ call plug#end()
 
 " Appearance
 colorscheme grb256
+
 " enable true color if supported
 if (has("termguicolors"))
   set termguicolors
