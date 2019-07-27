@@ -103,6 +103,18 @@ install_bashit() {
 	sed -i "s/BASH_IT_THEME='bobby'/BASH_IT_THEME='norbu'/g" ~/.bashrc
 }
 
+install_fish() {
+	[[ $OS = 'macos' ]] && \
+		brew install fish
+	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
+		sudo apt-get install fish
+
+	if [[ $1 = 'and_configure' ]]; then
+		git clone --depth=1 https://github.com/oh-my-fish/oh-my-fish ~/.oh_my_fish
+		cd ~/.oh_my_fish && bin/install --offline
+	fi
+}
+
 
 while [ ! $# -eq 0 ]
 do
@@ -143,6 +155,10 @@ do
 			;;
 		--bashit)
 			install_bashit
+			exit
+			;;
+		--fish)
+			install_fish and_configure
 			exit
 			;;
 	esac
