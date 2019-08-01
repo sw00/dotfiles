@@ -1,0 +1,6 @@
+package autojump
+package bang-bang
+package fzf-autojump
+package pbcopy
+package pyenv
+theme kawasaki

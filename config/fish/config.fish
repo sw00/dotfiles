@@ -1,10 +1,3 @@
-# MacOS locale
-set -Ux LC_ALL en_US.UTF-8
-set -Ux LANG en_US.UTF-8
-
-# vim is editor
-set -U EDITOR nvim
-
 # TimeWarrior
 set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
 

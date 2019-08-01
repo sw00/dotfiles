@@ -2,8 +2,6 @@
 	email = exec@sett.sh
 	name = Sett Wai
 	signingkey = 7BF0
-[core]
-	editor = vim
 [color]
 	diff = auto
 	status = auto
