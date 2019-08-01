@@ -34,7 +34,7 @@ install_rcm() {
 [[ -z $(command -v rcup) ]] && \
 	install_rcm
 
-rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -t $OS
+rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -d `dirname $0` -t $OS
 
 _install_deb() {
 	pushd /tmp
