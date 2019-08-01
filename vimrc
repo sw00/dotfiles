@@ -36,7 +36,7 @@ Plug 'NLKNguyen/papercolor-theme'
 
 " Language support
 Plug 'davidhalter/jedi-vim', { 'for': 'python' }
-Plug 'zchee/deoplete-jedi', { 'for': 'python' }
+Plug 'deoplete-plugins/deoplete-jedi', { 'for': 'python' }
 Plug 'alfredodeza/pytest.vim', {'for': 'python'}
 Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
 Plug 'fatih/vim-go', { 'for': 'go' }
@@ -186,13 +186,16 @@ nnoremap <c-p>gs :FzfGFiles?<CR>
 nnoremap <c-p>gc :FzfBCommits<CR>
 nnoremap <c-p>gca :FzfCommits<CR>
 
+" jedi-vim
+let g:jedi#completions_enabled = 0 " defer to deoplete for completion
+
 " deoplete
 let g:deoplete#enable_at_startup = 1
 
 " SuperTab
 let g:SuperTabDefaultCompletionType = "context"
 let g:SuperTabContextDefaultCompletionType = "<c-n>"
-" let g:SuperTabContextTextOmniPrecedence = ['&completefunc', '&omnifunc']
+let g:SuperTabContextTextOmniPrecedence = ['&omnifunc', '&completefunc']
 
 " ALE
 let g:ale_lint_on_text_changed = 'never'
