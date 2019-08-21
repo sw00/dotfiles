@@ -11,6 +11,9 @@
 # capture metadata about system for convenience
 META_OS=$(uname -s | awk '{ print tolower($0) }') #linux
 
+# locale
+export LC_ALL=en_US.UTF-8
+
 [[ $META_OS = 'darwin' ]] && \
 	META_OS='macos'
 

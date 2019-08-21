@@ -1,3 +1,6 @@
+# locale
+set -x LC_ALL en_US.UTF-8
+
 # TimeWarrior
 set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
 
