@@ -1,0 +1,5 @@
+#!/bin/bash
+mkdir -p ~/.ssh/multiplex
+chmod 0700 ~/.ssh
+chmod 0644 ~/*
+chmod 0600 ~/.ssh/*_rsa
