@@ -1,4 +1,4 @@
-if [ command -sq nvim ]
+if command -sq nvim
 	alias vi='nvim'
 	alias vim='nvim'
 end
