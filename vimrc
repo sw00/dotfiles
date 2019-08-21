@@ -96,6 +96,9 @@ nnoremap <leader><leader> <c-^>
 " quick save
 nnoremap <F2> :w<CR>
 
+" always copy to CLIPBOARD too
+set clipboard+=unnamedplus
+
 if has('nvim')
   " nvim terminal escape seq
   tnoremap kj <C-\><C-n>
@@ -106,6 +109,24 @@ if has('nvim')
   else
     let g:python_host_prog = "/home/sett/.pyenv/shims/python2"
     let g:python3_host_prog = "/home/sett/.pyenv/shims/python3"
+  endif
+else
+  func! GetSelectedText()
+      normal gv"xy
+      let result = getreg("x")
+      return result
+  endfunc
+
+  " macos
+  if has("macunix")
+    vnoremap y y:call system("pbcopy", getreg("\""))<CR>
+    nnoremap p :call setreg("\"", system("pbpaste"))<CR>p<Paste>
+  endif
+
+  " wsl
+  if !has("clipboard") && executable("clip.exe")
+      noremap <C-c> :call system('clip.exe', GetSelectedText())<CR>
+      noremap <C-x> :call system('clip.exe', GetSelectedText())<CR>gvx
   endif
 endif
 
@@ -123,28 +144,6 @@ map <c-h> <c-w>h
 " cycle buffers like this
 nnoremap <Tab> :bn<CR>
 nnoremap <S-Tab> :bp<CR>
-
-" clipboard
-func! GetSelectedText()
-    normal gv"xy
-    let result = getreg("x")
-    return result
-endfunc
-
-" macos
-if has("macunix")
-    set clipboard=unnamed
-    vmap <C-c> y:call system("pbcopy", GetSelectedText())<CR>
-    imap <C-v> :call setreg("\"",system("pbpaste"))<CR>p
-endif
-
-" wsl
-if !has("clipboard") && executable("clip.exe")
-    noremap <C-c> :call system('clip.exe', GetSelectedText())<CR>
-    noremap <C-x> :call system('clip.exe', GetSelectedText())<CR>gvx
-endif
-
-"nvim specifics
 
 " Plugins
 " nerdtree
