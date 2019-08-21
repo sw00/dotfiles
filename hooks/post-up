@@ -1,5 +1,5 @@
 #!/bin/bash
-mkdir -p ~/.ssh/multiplex
 chmod 0700 ~/.ssh
 chmod 0644 ~/.ssh/* # authorized_keys,config,*.pub and anything else
 chmod 0600 ~/.ssh/*_rsa
+mkdir -p ~/.ssh/multiplex
