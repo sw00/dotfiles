@@ -11,6 +11,7 @@ brew 'rcm'
 brew 'tmux'
 brew 'neovim'
 brew 'encfs'
+brew 'reattach-to-user-namespace'
 
 cask 'font-ibm-plex'
 cask 'alacritty'

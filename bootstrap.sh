@@ -112,6 +112,8 @@ install_fish() {
 	if [[ $1 = 'and_configure' ]]; then
 		git clone --depth=1 https://github.com/oh-my-fish/oh-my-fish ~/.oh_my_fish
 		cd ~/.oh_my_fish && bin/install --offline
+		[[ $OS = 'linux' ]] && \
+			omf install pbcopy
 	fi
 }
 
