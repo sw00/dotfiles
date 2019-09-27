@@ -93,8 +93,8 @@ install_autojump() {
 	[[ $OS = 'macos' ]] && \
 		brew install autojump
 	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
-		sudo apt install -yq autojump && \
-		[[ -z $(cat ~/.profile | grep autojump) ]] && echo ". /usr/share/autojump/autojump.sh" >> ~/.bashrc
+		git clone --depth=1 https://github.com/wting/autojump.git /tmp/autojump && \
+		cd /tmp/autojump && ./install.py
 }
 
 install_bashit() {
