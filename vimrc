@@ -103,10 +103,6 @@ if has('nvim')
   " nvim terminal escape seq
   tnoremap kj <C-\><C-n>
 
-  if executable('pyenv')
-    let g:python_host_prog = "$HOME/.pyenv/shims/python2"
-    let g:python3_host_prog = "$HOME/.pyenv/shims/python3"
-  endif
 else " not nvim
   func! GetSelectedText()
       normal gv"xy
