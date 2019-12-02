@@ -33,6 +33,8 @@ Plug 'majutsushi/tagbar'
 Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 Plug 'NLKNguyen/papercolor-theme'
+Plug 'arcticicestudio/nord-vim'
+
 
 " Language support
 Plug 'davidhalter/jedi-vim', { 'for': 'python' }
@@ -52,12 +54,7 @@ call plug#end()
 
 
 " Appearance
-colorscheme grb256
-
-" enable true color if supported
-if (has("termguicolors"))
-  set termguicolors
-endif
+colorscheme nord
 
 " Show whitespace chars
 set listchars=space:·,eol:¬,tab:▸~
