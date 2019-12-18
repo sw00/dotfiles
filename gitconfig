@@ -1,7 +1,9 @@
 [user]
 	email = exec@sett.sh
 	name = Sett Wai
-	signingkey = 7BF0
+	signingkey = 7B85AE48D79E6449BF47375AB3D46D7D68981502
+[commit]
+	gpgSign = true
 [color]
 	diff = auto
 	status = auto
@@ -30,3 +32,9 @@
 	dt = difftool
 [difftool "vimdiff"]
 	cmd = vimdiff \"$LOCAL\" \"$REMOTE\"
+
+[includeIf "gitdir:skatelescope/"]
+	path = ~/.gitconfig-ska
+
+[includeIf "gitdir:kat-src/"]
+	path = ~/.gitconfig-ska
