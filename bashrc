@@ -117,3 +117,5 @@ if ! shopt -oq posix; then
 fi
 
 cd $HOME
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
