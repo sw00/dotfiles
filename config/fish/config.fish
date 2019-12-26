@@ -2,7 +2,7 @@
 set -x LC_ALL en_US.UTF-8
 
 # editor
-set -x EDITOR vim
+set -x EDITOR nvim
 
 # TimeWarrior
 set -x TIMEWARRIORDB "$HOME/Dropbox/etc/timewarrior"
