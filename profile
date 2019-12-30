@@ -45,6 +45,7 @@ fi
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
+eval "$(pyenv init -)"
 
 # passphrase prompt for gpg in terminal
 export GPG_TTY=$(tty)
