@@ -4,3 +4,6 @@ chmod 0644 ~/.ssh/* # authorized_keys,config,*.pub and anything else
 chmod 0600 ~/.ssh/*_rsa
 mkdir -p ~/.ssh/multiplex
 chmod 0755 ~/.ssh/multiplex
+
+# cheat paths
+mkdir -p ~/.cheat/community ~/.cheat/work/ ~/.cheat/personal
