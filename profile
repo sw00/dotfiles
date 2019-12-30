@@ -14,14 +14,15 @@ META_OS=$(uname -s | awk '{ print tolower($0) }') #linux
 # locale
 export LC_ALL=en_US.UTF-8
 
-# editor
-export EDITOR=vim
+[ $META_OS = "darwin" ] && \
+	META_OS="macos"
 
-[[ $META_OS = 'darwin' ]] && \
-	META_OS='macos'
-
-[[ -n $(uname -r | grep Microsoft) ]] && \
+[ -n $(uname -r | grep Microsoft) ] && \
 	META_OS="wsl"
+
+# editor
+[ -n $(which nvim) ] && \
+    export EDITOR=nvim
 
 # if running bash
 if [ -n "$BASH_VERSION" ]; then
@@ -44,4 +45,17 @@ fi
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
+
+# passphrase prompt for gpg in terminal
+export GPG_TTY=$(tty)
+
+# timewarrior
+export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
+
+# cabal
+[ -e "$HOME/.cabal/bin" ] && \
+    PATH="$HOME/.cabal/bin"
+
+# jump into fish shell
+[ -e /usr/bin/fish ]  && exec /usr/bin/fish
 

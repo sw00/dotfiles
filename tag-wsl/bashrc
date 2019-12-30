@@ -119,4 +119,3 @@ fi
 # scoop install ssh-agent-wsl
 eval $(/mnt/c/Users/sett/scoop/apps/ssh-agent-wsl/current/ssh-agent-wsl -r)
 
-cd $HOME
