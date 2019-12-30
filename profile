@@ -55,7 +55,7 @@ export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
 
 # cabal
 [ -e "$HOME/.cabal/bin" ] && \
-    PATH="$HOME/.cabal/bin"
+    PATH="$HOME/.cabal/bin:$PATH"
 
 # jump into fish shell
 [ -e /usr/bin/fish ]  && exec /usr/bin/fish
