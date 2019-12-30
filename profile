@@ -58,4 +58,5 @@ export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
 
 # jump into fish shell
 [ -e /usr/bin/fish ]  && exec /usr/bin/fish
+[ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish
 
