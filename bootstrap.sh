@@ -12,7 +12,7 @@ case $(uname -s) in
 		OS=linux;;
 esac
 
-[[ $OS = 'linux' && -n $(uname -r | grep Microsoft) ]] && \
+[[ $OS = 'linux' && -n $(uname -r | grep -i microsoft) ]] && \
 	OS='wsl'
 
 install_rcm() {

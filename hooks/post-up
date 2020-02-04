@@ -7,3 +7,12 @@ chmod 0755 ~/.ssh/multiplex
 
 # cheat paths
 mkdir -p ~/.cheat/community ~/.cheat/work/ ~/.cheat/personal
+
+# symlink alacritty.yml on wsl
+if [ -n "$(uname -r | grep -i microsoft)" ]; then
+	ALACRITTY_PATH=$(wslpath $(wslvar APPDATA))/alacritty
+	mkdir -p "$ALACRITTY_PATH"
+	# ln -s ~/.config/alacritty/alacritty.yml "$ALACRITTY_PATH/"
+	rm -f "$ALACRITTY_PATH/alacritty.yml"
+	cp -f ~/.config/alacritty/alacritty.yml "$ALACRITTY_PATH/"
+fi
