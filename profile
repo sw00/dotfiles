@@ -42,6 +42,12 @@ if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
 
+# bash imports
+[ -e "$HOME/.bash_imports" ] && \
+    for file in $(ls -d $HOME/.bash_imports/*.sh); do
+        . $file
+    done
+
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
