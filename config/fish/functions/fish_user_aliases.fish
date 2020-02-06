@@ -8,7 +8,7 @@ if [ (uname -s) = 'Darwin' ]
 	alias abacaxi='brew update ; and brew doctor ; and brew outdated'
 else
 	alias opn='xdg-open'
-	grep -q Microsoft /proc/version; and alias opn='wslview'
+	grep -iq Microsoft /proc/version; and alias opn='wslview'
 end
 
 alias gco='git checkout'
@@ -20,3 +20,5 @@ alias gd='git diff'
 
 alias doco='docker-compose'
 alias doma='docker-machine'
+
+alias kc='kubectl'
