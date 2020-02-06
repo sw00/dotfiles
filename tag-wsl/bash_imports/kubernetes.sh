@@ -1,3 +1,3 @@
 # use kubeconfig from windows
-mkdir -p ~/.kube
+[ ! -d ~/.kube ] && mkdir -p ~/.kube
 ln -sf /mnt/c/Users/$(wslvar USERNAME)/.kube/config ~/.kube/config
