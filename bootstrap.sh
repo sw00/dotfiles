@@ -107,7 +107,7 @@ install_fish() {
 	[[ $OS = 'macos' ]] && \
 		brew install fish
 	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
-		sudo apt-get install fish
+		sudo apt-get -yq install fish
 
 	if [[ $1 = 'and_configure' ]]; then
 		git clone --depth=1 https://github.com/oh-my-fish/oh-my-fish ~/.oh_my_fish
