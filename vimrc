@@ -34,6 +34,7 @@ Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 Plug 'NLKNguyen/papercolor-theme'
 Plug 'arcticicestudio/nord-vim'
+Plug 'shumphrey/fugitive-gitlab.vim'
 
 
 " Language support
