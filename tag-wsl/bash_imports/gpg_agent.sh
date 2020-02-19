@@ -1,1 +1,1 @@
-eval $(gpg-agent --daemon)
+#eval $(gpg-agent --daemon)
