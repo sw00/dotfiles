@@ -147,6 +147,14 @@ install_fish() {
 	fi
 }
 
+install_nvim() {
+	pushd ~/bin
+	download_file https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
+	mv nvim.appimage nvim
+	chmod +x nvim
+	popd
+}
+
 main() {
 	[[ -z $(command -v rcup) ]] && \
 			install_rcm
@@ -198,6 +206,10 @@ main() {
 				;;
 			--fish)
 				install_fish and_configure
+				exit
+				;;
+			--nvim)
+				install_nvim
 				exit
 				;;
 		esac
