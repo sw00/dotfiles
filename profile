@@ -21,8 +21,10 @@ export LC_ALL=en_US.UTF-8
 	META_OS="wsl"
 
 # editor
-[ -n $(which nvim) ] && \
-    export EDITOR=nvim
+export EDITOR=vi
+command -v nvim 2&>/dev/null && \
+	export EDITOR=nvim
+
 
 # if running bash
 if [ -n "$BASH_VERSION" ]; then
