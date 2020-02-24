@@ -19,7 +19,6 @@ case $(uname -s) in
 ;;
 esac
 
-
 install_if_missing() {
 	CMD=$1
 	[[ -n $2 ]] && PKG=$2 || PKG=$1
@@ -63,11 +62,6 @@ install_rcm() {
 	sudo make install
 	popd
 }
-
-[[ -z $(command -v rcup) ]] && \
-	install_rcm
-
-rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -d `dirname $0` -t $OS
 
 _install_deb() {
 	pushd /tmp
@@ -153,52 +147,62 @@ install_fish() {
 	fi
 }
 
+main() {
+	[[ -z $(command -v rcup) ]] && \
+			install_rcm
 
-while [ ! $# -eq 0 ]
-do
-	case "$1" in
-		--all)
-			set +e
-			install_pyenv with_virtualenv
-			install_tpm
-			install_ripgrep
-			install_fd
-			install_fzf
-			install_autojump
-			exit
-			;;
-		--pyenv)
-			install_pyenv with_virtualenv
-			exit
-			;;
-		--tpm)
-			install_tpm
-			exit
-			;;
-		--rg)
-			install_ripgrep
-			exit
-			;;
-		--fd)
-			install_fd
-			exit
-			;;
-		--fzf)
-			install_fzf
-			exit
-			;;
-		--autojump)
-			install_autojump
-			exit
-			;;
-		--bashit)
-			install_bashit
-			exit
-			;;
-		--fish)
-			install_fish and_configure
-			exit
-			;;
-	esac
-	shift
-done
+	RCUP_CMD="rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -d `dirname $0` -t $OS"
+	echo Running: $RCUP_CMD
+	$RCUP_CMD
+
+	while [ ! $# -eq 0 ]
+	do
+		case "$1" in
+			--all)
+				set +e
+				install_pyenv with_virtualenv
+				install_tpm
+				install_ripgrep
+				install_fd
+				install_fzf
+				install_autojump
+				exit
+				;;
+			--pyenv)
+				install_pyenv with_virtualenv
+				exit
+				;;
+			--tpm)
+				install_tpm
+				exit
+				;;
+			--rg)
+				install_ripgrep
+				exit
+				;;
+			--fd)
+				install_fd
+				exit
+				;;
+			--fzf)
+				install_fzf
+				exit
+				;;
+			--autojump)
+				install_autojump
+				exit
+				;;
+			--bashit)
+				install_bashit
+				exit
+				;;
+			--fish)
+				install_fish and_configure
+				exit
+				;;
+		esac
+		shift
+	done
+}
+
+main $@
