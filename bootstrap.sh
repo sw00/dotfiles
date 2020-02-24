@@ -2,7 +2,7 @@
 set -e
 
 NONDOT=(bin Brewfile scripts)
-EXCLUDE=(extra-settings iterm2 'secrets\*')
+EXCLUDE=(bootstrap.sh extra-settings iterm2 'secrets\*')
 COPY=(profile bashrc bash_aliases gitconfig)
 
 case $(uname -s) in
