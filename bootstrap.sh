@@ -7,17 +7,43 @@ COPY=(profile bashrc bash_aliases gitconfig)
 
 case $(uname -s) in
 	"Darwin")
-		OS=macos;;
+		OS=macos
+		PKG_INSTALL_CMD='brew install';;
 	"Linux")
-		OS=linux;;
+		if [[ -n $(uname -r | grep -i microsoft) ]]; then
+			OS='wsl'
+		else
+			OS=linux
+		fi
+		PKG_INSTALL_CMD='sudo apt install -yq'
+;;
 esac
 
-[[ $OS = 'linux' && -n $(uname -r | grep -i microsoft) ]] && \
-	OS='wsl'
+
+install_if_missing(){
+	CMD=$1
+	[[ -n $2 ]] && PKG=$2 || PKG=$1
+	
+	if [[ -z $(command -v $CMD) ]]; then
+		$PKG_INSTALL_CMD $PKG
+	fi
+}
+
+mac_xor_linux(){
+	IF_MAC=$1
+	IF_LINUX=$2
+
+	[[ $OS == macos ]] && echo "$IF_MAC" || echo "$IF_LINUX"
+}
+
 
 install_rcm() {
+	#dependencies
+	install_if_missing make $(mac_xor_linx make build-essential)
+	install_if_missing wget
+
 	pushd /tmp
-	curl -LO https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz &&
+	wget https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz &&
 
 	sha=$(sha256sum rcm-1.3.3.tar.gz | cut -f1 -d' ') &&
 	[ "$sha" = "935524456f2291afa36ef815e68f1ab4a37a4ed6f0f144b7de7fb270733e13af" ] &&
@@ -90,6 +116,8 @@ install_fzf() {
 }
 
 install_autojump() {
+	install_if_missing python
+
 	[[ $OS = 'macos' ]] && \
 		brew install autojump
 	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
