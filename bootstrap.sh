@@ -71,7 +71,7 @@ _install_deb() {
 }
 
 install_pyenv() {
-	git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
+	[[ ! -d ~/.pyenv ]] && git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
 	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
 		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
 		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile && \
@@ -111,22 +111,23 @@ install_fd() {
 }
 
 install_fzf() {
-	git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
+	[[ ! -d ~/.fzf ]] && git clone --depth 1 https://github.com/junegunn/fzf.git ~/.fzf
 	cd ~/.fzf && ./install
 }
 
 install_autojump() {
 	install_if_missing python
 
-	[[ $OS = 'macos' ]] && \
+	if [[ $OS = 'macos' ]]; then
 		brew install autojump
-	[[ $OS = 'linux' || $OS = 'wsl' ]] && \
-		git clone --depth=1 https://github.com/wting/autojump.git /tmp/autojump && \
+	else
+		[[ ! -d /tmp/autojump ]] && git clone --depth=1 https://github.com/wting/autojump.git /tmp/autojump
 		cd /tmp/autojump && ./install.py
+	fi
 }
 
 install_bashit() {
-	git clone --depth=1 https://github.com/Bash-it/bash-it.git ~/.bash_it
+	[[ ! -d ~/.bash_it ]] && git clone --depth=1 https://github.com/Bash-it/bash-it.git ~/.bash_it
 	cd ~/.bash_it && ./install.sh
 	sed -i "s/BASH_IT_THEME='bobby'/BASH_IT_THEME='norbu'/g" ~/.bashrc
 }
@@ -138,7 +139,7 @@ install_fish() {
 		sudo apt-get -yq install fish
 
 	if [[ $1 = 'and_configure' ]]; then
-		git clone --depth=1 https://github.com/oh-my-fish/oh-my-fish ~/.oh_my_fish
+		[[ ! -d ~/.oh_my_fish ]] && git clone --depth=1 https://github.com/oh-my-fish/oh-my-fish ~/.oh_my_fish
 		cd ~/.oh_my_fish && bin/install --offline
 		[[ $OS = 'linux' ]] && \
 			omf install pbcopy
