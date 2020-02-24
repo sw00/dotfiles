@@ -55,6 +55,9 @@ export PYENV_ROOT="$HOME/.pyenv"
 export PATH="$PYENV_ROOT/bin:$PATH"
 eval "$(pyenv init -)"
 
+# autojump
+[[ -s $HOME/.autojump/etc/profile.d/autojump.sh ]] && source /home/sett/.autojump/etc/profile.d/autojump.sh
+
 # passphrase prompt for gpg in terminal
 export GPG_TTY=$(tty)
 
