@@ -3,7 +3,7 @@ set -e
 
 NONDOT=(bin Brewfile scripts)
 EXCLUDE=(bootstrap.sh extra-settings iterm2 'secrets\*')
-COPY=(profile bashrc bash_aliases gitconfig)
+COPY=(profile bashrc gitconfig)
 
 case $(uname -s) in
 	"Darwin")

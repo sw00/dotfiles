@@ -20,20 +20,6 @@ export LC_ALL=en_US.UTF-8
 [ -n $(uname -r | grep Microsoft) ] && \
 	META_OS="wsl"
 
-# editor
-export EDITOR=vi
-command -v nvim 2&>/dev/null && \
-	export EDITOR=nvim
-
-
-# if running bash
-if [ -n "$BASH_VERSION" ]; then
-    # include .bashrc if it exists
-    if [ -f "$HOME/.bashrc" ]; then
-	. "$HOME/.bashrc"
-    fi
-fi
-
 # set PATH so it includes user's private bin if it exists
 if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"
@@ -44,11 +30,23 @@ if [ -d "$HOME/.local/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
 
+# if running bash
+if [ -n "$BASH_VERSION" ]; then
+    # include .bashrc if it exists
+    if [ -f "$HOME/.bashrc" ]; then
+	. "$HOME/.bashrc"
+    fi
+fi
+
 # bash imports
 [ -e "$HOME/.bash_imports" ] && \
     for file in $(ls -d $HOME/.bash_imports/*.sh); do
         . $file
     done
+
+# editor
+command -v nvim 2&>/dev/null && \
+	export EDITOR=nvim || export EDITOR=vi
 
 # pyenv
 export PYENV_ROOT="$HOME/.pyenv"

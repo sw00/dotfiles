@@ -19,8 +19,7 @@ alias ..="cd .."
 alias ...="cd ../.."
 
 
-# neovim
-if [[ -n $(which nvim) ]]; then
+if [[ $(command -v nvim) ]]; then
 	alias vi="nvim"
 	alias vim="nvim"
 fi
