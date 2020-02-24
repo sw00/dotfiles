@@ -20,7 +20,7 @@ case $(uname -s) in
 esac
 
 
-install_if_missing(){
+install_if_missing() {
 	CMD=$1
 	[[ -n $2 ]] && PKG=$2 || PKG=$1
 	
@@ -29,21 +29,28 @@ install_if_missing(){
 	fi
 }
 
-mac_xor_linux(){
+mac_xor_linux() {
 	IF_MAC=$1
 	IF_LINUX=$2
 
 	[[ $OS == macos ]] && echo "$IF_MAC" || echo "$IF_LINUX"
 }
 
+download_file() {
+	install_if_missing wget
+
+	URL=$1
+	FILENAME=$(basename "$URL")
+
+	[[ ! -e "$FILENAME" ]] && wget "$URL"
+}
 
 install_rcm() {
 	#dependencies
 	install_if_missing make $(mac_xor_linx make build-essential)
-	install_if_missing wget
 
 	pushd /tmp
-	wget https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz
+	download_file https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz
 
 	sha=$(sha256sum rcm-1.3.3.tar.gz | cut -f1 -d' ') &&
 	[ "$sha" = "935524456f2291afa36ef815e68f1ab4a37a4ed6f0f144b7de7fb270733e13af" ] &&
@@ -64,7 +71,7 @@ rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -d `dirname $0` -t $OS
 
 _install_deb() {
 	pushd /tmp
-	wget $1
+	download_file $1
 	debfile=$(echo $1 | rev | cut -d\/ -f1 | rev)
 	sudo dpkg -i $debfile
 	popd
