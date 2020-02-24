@@ -148,8 +148,10 @@ install_fish() {
 }
 
 install_nvim() {
+	install_if_missing ctags
+
 	pushd ~/bin
-	download_file https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
+	[[ -z $(command -v nvim) ]] && download_file https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
 	mv nvim.appimage nvim
 	chmod +x nvim
 	popd
