@@ -43,7 +43,7 @@ install_rcm() {
 	install_if_missing wget
 
 	pushd /tmp
-	wget https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz &&
+	wget https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz
 
 	sha=$(sha256sum rcm-1.3.3.tar.gz | cut -f1 -d' ') &&
 	[ "$sha" = "935524456f2291afa36ef815e68f1ab4a37a4ed6f0f144b7de7fb270733e13af" ] &&
@@ -64,7 +64,7 @@ rcup ${NONDOT[@]/#/-U } ${EXCLUDE[@]/#/-x } -d `dirname $0` -t $OS
 
 _install_deb() {
 	pushd /tmp
-	curl -LO $1
+	wget $1
 	debfile=$(echo $1 | rev | cut -d\/ -f1 | rev)
 	sudo dpkg -i $debfile
 	popd
