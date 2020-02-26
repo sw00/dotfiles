@@ -85,7 +85,7 @@ install_pyenv() {
 	fi
 
 	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
-		sudo apt-get install -yq make build-essential libssl-dev libreadline-dev libbz2-dev libsqlite3-dev 
+		sudo apt-get install -yq --no-install-recommends make build-essential zlib1g-dev libffi-dev libssl-dev libreadline-dev libbz2-dev libsqlite3-dev 
 	fi
 }
 
