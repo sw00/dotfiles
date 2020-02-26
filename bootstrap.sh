@@ -80,7 +80,7 @@ install_pyenv() {
 
 	if [[ $1 = 'with_virtualenv' ]]; then
 		mkdir -p ~/.pyenv/plugins
-		git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
+		[[ ! -d ~/.pyenv/plugins ]] && git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
 		[[ -z $(cat ~/.bashrc | grep 'pyenv virtualenv-init') ]] && echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
 	fi
 
@@ -90,9 +90,11 @@ install_pyenv() {
 }
 
 
-install_tpm() {
-	mkdir -p ~/.tmux/plugins/tpm
-	git clone --depth=1 https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+install_tmux() {
+	install_if_missing tmux
+
+	mkdir -p ~/.tmux/plugins
+	[[ ! -d ~/.tmux/plugins/tpm ]] && git clone --depth=1 https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
 }
 
 install_ripgrep() {
@@ -171,7 +173,7 @@ main() {
 			--all)
 				set +e
 				install_pyenv with_virtualenv
-				install_tpm
+				install_tmux
 				install_ripgrep
 				install_fd
 				install_fzf
@@ -182,8 +184,8 @@ main() {
 				install_pyenv with_virtualenv
 				exit
 				;;
-			--tpm)
-				install_tpm
+			--tmux)
+				install_tmux
 				exit
 				;;
 			--rg)
