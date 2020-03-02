@@ -76,7 +76,6 @@ install_pyenv() {
 	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
 		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
 		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile && \
-		echo -e 'if command -v pyenv 1>/dev/null 2>&1; then\n  eval "$(pyenv init -)"\nfi' >> ~/.bashrc
 
 	if [[ $1 = 'with_virtualenv' ]]; then
 		mkdir -p ~/.pyenv/plugins
@@ -89,6 +88,17 @@ install_pyenv() {
 	fi
 }
 
+setup_pythons() {
+	PY3_VERSION=3.7.3
+	PY2_VERSION=2.7.17
+	PIP_REQUIRE_VIRTUALENV=no
+
+	pyenv install $PY3_VERSION
+	pyenv shell $PY3_VERSION && pip install -U pip neovim
+
+	pyenv install $PY2_VERSION
+	pyenv shell $PY2_VERSION && pip install -U pip neovim
+}
 
 install_tmux() {
 	install_if_missing tmux
@@ -178,6 +188,10 @@ main() {
 				install_fd
 				install_fzf
 				install_autojump
+				install_pyenv
+				setup_pythons
+				install_nvim
+				install_fish
 				exit
 				;;
 			--pyenv)
