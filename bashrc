@@ -116,5 +116,44 @@ if ! shopt -oq posix; then
   fi
 fi
 
+# locale
+export LC_ALL=en_US.UTF-8
 
+# passphrase prompt for gpg in terminal
+export GPG_TTY=$(tty)
+
+# timewarrior
+export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
+
+# bash imports
+[ -e "$HOME/.bash_imports" ] && \
+    for file in $(ls -d $HOME/.bash_imports/*.sh); do
+        . $file
+    done
+
+# editor
+command -v nvim 2&>/dev/null && \
+	export EDITOR=nvim || export EDITOR=vi
+
+# pyenv
+if command -v pyenv; then
+    export PYENV_ROOT="$HOME/.pyenv"
+    export PATH="$PYENV_ROOT/bin:$PATH"
+    eval "$(pyenv init -)"
+fi
+
+# autojump
+[[ -s $HOME/.autojump/etc/profile.d/autojump.sh ]] && source /home/sett/.autojump/etc/profile.d/autojump.sh
+
+
+# cabal
+[ -e "$HOME/.cabal/bin" ] && \
+    PATH="$HOME/.cabal/bin:$PATH"
+
+# fzf
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+
+# jump into fish shell
+[ -e /usr/bin/fish ]  && exec /usr/bin/fish
+[ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish
+eval "$(pyenv virtualenv-init -)"

@@ -11,9 +11,6 @@
 # capture metadata about system for convenience
 META_OS=$(uname -s | awk '{ print tolower($0) }') #linux
 
-# locale
-export LC_ALL=en_US.UTF-8
-
 [ $META_OS = "darwin" ] && \
 	META_OS="macos"
 
@@ -37,36 +34,4 @@ if [ -n "$BASH_VERSION" ]; then
 	. "$HOME/.bashrc"
     fi
 fi
-
-# bash imports
-[ -e "$HOME/.bash_imports" ] && \
-    for file in $(ls -d $HOME/.bash_imports/*.sh); do
-        . $file
-    done
-
-# editor
-command -v nvim 2&>/dev/null && \
-	export EDITOR=nvim || export EDITOR=vi
-
-# pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
-
-# autojump
-[[ -s $HOME/.autojump/etc/profile.d/autojump.sh ]] && source /home/sett/.autojump/etc/profile.d/autojump.sh
-
-# passphrase prompt for gpg in terminal
-export GPG_TTY=$(tty)
-
-# timewarrior
-export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
-
-# cabal
-[ -e "$HOME/.cabal/bin" ] && \
-    PATH="$HOME/.cabal/bin:$PATH"
-
-# jump into fish shell
-[ -e /usr/bin/fish ]  && exec /usr/bin/fish
-[ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish
 
