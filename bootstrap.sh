@@ -73,13 +73,11 @@ _install_deb() {
 
 install_pyenv() {
 	[[ ! -d ~/.pyenv ]] && git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
-	[[ -z $(cat ~/.profile | grep PYENV_ROOT) ]] && \
-		echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.profile && \
-		echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.profile && \
 
 	if [[ $1 = 'with_virtualenv' ]]; then
+		echo yes!
 		mkdir -p ~/.pyenv/plugins
-		[[ ! -d ~/.pyenv/plugins ]] && git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
+		[[ ! -d ~/.pyenv/plugins/pyenv-virtualenv ]] && git clone --depth=1 https://github.com/pyenv/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
 		[[ -z $(cat ~/.bashrc | grep 'pyenv virtualenv-init') ]] && echo 'eval "$(pyenv virtualenv-init -)"' >> ~/.bashrc
 	fi
 
@@ -194,7 +192,6 @@ main() {
 				install_fd
 				install_fzf
 				install_autojump
-				install_pyenv
 				setup_pythons
 				install_nvim
 				install_fish and_configure
