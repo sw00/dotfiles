@@ -46,7 +46,7 @@ download_file() {
 
 install_rcm() {
 	#dependencies
-	install_if_missing make $(mac_xor_linx make build-essential)
+	install_if_missing make $(mac_xor_linux make build-essential)
 
 	pushd /tmp
 	download_file https://thoughtbot.github.io/rcm/dist/rcm-1.3.3.tar.gz
@@ -92,12 +92,17 @@ setup_pythons() {
 	PY3_VERSION=3.7.3
 	PY2_VERSION=2.7.17
 	PIP_REQUIRE_VIRTUALENV=no
+	PATH=$HOME/.pyenv/bin:$PATH
 
-	pyenv install $PY3_VERSION
-	pyenv shell $PY3_VERSION && pip install -U pip neovim
+	if [[ -z $(pyenv versions | grep $PY3_VERSION) ]]; then
+		pyenv install $PY3_VERSION
+		pyenv shell $PY3_VERSION && pip install -U pip neovim
+	fi
 
-	pyenv install $PY2_VERSION
-	pyenv shell $PY2_VERSION && pip install -U pip neovim
+	if [[ -z $(pyenv versions | grep $PY2_VERSION) ]]; then
+		pyenv install $PY2_VERSION
+		pyenv shell $PY2_VERSION && pip install -U pip neovim
+	fi
 }
 
 install_tmux() {
@@ -163,9 +168,10 @@ install_nvim() {
 	install_if_missing ctags
 
 	pushd ~/bin
-	[[ -z $(command -v nvim) ]] && download_file https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage
-	mv nvim.appimage nvim
-	chmod +x nvim
+	[[ -z $(command -v nvim) ]] && \
+		download_file https://github.com/neovim/neovim/releases/download/nightly/nvim.appimage && \
+		mv nvim.appimage nvim && \
+		chmod +x nvim
 	popd
 }
 
@@ -191,7 +197,7 @@ main() {
 				install_pyenv
 				setup_pythons
 				install_nvim
-				install_fish
+				install_fish and_configure
 				exit
 				;;
 			--pyenv)
