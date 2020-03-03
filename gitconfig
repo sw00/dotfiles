@@ -33,6 +33,9 @@
 [difftool "vimdiff"]
 	cmd = vimdiff \"$LOCAL\" \"$REMOTE\"
 
+[includeIf "gitdir:/etc/"]
+	path = ~/.gitconfig-etckeeper
+
 [includeIf "gitdir:skatelescope/"]
 	path = ~/.gitconfig-ska
 
