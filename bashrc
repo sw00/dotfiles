@@ -153,6 +153,13 @@ fi
 # fzf
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
+# rbenv
+eval "$(rbenv init -)"
+
+# rust
+[ -d "$HOME/.cargo/bin" ] && \
+  PATH="$HOME/.cargo/bin:$PATH"
+
 # jump into fish shell
 [ -e /usr/bin/fish ]  && exec /usr/bin/fish
 [ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish

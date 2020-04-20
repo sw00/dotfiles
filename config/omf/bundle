@@ -4,4 +4,5 @@ package fzf-autojump
 package https://github.com/jhillyerd/plugin-git
 package pbcopy
 package pyenv
+package rbenv
 theme kawasaki
