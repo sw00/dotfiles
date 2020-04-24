@@ -52,6 +52,7 @@ Plug 'vim-pandoc/vim-pandoc-syntax', {'for': 'pandoc'}
 Plug 'soli/prolog-vim', {'for': 'prolog'}
 Plug 'thanethomson/vim-jenkinsfile'
 Plug 'rust-lang/rust.vim', {'for': 'rust' }
+Plug 'vim-ruby/vim-ruby', {'for': 'ruby' }
 call plug#end()
 
 
