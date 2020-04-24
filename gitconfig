@@ -41,3 +41,6 @@
 
 [includeIf "gitdir:kat-src/"]
 	path = ~/.gitconfig-ska
+
+[includeIf "gitdir:wethinkcode/"]
+	path = ~/.gitconfig-wtc
