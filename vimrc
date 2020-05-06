@@ -68,6 +68,8 @@ set nu rnu
 " highlight line
 set cursorline
 hi cursorline term=bold cterm=bold ctermbg=235
+highlight Visual term=reverse cterm=reverse ctermbg=NONE
+
 
 " highlight search term
 set hlsearch
