@@ -117,7 +117,7 @@ if ! shopt -oq posix; then
 fi
 
 # locale
-export LC_ALL=en_US.UTF-8
+export LC_ALL=en_US.UTF-8 LC_TYPE=en_US.UTF-8 LANG=en_US.UTF-8
 
 # use VcXsrv on WSL to share clipboard
 if $(uname -a | grep -q microsoft); then
@@ -146,6 +146,7 @@ if command -v pyenv; then
     export PYENV_ROOT="$HOME/.pyenv"
     export PATH="$PYENV_ROOT/bin:$PATH"
     eval "$(pyenv init -)"
+    eval "$(pyenv virtualenv-init -)"
 fi
 
 # autojump
@@ -166,7 +167,6 @@ eval "$(rbenv init -)"
 [ -d "$HOME/.cargo/bin" ] && \
   PATH="$HOME/.cargo/bin:$PATH"
 
-# jump into fish shell
+# # jump into fish shell
 [ -e /usr/bin/fish ]  && exec /usr/bin/fish
 [ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish
-eval "$(pyenv virtualenv-init -)"
