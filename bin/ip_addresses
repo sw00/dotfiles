@@ -1,17 +1,15 @@
 #!/bin/bash
+OS=$(uname -a)
 
-ip_address_command () {
-  OS=$(uname -s)
-
-  if [[ $OS == "Linux" ]]; then
-    ip address
-  elif [[ $OS == "Darwin" ]]; then
-    ifconfig
+if [[ $OS == Linux* ]]; then
+  if [[ $OS == *microsoft* ]]; then
+    HOST=$(powershell.exe -Command "(ipconfig.exe) -Match 'IPv4'" | tr -s '\n\r' '\n' | awk '!/172(\.[0-9]+){3}/{ print $NF }')
+    WSL_VM=$(ip a | awk '/inet.*([0-9]+\.)/{ print $2 }' | tail -1)
+    echo "[$HOST] [$WSL_VM]"
+  else
+    ip address | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
   fi
-}
+elif [[ $OS == "Darwin" ]]; then
+  ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
+fi
 
-main () {
-  ip_address_command | awk '$1 == "inet" { print "[" $2 "] " }' | tail -n +2 | tr -d '\n'
-}
-
-main
