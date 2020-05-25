@@ -119,10 +119,14 @@ fi
 # locale
 export LC_ALL=en_US.UTF-8 LC_TYPE=en_US.UTF-8 LANG=en_US.UTF-8
 
-# use VcXsrv on WSL to share clipboard
+# if running in WSL2 on win10
 if $(uname -a | grep -q microsoft); then
+  # use VcXsrv on WSL to share clipboard
   LOCAL_IP=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')
   export DISPLAY=$LOCAL_IP:0
+
+  # let vagrant speak to virtualbox
+  export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS="1"
 fi
 
 # passphrase prompt for gpg in terminal
