@@ -8,7 +8,10 @@ if [ (uname -s) = 'Darwin' ]
 	alias abacaxi='brew update ; and brew doctor ; and brew outdated'
 else
 	alias opn='xdg-open'
-	grep -iq Microsoft /proc/version; and alias opn='wslview'
+	if grep -iq Microsoft /proc/version
+		alias opn='wslview'
+		alias psh='powershell.exe -Command '
+	end
 end
 
 alias gco='git checkout'
