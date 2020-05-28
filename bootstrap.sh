@@ -118,6 +118,16 @@ install_ripgrep() {
 	fi
 }
 
+install_ripgrep_all() {
+	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
+		pushd /tmp
+		download_file "https://github.com/phiresky/ripgrep-all/releases/download/v0.9.6/ripgrep_all-v0.9.6-x86_64-unknown-linux-musl.tar.gz"
+		tar -xvf ripgrep_all-v0.9.6-x86_64-unknown-linux-musl.tar.gz
+		mv /tmp/ripgrep_all-v0.9.6-x86_64-unknown-linux-musl/rga* ~/bin/
+		popd
+	fi
+}
+
 install_fd() {
 	if [[ $OS = 'linux' || $OS = 'wsl' ]]; then
 		_install_deb https://github.com/sharkdp/fd/releases/download/v7.3.0/fd-musl_7.3.0_amd64.deb
@@ -189,6 +199,7 @@ main() {
 				install_pyenv with_virtualenv
 				install_tmux
 				install_ripgrep
+				install_ripgrep_all
 				install_fd
 				install_fzf
 				install_autojump
@@ -207,6 +218,10 @@ main() {
 				;;
 			--rg)
 				install_ripgrep
+				exit
+				;;
+			--rga)
+				install_ripgrep_all
 				exit
 				;;
 			--fd)
