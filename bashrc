@@ -165,8 +165,10 @@ fi
 # fzf
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
 
-# rbenv
-eval "$(rbenv init -)"
+# rbenl
+if command -v rbenv; then 
+  export PATH="$HOME/.rbenv/bin:$PATH"
+fi
 
 # rust
 [ -d "$HOME/.cargo/bin" ] && \

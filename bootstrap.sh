@@ -103,6 +103,14 @@ setup_pythons() {
 	fi
 }
 
+install_rbenv() {
+	if [[ ! -d ~/.rbenv ]]; then 
+		git clone --depth=1 https://github.com/rbenv/rbenv.git ~/.rbenv
+		mkdir -p ~/.rbenv/plugins
+		git clone --depth=1 https://github.com/rbenv/ruby-build.git ~/.rbenv/plugins/ruby-build
+	fi
+}
+
 install_tmux() {
 	install_if_missing tmux
 
@@ -210,6 +218,10 @@ main() {
 				;;
 			--pyenv)
 				install_pyenv with_virtualenv
+				exit
+				;;
+			--rbenv)
+				install_rbenv
 				exit
 				;;
 			--tmux)
