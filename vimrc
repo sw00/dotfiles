@@ -57,7 +57,7 @@ call plug#end()
 
 
 " Appearance
-colorscheme nord
+colorscheme PaperColor
 
 " Show whitespace chars
 set listchars=space:·,eol:¬,tab:▸~
@@ -69,6 +69,7 @@ set nu rnu
 set cursorline
 hi cursorline term=bold cterm=bold ctermbg=235
 highlight Visual term=reverse cterm=reverse ctermbg=NONE
+set bg=light
 
 
 " highlight search term
