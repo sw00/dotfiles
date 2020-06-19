@@ -31,7 +31,7 @@
 #    with every usage.
 #    * Disable: edit the script, near the top, set NOTIFY to the value "0"
 #    * Enable: edit the script, near the top, set NOTIFY to the value "1"
-PERSISTENCE=""
+PERSISTENCE="Session"
 NOTIFY="1"
 DEBUGLOG=""
 
