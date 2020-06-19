@@ -71,6 +71,12 @@ _install_deb() {
 	popd
 }
 
+install_asdf() {
+	ASDF_VERSION="0.7.8"
+	[[ ! -d ~/.asdf ]] && \
+		git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v$ASDF_VERSION
+}
+
 install_pyenv() {
 	[[ ! -d ~/.pyenv ]] && git clone --depth=1 https://github.com/pyenv/pyenv ~/.pyenv
 
@@ -214,6 +220,10 @@ main() {
 				setup_pythons
 				install_nvim
 				install_fish and_configure
+				exit
+				;;
+			--asdf)
+				install_asdf
 				exit
 				;;
 			--pyenv)

@@ -146,6 +146,13 @@ export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
 command -v nvim 2&>/dev/null && \
 	export EDITOR=nvim || export EDITOR=vi
 
+# asdf
+if command -v asdf; then
+  . $HOME/.asdf/asdf.sh
+  . $HOME/.asdf/completions/asdf.bash
+  export PATH="$HOME/.asdf/bin:$PATH"
+fi
+
 # pyenv
 if command -v pyenv; then
     export PYENV_ROOT="$HOME/.pyenv"
