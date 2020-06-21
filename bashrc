@@ -116,70 +116,11 @@ if ! shopt -oq posix; then
   fi
 fi
 
-# locale
-export LC_ALL=en_US.UTF-8 LC_TYPE=en_US.UTF-8 LANG=en_US.UTF-8
-
-# if running in WSL2 on win10
-if $(uname -a | grep -q microsoft); then
-  # use VcXsrv on WSL to share clipboard
-  LOCAL_IP=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}')
-  export DISPLAY=$LOCAL_IP:0
-  export LIBGL_ALWAYS_INDIRECT=1
-
-  # let vagrant speak to virtualbox
-  export VAGRANT_WSL_ENABLE_WINDOWS_ACCESS="1"
-fi
-
-# passphrase prompt for gpg in terminal
-export GPG_TTY=$(tty)
-
-# timewarrior
-export TIMEWARRIORDB="$HOME/Dropbox/etc/timewarrior"
-
 # bash imports
 [ -e "$HOME/.bash_imports" ] && \
     for file in $(ls -d $HOME/.bash_imports/*.sh); do
         . $file
     done
-
-# editor
-command -v nvim 2&>/dev/null && \
-	export EDITOR=nvim || export EDITOR=vi
-
-# asdf
-if command -v asdf; then
-  . $HOME/.asdf/asdf.sh
-  . $HOME/.asdf/completions/asdf.bash
-  PATH="$HOME/.asdf/bin:$PATH"
-fi
-
-# pyenv
-if command -v pyenv; then
-    export PYENV_ROOT="$HOME/.pyenv"
-    PATH="$PYENV_ROOT/bin:$PATH"
-    eval "$(pyenv init -)"
-    eval "$(pyenv virtualenv-init -)"
-fi
-
-# autojump
-[[ -s $HOME/.autojump/etc/profile.d/autojump.sh ]] && source /home/sett/.autojump/etc/profile.d/autojump.sh
-
-
-# cabal
-[ -e "$HOME/.cabal/bin" ] && \
-    PATH="$HOME/.cabal/bin:$PATH"
-
-# fzf
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
-
-# rbenl
-if command -v rbenv; then 
-  PATH="$HOME/.rbenv/bin:$PATH"
-fi
-
-# rust
-[ -d "$HOME/.cargo/bin" ] && \
-  PATH="$HOME/.cargo/bin:$PATH"
 
 # # jump into fish shell
 [ -e /usr/bin/fish ]  && exec /usr/bin/fish
