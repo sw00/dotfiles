@@ -150,13 +150,13 @@ command -v nvim 2&>/dev/null && \
 if command -v asdf; then
   . $HOME/.asdf/asdf.sh
   . $HOME/.asdf/completions/asdf.bash
-  export PATH="$HOME/.asdf/bin:$PATH"
+  PATH="$HOME/.asdf/bin:$PATH"
 fi
 
 # pyenv
 if command -v pyenv; then
     export PYENV_ROOT="$HOME/.pyenv"
-    export PATH="$PYENV_ROOT/bin:$PATH"
+    PATH="$PYENV_ROOT/bin:$PATH"
     eval "$(pyenv init -)"
     eval "$(pyenv virtualenv-init -)"
 fi
@@ -174,7 +174,7 @@ fi
 
 # rbenl
 if command -v rbenv; then 
-  export PATH="$HOME/.rbenv/bin:$PATH"
+  PATH="$HOME/.rbenv/bin:$PATH"
 fi
 
 # rust

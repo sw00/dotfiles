@@ -36,4 +36,3 @@ if [ -n "$BASH_VERSION" ]; then
 fi
 
 
-export PATH="$HOME/.cargo/bin:$PATH"
