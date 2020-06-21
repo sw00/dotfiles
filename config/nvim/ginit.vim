@@ -1,4 +1,3 @@
 set guioptions=egma
-set guifont=Inconsolata-g
-colorscheme onedark
+source ~/.config/nvim/init.vim
 
