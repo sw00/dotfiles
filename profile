@@ -36,3 +36,4 @@ if [ -n "$BASH_VERSION" ]; then
 fi
 
 
+if [ -e /home/sett/.nix-profile/etc/profile.d/nix.sh ]; then . /home/sett/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer

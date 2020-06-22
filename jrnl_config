@@ -7,8 +7,8 @@
   "default_minute": 0, 
   "highlight": true, 
   "journals": {
-    "default": "/Users/sett/DropBox/etc/jrnl/daily.txt",
-    "craft": "/Users/sett/DropBox/etc/jrnl/craft.txt"
+    "default": "~/Dropbox/etc/jrnl/daily.txt",
+    "craft": "~/Dropbox/etc/jrnl/craft.txt"
   }, 
   "tagsymbols": "@"
 }
