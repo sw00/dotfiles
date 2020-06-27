@@ -8,11 +8,15 @@ chmod 0755 ~/.ssh/multiplex
 # cheat paths
 mkdir -p ~/.cheat/community ~/.cheat/work/ ~/.cheat/personal
 
-# symlink alacritty.yml on wsl
-if [ -n "$(uname -r | grep -i microsoft)" ]; then
-	ALACRITTY_PATH=$(wslpath $(wslvar APPDATA))/alacritty
+if grep -qEi '(microsoft|wsl)' /proc/version; then
+	APPDATA_DIR=$(wslpath $(wslvar APPDATA))
+	# copy alacritty config to windows path
+	ALACRITTY_PATH="$APPDATA_DIR/alacritty"
 	mkdir -p "$ALACRITTY_PATH"
-	# ln -s ~/.config/alacritty/alacritty.yml "$ALACRITTY_PATH/"
 	rm -f "$ALACRITTY_PATH/alacritty.yml"
 	cp -f ~/.config/alacritty/alacritty.yml "$ALACRITTY_PATH/"
+
+	# copy autohotkey bindings to startup dir
+	STARTUP_PATH="$APPDATA_DIR/Microsoft/Windows/Start Menu/Programs/Startup"
+	cp -f ../extra-settings/keybindings.ahk "$STARTUP_PATH/keybindings.ahk"
 fi
