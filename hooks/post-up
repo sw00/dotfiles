@@ -16,7 +16,8 @@ if grep -qEi '(microsoft|wsl)' /proc/version; then
 	rm -f "$ALACRITTY_PATH/alacritty.yml"
 	cp -f ~/.config/alacritty/alacritty.yml "$ALACRITTY_PATH/"
 
-	# copy autohotkey bindings to startup dir
+	# autostart things
 	STARTUP_PATH="$APPDATA_DIR/Microsoft/Windows/Start Menu/Programs/Startup"
 	cp -f ../extra-settings/keybindings.ahk "$STARTUP_PATH/keybindings.ahk"
+	cp -f ../extra-settings/launch-vcxsrv.lnk "$STARTUP_PATH/vcxsrv.lnk"
 fi
