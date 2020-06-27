@@ -8,6 +8,10 @@ chmod 0755 ~/.ssh/multiplex
 # cheat paths
 mkdir -p ~/.cheat/community ~/.cheat/work/ ~/.cheat/personal
 
+# symlink buku db
+[ -e "$HOME/Dropbox/etc/buku/bookmarks.db" ] && \
+	ln -sf "$HOME/Dropbox/etc/buku/bookmarks.db" ~/.local/share/buku/bookmarks.db
+
 if grep -qEi '(microsoft|wsl)' /proc/version; then
 	APPDATA_DIR=$(wslpath $(wslvar APPDATA))
 	# copy alacritty config to windows path
