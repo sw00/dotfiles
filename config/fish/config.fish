@@ -1,25 +1,10 @@
-set -x DISPLAY (cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
-
 if grep -qEi '(microsoft|wsl)' /proc/version
-	pgrep dbus-daemon > /dev/null
+	set -x DISPLAY (cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
+	set -x LIBGL_ALWAYS_INDIRECT 1
+	set -x VAGRANT_WSL_ENABLE_WINDOWS_ACCESS 1
 
-	if test $status -eq 1
-	  dbus-launch --sh-syntax | read --line bus_address ignored bus_pid bus_windowid
-
-	  set -Ux DBUS_SESSION_BUS_ADDRESS (string match -r "'(.*)'" $bus_address)[2]
-	  set -Ux DBUS_SESSION_BUS_ID (string match -r "=(.*);" $bus_pid)[2]
-	  set -Ux DBUS_SESSION_BUS_WINDOWID (string match -r "=(.*);" $bus_windowid)[2]
-	end
-
-	# pgrep limited to 15 chars, so truncate `daemon`
-	pgrep gnome-keyring-d > /dev/null
-
-	if test $status -eq 1
-	  gnome-keyring-daemon | read --line gnome_keyring_control ssh_auth_sock
-
-	  set -Ux GNOME_KEYRING_CONTROL (string split -m 1 = $gnome_keyring_control)[2]
-	  set -Ux SSH_AUTH_SOCK (string split -m 1 = $ssh_auth_sock)[2]
-	end
+	fenv "eval `dbus-launch`" > /dev/null
+	fenv "eval `gnome-keyring-daemon -r -d -c secrets,ssh,pkcs11`" > /dev/null
 end
 
 source ~/.config/fish/functions/fish_user_aliases.fish
