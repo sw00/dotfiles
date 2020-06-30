@@ -139,9 +139,9 @@ map <c-k> <c-w>k
 map <c-l> <c-w>l
 map <c-h> <c-w>h
 
-" cycle buffers like this
-nnoremap <Tab> :bn<CR>
-nnoremap <S-Tab> :bp<CR>
+" cycle tabs like this
+nnoremap <Tab> :tabn<CR>
+nnoremap <S-Tab> :tabp<CR>
 
 " Plugins
 " nerdtree
@@ -210,3 +210,9 @@ nmap <F7> :TagbarToggle<CR>
 
 " goyo & limelight
 nmap <F12> :Goyo <bar> Limelight!!<CR>"
+
+" rust
+let g:racer_experimental_completer = 1
+let g:racer_insert_paren = 1
+let g:rustfmt_autosave = 0
+
