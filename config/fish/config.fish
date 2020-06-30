@@ -1,6 +1,8 @@
-pgrep dbus-daemon > /dev/null
+set -x DISPLAY (cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
 
 if grep -qEi '(microsoft|wsl)' /proc/version
+	pgrep dbus-daemon > /dev/null
+
 	if test $status -eq 1
 	  dbus-launch --sh-syntax | read --line bus_address ignored bus_pid bus_windowid
 
