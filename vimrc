@@ -21,6 +21,7 @@ Plug 'ervandew/supertab'
 Plug 'SirVer/ultisnips'
 if has('nvim')
   Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
+  Plug 'neovim/nvim-lsp'
 else
   Plug 'Shougo/deoplete.nvim'
   Plug 'roxma/nvim-yarp'
