@@ -24,4 +24,8 @@ if grep -qEi '(microsoft|wsl)' /proc/version; then
 	STARTUP_PATH="$APPDATA_DIR/Microsoft/Windows/Start Menu/Programs/Startup"
 	cp -f ../extra-settings/keybindings.ahk "$STARTUP_PATH/keybindings.ahk"
 	cp -f ../extra-settings/launch-vcxsrv.lnk "$STARTUP_PATH/vcxsrv.lnk"
+
+	WIN_HOME_RAW="$(cmd.exe /c "<nul set /p=%UserProfile%" 2>/dev/null)"
+	WIN_HOME="$(wslpath $WIN_HOME_RAW)"
+	cp ../tag-wsl/wslconfig "$WIN_HOME/.wslconfig"
 fi
