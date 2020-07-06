@@ -54,7 +54,6 @@ Plug 'vim-pandoc/vim-pandoc-syntax', {'for': 'pandoc'}
 Plug 'soli/prolog-vim', {'for': 'prolog'}
 Plug 'thanethomson/vim-jenkinsfile'
 Plug 'rust-lang/rust.vim', {'for': 'rust' }
-Plug 'racer-rust/vim-racer', {'for': 'rust' }
 Plug 'vim-ruby/vim-ruby', {'for': 'ruby' }
 call plug#end()
 
@@ -204,8 +203,8 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 1
 let g:ale_set_highlights = 1
 let g:ale_set_balloons = 1
-let g:ale_completion_enabled = 0
-let g:ale_disable_lsp = 1
+let g:ale_completion_enabled = 1
+let g:ale_disable_lsp = 0
 let g:ale_fixers = {
 \ '*': ['remove_trailing_lines', 'trim_whitespace']
 \}
