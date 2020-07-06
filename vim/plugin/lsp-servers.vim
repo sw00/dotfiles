@@ -4,6 +4,7 @@ let g:language_client_log_level = 'debug'
 lua << EOF
 local nvim_lsp = require'nvim_lsp'
 nvim_lsp.solargraph.setup{}
+nvim_lsp.rust_analyzer.setup{}
 EOF
 
 function! LSPRename()
@@ -24,8 +25,6 @@ function! LSPSetMappings()
     nnoremap <silent> g0    <cmd>lua vim.lsp.buf.document_symbol()<CR>
     nnoremap <silent> gW    <cmd>lua vim.lsp.buf.workspace_symbol()<CR>
     nnoremap <silent> <buffer> <F2> :call LSPRename()<CR>
-
-
 endfunction
 
 au FileType ruby :call LSPSetMappings()

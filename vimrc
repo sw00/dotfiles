@@ -203,11 +203,11 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 1
 let g:ale_set_highlights = 1
 let g:ale_set_balloons = 1
-let g:ale_completion_enabled = 1
-let g:ale_disable_lsp = 0
+let g:ale_completion_enabled = 0
+let g:ale_disable_lsp = 1
 let g:ale_fixers = {
-\ '*': ['remove_trailing_lines', 'trim_whitespace']
-\}
+      \ '*': ['remove_trailing_lines', 'trim_whitespace']
+      \}
 
 nmap <leader>l <Plug>(ale_fix)
 nmap <F8> <Plug>(ale_fix)
