@@ -134,6 +134,9 @@ endif
 map :Q<CR> :q<CR>
 map :Wq<CR> :wq<CR>
 map :WQ<CR> :wq!<CR>
+map :X<CR> :x!<CR>
+map <c-s> :w<CR>
+map <c-S> :w!<CR>
 
 " easier mapping for navigating viewports
 map <c-j> <c-w>j 
@@ -201,7 +204,13 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 1
 let g:ale_set_highlights = 1
 let g:ale_set_balloons = 1
+let g:ale_completion_enabled = 0
+let g:ale_disable_lsp = 1
+let g:ale_fixers = {
+\ '*': ['remove_trailing_lines', 'trim_whitespace']
+\}
 
+nmap <leader>l <Plug>(ale_fix)
 nmap <F8> <Plug>(ale_fix)
 nmap <S-F8> <Plug>(ale_toggle)
 nmap an <Plug>(ale_next_wrap)
