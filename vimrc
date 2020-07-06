@@ -31,6 +31,7 @@ endif
 " IDE (multiline, lint, repl,...)
 Plug 'AndrewRadev/splitjoin.vim'
 Plug 'majutsushi/tagbar'
+Plug 'pechorin/any-jump.vim'
 Plug 'w0rp/ale'
 Plug 'hkupty/iron.nvim', {'do': ':UpdateRemotePlugins'}
 Plug 'NLKNguyen/papercolor-theme'
