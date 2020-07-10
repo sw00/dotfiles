@@ -7,28 +7,23 @@ func! LSPEnable() abort
       require'diagnostic'.on_attach()
     end
 
-    do
-      local method = 'textDocument/publishDiagnostics'
-      local default_callback = vim.lsp.callbacks[method]
-      vim.lsp.callbacks[method] = function(err, method, result, client_id)
-        default_callback(err, method, result, client_id)
-        if result and result.diagnostics then
-          for _, v in ipairs(result.diagnostics) do
-            v.uri = v.uri or result.uri
-          end
-          vim.lsp.util.set_qflist(result.diagnostics)
-        end
-      end
-    end
-
     nvim_lsp.solargraph.setup{}
-    nvim_lsp.rust_analyzer.setup{}
+    nvim_lsp.rust_analyzer.setup{
+      on_attach = on_attach,
+      settings = {
+        rust_analyzer = {
+          diagnostics = {
+            enable = true;
+          }
+        }
+      }
+    }
 EOF
 endf
 
 function! LSPRename()
   let b:newName = input('Enter new name: ', expand('<cword>'))
-  echom "b:newName = " . b:newName
+  " echom "b:newName = " . b:newName
   lua vim.lsp.buf.rename(vim.b.newName)
 endfunction
 
