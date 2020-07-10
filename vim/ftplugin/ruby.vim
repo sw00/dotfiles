@@ -1,15 +1,22 @@
 set smarttab foldmethod=indent
 set textwidth=120 shiftwidth=2 tabstop=2 expandtab softtabstop=2 shiftround autoindent
 
-" lint
-let g:ale_linters.ruby = ['ruby', 'rubocop', 'standardrb']
-let g:ale_fixers.ruby = ['standardrb']
-
 " completion
 setl completeopt=menu,menuone,preview,noselect,
+setl omnifunc=v:lua.vim.lsp.omnifunc
+call SuperTabSetDefaultCompletionType("<c-x><c-o>")
+
+call deoplete#custom#option('sources', {
+      \ 'ruby': ['buffer', 'ale', 'omni']
+      \})
+
 call deoplete#custom#source('omni', 'functions', {
-      \ 'ruby': ['v:vim.lsp.omnifunc']
+      \ 'ruby': ['buffer', 'v:vim.lsp.omnifunc']
       \})
+
 call deoplete#custom#source('omni', 'input_patterns', {
-      \ 'ruby': ['[a-zA-Z_]\w*[!?]?', '[a-zA-Z_]\w*::', '[^.[:digit:] *\t]\%(\.\|\::\)\%(\h\w*\)\?']
+      \ 'ruby': ['[^. *\t]\.\w*', '[a-zA-Z_]\w*::']
       \})
+
+call LSPSetMappings()
+call LspStatus()
