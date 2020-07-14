@@ -11,19 +11,21 @@ GroupAdd, code, ahk_exe alacritty.exe
 GroupAdd, code, ahk_exe Code.exe
 GroupAdd, communicate, ahk_exe Ferdi.exe
 GroupAdd, communicate, ahk_exe Telegram.exe
-GroupAdd, task, ahk_exe Boostnote.exe
-GroupAdd, task, ahk_exe Boost Note.exe
+GroupAdd, note, ahk_exe Boostnote.exe
+GroupAdd, note, ahk_exe Boost Note.exe
 GroupAdd, task, ahk_exe Bitwarden.exe
 GroupAdd, misc, ahk_exe Spotify.exe
 
 ; right alt + 1
->!1::GroupActivate, browse, R
+>!1::GroupActivate, code, R
 ; right alt + 2
->!2::GroupActivate, code, R
+>!2::GroupActivate, browse, R
 ; right alt + 3
->!3::GroupActivate, communicate, R
+>!3::GroupActivate, note, R
 ; right alt + 4
->!4::GroupActivate, task, R
+>!4::GroupActivate, communitcate, R
+; right alt + 5
+>!5::GroupActivate, task, R
 ; right alt + 0
 >!0::GroupActivate, misc, R
 
