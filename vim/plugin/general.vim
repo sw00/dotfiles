@@ -1,4 +1,5 @@
 " Appearance
+set t_Co=256 
 colorscheme PaperColor
 set bg=dark
 
@@ -83,7 +84,8 @@ let g:ale_lint_on_text_changed = 'never'
 let g:ale_lint_on_insert_leave = 1
 let g:ale_set_highlights = 0
 let g:ale_set_balloons = 1
-let g:ale_disable_lsp = 1
+let g:ale_virtual_text_cursor = 1
+let g:ale_disable_lsp = 0
 let g:ale_fixers = {
       \ '*': ['remove_trailing_lines', 'trim_whitespace']
       \}
@@ -103,12 +105,12 @@ let g:jedi#show_call_signatures_delay = 0
 let g:jedi#popup_complete_first = 1
 
 " rust
-let g:ale_linters.rust = ['cargo']
+let g:ale_linters.rust = ['cargo', 'analyzer']
 let g:ale_fixers.rust = ['rustfmt']
 let g:ale_rust_cargo_check_tests = 1
 let g:ale_rust_cargo_use_clippy = 1
 
 " ruby
-let g:ale_linters.ruby = ['ruby', 'rubocop', 'standardrb']
+let g:ale_linters.ruby = ['ruby', 'standardrb', 'solargraph']
 let g:ale_fixers.ruby = ['standardrb']
 

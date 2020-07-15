@@ -3,9 +3,6 @@ setl completeopt=menu,menuone,preview,noselect,
 call SuperTabSetDefaultCompletionType('<c-x><c-o>')
 
 func! UseALE() " use ale for completions
-  let g:ale_disable_lsp = 0
-  let g:ale_linters.rust = ['cargo', 'analyzer']
-  let g:ale_virtual_text_cursor = 1
   let s:ale_list_problems = ale#engine#GetLocList
   setl omnifunc=ale#completion#OmniFunc
   call deoplete#custom#option('sources', {
@@ -47,5 +44,5 @@ endf
 nnoremap <buffer> <leader>t :RustTest<CR>
 nnoremap <buffer> <leader>T :RustTest!<CR>
 
-" call UseALE()
-call UseLSP()
+call UseALE()
+" call UseLSP()

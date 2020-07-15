@@ -10,13 +10,11 @@ call deoplete#custom#option('sources', {
       \ 'ruby': ['buffer', 'ale', 'omni']
       \})
 
-call deoplete#custom#source('omni', 'functions', {
-      \ 'ruby': ['buffer', 'v:vim.lsp.omnifunc']
-      \})
+" call deoplete#custom#source('omni', 'functions', {
+"       \ 'ruby': ['buffer', 'v:vim.lsp.omnifunc']
+"       \})
 
-call deoplete#custom#source('omni', 'input_patterns', {
-      \ 'ruby': ['[^. *\t]\.\w*', '[a-zA-Z_]\w*::']
-      \})
+" call deoplete#custom#source('omni', 'input_patterns', {
+"       \ 'ruby': ['[^. *\t]\.\w*', '[a-zA-Z_]\w*::']
+"       \})
 
-call LSPSetMappings()
-call LspStatus()

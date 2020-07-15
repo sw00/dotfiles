@@ -8,16 +8,7 @@ func! LSPEnable() abort
     end
 
     nvim_lsp.solargraph.setup{}
-    nvim_lsp.rust_analyzer.setup{
-      on_attach = on_attach,
-      settings = {
-        rust_analyzer = {
-          diagnostics = {
-            enable = true;
-          }
-        }
-      }
-    }
+    nvim_lsp.rust_analyzer.setup{ on_attach = on_attach }
 EOF
 endf
 
