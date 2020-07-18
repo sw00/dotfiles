@@ -1,8 +1,8 @@
 # Synchronisation
 taskd.certificate=~/.task/pki/sett_wai.cert.pem
 taskd.key=~/.task/pki/sett_wai.key.pem
-taskd.ca=~/.task/pki/lets-encrypt-x3-cross-signed.pem.txt
-taskd.server=pico.sett.sh:53589
+taskd.ca=~/.task/pki/ca.cert.pem
+taskd.server=taskd.sett.sh:53589
 taskd.credentials=sett.sh/Sett Wai/47c0bb6a-bc34-48c7-b4f4-b9a3865226b7
 
 # Synchronisation (inthe.am)
@@ -24,3 +24,4 @@ context.home=(project:admin or +admin or +study) and (-work -shop)
 context.work=+work
 context.shop=+shop
 urgency.user.tag.maybe.coefficient=-10.0
+context=home
