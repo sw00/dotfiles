@@ -42,8 +42,8 @@ noremap <c-l> <c-w>l
 noremap <c-h> <c-w>h
 
 " cycle tabs like this
-nnoremap <Tab> :tabn<CR>
-nnoremap <S-Tab> :tabp<CR>
+nmap <tab> :tabn<CR>
+nmap <S-tab> :tabp<CR>
 
 " fzf
 nnoremap <c-p><c-p> :FzfFiles<CR>

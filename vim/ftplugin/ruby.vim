@@ -3,7 +3,7 @@ set textwidth=120 shiftwidth=2 tabstop=2 expandtab softtabstop=2 shiftround auto
 
 " completion
 setl completeopt=menu,menuone,preview,noselect,
-setl omnifunc=v:lua.vim.lsp.omnifunc
+set omnifunc=ale#completion#OmniFunc
 call SuperTabSetDefaultCompletionType("<c-x><c-o>")
 
 call deoplete#custom#option('sources', {
