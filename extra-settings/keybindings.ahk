@@ -23,7 +23,7 @@ GroupAdd, misc, ahk_exe Spotify.exe
 ; right alt + 3
 >!3::GroupActivate, note, R
 ; right alt + 4
->!4::GroupActivate, communitcate, R
+>!4::GroupActivate, communicate, R
 ; right alt + 5
 >!5::GroupActivate, task, R
 ; right alt + 0
