@@ -13,6 +13,7 @@ GroupAdd, communicate, ahk_exe Ferdi.exe
 GroupAdd, communicate, ahk_exe Telegram.exe
 GroupAdd, note, ahk_exe Boostnote.exe
 GroupAdd, note, ahk_exe Boost Note.exe
+GroupAdd, note, ahk_exe VSCodium.exe
 GroupAdd, task, ahk_exe Bitwarden.exe
 GroupAdd, misc, ahk_exe Spotify.exe
 
