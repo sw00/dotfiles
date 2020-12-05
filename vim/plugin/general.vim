@@ -50,7 +50,7 @@ if !has("clipboard")
 endif
 
 " nerdtree
-let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$']
+let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', '\.hg', '\.svn', '\.bzr', 'node_modules$', 'target']
 
 " search
 if executable('rg')
@@ -61,7 +61,7 @@ if executable('rg')
         \ rg --column --line-number --no-heading --fixed-strings --smart-case --no-ignore --hidden --follow --color "always"
         \ -g "*.{py,js,java,cs,clj,json,php,md,html,config,cpp,c,go,rb,conf,cfg}"
         \ -g "!*.{min.js,swp,o,zip,pyc}"
-        \ -g "!{.git,node_modules,vendor,*__pycache__}/*" '
+        \ -g "!{.git,node_modules,vendor,*__pycache__}/*,target" '
 endif
 
 " fzf.vim
@@ -96,7 +96,7 @@ let g:ale_fixers = {}
 
 " python
 autocmd FileType python set noshowmode " make call signature visible
-let g:jedi#completions_enabled = 0 " use deoplete-jedi
+let g:jedi#completions_enabled = 1 " use deoplete-jedi
 let g:deoplete#sources#jedi#ignore_errors = 1
 let g:deoplete#sources#jedi#enable_typeinfo = 0
 let g:jedi#use_splits_not_buffers = "right"
@@ -113,4 +113,7 @@ let g:ale_rust_cargo_use_clippy = 1
 " ruby
 let g:ale_linters.ruby = ['ruby', 'standardrb', 'solargraph']
 let g:ale_fixers.ruby = ['standardrb']
+
+" yaml
+let g:ale_fixers.yaml = ['prettier']
 

@@ -12,3 +12,4 @@ nmap <leader>b :<C-u>call <SID>build_go_files()<CR>
 nmap <leader>r  <Plug>(go-run)
 nmap <leader>t  <Plug>(go-test)
 nmap <Leader>c <Plug>(go-coverage-toggle)
+nmap <c-O> :GoImports<CR>
