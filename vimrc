@@ -36,6 +36,7 @@ Plug 'NLKNguyen/papercolor-theme'
 Plug 'arcticicestudio/nord-vim'
 Plug 'shumphrey/fugitive-gitlab.vim'
 Plug 'nvim-lua/diagnostic-nvim'
+Plug 'skbolton/embark'
 
 " Language support
 Plug 'davidhalter/jedi-vim', { 'for': 'python' }
