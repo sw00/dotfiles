@@ -1,3 +1,4 @@
+[ -e /proc ] && \
 if grep -qEi '(microsoft|wsl)' /proc/version
 	pgrep dbus-daemon > /dev/null
 	if test $status -eq 1
