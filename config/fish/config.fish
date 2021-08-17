@@ -19,4 +19,5 @@ if grep -qEi '(microsoft|wsl)' /proc/version
 end
 
 source ~/.config/fish/functions/fish_user_aliases.fish
+source ~/.config/fish/functions/sdkman.fish
 
