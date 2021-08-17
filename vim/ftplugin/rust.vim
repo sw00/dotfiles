@@ -17,30 +17,6 @@ func! UseALE() " use ale for completions
   " nmap <leader>al :let b:t=ale#engine#GetLoclist(bufnr('%')) | call setqflist(b:t)<CR>
 endf
 
-func! UseLSP() " use LSP for completions
-  call LSPEnable()
-  let g:ale_disable_lsp = 1
-  let g:ale_linters.rust = ['cargo']
-  let g:diagnostic_enable_virtual_text = 0
-  let g:diagnostic_enable_underline = 0
-  let g:diagnostic_auto_popup_while_jump = 0
-  let g:diagnostic_insert_delay = 1
-  setl omnifunc=v:lua.vim.lsp.omnifunc
-  call deoplete#custom#option('sources', {
-        \ 'rust': ['buffer', 'omni']
-        \})
-" call deoplete#custom#source('omni', 'functions', {
-"       \ 'rust': ['v:vim.lsp.omnifunc']
-"       \})
-" call deoplete#custom#source('omni', 'input_patterns', {
-"       \ 'rust': ['[^. *\t]\.\w*', '[a-zA-Z_]\w*::', '[^.[:digit:] *\t]\%(\.\|\::\)\%(\h\w*\)\?']
-"       \})
-  call LSPSetMappings()
-  nmap <buffer> <silent> an :NextDiagnosticCycle<CR>
-  nmap <buffer> <silent> ap :PrevDiagnosticCycle<CR>
-  nmap <buffer> <silent> al :OpenDiagnostic<CR>
-endf
-
 nnoremap <buffer> <leader>t :RustTest<CR>
 nnoremap <buffer> <leader>T :RustTest!<CR>
 

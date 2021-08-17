@@ -68,15 +68,12 @@ endif
 let g:fzf_command_prefix = 'Fzf'
 
 " = completions & linting =
-let g:deoplete#enable_at_startup = 1
-call deoplete#custom#option('sources', {
-      \ '_': ['around', 'buffer', 'ale']})
 autocmd InsertLeave,CompleteDone * if pumvisible() == 0 | pclose | endif " close info window
 
 " SuperTab
-let g:SuperTabDefaultCompletionType = 'context'
-let g:SuperTabContextDefaultCompletionType = '<c-x><c-o>'
-let g:SuperTabContextTextOmniPrecedence = ['&omnifunc', '&completefunc']
+" let g:SuperTabDefaultCompletionType = 'context'
+" let g:SuperTabContextDefaultCompletionType = '<c-x><c-o>'
+" let g:SuperTabContextTextOmniPrecedence = ['&omnifunc', '&completefunc']
 let g:SuperTabClosePreviewOnPopupClose = 1
 
 " ALE

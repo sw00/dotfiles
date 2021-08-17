@@ -16,11 +16,8 @@ Plug 'junegunn/goyo.vim'
 Plug 'junegunn/limelight.vim'
 
 " Completion
-Plug 'ervandew/supertab'
-Plug 'SirVer/ultisnips'
 if has('nvim')
-  Plug 'Shougo/deoplete.nvim', { 'do': ':UpdateRemotePlugins' }
-  Plug 'neovim/nvim-lsp'
+  Plug 'neoclide/coc.nvim', {'branch': 'release'}
 else
   Plug 'Shougo/deoplete.nvim'
   Plug 'roxma/nvim-yarp'
@@ -39,10 +36,6 @@ Plug 'nvim-lua/diagnostic-nvim'
 Plug 'skbolton/embark'
 
 " Language support
-Plug 'davidhalter/jedi-vim', { 'for': 'python' }
-Plug 'deoplete-plugins/deoplete-jedi', { 'for': 'python' }
-Plug 'alfredodeza/pytest.vim', {'for': 'python'}
-Plug 'szymonmaszke/vimpyter', { 'for': 'ipynb'}
 Plug 'fatih/vim-go', { 'for': 'go' }
 Plug 'lambdatoast/elm.vim', { 'for': 'elm' }
 Plug 'elzr/vim-json', { 'for': 'json' }
@@ -53,5 +46,7 @@ Plug 'soli/prolog-vim', {'for': 'prolog'}
 Plug 'rust-lang/rust.vim', {'for': 'rust' }
 Plug 'vim-ruby/vim-ruby', {'for': 'ruby' }
 Plug 'jvirtanen/vim-hcl', {'for': 'hcl' }
+Plug 'elixir-editors/vim-elixir', {'for': 'elixir'}
+Plug 'elixir-lsp/coc-elixir', {'do': 'yarn install && yarn prepack'}
 call plug#end()
 
