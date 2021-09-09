@@ -1,7 +1,7 @@
 [user]
 	email = exec@sett.sh
 	name = Sett Wai
-	signingkey = 7B85AE48D79E6449BF47375AB3D46D7D68981502
+	signingkey = EEB22049083798FD55A01D126227C86210B07381
 [commit]
 	gpgSign = true
 [color]
