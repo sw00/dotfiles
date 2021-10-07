@@ -5,7 +5,7 @@ nnoremap <space> :nohlsearch<CR> " cancel highlight for search
 nnoremap <leader><leader> <c-^> " switch between previous buffer
 
 " copy/paste
-if !has("clipboard") " vim not compiled with +clipboard support
+if !has("nvim") && !has("clipboard") " vim not compiled with +clipboard support
     vmap y y:call system(g:clipboard_copy_cmd, getreg("\""))<CR>
     nmap p :call setreg("\"", system(g:clipboard_paste_cmd))<CR>p<Paste>
 endif

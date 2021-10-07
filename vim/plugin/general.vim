@@ -36,7 +36,7 @@ set directory=~/.vim-tmp,~/.tmp,~/tmp,/var/tmp,/tmp
 set clipboard=unnamedplus
 
 " clipboard command
-if !has("clipboard")
+if !has("nvim") && !has("clipboard")
   if executable("clip.exe")
     let g:clipboard_copy_cmd = 'clip.exe'
     let g:clipboard_paste_cmd = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))'
