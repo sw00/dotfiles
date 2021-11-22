@@ -1,6 +1,5 @@
 " completion
 setl completeopt=menu,menuone,preview,noselect,
-call SuperTabSetDefaultCompletionType('<c-x><c-o>')
 
 func! UseALE() " use ale for completions
   let s:ale_list_problems='ale#engine#GetLocList'
