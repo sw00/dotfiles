@@ -44,3 +44,7 @@
 
 [includeIf "gitdir:wethinkcode/"]
 	path = ~/.gitconfig-wtc
+[core]
+	autocrlf = false
+	eol = lf
+	safecrlf = warn
