@@ -18,6 +18,9 @@ if grep -qEi '(microsoft|wsl)' /proc/version
 	end
 end
 
+# = Environment Vars
+set -x ASDF_PYTHON_DEFAULT_PACKAGES_FILE "$HOME/.config/asdf/default-python-packages"
+
 source ~/.config/fish/functions/fish_user_aliases.fish
 source ~/.config/fish/functions/sdkman.fish
 
