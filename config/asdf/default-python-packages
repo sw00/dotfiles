@@ -1,0 +1,5 @@
+pytest
+jedi
+prospector[with_mypy]
+black
+isort
