@@ -82,7 +82,7 @@ let g:ale_lint_on_insert_leave = 1
 let g:ale_set_highlights = 0
 let g:ale_set_balloons = 1
 let g:ale_virtual_text_cursor = 1
-let g:ale_disable_lsp = 0
+let g:ale_disable_lsp = 1
 let g:ale_fixers = {
       \ '*': ['remove_trailing_lines', 'trim_whitespace']
       \}
@@ -93,9 +93,6 @@ let g:ale_fixers = {}
 
 " python
 autocmd FileType python set noshowmode " make call signature visible
-let g:jedi#completions_enabled = 1 " use deoplete-jedi
-let g:deoplete#sources#jedi#ignore_errors = 1
-let g:deoplete#sources#jedi#enable_typeinfo = 0
 let g:jedi#use_splits_not_buffers = "right"
 let g:jedi#show_call_signatures = 2
 let g:jedi#show_call_signatures_delay = 0
