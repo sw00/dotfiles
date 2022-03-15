@@ -16,6 +16,8 @@ if grep -qEi '(microsoft|wsl)' /proc/version
 		set -Ux GNOME_KEYRING_CONTROL (string split -m 1 = $gnome_keyring_control)[2]
 		set -Ux SSH_AUTH_SOCK (string split -m 1 = $ssh_auth_sock)[2]
 	end
+else 
+	setxkbmap -layout us -option ctrl:swapcaps # swap caps and ctrl key
 end
 
 # = Environment Vars
