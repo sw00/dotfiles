@@ -54,7 +54,7 @@ let NERDTreeIgnore=['\.pyc', '__pycache__', '\~$', '\.swo$', '\.swp$', '\.git', 
 
 " search
 if executable('rg')
-  set grepprg='rg'
+  set grepprg=rg\ --vimrgrep\ --no-heading\ --smart-case
   let g:ackprg = 'rg --vimgrep --no-heading --smart-case --glob "!.git/**"'
 
   let g:rg_command = '

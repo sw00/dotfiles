@@ -48,3 +48,5 @@
 	autocrlf = false
 	eol = lf
 	safecrlf = warn
+[gpg]
+        program = /mnt/c/Users/settw/scoop/apps/gpg4win/current/GnuPG/bin/gpg.exe

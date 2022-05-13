@@ -4,9 +4,9 @@ setl completeopt=menu,menuone,preview,noselect,
 func! UseALE() " use ale for completions
   let s:ale_list_problems='ale#engine#GetLocList'
   set omnifunc=ale#completion#OmniFunc
-  call deoplete#custom#option('sources', {
-        \ 'rust': ['buffer', 'ale']
-        \})
+  " call deoplete#custom#option('sources', {
+  "       \ 'rust': ['buffer', 'ale']
+  "       \})
   nnoremap <buffer> <silent> <c-]> :ALEGoToDefinition<CR>
   nnoremap <buffer> gd :ALEGoToDefinition -vsplit<CR>
   nnoremap <buffer> gD :ALEGoToTypeDefinition -tab<CR>
