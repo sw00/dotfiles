@@ -55,6 +55,11 @@ nmap('<S-tab>', ':tabp<CR>')		-- previous tab
 
 -- [[ Completion ]]
 imap('<c-space>', '<c-x><c-o>')		-- trigger omni-completion
+-- tab to cycle suggestions
+vim.cmd([[inoremap <silent><expr> <Tab>
+      \ pumvisible() ? "\<C-n>" : "\<TAB>"]]) 
+vim.cmd([[inoremap <silent><expr> <S-Tab>
+      \ pumvisible() ? "\<C-p>" : "\<S-TAB>"]])
 
 -- [[ nvim-tree ]]
 nmap('<c-n>', ':NvimTreeToggle<CR>')	-- toggle nvim-tree
@@ -64,9 +69,12 @@ nmap('<leader>ff', '<cmd>Telescope find_files<cr>')
 nmap('<leader>fg', '<cmd>Telescope live_grep<cr>')
 nmap('<leader>fb', '<cmd>Telescope buffers<cr>')
 nmap('<leader>fh', '<cmd>Telescope help_tags<cr>')
+nmap('<leader>fr', '<cmd>Telescope lsp_references<cr>')
+nmap('<leader>fi', '<cmd>Telescope lsp_implementations<cr>')
+nmap('<leader>fd', '<cmd>Telescope lsp_definitions<cr>')
 
 -- [[ version control ]]
-nmap('<c-S-G>', '[[:Git<CR>]]')
+nmap('<c-G>', [[:Git<CR>]])
 nmap('<c-gl>', '[[:GV<CR>]]')
 
 -- [[ tagbar ]]
