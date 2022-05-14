@@ -43,7 +43,9 @@ return require('packer').startup(function(use)
     use { 'junegunn/gv.vim' }
 
     -- [[ Completion ]]
-    use 'neovim/nvim-lspconfig'
+    use {
+        'neovim/nvim-lspconfig', requires = { 'williamboman/nvim-lsp-installer' }
+    }
 
     -- bootstrap packer
     if packer_bootstrap then
