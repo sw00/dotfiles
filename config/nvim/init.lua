@@ -16,3 +16,12 @@ require('nvim-tree').setup{}
 require('lualine').setup {
     options = { theme = 'papercolor_dark' }
 }
+
+-- lsp
+local servers = {'rust_analyzer', 'pyright'}
+for _, lsp in pairs(servers) do
+
+    require('lspconfig')[lsp].setup {
+        on_attach = on_attach -- use on_attach defined in keys.lua
+    }
+end

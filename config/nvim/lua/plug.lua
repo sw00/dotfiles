@@ -19,31 +19,31 @@ vim.cmd([[
 return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
 
-    -- [[ Theme ]] 
+    -- [[ Appearance ]] 
     use 'NLKNguyen/papercolor-theme'
-
-    -- [[ IDE ]]
-    use { 
-        'kyazdani42/nvim-tree.lua', requires = 'kyazdani42/nvim-web-devicons', tag = 'nightly' 
-    }
-
+    use { 'Yggdroot/indentLine' } 
     use {
         'nvim-lualine/lualine.nvim', requires = {
             'kyazdani42/nvim-web-devicons', opt = true
         } 
     }
 
+    -- [[ Navigation ]]
+    use { 
+        'kyazdani42/nvim-tree.lua', requires = 'kyazdani42/nvim-web-devicons', tag = 'nightly' 
+    }
     use {
         'nvim-telescope/telescope.nvim',
         requires = { {'nvim-lua/plenary.nvim'} }
     }
+    use { 'majutsushi/tagbar' }
 
+    -- [[ Version Control ]]
     use { 'tpope/vim-fugitive' }
     use { 'junegunn/gv.vim' }
-    use { 'majutsushi/tagbar' }
-    use { 'Yggdroot/indentLine' } 
 
-    -- [[ Language Support ]]
+    -- [[ Completion ]]
+    use 'neovim/nvim-lspconfig'
 
     -- bootstrap packer
     if packer_bootstrap then

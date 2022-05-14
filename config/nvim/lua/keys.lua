@@ -73,3 +73,39 @@ nmap('<c-gl>', '[[:GV<CR>]]')
 nmap('<F8>', [[:TagbarToggle<CR>]])
 nmap('<leader>gv', [[:GV<CR>]])
 
+-- [[ lspconfig ]]
+local vimcmd = function(cmd)
+    return '<cmd>' .. cmd .. '<CR>'
+end
+-- Diagnostics - see `:h vim.diagnostic.*`
+nmap('<space>e', vimcmd('lua vim.diagnostic.open_float()'))
+nmap('[d', vimcmd('lua vim.diagnostic.goto_prev()'))
+nmap(']d', vimcmd('lua vim.diagnostic.goto_next()'))
+nmap('<space>q', vimcmd('lua vim.diagnostic.setloclist()'))
+
+-- on_attach will only map keys once language server attaches to current buffer
+function on_attach(client, bufnr)
+    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+
+    -- define local fn nmapbuf for code dedup/readability
+    local nmapbuf = function(shortcut, cmd)
+        opts = { noremap = true, silent = true }
+        vim.api.nvim_buf_set_keymap(bufnr, 'n', shortcut, vimcmd(cmd), opts)
+    end
+
+    -- Mappings - see `:h vim.lsp.*`
+    nmapbuf('gD', 'lua vim.lsp.buf.declaration()')	                                -- goto declaration
+    nmapbuf('gd', 'lua vim.lsp.buf.definition()')	                                -- goto definition
+    nmapbuf('K', 'lua vim.lsp.buf.hover()')	                                        -- show docs
+    nmapbuf('gi', 'lua vim.lsp.buf.implementation()')	                            -- goto implementation
+    nmapbuf('<C-k>', 'lua vim.lsp.buf.signature_help()')	                        -- show signature
+    nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()')   	            -- add workspace folder
+    nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()')	            -- remove workspace folder
+    nmapbuf('<space>wl>', 'lua vim.inspect(vim.lsp.buf.list_workspace_folders()')	-- remove workspace folder
+    nmapbuf('<space>D', 'lua vim.lsp.buf.type_definition()')	                    -- show type definition
+    nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()')	                            -- rename
+    nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()')	                        -- code action
+    nmapbuf('gr', 'lua vim.lsp.buf.references()')	                                -- list references (show usages)
+    nmapbuf('<space>f', 'lua vim.lsp.buf.formatting()')	                            -- format code 
+end
+
