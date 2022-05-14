@@ -27,6 +27,17 @@ return require('packer').startup(function(use)
             'kyazdani42/nvim-web-devicons', opt = true
         } 
     }
+    use {
+        "folke/zen-mode.nvim",
+        requires = {'folke/twilight.nvim'},
+        config = function()
+            require("zen-mode").setup {
+                plugins = {
+                    twilight = { enabled = true }
+                }
+            }
+        end
+    }
 
     -- [[ Navigation ]]
     use { 

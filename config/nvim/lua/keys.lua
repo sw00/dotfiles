@@ -118,3 +118,6 @@ function on_attach(client, bufnr)
     nmapbuf('<space>f', 'lua vim.lsp.buf.formatting()')	                            -- format code 
 end
 
+-- [[ zen mode ]]
+nmap('<F12>', vimcmd('ZenMode'))
+

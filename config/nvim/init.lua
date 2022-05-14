@@ -19,6 +19,7 @@ require('lualine').setup {
     options = { theme = 'papercolor_dark' },
     sections = {
         lualine_c = {
+            'filename',
             { gps.get_location, cond = gps.is_available },
         }
     }
