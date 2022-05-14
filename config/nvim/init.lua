@@ -25,3 +25,21 @@ for _, lsp in pairs(servers) do
         on_attach = on_attach -- use on_attach defined in keys.lua
     }
 end
+
+-- treesitter
+ts_langs = { 'python', 'ruby', 'rust', 'elixir' }
+non_ts_langs = { 'bash', 'json', 'yaml' }
+
+require'nvim-treesitter.configs'.setup {
+  ensure_installed = ts_langs,
+  sync_install = true, -- install parsers synchronously for ensure_installed langs
+
+  -- List of parsers to ignore installing (for "all")
+  ignore_install = { "javascript" },
+
+  highlight = {
+    enable = true,
+    disable = non_ts_langs,
+    additional_vim_regex_highlighting = non_tslangs,
+  },
+}

@@ -47,6 +47,9 @@ return require('packer').startup(function(use)
         'neovim/nvim-lspconfig', requires = { 'williamboman/nvim-lsp-installer' }
     }
 
+    -- [[ Syntax ]]
+    use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
+
     -- bootstrap packer
     if packer_bootstrap then
         require('packer').sync()
