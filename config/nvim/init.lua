@@ -18,7 +18,7 @@ require('lualine').setup {
 }
 
 -- lsp
-local servers = {'rust_analyzer', 'pyright'}
+local servers = {'rust_analyzer', 'pyright', 'solargraph', 'sumneko_lua', 'elixirls'}
 for _, lsp in pairs(servers) do
 
     require('lspconfig')[lsp].setup {
