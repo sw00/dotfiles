@@ -50,9 +50,12 @@ return require('packer').startup(function(use)
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
 
+
+    -- [[ Editor ]]
+    use { 'echasnovski/mini.nvim', branch = 'stable' }
+
     -- bootstrap packer
     if packer_bootstrap then
         require('packer').sync()
     end
-
 end)

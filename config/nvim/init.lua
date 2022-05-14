@@ -17,6 +17,12 @@ require('lualine').setup {
     options = { theme = 'papercolor_dark' }
 }
 
+-- editor plugins (github.com/echasnovski/mini.nvim)
+require('mini.completion').setup {}
+require('mini.surround').setup {}  
+require('mini.comment').setup {}   
+require('mini.pairs').setup {}
+
 -- lsp
 local servers = {'rust_analyzer', 'pyright', 'solargraph', 'sumneko_lua', 'elixirls'}
 for _, lsp in pairs(servers) do
@@ -30,7 +36,7 @@ end
 ts_langs = { 'python', 'ruby', 'rust', 'elixir' }
 non_ts_langs = { 'bash', 'json', 'yaml' }
 
-require'nvim-treesitter.configs'.setup {
+require('nvim-treesitter.configs').setup {
   ensure_installed = ts_langs,
   sync_install = true, -- install parsers synchronously for ensure_installed langs
 
@@ -43,3 +49,4 @@ require'nvim-treesitter.configs'.setup {
     additional_vim_regex_highlighting = non_tslangs,
   },
 }
+
