@@ -17,14 +17,18 @@ require('lualine').setup {
     options = { theme = 'papercolor_dark' }
 }
 
--- editor plugins (github.com/echasnovski/mini.nvim)
-require('mini.completion').setup {}
-require('mini.surround').setup {}  
-require('mini.comment').setup {}   
+-- editor plugins 
+require('mini.completion').setup {
+    fallback_action = function()
+        return '<C-n><C-p>'
+    end
+}
+require('mini.comment').setup {}
 require('mini.pairs').setup {}
+require('mini.trailspace').setup {}
 
 -- lsp
-local servers = {'rust_analyzer', 'pyright', 'solargraph', 'sumneko_lua', 'elixirls'}
+local servers = {'rust_analyzer', 'pyright', 'solargraph', 'elixirls'}
 for _, lsp in pairs(servers) do
 
     require('lspconfig')[lsp].setup {

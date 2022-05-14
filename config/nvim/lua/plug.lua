@@ -52,7 +52,8 @@ return require('packer').startup(function(use)
 
 
     -- [[ Editor ]]
-    use { 'echasnovski/mini.nvim', branch = 'stable' }
+    use 'tpope/vim-surround'
+    use { 'echasnovski/mini.nvim', branch = 'stable' } -- github.com/echasnovski/mini.nvim
 
     -- bootstrap packer
     if packer_bootstrap then
