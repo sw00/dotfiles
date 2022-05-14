@@ -19,10 +19,10 @@ vim.cmd([[
 return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
 
-    -- Theme
+    -- [[ Theme ]] 
     use 'NLKNguyen/papercolor-theme'
 
-    -- IDE 
+    -- [[ IDE ]]
     use { 
         'kyazdani42/nvim-tree.lua', requires = 'kyazdani42/nvim-web-devicons', tag = 'nightly' 
     }
@@ -39,6 +39,11 @@ return require('packer').startup(function(use)
     }
 
     use { 'tpope/vim-fugitive' }
+    use { 'junegunn/gv.vim' }
+    use { 'majutsushi/tagbar' }
+    use { 'Yggdroot/indentLine' } 
+
+    -- [[ Language Support ]]
 
     -- bootstrap packer
     if packer_bootstrap then

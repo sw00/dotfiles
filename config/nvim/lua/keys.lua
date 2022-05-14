@@ -65,3 +65,11 @@ nmap('<leader>fg', '<cmd>Telescope live_grep<cr>')
 nmap('<leader>fb', '<cmd>Telescope buffers<cr>')
 nmap('<leader>fh', '<cmd>Telescope help_tags<cr>')
 
+-- [[ version control ]]
+nmap('<c-S-G>', '[[:Git<CR>]]')
+nmap('<c-gl>', '[[:GV<CR>]]')
+
+-- [[ tagbar ]]
+nmap('<F8>', [[:TagbarToggle<CR>]])
+nmap('<leader>gv', [[:GV<CR>]])
+
