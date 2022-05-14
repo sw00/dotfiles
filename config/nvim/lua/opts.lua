@@ -7,6 +7,7 @@ opt.number = true			    -- show line numbers
 opt.relativenumber = true		-- show relative line numbers
 opt.signcolumn = 'number'		-- use number column for signs
 opt.cursorline = true			-- show cursor line
+opt.mouse = 'a'	                -- capture mouse input
 
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'			-- string encoding
