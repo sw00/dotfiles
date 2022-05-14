@@ -63,6 +63,7 @@ vim.cmd([[inoremap <silent><expr> <S-Tab>
 
 -- [[ nvim-tree ]]
 nmap('<c-n>', ':NvimTreeToggle<CR>')	-- toggle nvim-tree
+nmap('<F3>', ':NvimTreeFindFileToggle<CR>')	-- toggle nvim-tree
 
 -- [[ telescope ]]
 nmap('<leader>ff', '<cmd>Telescope find_files<cr>')
