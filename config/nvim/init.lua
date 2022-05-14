@@ -13,11 +13,18 @@ require('plug') -- Plugins
 
 -- PLUGINS
 require('nvim-tree').setup{}
+local gps = require('nvim-gps')
+gps.setup { depth = 4 }
 require('lualine').setup {
-    options = { theme = 'papercolor_dark' }
+    options = { theme = 'papercolor_dark' },
+    sections = {
+        lualine_c = {
+            { gps.get_location, cond = gps.is_available },
+        }
+    }
 }
 
--- editor plugins 
+-- editor plugins
 require('mini.completion').setup {
     fallback_action = function()
         return '<C-n><C-p>'
@@ -38,7 +45,7 @@ end
 
 -- treesitter
 ts_langs = { 'python', 'ruby', 'rust', 'elixir' }
-non_ts_langs = { 'bash', 'json', 'yaml' }
+non_ts_langs = { 'bash', 'yaml' }
 
 require('nvim-treesitter.configs').setup {
   ensure_installed = ts_langs,
@@ -53,4 +60,3 @@ require('nvim-treesitter.configs').setup {
     additional_vim_regex_highlighting = non_tslangs,
   },
 }
-

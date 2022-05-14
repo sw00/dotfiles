@@ -37,6 +37,10 @@ return require('packer').startup(function(use)
         requires = { {'nvim-lua/plenary.nvim'} }
     }
     use { 'majutsushi/tagbar' }
+    use {
+        "SmiteshP/nvim-gps",
+        requires = "nvim-treesitter/nvim-treesitter"
+    }
 
     -- [[ Version Control ]]
     use { 'tpope/vim-fugitive' }
