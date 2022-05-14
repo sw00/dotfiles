@@ -45,6 +45,8 @@ return require('packer').startup(function(use)
     -- [[ Version Control ]]
     use { 'tpope/vim-fugitive' }
     use { 'junegunn/gv.vim' }
+    use 'tpope/vim-rhubarb'
+    use 'shumphrey/fugitive-gitlab.vim'
 
     -- [[ Completion ]]
     use {
