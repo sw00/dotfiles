@@ -16,7 +16,7 @@ require('nvim-tree').setup{}
 local gps = require('nvim-gps')
 gps.setup { depth = 4 }
 require('lualine').setup {
-    options = { theme = 'papercolor_dark' },
+    options = { theme = 'nord' },
     sections = {
         lualine_c = {
             'filename',
