@@ -27,6 +27,9 @@ tmap('kj','')				-- quick escape to normal mode from terminal mode
 nmap('<space><space>',':nohlsearch<CR>')		-- cancel search highlights
 nmap('<leader><leader>', '<c-^>')	-- switch to previous buffer
 
+-- [[ Meta ]]
+nmap('<leader>R', ':source "&runtimepath"/init.lua<CR>') -- reload config
+
 -- [[ Butter Fingers ]]
 nmap(':Q<CR>', ':q<CR>') 
 nmap(':Wq<CR>', ':wq<CR>') 

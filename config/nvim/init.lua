@@ -45,8 +45,13 @@ for _, lsp in pairs(servers) do
     }
 end
 
+require('lspconfig').sumneko_lua.setup {
+    cmd = {'/home/sett/.local/share/nvim/lsp_servers/sumneko_lua/extension/server/bin/lua-language-server'},
+    on_attach = on_attach
+}
+
 -- treesitter
-ts_langs = { 'python', 'ruby', 'rust', 'elixir' }
+ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
 non_ts_langs = { 'bash', 'yaml' }
 
 require('nvim-treesitter.configs').setup {
