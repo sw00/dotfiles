@@ -1,0 +1,19 @@
+scheme: "tmb16" # derived from https://github.com/chriskempson/tomorrow-theme/blob/master/vim/colors/Tomorrow-Night-Blue.vim
+author: "Sett Wai <exec@sett.sh>"
+base00: "002451" # background
+base01: "081c3c" # cursor line, gutters, status bars
+base02: "003f8e" # selection background
+base03: "7285b7" # line numbers, comments, invisibles
+base04: "00346e" # selected line number
+base05: "99ffff" # foreground, delimiters, operators
+base06: "435571" # light foreground
+base07: "1e304e" # light background
+base08: "ffeead" # vars, tags, diff deleted
+base09: "ffc58f" # ints, bools, constants, tag attributes
+base0A: "ebbbff" # classes, bold, search text background
+base0B: "d1f1a9" # strings, code blocks, diff inserted
+base0C: "bbdaff" # escaped chars, regex, quotes
+base0D: "ff9da4" # functions, methods, attritbute ids
+base0E: "ebbbff" # keywords, italicised, diff changed
+base0F: "4d5057" # deprecated, greyed, open/close tags
+
