@@ -27,8 +27,9 @@ require('lualine').setup {
 
 -- editor plugins
 require('mini.completion').setup {
+    lsp_completion = {source_func = 'omnifunc', auto_setup = false},
     fallback_action = function()
-        return '<C-n><C-p>'
+        return '<C-X><C-I>'
     end
 }
 require('mini.comment').setup {}

@@ -37,6 +37,7 @@ opt.splitright = true			-- new vsplit to the right
 
 -- [[ Completion ]]
 -- vim.api.nvim_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc') -- use lsp for omnifunc completion
+opt.omnifunc = 'syntaxcomplete#Complete' -- vim's default omnifunc
 opt.completeopt = 'menuone,preview'	-- show info for item even if only one
 --cmd('inoremap <C-j> <C-x><C-o>')
 

@@ -94,7 +94,9 @@ nmap('<space>q', vimcmd('lua vim.diagnostic.setloclist()'))
 
 -- on_attach will only map keys once language server attaches to current buffer
 function on_attach(client, bufnr)
-    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+    -- vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+    -- Use MiniCompletion on LSP client attach (overrides omnifunc)
+    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.MiniCompletion.completefunc_lsp')
 
     -- define local fn nmapbuf for code dedup/readability
     local nmapbuf = function(shortcut, cmd)
