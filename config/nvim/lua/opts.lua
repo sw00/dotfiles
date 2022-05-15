@@ -14,9 +14,9 @@ opt.encoding = 'utf-8'			-- string encoding
 opt.fileencoding = 'utf-8'		-- file encoding
 
 -- [[ Theme ]]
+cmd('colo ' .. options.theme)
 opt.syntax = 'on'				-- enable syntax highlighting
-opt.termguicolors = false		-- vim colors override terminal colors
-cmd('colorscheme PaperColor')	-- set colorscheme
+opt.termguicolors = true		-- vim colors override terminal colors
 
 -- [[ Search ]]
 opt.ignorecase = true			-- ignore case in search terms
