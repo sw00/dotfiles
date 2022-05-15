@@ -1,3 +1,6 @@
+set runtimepath^=~/.vim runtimepath+=~/.vim/after
+let &packpath = &runtimepath
+
 " Load plugins using vim-plug
 call plug#begin()
 " Essentials
@@ -16,13 +19,7 @@ Plug 'junegunn/goyo.vim'
 Plug 'junegunn/limelight.vim'
 
 " Completion
-if has('nvim')
-  Plug 'neoclide/coc.nvim', {'branch': 'release'}
-else
-  Plug 'Shougo/deoplete.nvim'
-  Plug 'roxma/nvim-yarp'
-  Plug 'roxma/vim-hug-neovim-rpc'
-endif
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 " IDE (multiline, lint, repl,...)
 Plug 'AndrewRadev/splitjoin.vim'
@@ -32,7 +29,6 @@ Plug 'w0rp/ale'
 Plug 'NLKNguyen/papercolor-theme'
 Plug 'arcticicestudio/nord-vim'
 Plug 'shumphrey/fugitive-gitlab.vim'
-Plug 'nvim-lua/diagnostic-nvim'
 Plug 'skbolton/embark'
 
 " Language support
@@ -47,6 +43,5 @@ Plug 'rust-lang/rust.vim', {'for': 'rust' }
 Plug 'vim-ruby/vim-ruby', {'for': 'ruby' }
 Plug 'jvirtanen/vim-hcl', {'for': 'hcl' }
 Plug 'elixir-editors/vim-elixir', {'for': 'elixir'}
-Plug 'elixir-lsp/coc-elixir', {'do': 'yarn install && yarn prepack'}
 call plug#end()
 
