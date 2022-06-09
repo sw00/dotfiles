@@ -1,0 +1,4 @@
+[wsl2]
+memory=4GB # out of 12GB
+processors=2 # out of 4 CPUs
+swap=4GB
