@@ -10,6 +10,7 @@ require('vars') -- Variables
 require('opts') -- Options
 require('keys') -- Keymaps
 require('plug') -- Plugins
+require('func') -- Functions
 
 -- PLUGINS
 require('nvim-tree').setup{}
@@ -67,3 +68,4 @@ require('nvim-treesitter.configs').setup {
     additional_vim_regex_highlighting = non_tslangs,
   },
 }
+

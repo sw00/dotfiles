@@ -26,6 +26,7 @@ imap('kj','')				-- quick escape to normal mode from insert mode
 tmap('kj','')				-- quick escape to normal mode from terminal mode
 nmap('<space><space>',':nohlsearch<CR>')		-- cancel search highlights
 nmap('<leader><leader>', '<c-^>')	-- switch to previous buffer
+nmap('<leader>ns', '<cmd>lua newScratch()<cr>') -- open a scratch buffer
 
 -- [[ Meta ]]
 nmap('<leader>R', ':source "&runtimepath"/init.lua<CR>') -- reload config
