@@ -1,5 +1,5 @@
 -- [[scratch buffer]]
-function newScratch()
+function NewScratch()
     vim.cmd('tabnew', false)
     vim.opt_local.buftype = 'nofile'
     vim.opt_local.bufhidden = 'hide'

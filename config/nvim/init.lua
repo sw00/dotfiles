@@ -48,7 +48,14 @@ end
 
 require('lspconfig').sumneko_lua.setup {
     cmd = {'/home/sett/.local/share/nvim/lsp_servers/sumneko_lua/extension/server/bin/lua-language-server'},
-    on_attach = on_attach
+    on_attach = on_attach,
+    settings = {
+        Lua = {
+            diagnostics = {
+                globals = { 'vim' }
+            }
+        }
+    }
 }
 
 -- null-ls
@@ -66,8 +73,8 @@ null_ls.setup {
 }
 
 -- treesitter
-ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
-non_ts_langs = { 'bash', 'yaml', 'json' }
+local ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
+local non_ts_langs = { 'bash', 'yaml', 'json' }
 
 require('nvim-treesitter.configs').setup {
   ensure_installed = ts_langs,
@@ -79,7 +86,7 @@ require('nvim-treesitter.configs').setup {
   highlight = {
     enable = true,
     disable = non_ts_langs,
-    additional_vim_regex_highlighting = non_tslangs,
+    additional_vim_regex_highlighting = non_ts_langs,
   },
 }
 

@@ -14,7 +14,7 @@ opt.encoding = 'utf-8'			-- string encoding
 opt.fileencoding = 'utf-8'		-- file encoding
 
 -- [[ Theme ]]
-cmd('colo ' .. options.theme)
+cmd('colo ' .. OPTIONS.theme)
 opt.syntax = 'on'				-- enable syntax highlighting
 opt.termguicolors = true		-- vim colors override terminal colors
 
