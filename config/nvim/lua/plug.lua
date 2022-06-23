@@ -63,10 +63,11 @@ return require('packer').startup(function(use)
     use {
         'neovim/nvim-lspconfig', requires = { 'williamboman/nvim-lsp-installer' }
     }
+    use {'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
 
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
-
+    use 'nathom/filetype.nvim'
 
     -- [[ Editor ]]
     use 'tpope/vim-surround'

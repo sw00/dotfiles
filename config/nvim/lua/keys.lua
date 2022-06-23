@@ -121,8 +121,10 @@ function on_attach(client, bufnr)
     nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()')	                            -- rename
     nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()')	                        -- code action
     nmapbuf('gr', 'lua vim.lsp.buf.references()')	                                -- list references (show usages)
-    nmapbuf('<space>f', 'lua vim.lsp.buf.formatting()')	                            -- format code 
 end
+
+-- [[formatting]]
+nmap('<space>f', vimcmd('lua vim.lsp.buf.formatting()'))	                            -- format code 
 
 -- [[ zen mode ]]
 nmap('<F12>', vimcmd('ZenMode'))

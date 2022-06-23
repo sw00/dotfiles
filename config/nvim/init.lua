@@ -51,9 +51,23 @@ require('lspconfig').sumneko_lua.setup {
     on_attach = on_attach
 }
 
+-- null-ls
+local null_ls = require('null-ls')
+null_ls.setup {
+    sources = {
+        null_ls.builtins.formatting.terraform_fmt,
+        null_ls.builtins.formatting.rubocop,
+        null_ls.builtins.formatting.black,
+        null_ls.builtins.formatting.isort,
+        null_ls.builtins.formatting.jq,
+        null_ls.builtins.diagnostics.vale,
+        null_ls.builtins.diagnostics.credo
+    }
+}
+
 -- treesitter
 ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
-non_ts_langs = { 'bash', 'yaml' }
+non_ts_langs = { 'bash', 'yaml', 'json' }
 
 require('nvim-treesitter.configs').setup {
   ensure_installed = ts_langs,
