@@ -52,7 +52,13 @@ return require('packer').startup(function(use)
         "SmiteshP/nvim-gps",
         requires = "nvim-treesitter/nvim-treesitter"
     }
-
+    use {
+      "folke/trouble.nvim",
+      requires = "kyazdani42/nvim-web-devicons",
+      config = function()
+        require("trouble").setup()
+      end
+    }
     -- [[ Version Control ]]
     use { 'tpope/vim-fugitive' }
     use { 'junegunn/gv.vim' }

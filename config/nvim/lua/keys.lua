@@ -21,6 +21,10 @@ function tmap(shortcut, command)
 	map('t', shortcut, command)
 end
 
+local vimcmd = function(cmd)
+    return '<cmd>' .. cmd .. '<CR>'
+end
+
 -- [[ QoL ]]
 imap('kj','')				-- quick escape to normal mode from insert mode
 tmap('kj','')				-- quick escape to normal mode from terminal mode
@@ -86,10 +90,15 @@ nmap('<c-gl>', '[[:GV<CR>]]')
 nmap('<F8>', [[:TagbarToggle<CR>]])
 nmap('<leader>gv', [[:GV<CR>]])
 
+-- [[ trouble ]]
+nmap('<leader>xx', vimcmd('TroubleToggle'))
+nmap('<leader>xw', vimcmd('TroubleToggle workspace_diagnostics'))
+nmap('<leader>xd', vimcmd('TroubleToggle document_diagnostics'))
+nmap('<leader>xq', vimcmd('TroubleToggle quickfix'))
+nmap('<leader>xl', vimcmd('TroubleToggle loclist'))
+nmap('gR', vimcmd('TroubleToggle lsp_references'))
+
 -- [[ lspconfig ]]
-local vimcmd = function(cmd)
-    return '<cmd>' .. cmd .. '<CR>'
-end
 -- Diagnostics - see `:h vim.diagnostic.*`
 nmap('<space>e', vimcmd('lua vim.diagnostic.open_float()'))
 nmap('[d', vimcmd('lua vim.diagnostic.goto_prev()'))
