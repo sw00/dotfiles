@@ -46,17 +46,25 @@ for _, lsp in pairs(servers) do
     }
 end
 
-require('lspconfig').sumneko_lua.setup {
-    cmd = {'/home/sett/.local/share/nvim/lsp_servers/sumneko_lua/extension/server/bin/lua-language-server'},
-    on_attach = on_attach,
-    settings = {
-        Lua = {
-            diagnostics = {
-                globals = { 'vim' }
+local lsp_opts = { -- your custom opts to setup {}
+    sumneko_lua = {
+        cmd = {'/home/sett/.local/share/nvim/lsp_servers/sumneko_lua/extension/server/bin/lua-language-server'},
+        on_attach = on_attach,
+        settings = {
+            Lua = {
+                diagnostics = {
+                    globals = { 'vim' }
+                }
             }
         }
     }
 }
+
+lsp_installer = require('nvim-lsp-installer')
+lsp_installer.on_server_ready(function(server)
+    local opts = lsp_opts[server.name] or {}
+    server:setup(opts)   -- this will call lspconfig[server.name].setup {} internally
+end)
 
 -- null-ls
 local null_ls = require('null-ls')
