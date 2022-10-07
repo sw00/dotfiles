@@ -14,6 +14,9 @@ else
 	end
 end
 
+alias wadmin='wtc-admin-cli'
+alias wlms='wtc-lms'
+
 alias gco='git checkout'
 alias gst='git status'
 alias gc='git commit'
