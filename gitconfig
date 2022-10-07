@@ -4,6 +4,8 @@
 	signingkey = EEB22049083798FD55A01D126227C86210B07381
 [commit]
 	gpgSign = true
+[init]
+	defaultBranch = main
 [color]
 	diff = auto
 	status = auto
