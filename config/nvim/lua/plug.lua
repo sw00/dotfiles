@@ -9,12 +9,12 @@ if fn.empty(fn.glob(install_path)) > 0 then
 end
 
 -- run :PackerCompile whenever we update plug.lua
-vim.cmd([[
-  augroup packer_user_config
-    autocmd!
-    autocmd BufWritePost plugins.lua source <afile> | PackerCompile
-  augroup end
-]])
+-- vim.cmd([[
+--   augroup packer_user_config
+--     autocmd!
+--     autocmd BufWritePost plugins.lua source <afile> | PackerCompile
+--   augroup end
+-- ]])
 
 -- [[ packer.nvim ]]
 return require('packer').startup(function(use)
@@ -68,7 +68,7 @@ return require('packer').startup(function(use)
 
     -- [[ Completion ]]
     use {
-        'neovim/nvim-lspconfig', requires = { 'williamboman/nvim-lsp-installer' }
+        'neovim/nvim-lspconfig', requires = { 'williamboman/mason.nvim', 'williamboman/mason-lspconfig' }
     }
     use { 'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
 
