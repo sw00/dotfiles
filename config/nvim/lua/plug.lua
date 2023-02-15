@@ -21,8 +21,10 @@ return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
 
     -- [[ Appearance ]]
+    use 'kyazdani42/nvim-web-devicons'
     use 'NLKNguyen/papercolor-theme'
-    use { 'Yggdroot/indentLine' }
+    use "SmiteshP/nvim-gps"
+    use 'Yggdroot/indentLine'
     use {
         'nvim-lualine/lualine.nvim', requires = {
             'kyazdani42/nvim-web-devicons', opt = true
@@ -41,25 +43,14 @@ return require('packer').startup(function(use)
     }
 
     -- [[ Navigation ]]
-    use {
-        'kyazdani42/nvim-tree.lua', requires = 'kyazdani42/nvim-web-devicons', tag = 'nightly'
-    }
+    use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
     use {
         'nvim-telescope/telescope.nvim',
-        requires = { { 'nvim-lua/plenary.nvim' } }
+        requires = { 'nvim-lua/plenary.nvim' }
     }
-    use { 'majutsushi/tagbar' }
-    use {
-        "SmiteshP/nvim-gps",
-        requires = "nvim-treesitter/nvim-treesitter"
-    }
-    use {
-        "folke/trouble.nvim",
-        requires = "kyazdani42/nvim-web-devicons",
-        config = function()
-            require("trouble").setup()
-        end
-    }
+    use 'majutsushi/tagbar'
+    use 'folke/trouble.nvim'
+
     -- [[ Version Control ]]
     use { 'tpope/vim-fugitive' }
     use { 'junegunn/gv.vim' }
