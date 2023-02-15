@@ -67,9 +67,7 @@ return require('packer').startup(function(use)
     use 'shumphrey/fugitive-gitlab.vim'
 
     -- [[ Completion ]]
-    use {
-        'neovim/nvim-lspconfig', requires = { 'williamboman/mason.nvim', 'williamboman/mason-lspconfig' }
-    }
+    use { 'neovim/nvim-lspconfig', 'williamboman/mason.nvim', 'williamboman/mason-lspconfig', 'hrsh7th/cmp-nvim-lsp', 'hrsh7th/nvim-cmp' }
     use { 'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
 
     -- [[ Syntax ]]

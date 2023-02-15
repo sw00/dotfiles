@@ -5,6 +5,10 @@ vim.g.localleader = "\\"
 local packer_path = vim.fn.stdpath('config') .. '/packer.nvim/lua'
 vim.o.packpath = vim.o.packpath .. ',' .. packer_path
 
+local vimcmd = function(cmd)
+    return '<cmd>' .. cmd .. '<CR>'
+end
+
 -- IMPORTS
 require('vars') -- Variables
 require('opts') -- Options
@@ -38,33 +42,48 @@ require('mini.pairs').setup {}
 require('mini.trailspace').setup {}
 
 -- lsp
-local servers = {'rust_analyzer', 'pyright', 'solargraph', 'elixirls'}
-for _, lsp in pairs(servers) do
+require('mason').setup()
+require('mason-lspconfig').setup({
+    ensure_installed = { 'lua_ls', 'pyright', 'rust_analyzer', 'elixirls', 'ruby_ls' }
+})
 
-    require('lspconfig')[lsp].setup {
-        on_attach = on_attach -- use on_attach defined in keys.lua
-    }
+local lsp_capabilities = require('cmp_nvim_lsp').default_capabilities()
+local lsp_attach = function(client, bufnr)
+    -- vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
+    -- Use MiniCompletion on LSP client attach (overrides omnifunc)
+    vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.MiniCompletion.completefunc_lsp')
+
+    -- define local fn nmapbuf for code dedup/readability
+    local nmapbuf = function(shortcut, cmd)
+        local opts = { noremap = true, silent = false }
+        vim.api.nvim_buf_set_keymap(bufnr, 'n', shortcut, vimcmd(cmd), opts)
+    end
+
+    -- Mappings - see `:h vim.lsp.*`
+    nmapbuf('gD', 'lua vim.lsp.buf.declaration()') -- goto declaration
+    nmapbuf('gd', 'lua vim.lsp.buf.definition()') -- goto definition
+    nmapbuf('K', 'lua vim.lsp.buf.hover()') -- show docs
+    nmapbuf('gi', 'lua vim.lsp.buf.implementation()') -- goto implementation
+    nmapbuf('<C-k>', 'lua vim.lsp.buf.signature_help()') -- show signature
+    nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()') -- add workspace folder
+    nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()') -- remove workspace folder
+    nmapbuf('<space>wl>', 'lua vim.inspect(vim.lsp.buf.list_workspace_folders())') -- remove workspace folder
+    nmapbuf('<space>D', 'lua vim.lsp.buf.type_definition()') -- show type definition
+    nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()') -- rename
+    nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()') -- code action
+    nmapbuf('gr', 'lua vim.lsp.buf.references()') -- list references (show usages)
 end
 
-local lsp_opts = { -- your custom opts to setup {}
-    sumneko_lua = {
-        cmd = {'/home/sett/.local/share/nvim/lsp_servers/sumneko_lua/extension/server/bin/lua-language-server'},
-        on_attach = on_attach,
-        settings = {
-            Lua = {
-                diagnostics = {
-                    globals = { 'vim' }
-                }
-            }
-        }
-    }
-}
+local lspconfig = require('lspconfig')
+require('mason-lspconfig').setup_handlers({
+    function(server_name)
+        lspconfig[server_name].setup({
+            on_attach = lsp_attach,
+            capabilities = lsp_capabilities,
+        })
+    end
+})
 
-lsp_installer = require('nvim-lsp-installer')
-lsp_installer.on_server_ready(function(server)
-    local opts = lsp_opts[server.name] or {}
-    server:setup(opts)   -- this will call lspconfig[server.name].setup {} internally
-end)
 
 -- null-ls
 local null_ls = require('null-ls')
