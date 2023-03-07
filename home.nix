@@ -22,6 +22,6 @@
   # Packages to be installed
   home.packages = with pkgs; [
     fish git
+    fzf ripgrep fd
   ];
-
 }
