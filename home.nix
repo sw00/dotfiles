@@ -13,6 +13,9 @@
 
   home.stateVersion = "22.05";
 
+  # Default LANG
+  home.language.base = "en_US.UTF-8";
+
   # Let home manager install and manage itself.
   programs.home-manager.enable = true;
 
