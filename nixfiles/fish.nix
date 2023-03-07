@@ -59,6 +59,15 @@
           sha256 = "PPl/TvfzlRkEctZ0vX04CUNZDNEiQSTkZMkigyw0c04=";
         };
       }
+      {
+        name = "git";
+        src = pkgs.fetchFromGitHub {
+          owner = "jhillyerd";
+          repo = "plugin-git";
+          rev = "v0.1";
+          sha256 = "MfrRQdcj7UtIUgtqKjt4lqFLpA6YZgKjE03VaaypNzE=";
+        };
+      }
     ];
   };
 
