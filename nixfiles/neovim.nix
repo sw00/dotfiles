@@ -10,9 +10,8 @@
     withPython3         = true;
   };
 
-  home.file."nvim" = {
+  xdg.configFile."nvim" = {
     recursive = true;
-    target = "./.config";
     source = ../config/nvim;
   };
 }
