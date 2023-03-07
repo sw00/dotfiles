@@ -25,5 +25,6 @@
   home.packages = with pkgs; [
     fish git
     fzf ripgrep fd
+    gnumake
   ];
 }
