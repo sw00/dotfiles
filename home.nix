@@ -6,6 +6,7 @@
 
   imports = [
     ./nixfiles/fish.nix
+    ./nixfiles/java.nix
   ];
 
   home.username = "sett";
