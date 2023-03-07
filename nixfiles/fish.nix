@@ -72,9 +72,4 @@
   };
 
   home.file.".config/fish/conf.d/profile.fish".source = ../config/fish/config.fish;
-
-  programs.neovim = {
-    enable = true;
-    defaultEditor = true;
-  };
 }

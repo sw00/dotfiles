@@ -6,6 +6,7 @@
 
   imports = [
     ./nixfiles/fish.nix
+    ./nixfiles/neovim.nix
     ./nixfiles/java.nix
   ];
 
