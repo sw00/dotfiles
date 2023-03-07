@@ -50,6 +50,15 @@
           sha256 = "/RxsfFISqYpoaH97m+D8o4cb4zpNw5cLJITgbWIk1v0=";
         };
       }
+      {
+        name = "autojump";
+        src = pkgs.fetchFromGitHub {
+          owner = "rominf";
+          repo = "omf-plugin-autojump";
+          rev = "86f2aa23ae64b4de389e63c71d4ea372958685dc";
+          sha256 = "PPl/TvfzlRkEctZ0vX04CUNZDNEiQSTkZMkigyw0c04=";
+        };
+      }
     ];
   };
 
