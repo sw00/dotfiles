@@ -1,8 +1,14 @@
-{ config, pkgs, ... }:
+{ config, pkgs, nix,... }:
 
 {
   # Assume non-NixOS Linux:
   targets.genericLinux.enable = true;
+
+  # Enable nix experimental features
+  xdg.configFile."nix.conf" = {
+    target = "./nix";
+    source = ./config/nix;
+  };
 
   imports = [
     ./nixfiles/fish.nix
@@ -24,8 +30,9 @@
 
   # Packages to be installed
   home.packages = with pkgs; [
-    fish git
+    git
     fzf ripgrep fd
     gnumake
+    doctl
   ];
 }
