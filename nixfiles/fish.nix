@@ -5,12 +5,16 @@
     enable = true;
 
     shellInit = ''
-        set -x sysinfo (uname -a)
+        if test -e $HOME/.nix-profile/etc/profile.d/nix.sh
+            fenv . $HOME/.nix-profile/etc/profile.d/nix.sh
+        end
 
-        if [ (echo $sysinfo | grep -qi wsl)
+        set -xg sysinfo (uname -a)
+
+        if string match -eiq wsl $sysinfo
             set -g _machine_os wsl
             alias psh='powershell.exe -Command '
-        else if [ (echo $sysinfo | grep -qi darwin) ]
+        else if string match -eiq darwin $syinfo
             set -g _machine_os darwin
         else
             set -g _machine_os linux
