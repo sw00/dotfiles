@@ -1,4 +1,4 @@
-{ config, pkgs, nix,... }:
+{ config, pkgs, ... }:
 
 {
   # Assume non-NixOS Linux:
@@ -11,6 +11,7 @@
   };
 
   imports = [
+    ./nixfiles/dotfiles.nix
     ./nixfiles/fish.nix
     ./nixfiles/neovim.nix
     ./nixfiles/rust.nix

@@ -4,6 +4,38 @@
   programs.fish = {
     enable = true;
 
+    shellInit = ''
+        set -x sysinfo (uname -a)
+
+        if [ (echo $sysinfo | grep -qi wsl)
+            set -g _machine_os wsl
+            alias psh='powershell.exe -Command '
+        else if [ (echo $sysinfo | grep -qi darwin) ]
+            set -g _machine_os darwin
+        else
+            set -g _machine_os linux
+        end
+    '';
+
+    functions = {
+        opn = {
+            body = ''
+                switch $_machine_os
+                case wsl
+                    wslview $argv
+                case '*'
+                    open $argv
+                end
+            '';
+        };
+
+        nix_shell_info = {
+            body = ''
+                if test -n \"$IN_NIX_SHELL\"; echo -n \"<nix-shell> \"; end
+            '';
+        };
+    };
+
     plugins = [
       {
         name = "kawasaki";
@@ -70,6 +102,4 @@
       }
     ];
   };
-
-  home.file.".config/fish/conf.d/profile.fish".source = ../config/fish/config.fish;
 }

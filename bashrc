@@ -122,9 +122,3 @@ fi
         . $file
     done
 
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="/home/sett/.sdkman"
-[[ -s "/home/sett/.sdkman/bin/sdkman-init.sh" ]] && source "/home/sett/.sdkman/bin/sdkman-init.sh"
-
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
-
