@@ -39,3 +39,7 @@ fi
 export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 
 if [ -e /home/sett/.nix-profile/etc/profile.d/nix.sh ]; then . /home/sett/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
+
+# jump into fish shell
+exec fish
+
