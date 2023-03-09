@@ -16,10 +16,15 @@ if grep -qEi '(microsoft|wsl)' /proc/version
 		set -Ux GNOME_KEYRING_CONTROL (string split -m 1 = $gnome_keyring_control)[2]
 		set -Ux SSH_AUTH_SOCK (string split -m 1 = $ssh_auth_sock)[2]
 	end
-else 
+else
 	setxkbmap -layout us -option ctrl:swapcaps # swap caps and ctrl key
 end
 
 # = Environment Vars
 set -x ASDF_PYTHON_DEFAULT_PACKAGES_FILE "$HOME/.config/asdf/default-python-packages"
 
+source ~/.config/fish/functions/fish_prompt.fish
+source ~/.config/fish/functions/fish_user_aliases.fish
+
+# Customise theme
+set -g theme_display_group no
