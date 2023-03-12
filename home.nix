@@ -32,9 +32,10 @@
   # Packages to be installed
   home.packages = with pkgs; [
     git
-    fzf ripgrep fd
+    fzf ripgrep fd autojump
     gnumake
     doctl
     nodejs # for lsp
+    gcc
   ];
 }

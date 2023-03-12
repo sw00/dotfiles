@@ -8,4 +8,6 @@
   home.file.".profile" = {
     source = ../profile;
   };
+
+  home.file.".tmux.conf".source = ../tmux.conf;
 }
