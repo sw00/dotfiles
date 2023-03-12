@@ -47,7 +47,7 @@
           owner = "hastinbe";
           repo = "theme-kawasaki";
           rev = "v1.1.1";
-          sha256 = "BdV4FtHBDBdERb9t2xQ9gQ0MiymE1ls8WNGBToZtqnE=";
+          sha256 = "RC4ZiuwqnaBUzsxt0jSQa13w57JPUtT3MfU1Yf1UM+Y=";
         };
       }
       {
