@@ -21,7 +21,7 @@
   home.username = "sett";
   home.homeDirectory = "/home/sett";
 
-  home.stateVersion = "22.05";
+  home.stateVersion = "22.11";
 
   # Default LANG
   home.language.base = "en_US.UTF-8";
