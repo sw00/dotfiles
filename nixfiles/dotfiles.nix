@@ -10,4 +10,9 @@
   };
 
   home.file.".tmux.conf".source = ../tmux.conf;
+
+  home.file.".ssh" = {
+    source = ../ssh;
+    recursive = true;
+  };
 }
