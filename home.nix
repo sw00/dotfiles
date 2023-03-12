@@ -32,7 +32,7 @@
 
   # Packages to be installed
   home.packages = with pkgs; [
-    git
+    git git-crypt gnupg
     fzf ripgrep fd autojump
     gnumake
     doctl
