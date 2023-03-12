@@ -14,6 +14,7 @@
     ./nixfiles/dotfiles.nix
     ./nixfiles/fish.nix
     ./nixfiles/neovim.nix
+    ./nixfiles/git.nix
     ./nixfiles/rust.nix
     ./nixfiles/java.nix
   ];
