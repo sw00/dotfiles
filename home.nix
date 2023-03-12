@@ -35,5 +35,6 @@
     fzf ripgrep fd
     gnumake
     doctl
+    nodejs # for lsp
   ];
 }

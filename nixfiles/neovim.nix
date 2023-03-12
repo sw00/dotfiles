@@ -8,10 +8,14 @@
     vimAlias            = true;
     vimdiffAlias        = true;
     withPython3         = true;
+
+    extraConfig = ''
+        :luafile ~/.config/nvim/lua/init.lua
+    '';
   };
 
-  xdg.configFile."nvim" = {
-    recursive = true;
+  xdg.configFile.nvim = {
     source = ../config/nvim;
+    recursive = true;
   };
 }
