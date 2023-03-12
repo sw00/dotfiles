@@ -38,7 +38,6 @@
     doctl
     nodejs # for lsp
     gcc unzip
-    nerdfonts
     dbus gnome.gnome-keyring
   ];
 }
