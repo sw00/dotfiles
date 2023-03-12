@@ -37,6 +37,8 @@
     gnumake
     doctl
     nodejs # for lsp
-    gcc
+    gcc unzip
+    nerdfonts
+    dbus gnome.gnome-keyring
   ];
 }
