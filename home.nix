@@ -17,6 +17,7 @@
     ./nixfiles/git.nix
     ./nixfiles/rust.nix
     ./nixfiles/java.nix
+    ./nixfiles/wtc.nix
   ];
 
   home.username = "sett";
