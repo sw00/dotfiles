@@ -39,5 +39,6 @@
     nodejs # for lsp
     gcc unzip
     dbus gnome.gnome-keyring
+    wslu
   ];
 }
