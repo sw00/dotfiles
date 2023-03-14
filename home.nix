@@ -13,6 +13,7 @@
   imports = [
     ./nixfiles/dotfiles.nix
     ./nixfiles/fish.nix
+    ./nixfiles/tmux.nix
     ./nixfiles/neovim.nix
     ./nixfiles/git.nix
     ./nixfiles/rust.nix
