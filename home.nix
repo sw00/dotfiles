@@ -36,10 +36,8 @@
   home.packages = with pkgs; [
     git git-crypt gnupg
     fzf ripgrep fd autojump
-    gnumake
-    doctl
+    wget unzip gnumake gcc pkg-config openssl
     nodejs # for lsp
-    gcc unzip
     dbus gnome.gnome-keyring
     wslu
   ];
