@@ -35,7 +35,7 @@
 
   # Packages to be installed
   home.packages = with pkgs; [
-    git git-crypt gnupg
+    git git-crypt gnupg tig
     fzf ripgrep fd autojump
     wget unzip gnumake gcc pkg-config openssl
     nodejs # for lsp
