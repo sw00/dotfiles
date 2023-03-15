@@ -16,6 +16,7 @@
     ./nixfiles/tmux.nix
     ./nixfiles/neovim.nix
     ./nixfiles/git.nix
+    ./nixfiles/python.nix
     ./nixfiles/rust.nix
     ./nixfiles/java.nix
     ./nixfiles/wtc.nix
