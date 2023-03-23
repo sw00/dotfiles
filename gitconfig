@@ -1,7 +1,7 @@
 [user]
 	email = exec@sett.sh
 	name = Sett Wai
-	signingkey = 8A227FC510FD810D349C8DF9EBEE60A26931AEE6
+	signingkey = 0xEBEE60A26931AEE6
 [commit]
 	gpgSign = true
 [init]
@@ -50,5 +50,3 @@
 	autocrlf = false
 	eol = lf
 	safecrlf = warn
-[gpg]
-        program = /mnt/c/Users/settw/scoop/apps/gpg4win/current/GnuPG/bin/gpg.exe
