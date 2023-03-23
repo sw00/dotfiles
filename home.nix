@@ -12,6 +12,7 @@
 
   imports = [
     ./nixfiles/dotfiles.nix
+    ./nixfiles/gpg.nix
     ./nixfiles/fish.nix
     ./nixfiles/tmux.nix
     ./nixfiles/neovim.nix
