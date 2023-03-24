@@ -15,5 +15,5 @@
   };
 
   # specific files
-  home.file.".netrc".source = ./netrc;
+  home.file.".netrc".source = ../netrc;
 }
