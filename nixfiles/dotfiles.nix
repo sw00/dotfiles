@@ -13,4 +13,7 @@
     source = ../ssh;
     recursive = true;
   };
+
+  # specific files
+  home.file.".netrc".source = ./netrc;
 }
