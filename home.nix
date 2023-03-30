@@ -43,5 +43,6 @@
     dbus gnome.gnome-keyring
     wslu
     bitwarden-cli
+    jq yq
   ];
 }
