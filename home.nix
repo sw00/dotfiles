@@ -42,5 +42,6 @@
     nodejs # for lsp
     dbus gnome.gnome-keyring
     wslu
+    bitwarden-cli
   ];
 }
