@@ -1,19 +1,21 @@
 { config, pkgs, ... }:
 
 {
-  home.file.".bashrc" = {
-    source = ../bashrc;
-  };
+  home.file = {
+    ".bashrc" = {
+      source = ../bashrc;
+    };
 
-  home.file.".profile" = {
-    source = ../profile;
-  };
+    ".profile" = {
+      source = ../profile;
+    };
 
-  home.file.".ssh" = {
-    source = ../ssh;
-    recursive = true;
-  };
+    ".ssh" = {
+      source = ../ssh;
+      recursive = true;
+    };
 
-  # specific files
-  home.file.".netrc".source = ../netrc;
+    # specific files
+    ".netrc".source = ../netrc;
+  };
 }
