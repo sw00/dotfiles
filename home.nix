@@ -44,5 +44,6 @@
     wslu
     bitwarden-cli
     jq yq
+    cheat
   ];
 }

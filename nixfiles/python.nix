@@ -7,6 +7,7 @@
     python310Packages.pipx
     python310Packages.ipython
     python310Packages.ipykernel
+    python310Packages.howdoi
   ];
 
 }
