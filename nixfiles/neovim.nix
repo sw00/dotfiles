@@ -19,6 +19,10 @@
     ];
   };
 
+  home.sessionVariables = {
+    EDITOR = "nvim";
+  };
+
   xdg.configFile.nvim = {
     source = ../config/nvim;
     recursive = true;
