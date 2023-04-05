@@ -33,8 +33,8 @@
         set -Ux DBUS_SESSION_BUS_WINDOWID (string match -r "=(.*);" $bus_windowid)[2]
         end
 
-  # pgrep limited to 15 chars, so truncate `daemon`
-        pgrep gnome-keyring-d > /dev/null
+        # pgrep limited to 15 chars, so truncate `daemon`
+        pgrep -f gnome-keyring-d > /dev/null
 
         if test $status -eq 1
         gnome-keyring-daemon | read --line gnome_keyring_control ssh_auth_sock
