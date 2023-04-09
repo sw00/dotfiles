@@ -14,6 +14,7 @@
     ./nixfiles/dotfiles.nix
     ./nixfiles/gpg.nix
     ./nixfiles/fish.nix
+    ./nixfiles/cli.nix
     ./nixfiles/tmux.nix
     ./nixfiles/neovim.nix
     ./nixfiles/git.nix
@@ -43,7 +44,5 @@
     dbus gnome.gnome-keyring
     wslu
     bitwarden-cli
-    jq yq
-    cheat
   ];
 }

@@ -17,6 +17,7 @@
     programs.fish.shellAbbrs = {
       wlms = "wtc-lms";
       wadmin = "wtc-admin-cli";
+      tf = "terraform";
     };
 }
 

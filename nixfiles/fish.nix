@@ -45,22 +45,27 @@
     '';
 
     functions = {
-        opn = {
-            body = ''
+      opn = {
+        body = ''
                 switch $_machine_os
                 case wsl
                     wslview $argv
                 case '*'
                     open $argv
                 end
-            '';
-        };
+        '';
+      };
 
-        nix_shell_info = {
-            body = ''
+      nix_shell_info = {
+        body = ''
                 if test -n \"$IN_NIX_SHELL\"; echo -n \"<nix-shell> \"; end
-            '';
-        };
+        '';
+      };
+
+    };
+
+    shellAbbrs = {
+      doco = "docker-compose";
     };
 
     plugins = [
