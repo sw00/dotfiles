@@ -1,5 +1,0 @@
-#vim: set ft=bash
-#!/bin/bash
-cp ../base16/output/vim/colors/* ../config/nvim/colors/
-cp ../base16/output/vim/colors/* ../vim/colors/
-
