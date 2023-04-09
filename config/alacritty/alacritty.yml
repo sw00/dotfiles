@@ -153,6 +153,8 @@ live_config_reload: true
 
 shell:
  program: wsl
+ args:
+   - "~"
 
 working_directory: \\wsl.localhost\Ubuntu-22.04\home\sett
 
