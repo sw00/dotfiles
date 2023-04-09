@@ -1,3 +1,0 @@
-EXCLUDES="README.md extra-settings"
-DOTFILES_DIRS="$HOME/dotfiles"
-UNDOTTED="bin"
