@@ -64,6 +64,7 @@ return require('packer').startup(function(use)
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
     use 'nathom/filetype.nvim'
+    use 'LnL7/vim-nix'
 
     -- [[ Editor ]]
     use 'tpope/vim-surround'

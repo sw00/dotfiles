@@ -122,13 +122,3 @@ fi
         . $file
     done
 
-# # jump into fish shell
-[ -e /usr/bin/fish ]  && exec /usr/bin/fish
-[ -e /usr/local/bin/fish ] && exec /usr/local/bin/fish
-
-#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!
-export SDKMAN_DIR="/home/sett/.sdkman"
-[[ -s "/home/sett/.sdkman/bin/sdkman-init.sh" ]] && source "/home/sett/.sdkman/bin/sdkman-init.sh"
-
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
-

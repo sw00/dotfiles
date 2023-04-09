@@ -8,15 +8,6 @@
 # for ssh logins, install and configure the libpam-umask package.
 #umask 022
 
-# capture metadata about system for convenience
-META_OS=$(uname -s | awk '{ print tolower($0) }') #linux
-
-[ $META_OS = "darwin" ] && \
-	META_OS="macos"
-
-[ -n $(uname -r | grep Microsoft) ] && \
-	META_OS="wsl"
-
 # set PATH so it includes user's private bin if it exists
 if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/bin:$PATH"
@@ -35,5 +26,11 @@ if [ -n "$BASH_VERSION" ]; then
     fi
 fi
 
+# Set locale archive location (for Nix)
+export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 
 if [ -e /home/sett/.nix-profile/etc/profile.d/nix.sh ]; then . /home/sett/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
+
+# jump into fish shell
+exec fish -i
+
