@@ -16,6 +16,6 @@
     };
 
     # specific files
-    ".netrc".source = ../netrc;
+    ".netrc".source = ../secrets/netrc;
   };
 }
