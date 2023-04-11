@@ -46,5 +46,10 @@
       description = "TUI for docker.";
       body = "nix-shell -p lazydocker --run \"lazydocker $argv\"";
     };
+
+    tig = {
+      description = "TUI for git.";
+      body = "nix-shell -p tig --run \"tig $argv\"";
+    };
   };
 }
