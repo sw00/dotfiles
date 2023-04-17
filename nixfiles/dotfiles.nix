@@ -17,5 +17,11 @@
 
     # specific files
     ".netrc".source = ../secrets/netrc;
+
+    ".erdtreerc".text = '' 
+      --icons
+      --suppress-size
+      --level 1
+    '';
   };
 }

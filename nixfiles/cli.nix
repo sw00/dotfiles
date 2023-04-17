@@ -51,5 +51,10 @@
       description = "TUI for git.";
       body = "nix-shell -p tig --run \"tig $argv\"";
     };
+
+    ranger = {
+      description = "Command-line file manager with Vim bindings.";
+      body = "nix-shell -p ranger --run \"ranger $argv\"";
+    };
   };
 }
