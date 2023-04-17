@@ -44,5 +44,6 @@
     dbus gnome.gnome-keyring
     wslu
     bitwarden-cli
+    ruby_3_1
   ];
 }
