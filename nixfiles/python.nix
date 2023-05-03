@@ -9,4 +9,8 @@
     python310Packages.ipykernel
   ];
 
+  programs.fish.shellAbbrs = {
+    ipy = "ipython";
+  };
+
 }
