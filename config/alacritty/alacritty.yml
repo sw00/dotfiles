@@ -35,12 +35,12 @@ font:
     y: 0
 
   glyph_offset:
-    x: 3
+    x: 0
     y: 0
 
   builtin_box_drawing: true
 
-draw_bold_text_with_bright_colors: false
+draw_bold_text_with_bright_colors: true
 
 colors:
   primary:
@@ -147,7 +147,7 @@ cursor:
   blink_timeout: 5
 
   unfocused_hollow: true
-  thickness: 0.15
+  thickness: 0.1
 
 live_config_reload: true
 
@@ -202,7 +202,7 @@ hints:
   - regex: "(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)\
             [^\u0000-\u001F\u007F-\u009F<>\"\\s{-}\\^⟨⟩`]+"
     hyperlinks: true
-    command: wslview
+    command: explorer.exe
     post_processing: true
     mouse:
       enabled: true
