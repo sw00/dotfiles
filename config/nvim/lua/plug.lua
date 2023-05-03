@@ -60,6 +60,7 @@ return require('packer').startup(function(use)
     -- [[ Completion ]]
     use { 'neovim/nvim-lspconfig', 'williamboman/mason.nvim', 'williamboman/mason-lspconfig', 'hrsh7th/cmp-nvim-lsp', 'hrsh7th/nvim-cmp' }
     use { 'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
+    use 'simrat39/rust-tools.nvim'
 
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
