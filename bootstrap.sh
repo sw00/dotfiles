@@ -13,10 +13,12 @@ home-manager -f home.nix switch -b backup
 
 chmod 0600 ~/.ssh/*_rsa
 
-host_dir=./host-$(hostname -s)
+if [[ $1 = --all ]]; then 
+    host_dir=./host-$(hostname -s)
 
-[[ $machine_os = 'wsl' ]] && \
-    cp config/alacritty/* $(wslpath $(wslvar APPDATA))/alacritty/
+    [[ $machine_os = 'wsl' ]] && \
+        cp config/alacritty/* $(wslpath $(wslvar APPDATA))/alacritty/
 
-[[ -d $host_dir ]] && \
-    pushd $host_dir && . up.sh && popd
+    [[ -d $host_dir ]] && \
+        pushd $host_dir && . up.sh && popd
+fi
