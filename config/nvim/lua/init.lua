@@ -34,20 +34,7 @@ require('mini.trailspace').setup {}
 -- completion
 require('settings.completion')
 require('settings.snippy')
-
--- null-ls
-local null_ls = require('null-ls')
-null_ls.setup {
-    sources = {
-        null_ls.builtins.formatting.terraform_fmt,
-        null_ls.builtins.formatting.rubocop,
-        null_ls.builtins.formatting.black,
-        null_ls.builtins.formatting.isort,
-        null_ls.builtins.formatting.jq,
-        null_ls.builtins.diagnostics.vale,
-        null_ls.builtins.diagnostics.credo
-    }
-}
+require('settings.null-ls')
 
 -- treesitter
 local ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
