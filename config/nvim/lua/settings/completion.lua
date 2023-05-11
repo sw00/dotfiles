@@ -1,5 +1,6 @@
 -- [[Completion]]
 require('mini.completion').setup {
+    lsp_completion = { source_func = 'completefunc', auto_setup = false },
     fallback_action = '<C-x><C-o>',
     mappings = {
         force_twostep = '<C-Space>',
@@ -31,6 +32,8 @@ local vimcmd = function(cmd)
 end
 
 function on_attach_lsp(client, bufnr)
+    vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
+
     -- define local fn nmapbuf for code dedup/readability
     local nmapbuf = function(shortcut, cmd)
         local opts = { noremap = true, silent = false }
