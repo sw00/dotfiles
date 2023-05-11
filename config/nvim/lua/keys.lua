@@ -33,7 +33,7 @@ nmap('<leader><leader>', '<c-^>') -- switch to previous buffer
 nmap('<leader>ns', '<cmd>lua NewScratch()<cr>') -- open a scratch buffer
 
 -- [[ Meta ]]
-nmap('<leader>R', ':source "&runtimepath"/init.lua<CR>') -- reload config
+nmap('<leader>R', ':source $MYVIMRC<CR>') -- reload config
 
 -- [[ Butter Fingers ]]
 nmap(':Q<CR>', ':q<CR>')
