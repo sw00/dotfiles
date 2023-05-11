@@ -8,6 +8,7 @@ require('mini.completion').setup {
 }
 
 -- keymap
+-- tab key is mapped in `settings/snippy.lua`
 local keys = {
     ['cr']        = vim.api.nvim_replace_termcodes('<CR>', true, true, true),
     ['ctrl-y']    = vim.api.nvim_replace_termcodes('<C-y>', true, true, true),
@@ -125,5 +126,15 @@ mason_lspconfig.setup_handlers({
     default_handler,
     ["lua_ls"] = lua_handler,
     ["rust_analyzer"] = rust_handler,
+})
+
+-- disable for these
+local disabled_filetypes = {'gitcommit'}
+
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = disabled_filetypes,
+    callback = function()
+        vim.b.minicompletion_disable = true
+    end
 })
 
