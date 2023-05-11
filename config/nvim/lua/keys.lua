@@ -61,14 +61,6 @@ nmap('<c-l>', '<c-w>l')
 nmap('<tab>', ':tabn<CR>') -- next tab
 nmap('<S-tab>', ':tabp<CR>') -- previous tab
 
--- [[ Completion ]]
-imap('<c-space>', '<c-x><c-o>') -- trigger omni-completion
--- tab to cycle suggestions
-vim.cmd([[inoremap <silent><expr> <Tab>
-      \ pumvisible() ? "\<C-n>" : "\<TAB>"]])
-vim.cmd([[inoremap <silent><expr> <S-Tab>
-      \ pumvisible() ? "\<C-p>" : "\<S-TAB>"]])
-
 -- [[ nvim-tree ]]
 nmap('<c-n>', ':NvimTreeToggle<CR>') -- toggle nvim-tree
 nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree

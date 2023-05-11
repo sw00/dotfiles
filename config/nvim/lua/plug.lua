@@ -58,9 +58,18 @@ return require('packer').startup(function(use)
     use 'shumphrey/fugitive-gitlab.vim'
 
     -- [[ Completion ]]
-    use { 'neovim/nvim-lspconfig', 'williamboman/mason.nvim', 'williamboman/mason-lspconfig', 'hrsh7th/cmp-nvim-lsp', 'hrsh7th/nvim-cmp' }
-    use { 'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
+    use { 'williamboman/mason.nvim', run = ':MasonUpdate' }
+
+    use { 'neovim/nvim-lspconfig',
+        requires = {'williamboman/mason.nvim', 'williamboman/mason-lspconfig'}
+    }
+
     use 'simrat39/rust-tools.nvim'
+
+    -- [[ Snippets ]]
+    use 'dcampos/nvim-snippy'
+
+    use { 'jose-elias-alvarez/null-ls.nvim', requires = 'nvim-lua/plenary.nvim' }
 
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
@@ -75,4 +84,5 @@ return require('packer').startup(function(use)
     if PACKER_BOOTSTRAP then
         require('packer').sync()
     end
+
 end)

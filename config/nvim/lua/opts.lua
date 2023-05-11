@@ -36,10 +36,8 @@ opt.splitbelow = false			-- new hsplit to the top
 opt.splitright = true			-- new vsplit to the right
 
 -- [[ Completion ]]
--- vim.api.nvim_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc') -- use lsp for omnifunc completion
 opt.omnifunc = 'syntaxcomplete#Complete' -- vim's default omnifunc
-opt.completeopt = 'menuone,preview'	-- show info for item even if only one
---cmd('inoremap <C-j> <C-x><C-o>')
+opt.completeopt = 'menuone,noinsert,noselect'	-- show info for item even if only one
 
 -- [[ Behaviour ]]
 opt.autowrite = true			-- autosave buffers when losing focus
