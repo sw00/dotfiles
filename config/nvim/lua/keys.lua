@@ -98,7 +98,7 @@ nmap(']d', vimcmd('lua vim.diagnostic.goto_next()'))
 nmap('<space>q', vimcmd('lua vim.diagnostic.setloclist()'))
 
 -- [[formatting]]
-nmap('<space>f', vimcmd('lua vim.lsp.buf.formatting()')) -- format code
+nmap('<space>f', vimcmd('lua vim.lsp.buf.format { async = true }')) -- format code
 
 -- [[ zen mode ]]
 nmap('<F12>', vimcmd('ZenMode'))

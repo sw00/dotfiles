@@ -53,6 +53,7 @@ function on_attach_lsp(client, bufnr)
     nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()') -- rename
     nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()') -- code action
     nmapbuf('gr', 'lua vim.lsp.buf.references()') -- list references (show usages)
+    nmapbuf('<leader>lf', 'lua vim.lsp.buf.format { async = true }') -- format code
 end
 
 -- [[LSP]]
