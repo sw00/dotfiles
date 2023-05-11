@@ -36,6 +36,9 @@ require('settings.completion')
 require('settings.snippy')
 require('settings.null-ls')
 
+-- diagnostics
+vim.diagnostic.config { virtual_text = false, underline = true }
+
 -- treesitter
 local ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
 local non_ts_langs = { 'bash', 'yaml', 'json' }
