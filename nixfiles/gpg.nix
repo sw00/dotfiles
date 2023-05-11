@@ -13,5 +13,6 @@
         enableFishIntegration = true;
         enableSshSupport = true;
         enableExtraSocket = true; # for agent forwarding
+        pinentryFlavor = "qt";
     };
 }
