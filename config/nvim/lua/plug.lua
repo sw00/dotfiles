@@ -38,8 +38,9 @@ return require('packer').startup(function(use)
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
     use { 'nvim-telescope/telescope.nvim',
         requires = {
-            'nvim-lua/plenary.nvim' },
-        { 'devicons', opt = true }
+            'nvim-lua/plenary.nvim',
+            { 'devicons', opt = true },
+        }
     }
     use 'simrat39/symbols-outline.nvim'
     use 'folke/trouble.nvim'
