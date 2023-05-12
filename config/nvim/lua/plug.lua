@@ -8,35 +8,23 @@ if fn.empty(fn.glob(install_path)) > 0 then
         install_path })
 end
 
--- run :PackerCompile whenever we update plug.lua
--- vim.cmd([[
---   augroup packer_user_config
---     autocmd!
---     autocmd BufWritePost plugins.lua source <afile> | PackerCompile
---   augroup end
--- ]])
-
--- [[ packer.nvim ]]
 return require('packer').startup(function(use)
     use 'wbthomason/packer.nvim'
 
     -- [[ Appearance ]]
-    use 'kyazdani42/nvim-web-devicons'
+    use { 'kyazdani42/nvim-web-devicons', as = 'devicons' }
     use 'NLKNguyen/papercolor-theme'
     use "SmiteshP/nvim-gps"
     use 'Yggdroot/indentLine'
-    use {
-        'nvim-lualine/lualine.nvim', requires = {
-            'kyazdani42/nvim-web-devicons', opt = true
-        }
-    }
-    use {
-        "folke/zen-mode.nvim",
-        requires = { 'folke/twilight.nvim' },
+    use { 'nvim-lualine/lualine.nvim', requires = 'devicons' }
+    use { "folke/zen-mode.nvim",
+        requires = 'folke/twilight.nvim',
         config = function()
             require("zen-mode").setup {
                 plugins = {
-                    twilight = { enabled = true }
+                    twilight = { enabled = true },
+                    tmux = { enabled = false },
+                    alacritty = { enabled = false, font = "14" }
                 }
             }
         end
@@ -44,9 +32,10 @@ return require('packer').startup(function(use)
 
     -- [[ Navigation ]]
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
-    use {
-        'nvim-telescope/telescope.nvim',
-        requires = { 'nvim-lua/plenary.nvim' }
+    use { 'nvim-telescope/telescope.nvim',
+        requires = {
+            'nvim-lua/plenary.nvim' },
+        { 'devicons', opt = true }
     }
     use 'majutsushi/tagbar'
     use 'folke/trouble.nvim'
@@ -61,7 +50,7 @@ return require('packer').startup(function(use)
     use { 'williamboman/mason.nvim', run = ':MasonUpdate' }
 
     use { 'neovim/nvim-lspconfig',
-        requires = {'williamboman/mason.nvim', 'williamboman/mason-lspconfig'}
+        requires = { 'williamboman/mason.nvim', 'williamboman/mason-lspconfig' }
     }
 
     use 'simrat39/rust-tools.nvim'
@@ -84,5 +73,4 @@ return require('packer').startup(function(use)
     if PACKER_BOOTSTRAP then
         require('packer').sync()
     end
-
 end)
