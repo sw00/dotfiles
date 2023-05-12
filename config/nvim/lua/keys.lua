@@ -76,11 +76,10 @@ nmap('<leader>fd', '<cmd>Telescope lsp_definitions<cr>')
 
 -- [[ version control ]]
 nmap('<c-G>', [[:Git<CR>]])
-nmap('<c-gl>', '[[:GV<CR>]]')
+nmap('<leader>gv', [[:GV<CR>]])
 
 -- [[ tagbar ]]
-nmap('<F8>', [[:TagbarToggle<CR>]])
-nmap('<leader>gv', [[:GV<CR>]])
+nmap('<F8>', [[:SymbolsOutline<CR>]])
 
 -- [[ trouble ]]
 nmap('<leader>xx', vimcmd('TroubleToggle'))
@@ -88,7 +87,7 @@ nmap('<leader>xw', vimcmd('TroubleToggle workspace_diagnostics'))
 nmap('<leader>xd', vimcmd('TroubleToggle document_diagnostics'))
 nmap('<leader>xq', vimcmd('TroubleToggle quickfix'))
 nmap('<leader>xl', vimcmd('TroubleToggle loclist'))
-nmap('gR', vimcmd('TroubleToggle lsp_references'))
+nmap('<leader>xr', vimcmd('TroubleToggle lsp_references'))
 
 -- [[ lspconfig ]]
 -- Diagnostics - see `:h vim.diagnostic.*`

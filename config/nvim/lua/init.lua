@@ -30,11 +30,15 @@ require('lualine').setup {
 require('mini.comment').setup {}
 require('mini.pairs').setup {}
 require('mini.trailspace').setup {}
+require('mini.surround').setup {}
 
 -- completion
 require('settings.completion')
 require('settings.snippy')
 require('settings.null-ls')
+
+-- tags
+require'symbols-outline'.setup()
 
 -- diagnostics
 vim.diagnostic.config { virtual_text = false, underline = true }

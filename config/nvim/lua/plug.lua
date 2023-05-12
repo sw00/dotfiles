@@ -30,6 +30,10 @@ return require('packer').startup(function(use)
         end
     }
 
+    -- [[ Editor ]]
+    use { 'echasnovski/mini.nvim', branch = 'stable' }
+    use 'nathom/filetype.nvim'
+
     -- [[ Navigation ]]
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
     use { 'nvim-telescope/telescope.nvim',
@@ -37,14 +41,12 @@ return require('packer').startup(function(use)
             'nvim-lua/plenary.nvim' },
         { 'devicons', opt = true }
     }
-    use 'majutsushi/tagbar'
+    use 'simrat39/symbols-outline.nvim'
     use 'folke/trouble.nvim'
 
     -- [[ Version Control ]]
-    use { 'tpope/vim-fugitive' }
+    use { 'tpope/vim-fugitive', 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' }
     use { 'junegunn/gv.vim' }
-    use 'tpope/vim-rhubarb'
-    use 'shumphrey/fugitive-gitlab.vim'
 
     -- [[ Completion ]]
     use { 'williamboman/mason.nvim', run = ':MasonUpdate' }
@@ -62,12 +64,7 @@ return require('packer').startup(function(use)
 
     -- [[ Syntax ]]
     use { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' }
-    use 'nathom/filetype.nvim'
     use 'LnL7/vim-nix'
-
-    -- [[ Editor ]]
-    use 'tpope/vim-surround'
-    use { 'echasnovski/mini.nvim', branch = 'stable' } -- github.com/echasnovski/mini.nvim
 
     -- bootstrap packer
     if PACKER_BOOTSTRAP then
