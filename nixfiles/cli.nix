@@ -8,12 +8,12 @@
   programs.fish.functions = {
     jq = {
       description = "The json query tool.";
-      body = "nix-shell -p jq --run \"jq $argv\"";
+      body = "nix-shell -p jq --run \"jq '$argv'\"";
     };
 
     yq = {
       description = "The yaml query tool (Golang version).";
-      body = "nix-shell -p jq-go --run \"jq $argv\"";
+      body = "nix-shell -p jq-go --run \"yq '$argv'\"";
     };
 
     howdoi = {
