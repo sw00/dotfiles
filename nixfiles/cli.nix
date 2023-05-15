@@ -2,7 +2,7 @@
 
 {
   home.sessionVariables = {
-    BROWSER = "wslview";
+    BROWSER = "explorer.exe";
   };
 
   programs.fish.functions = {
