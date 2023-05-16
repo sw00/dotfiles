@@ -5,6 +5,10 @@
     BROWSER = "explorer.exe";
   };
 
+  home.packages = with pkgs; [
+    asdf-vm
+  ];
+
   programs.fish.functions = {
     jq = {
       description = "The json query tool.";
