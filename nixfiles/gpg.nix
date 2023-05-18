@@ -15,4 +15,9 @@
         enableExtraSocket = true; # for agent forwarding
         pinentryFlavor = "qt";
     };
+
+    programs.fish.shellInit = ''
+        set -x GPG_TTY (tty)
+        gpg-connect-agent updatestartuptty /bye >/dev/null
+      '';
 }
