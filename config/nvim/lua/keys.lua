@@ -92,10 +92,10 @@ nmap('<leader>xr', vimcmd('TroubleToggle lsp_references'))
 
 -- [[ lspconfig ]]
 -- Diagnostics - see `:h vim.diagnostic.*`
-nmap('<space>e', vimcmd('lua vim.diagnostic.open_float()'))
+nmap('<leader>d', vimcmd('lua vim.diagnostic.open_float()'))
 nmap('[d', vimcmd('lua vim.diagnostic.goto_prev()'))
 nmap(']d', vimcmd('lua vim.diagnostic.goto_next()'))
-nmap('<space>q', vimcmd('lua vim.diagnostic.setloclist()'))
+nmap('<leader>dq', vimcmd('lua vim.diagnostic.setloclist()'))
 
 -- [[formatting]]
 nmap('<space>f', vimcmd('lua vim.lsp.buf.format { async = true }')) -- format code
