@@ -33,6 +33,12 @@ return require('packer').startup(function(use)
     -- [[ Editor ]]
     use { 'echasnovski/mini.nvim', branch = 'stable' }
     use 'nathom/filetype.nvim'
+    use {"akinsho/toggleterm.nvim", tag = 'v2.6.0', config = function()
+      require("toggleterm").setup{
+        open_mapping = [[<c-\>]],
+        direction = 'float'
+      }
+    end}
 
     -- [[ Navigation ]]
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
