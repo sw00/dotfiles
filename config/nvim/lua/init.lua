@@ -33,7 +33,7 @@ require('mini.pairs').setup {}
 require('mini.trailspace').setup {}
 require('mini.surround').setup {}
 require('mini.tabline').setup {}
-
+require('mini.bufremove').setup({})
 
 -- completion
 require('settings.completion')
