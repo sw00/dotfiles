@@ -25,6 +25,7 @@ require('lualine').setup {
         }
     }
 }
+require'fidget'.setup {}
 
 -- editor plugins
 require('mini.comment').setup {}
