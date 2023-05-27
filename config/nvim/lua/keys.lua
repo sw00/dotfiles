@@ -58,8 +58,8 @@ nmap('<c-h>', '<c-w>h')
 nmap('<c-l>', '<c-w>l')
 
 -- [[ Tabs ]]
-nmap('<tab>', ':tabn<CR>') -- next tab
-nmap('<S-tab>', ':tabp<CR>') -- previous tab
+nmap('<c-tab>', ':tabn<CR>') -- next tab
+nmap('<c-s-tab>', ':tabp<CR>') -- previous tab
 
 -- [[ nvim-tree ]]
 nmap('<c-n>', ':NvimTreeToggle<CR>') -- toggle nvim-tree
@@ -67,6 +67,7 @@ nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree
 
 -- [[ telescope ]]
 nmap('<leader>ff', '<cmd>Telescope find_files<cr>')
+nmap('<leader>fF', '<cmd>Telescope find_files hidden=true<cr>')
 nmap('<leader>fg', '<cmd>Telescope live_grep<cr>')
 nmap('<leader>fb', '<cmd>Telescope buffers<cr>')
 nmap('<leader>fh', '<cmd>Telescope help_tags<cr>')
