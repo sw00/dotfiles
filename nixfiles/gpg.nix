@@ -12,6 +12,7 @@
         enable = true;
         enableFishIntegration = true;
         enableSshSupport = true;
+        defaultCacheTtlSsh = 300; # 5min
         enableExtraSocket = true; # for agent forwarding
         pinentryFlavor = "qt";
     };
