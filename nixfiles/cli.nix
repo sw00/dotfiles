@@ -2,7 +2,7 @@
 
 {
   home.sessionVariables = {
-    BROWSER = "explorer.exe";
+    BROWSER = "explorer.exe"; # WSL
   };
 
   home.packages = with pkgs; [
@@ -12,22 +12,22 @@
   programs.fish.functions = {
     jq = {
       description = "The json query tool.";
-      body = "nix-shell -p jq --run \"jq '$argv'\"";
+      body = "nix run nixpkgs#jq -- $argv";
     };
 
     yq = {
       description = "The yaml query tool (Golang version).";
-      body = "nix-shell -p jq-go --run \"yq '$argv'\"";
+      body = "nix run nixpkgs#yq -- $argv";
     };
 
     howdoi = {
       description = "Ask the internet how to do <query> using the `howdoi` tool.";
-      body = "nix-shell -p python310Packages.howdoi --run \"howdoi $argv\"";
+      body = "nix run nixpkgs#howdoi -- $argv";
     };
 
     cheat = {
       description = "Print a cheatsheet for a command via the `cheat` tool.";
-      body = "nix-shell -p cheat --run \"cheat $argv\"";
+      body = "nix run nixpkgs#cheat -- $argv";
     };
 
     lrnx = {
@@ -38,27 +38,27 @@
 
     pgcli = {
       description = "Postgres DB command line client with autocompletion.";
-      body = "nix-shell -p pgcli --run \"pgcli $argv\"";
+      body = "nix run nixpkgs#pgcli -- $argv";
     };
 
     mycli = {
       description = "MySQL command line client with autocompletion.";
-      body = "nix-shell -p mycli --run \"mycli $argv\"";
+      body = "nix run nixpkgs#mycli -- $argv";
     };
 
     lazydocker = {
       description = "TUI for docker.";
-      body = "nix-shell -p lazydocker --run \"lazydocker $argv\"";
+      body = "nix run nixpkgs#lazydocker -- $argv";
     };
 
     tig = {
       description = "TUI for git.";
-      body = "nix-shell -p tig --run \"tig $argv\"";
+      body = "nix run nixpkgs#tig -- $argv";
     };
 
     ranger = {
       description = "Command-line file manager with Vim bindings.";
-      body = "nix-shell -p ranger --run \"ranger $argv\"";
+      body = "nix run nixpkgs#ranger -- $argv";
     };
   };
 }
