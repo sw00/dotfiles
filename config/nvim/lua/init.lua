@@ -34,6 +34,7 @@ require('mini.trailspace').setup {}
 require('mini.surround').setup {}
 require('mini.tabline').setup {}
 
+
 -- completion
 require('settings.completion')
 require('settings.snippy')
@@ -62,4 +63,10 @@ require('nvim-treesitter.configs').setup {
     additional_vim_regex_highlighting = non_ts_langs,
   },
 }
+
+-- tabline
+vim.cmd("au FileType * if index(['gitcommit','fugitive'], &ft) >= 0 | let b:minitabline_disable=v:true | endif")
+
+-- terminal
+vim.cmd('au TermOpen * setlocal nonumber norelativenumber')
 
