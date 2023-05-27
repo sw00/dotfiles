@@ -26,8 +26,9 @@ local vimcmd = function(cmd)
 end
 
 -- [[ QoL ]]
-imap('kj', '') -- quick escape to normal mode from insert mode
-tmap('kj', '') -- quick escape to normal mode from terminal mode
+imap('kj', '<esc>') -- quick escape to normal mode from insert mode
+tmap('kj', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
+tmap('<esc><esc>', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
 nmap('<space><space>', ':nohlsearch<CR>') -- cancel search highlights
 nmap('<leader><leader>', '<c-^>') -- switch to previous buffer
 nmap('<leader>ns', '<cmd>lua NewScratch()<cr>') -- open a scratch buffer
