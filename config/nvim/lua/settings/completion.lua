@@ -31,7 +31,7 @@ local vimcmd = function(cmd)
     return '<cmd>' .. cmd .. '<CR>'
 end
 
-function on_attach_lsp(client, bufnr)
+function on_attach_lsp(_, bufnr)
     vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
 
     -- define local fn nmapbuf for code dedup/readability
@@ -40,20 +40,22 @@ function on_attach_lsp(client, bufnr)
         vim.api.nvim_buf_set_keymap(bufnr, 'n', shortcut, vimcmd(cmd), opts)
     end
 
-    -- Mappings - see `:h vim.lsp.*`
-    nmapbuf('gD', 'lua vim.lsp.buf.declaration()') -- goto declaration
-    nmapbuf('gd', 'lua vim.lsp.buf.definition()') -- goto definition
+    -- navigation/context actions:
     nmapbuf('K', 'lua vim.lsp.buf.hover()') -- show docs
-    nmapbuf('gi', 'lua vim.lsp.buf.implementation()') -- goto implementation
-    nmapbuf('<C-k>', 'lua vim.lsp.buf.signature_help()') -- show signature
+    nmapbuf('<leader>ld', 'lua vim.lsp.buf.declaration()') -- goto declaration, i.e. initialisation
+    nmapbuf('<leader>lD', 'lua vim.lsp.buf.definition()') -- goto definition
+    nmapbuf('<leader>li', 'lua vim.lsp.buf.implementation()') -- goto implementation
+    nmapbuf('<leader>ls', 'lua vim.lsp.buf.signature_help()') -- show signature
+    nmapbuf('<leader>lt', 'lua vim.lsp.buf.type_definition()') -- show type definition
+    nmapbuf('<leader>lr', 'lua vim.lsp.buf.references()') -- list references (show usages)
+
+    -- edit actions:
     nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()') -- add workspace folder
     nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()') -- remove workspace folder
     nmapbuf('<space>wl>', 'lua vim.inspect(vim.lsp.buf.list_workspace_folders())') -- remove workspace folder
-    nmapbuf('<space>D', 'lua vim.lsp.buf.type_definition()') -- show type definition
+    nmapbuf('<space>lf', 'lua vim.lsp.buf.format { async = true }') -- format code
     nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()') -- rename
     nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()') -- code action
-    nmapbuf('gr', 'lua vim.lsp.buf.references()') -- list references (show usages)
-    nmapbuf('<leader>lf', 'lua vim.lsp.buf.format { async = true }') -- format code
 end
 
 -- [[LSP]]
