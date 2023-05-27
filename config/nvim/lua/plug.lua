@@ -37,6 +37,7 @@ return require('packer').startup(function(use)
     -- [[ Navigation ]]
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
     use { 'nvim-telescope/telescope.nvim',
+        tag = '0.1.1',
         requires = {
             'nvim-lua/plenary.nvim',
             { 'devicons', opt = true },
