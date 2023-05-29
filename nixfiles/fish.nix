@@ -1,14 +1,20 @@
 { config, pkgs, ... }:
 
+let
+  mkAfter = (import <nixpkgs/lib>).mkAfter;
+  fishConfigPath = "fish/conf.d/plugin-";
+  loadPluginFn = ''
+    for f in $plugin_dir/*.fish
+    source $f
+    end
+  '';
+in
+
 {
   programs.fish = {
     enable = true;
 
     shellInit = ''
-        if test -e $HOME/.nix-profile/etc/profile.d/nix.sh
-            fenv . $HOME/.nix-profile/etc/profile.d/nix.sh
-        end
-
         set -xg sysinfo (uname -a)
 
         if string match -eiq wsl $sysinfo
@@ -69,6 +75,8 @@
     };
 
     plugins = [
+      { name = "foreign-env"; src=pkgs.fishPlugins.foreign-env.src; }
+      { name = "fzf"; src = pkgs.fishPlugins.fzf-fish.src; }
       {
         name = "kawasaki";
         src = pkgs.fetchFromGitHub {
@@ -88,39 +96,12 @@
         };
       }
       {
-        name = "foreign-env";
-        src = pkgs.fetchFromGitHub {
-          owner = "oh-my-fish";
-          repo = "plugin-foreign-env";
-          rev = "3ee95536106c11073d6ff466c1681cde31001383";
-          sha256 = "vyW/X2lLjsieMpP9Wi2bZPjReaZBkqUbkh15zOi8T4Y=";
-        };
-      }
-      {
         name = "pbcopy";
         src = pkgs.fetchFromGitHub {
           owner = "oh-my-fish";
           repo = "plugin-pbcopy";
           rev = "e8d78bb01f66246f7996a4012655b8ddbad777c2";
           sha256 = "B6/0tNk5lb+1nup1dfXhPD2S5PURZyFd8nJJF6shvq4=";
-        };
-      }
-      {
-        name = "fzf";
-        src = pkgs.fetchFromGitHub {
-          owner = "jethrokuan";
-          repo = "fzf";
-          rev = "0.16.6";
-          sha256 = "/RxsfFISqYpoaH97m+D8o4cb4zpNw5cLJITgbWIk1v0=";
-        };
-      }
-      {
-        name = "autojump";
-        src = pkgs.fetchFromGitHub {
-          owner = "rominf";
-          repo = "omf-plugin-autojump";
-          rev = "86f2aa23ae64b4de389e63c71d4ea372958685dc";
-          sha256 = "PPl/TvfzlRkEctZ0vX04CUNZDNEiQSTkZMkigyw0c04=";
         };
       }
       {
@@ -134,4 +115,11 @@
       }
     ];
   };
+
+  xdg.configFile = {
+    "${fishConfigPath}kawasaki.fish".text = mkAfter loadPluginFn;
+    "${fishConfigPath}foreign-env.fish".text = mkAfter loadPluginFn;
+    "${fishConfigPath}bang-bang.fish".text = mkAfter loadPluginFn;
+  };
+
 }
