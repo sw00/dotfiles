@@ -2,10 +2,6 @@
 
 {
   home.file = {
-    ".bashrc" = {
-      source = ../bashrc;
-    };
-
     ".profile" = {
       source = ../profile;
     };
