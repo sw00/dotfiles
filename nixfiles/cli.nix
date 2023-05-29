@@ -22,7 +22,7 @@
 
     howdoi = {
       description = "Ask the internet how to do <query> using the `howdoi` tool.";
-      body = "nix run nixpkgs#howdoi -- $argv";
+      body = "nix run nixpkgs#python310Packages.howdoi -- $argv";
     };
 
     cheat = {
