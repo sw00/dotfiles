@@ -2,7 +2,7 @@
 
 let
   mkAfter = (import <nixpkgs/lib>).mkAfter;
-  fishConfigPath = "fish/conf.d/plugin-";
+  plugConfigFile = n: "fish/conf.d/plugin-${n}.fish";
   loadPluginFn = ''
     for f in $plugin_dir/*.fish
     source $f
@@ -113,9 +113,7 @@ in
   };
 
   xdg.configFile = {
-    "${fishConfigPath}kawasaki.fish".text = mkAfter loadPluginFn;
-    "${fishConfigPath}foreign-env.fish".text = mkAfter loadPluginFn;
-    "${fishConfigPath}bang-bang.fish".text = mkAfter loadPluginFn;
+    ${plugConfigFile "kawasaki"}.text = mkAfter loadPluginFn;
   };
 
 }
