@@ -70,10 +70,6 @@ in
 
     };
 
-    shellAbbrs = {
-      doco = "docker-compose";
-    };
-
     plugins = [
       { name = "foreign-env"; src=pkgs.fishPlugins.foreign-env.src; }
       { name = "fzf"; src = pkgs.fishPlugins.fzf-fish.src; }
