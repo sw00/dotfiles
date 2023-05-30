@@ -11,9 +11,7 @@ fi
 
 home-manager -f home.nix switch -b backup
 
-chmod 0600 ~/.ssh/*_rsa
-
-if [[ $1 = --all ]]; then 
+if [[ $1 = --all ]]; then
     host_dir=./host-$(hostname -s)
 
     [[ $machine_os = 'wsl' ]] && \
