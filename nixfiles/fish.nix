@@ -1,14 +1,4 @@
-{ config, pkgs, ... }:
-
-let
-  mkAfter = (import <nixpkgs/lib>).mkAfter;
-  plugConfigFile = n: "fish/conf.d/plugin-${n}.fish";
-  loadPluginFn = ''
-    for f in $plugin_dir/*.fish
-    source $f
-    end
-  '';
-in
+{ config, pkgs, lib, ... }:
 
 {
   programs.fish = {
@@ -73,15 +63,7 @@ in
     plugins = [
       { name = "foreign-env"; src=pkgs.fishPlugins.foreign-env.src; }
       { name = "fzf"; src = pkgs.fishPlugins.fzf-fish.src; }
-      {
-        name = "kawasaki";
-        src = pkgs.fetchFromGitHub {
-          owner = "hastinbe";
-          repo = "theme-kawasaki";
-          rev = "v1.1.1";
-          sha256 = "RC4ZiuwqnaBUzsxt0jSQa13w57JPUtT3MfU1Yf1UM+Y=";
-        };
-      }
+      { name = "pure"; src = pkgs.fishPlugins.pure.src; }
       {
         name = "bang-bang";
         src = pkgs.fetchFromGitHub {
@@ -111,9 +93,4 @@ in
       }
     ];
   };
-
-  xdg.configFile = {
-    ${plugConfigFile "kawasaki"}.text = mkAfter loadPluginFn;
-  };
-
 }
