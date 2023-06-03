@@ -69,6 +69,7 @@ nmap('<c-n>', ':NvimTreeToggle<CR>') -- toggle nvim-tree
 nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree
 
 -- [[ telescope ]]
+nmap('<c-P>', '<cmd>Telescope commands<cr>')
 nmap('<leader>ff', '<cmd>Telescope find_files<cr>')
 nmap('<leader>fF', '<cmd>Telescope find_files hidden=true<cr>')
 nmap('<leader>fg', '<cmd>Telescope live_grep<cr>')
