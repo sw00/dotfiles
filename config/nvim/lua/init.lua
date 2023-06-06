@@ -28,11 +28,12 @@ require('lualine').setup {
 require'fidget'.setup {}
 
 -- editor plugins
-require('mini.comment').setup {}
-require('mini.pairs').setup {}
-require('mini.trailspace').setup {}
-require('mini.surround').setup {}
-require('mini.bufremove').setup({})
+require'mini.comment'.setup {}
+require'mini.pairs'.setup {}
+require'mini.trailspace'.setup {}
+require'mini.surround'.setup {}
+require'mini.bufremove'.setup {}
+require'mini.bracketed'.setup {}
 
 -- tabline
 require('mini.tabline').setup {

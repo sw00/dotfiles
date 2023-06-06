@@ -58,12 +58,6 @@ nmap('<c-k>', '<c-w>k')
 nmap('<c-h>', '<c-w>h')
 nmap('<c-l>', '<c-w>l')
 
--- [[ T>abs ]]
-nmap('<leader><tab>', ':tabn<cr>')
-nmap('<leader><s-tab>', ':tabp<cr>')
-nmap(']t', ':tabn<CR>') -- next tab
-nmap('[t', ':tabp<CR>') -- previous tab
-
 -- [[ nvim-tree ]]
 nmap('<c-n>', ':NvimTreeToggle<CR>') -- toggle nvim-tree
 nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree
