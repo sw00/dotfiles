@@ -78,7 +78,8 @@ require('nvim-treesitter.configs').setup {
           scope_incremental = '<c-space>',
           scope_decremental = '<c-backspace'
       }
-  }
+  },
+
 }
 
 -- terminal

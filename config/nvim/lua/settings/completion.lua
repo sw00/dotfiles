@@ -128,10 +128,20 @@ local rust_handler = function()
     }
 end
 
+local elixir_handler = function()
+    local elixirls = lspconfig.elixirls
+    elixirls.setup {
+        dialyzerEnabled = false,
+        fetchDeps = false,
+        enableTestLenses = true,
+    }
+end
+
 mason_lspconfig.setup_handlers({
     default_handler,
     ["lua_ls"] = lua_handler,
     ["rust_analyzer"] = rust_handler,
+    ["elixir-ls"] = elixir_handler
 })
 
 -- disable for these
