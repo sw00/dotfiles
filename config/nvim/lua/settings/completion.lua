@@ -41,26 +41,26 @@ function on_attach_lsp(_, bufnr)
     end
 
     -- navigation/context actions:
-    nmapbuf('K', 'lua vim.lsp.buf.hover()') -- show docs
-    nmapbuf('<leader>ld', 'lua vim.lsp.buf.declaration()') -- goto declaration, i.e. initialisation
-    nmapbuf('<leader>lD', 'lua vim.lsp.buf.definition()') -- goto definition
-    nmapbuf('<leader>li', 'lua vim.lsp.buf.implementation()') -- goto implementation
-    nmapbuf('<leader>ls', 'lua vim.lsp.buf.signature_help()') -- show signature
+    nmapbuf('K', 'lua vim.lsp.buf.hover()')                    -- show docs
+    nmapbuf('<leader>ld', 'lua vim.lsp.buf.declaration()')     -- goto declaration, i.e. initialisation
+    nmapbuf('<leader>lD', 'lua vim.lsp.buf.definition()')      -- goto definition
+    nmapbuf('<leader>li', 'lua vim.lsp.buf.implementation()')  -- goto implementation
+    nmapbuf('<leader>ls', 'lua vim.lsp.buf.signature_help()')  -- show signature
     nmapbuf('<leader>lt', 'lua vim.lsp.buf.type_definition()') -- show type definition
-    nmapbuf('<leader>lr', 'lua vim.lsp.buf.references()') -- list references (show usages)
+    nmapbuf('<leader>lr', 'lua vim.lsp.buf.references()')      -- list references (show usages)
 
     -- edit actions:
-    nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()') -- add workspace folder
-    nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()') -- remove workspace folder
+    nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()')                -- add workspace folder
+    nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()')             -- remove workspace folder
     nmapbuf('<space>wl>', 'lua vim.inspect(vim.lsp.buf.list_workspace_folders())') -- remove workspace folder
-    nmapbuf('<space>lf', 'lua vim.lsp.buf.format { async = true }') -- format code
-    nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()') -- rename
-    nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()') -- code action
+    nmapbuf('<space>lf', 'lua vim.lsp.buf.format { async = true }')                -- format code
+    nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()')                               -- rename
+    nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()')                          -- code action
 end
 
 -- [[LSP]]
-local mason_lspconfig = require'mason-lspconfig'
-local lspconfig = require'lspconfig'
+local mason_lspconfig = require 'mason-lspconfig'
+local lspconfig = require 'lspconfig'
 
 require('mason').setup {
     ui = {
@@ -74,13 +74,16 @@ require('mason').setup {
 
 mason_lspconfig.setup({
     ensure_installed = { 'lua_ls', 'pyright', 'rust_analyzer', 'elixirls', 'ruby_ls' }, -- definitely install these
-    automatic_installation = true, -- install any additional servers with lspconfig setup defined
+    automatic_installation = true,                                                      -- install any additional servers with lspconfig setup defined
 })
 
 -- mason handlers
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+
 local default_handler = function(server_name)
     require('lspconfig')[server_name].setup {
-        on_attach = on_attach_lsp
+        on_attach = on_attach_lsp,
+        capabilities = capabilities
     }
 end
 
@@ -131,9 +134,13 @@ end
 local elixir_handler = function()
     local elixirls = lspconfig.elixirls
     elixirls.setup {
-        dialyzerEnabled = false,
-        fetchDeps = false,
-        enableTestLenses = true,
+        on_attach = on_attach_lsp,
+        capabilities = capabilities,
+        elixirLS = {
+            dialyzerEnabled = false,
+            fetchDeps = false,
+            enableTestLenses = true,
+        }
     }
 end
 
@@ -145,7 +152,7 @@ mason_lspconfig.setup_handlers({
 })
 
 -- disable for these
-local disabled_filetypes = {'gitcommit'}
+local disabled_filetypes = { 'gitcommit' }
 
 vim.api.nvim_create_autocmd("FileType", {
     pattern = disabled_filetypes,
@@ -153,4 +160,3 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.b.minicompletion_disable = true
     end
 })
-
