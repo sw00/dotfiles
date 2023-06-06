@@ -64,6 +64,7 @@ nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree
 
 -- [[ telescope ]]
 nmap('<c-P>', '<cmd>Telescope commands<cr>')
+nmap('<c-T>', '<cmd>Telescope<cr>') -- overrides tagstack but that's okay
 nmap('<leader>ff', '<cmd>Telescope find_files<cr>')
 nmap('<leader>fF', '<cmd>Telescope find_files hidden=true<cr>')
 nmap('<leader>fg', '<cmd>Telescope live_grep<cr>')
