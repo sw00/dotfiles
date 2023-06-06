@@ -62,7 +62,9 @@ return require('packer').startup(function(use)
     use 'simrat39/rust-tools.nvim'
 
     -- [[ Testing ]]
-	use 'vim-test/vim-test'
+	use {'vim-test/vim-test', config = function()
+        vim.cmd([[ let test#strategy='toggleterm' ]])
+    end}
 
     -- [[ Snippets ]]
     use 'dcampos/nvim-snippy'
