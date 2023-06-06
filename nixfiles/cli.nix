@@ -7,6 +7,7 @@
 
   home.packages = with pkgs; [
     asdf-vm
+    inotify-tools
   ];
 
   programs.fish = {
