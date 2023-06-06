@@ -77,6 +77,14 @@ nmap('<leader>fd', '<cmd>Telescope lsp_definitions<cr>')
 nmap('<c-G>', [[:Git<CR>]])
 nmap('<leader>gv', [[:GV<CR>]])
 
+-- [[ vim-test ]]
+nmap('<leader>t', '<cmd>TestNearest<cr>')
+nmap('<leader>tt', '<cmd>TestFile<cr>')
+nmap('<leader>ta', '<cmd>TestSuite<cr>')
+nmap('<leader>tl', '<cmd>TestLast<cr>')
+nmap('<leader>tg', '<cmd>TestVisit<cr>')
+
+
 -- [[ tagbar ]]
 nmap('<F8>', [[:SymbolsOutline<CR>]])
 
