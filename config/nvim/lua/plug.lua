@@ -29,6 +29,7 @@ return require('packer').startup(function(use)
             }
         end
     }
+    use 'stevearc/dressing.nvim'
 
     -- [[ Editor ]]
     use { 'echasnovski/mini.nvim', branch = 'stable' }
