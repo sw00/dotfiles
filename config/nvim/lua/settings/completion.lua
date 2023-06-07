@@ -148,7 +148,7 @@ mason_lspconfig.setup_handlers({
     default_handler,
     ["lua_ls"] = lua_handler,
     ["rust_analyzer"] = rust_handler,
-    ["elixir-ls"] = elixir_handler
+    ["elixirls"] = elixir_handler
 })
 
 -- disable for these
