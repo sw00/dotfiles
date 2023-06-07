@@ -31,8 +31,13 @@ local vimcmd = function(cmd)
     return '<cmd>' .. cmd .. '<CR>'
 end
 
-function on_attach_lsp(_, bufnr)
+local navic = require("nvim-navic")
+function on_attach_lsp(client, bufnr)
     vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
+
+    if client.server_capabilities.documentSymbolProvider then
+        navic.attach(client, bufnr)
+    end
 
     -- define local fn nmapbuf for code dedup/readability
     local nmapbuf = function(shortcut, cmd)

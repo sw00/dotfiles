@@ -14,16 +14,8 @@ require('func') -- Functions
 
 -- PLUGINS
 require('nvim-tree').setup{}
-local gps = require('nvim-gps')
-gps.setup { depth = 4 }
 require('lualine').setup {
-    options = { theme = 'nord' },
-    sections = {
-        lualine_c = {
-            'filename',
-            { gps.get_location, cond = gps.is_available },
-        }
-    }
+    options = { theme = 'nord' }
 }
 require'fidget'.setup {}
 
