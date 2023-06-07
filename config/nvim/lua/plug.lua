@@ -14,7 +14,10 @@ return require('packer').startup(function(use)
     -- [[ Appearance ]]
     use { 'kyazdani42/nvim-web-devicons', as = 'devicons' }
     use 'NLKNguyen/papercolor-theme'
-    use "SmiteshP/nvim-gps"
+    use {
+        "SmiteshP/nvim-navic",
+        requires = "neovim/nvim-lspconfig"
+    }
     use 'Yggdroot/indentLine'
     use { 'nvim-lualine/lualine.nvim', requires = 'devicons' }
     use { "folke/zen-mode.nvim",
@@ -34,9 +37,9 @@ return require('packer').startup(function(use)
     -- [[ Editor ]]
     use { 'echasnovski/mini.nvim', branch = 'stable' }
     use 'nathom/filetype.nvim'
-    use {"akinsho/toggleterm.nvim", tag = 'v2.6.0' }
+    use { "akinsho/toggleterm.nvim", tag = 'v2.6.0' }
 
--- [[ Navigation ]]
+    -- [[ Navigation ]]
     use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
     use { 'nvim-telescope/telescope.nvim',
         tag = '0.1.1',
@@ -63,9 +66,9 @@ return require('packer').startup(function(use)
     use 'simrat39/rust-tools.nvim'
 
     -- [[ Testing ]]
-	use {'vim-test/vim-test', config = function()
+    use { 'vim-test/vim-test', config = function()
         vim.cmd([[ let test#strategy='toggleterm' ]])
-    end}
+    end }
 
     -- [[ Snippets ]]
     use 'dcampos/nvim-snippy'
