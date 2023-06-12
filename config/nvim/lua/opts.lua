@@ -9,6 +9,9 @@ opt.signcolumn = 'number'		-- use number column for signs
 opt.cursorline = true			-- show cursor line
 opt.mouse = 'a'	                -- capture mouse input
 
+-- [[ Code Folds ]]
+opt.foldmethod = "indent"       -- folds defined by indentation
+
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'			-- string encoding
 opt.fileencoding = 'utf-8'		-- file encoding
