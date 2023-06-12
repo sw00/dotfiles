@@ -15,7 +15,13 @@ require('func') -- Functions
 -- PLUGINS
 require('nvim-tree').setup{}
 require('lualine').setup {
-    options = { theme = 'nord' }
+    options = { theme = 'nord' },
+    sections = {
+        lualine_c = {
+            'filename',
+            'navic'
+        }
+    }
 }
 require'fidget'.setup {}
 
