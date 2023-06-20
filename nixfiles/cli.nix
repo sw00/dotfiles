@@ -71,6 +71,11 @@
         description = "Command-line file manager with Vim bindings.";
         body = "nix run nixpkgs#ranger -- $argv";
       };
+
+      slack-term = {
+        description = "Terminal client for slack";
+        body = "nix run nixpkgs#slack-term -- $argv";
+      };
     };
   };
 }
