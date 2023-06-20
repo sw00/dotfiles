@@ -80,13 +80,11 @@ require('nvim-treesitter.configs').setup {
 
 }
 
--- codeolding
-
 -- terminal
 require("toggleterm").setup {
     open_mapping = [[<c-\>]],
-    shell = "fish",
     direction = 'float',
+    shell = vim.o.shell,
     float_opts = {
         border = 'rounded'
     }

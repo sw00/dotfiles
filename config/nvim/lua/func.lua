@@ -7,3 +7,5 @@ _G.mkScratch = function()
 end
 
 vim.api.nvim_set_keymap('n', '<leader>S', '<cmd>lua _G.mkScratch()<cr>', { noremap = true, silent = true})
+
+vim.api.nvim_create_user_command('TrimWhitespace', 'lua MiniTrailspace.trim()', {})

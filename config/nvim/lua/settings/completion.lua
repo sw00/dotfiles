@@ -33,7 +33,11 @@ end
 
 local navic = require("nvim-navic")
 function on_attach_lsp(client, bufnr)
-    vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
+    if client.server_capabilities.completionProvider then
+        vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
+    else
+        vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.complete_fallback()')
+    end
 
     if client.server_capabilities.documentSymbolProvider then
         navic.attach(client, bufnr)
@@ -61,6 +65,9 @@ function on_attach_lsp(client, bufnr)
     nmapbuf('<space>lf', 'lua vim.lsp.buf.format { async = true }')                -- format code
     nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()')                               -- rename
     nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()')                          -- code action
+
+    -- global rust-tools commands
+    nmapbuf('<leader>R', 'RustRunnables')                          -- code action
 end
 
 -- [[LSP]]
@@ -78,7 +85,7 @@ require('mason').setup {
 }
 
 mason_lspconfig.setup({
-    ensure_installed = { 'lua_ls', 'pyright', 'rust_analyzer', 'elixirls', 'ruby_ls' }, -- definitely install these
+    ensure_installed = { 'lua_ls', 'pyright', 'rust_analyzer', 'elixirls', 'solargraph' }, -- definitely install these
     automatic_installation = true,                                                      -- install any additional servers with lspconfig setup defined
 })
 
