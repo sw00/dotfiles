@@ -16,6 +16,11 @@
     };
 
     functions = {
+      bat = {
+        description = "A better cat.";
+        body = "nix run nixpkgs#bat -- $argv";
+      };
+
       jq = {
         description = "The json query tool.";
         body = "nix run nixpkgs#jq -- $argv";
