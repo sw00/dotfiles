@@ -38,7 +38,6 @@
   # Packages to be installed
   home.packages = with pkgs; [
     git git-crypt gnupg tig
-    fzf ripgrep fd autojump xsel
     wget zip unzip gnumake gcc pkg-config openssl
     nodejs # for lsp
     dbus gnome.gnome-keyring

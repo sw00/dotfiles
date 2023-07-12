@@ -6,8 +6,9 @@
   };
 
   home.packages = with pkgs; [
+    fzf ripgrep fd autojump bat
+    inotify-tools xsel htop
     asdf-vm
-    inotify-tools
   ];
 
   programs.fish = {
@@ -16,11 +17,6 @@
     };
 
     functions = {
-      bat = {
-        description = "A better cat.";
-        body = "nix run nixpkgs#bat -- $argv";
-      };
-
       jq = {
         description = "The json query tool.";
         body = "nix run nixpkgs#jq -- $argv";
@@ -60,11 +56,6 @@
       lazydocker = {
         description = "TUI for docker.";
         body = "nix run nixpkgs#lazydocker -- $argv";
-      };
-
-      tig = {
-        description = "TUI for git.";
-        body = "nix run nixpkgs#tig -- $argv";
       };
 
       ranger = {
