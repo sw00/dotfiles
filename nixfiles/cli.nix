@@ -7,6 +7,7 @@
 
   home.packages = with pkgs; [
     fzf ripgrep fd autojump bat
+    howdoi cheat
     inotify-tools xsel htop
     asdf-vm
   ];
@@ -25,16 +26,6 @@
       yq = {
         description = "The yaml query tool (Golang version).";
         body = "nix run nixpkgs#yq -- $argv";
-      };
-
-      howdoi = {
-        description = "Ask the internet how to do <query> using the `howdoi` tool.";
-        body = "nix run nixpkgs#python310Packages.howdoi -- $argv";
-      };
-
-      cheat = {
-        description = "Print a cheatsheet for a command via the `cheat` tool.";
-        body = "nix run nixpkgs#cheat -- $argv";
       };
 
       lrnx = {
