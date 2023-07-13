@@ -13,7 +13,7 @@
 
   programs.fish = {
     shellAbbrs = {
-      doco = "docker-compose";
+      doco = "docker compose";
     };
 
     functions = {
