@@ -7,7 +7,7 @@
 
   home.packages = with pkgs; [
     fzf ripgrep fd autojump bat
-    howdoi cheat
+    python3Packages.howdoi cheat
     inotify-tools xsel htop
     asdf-vm
   ];
