@@ -57,7 +57,7 @@ return require('packer').startup(function(use)
 
     -- [[ Completion ]]
     use { 'williamboman/mason.nvim', run = ':MasonUpdate' }
-    use 'j-hui/fidget.nvim'
+    use { 'j-hui/fidget.nvim', tag = 'legacy' }
 
     use { 'neovim/nvim-lspconfig',
         requires = { 'williamboman/mason.nvim', 'williamboman/mason-lspconfig' }
