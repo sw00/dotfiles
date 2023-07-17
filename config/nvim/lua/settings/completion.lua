@@ -32,8 +32,13 @@ local vimcmd = function(cmd)
 end
 
 local navic = require("nvim-navic")
+
+local has_completion_capabilities = function(client)
+    return client.server_capabilities.completionProvider or client.server_capabilities.textDocument.completion
+end
+
 function on_attach_lsp(client, bufnr)
-    if client.server_capabilities.completionProvider then
+    if has_completion_capabilities(client) then
         vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
     else
         vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.complete_fallback()')
@@ -156,11 +161,32 @@ local elixir_handler = function()
     }
 end
 
+local ruby_handler = function()
+    local solargraph = lspconfig.solargraph
+    solargraph.setup {
+        on_attach = on_attach_lsp,
+        capabilities = capabilities,
+        root_dir = lspconfig.util.root_pattern("Gemfile", ".git", "."),
+        settings = {
+            solargraph = {
+                autoformat = true,
+                completion = true,
+                diagnostic = true,
+                references = true,
+                folding = true,
+                rename = true,
+                symbols = true
+            }
+        }
+    }
+end
+
 mason_lspconfig.setup_handlers({
     default_handler,
     ["lua_ls"] = lua_handler,
     ["rust_analyzer"] = rust_handler,
-    ["elixirls"] = elixir_handler
+    ["elixirls"] = elixir_handler,
+    ["solargraph"] = ruby_handler
 })
 
 -- disable for these
