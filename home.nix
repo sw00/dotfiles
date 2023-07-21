@@ -1,4 +1,8 @@
 { config, pkgs, ... }:
+let pkgs = import (builtins.fetchTarball {
+            url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.05.tar.gz";
+            }) {};
+in
 
 {
   # Assume non-NixOS Linux:
@@ -27,7 +31,7 @@
   home.username = "sett";
   home.homeDirectory = "/home/sett";
 
-  home.stateVersion = "22.11";
+  home.stateVersion = "23.05";
 
   # Default LANG
   home.language.base = "en_US.UTF-8";
