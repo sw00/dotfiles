@@ -36,7 +36,7 @@
         },
         {
           "name": "III",
-          "layout": "VerticalStack"
+          "layout": "Columns"
         }
       ]
     },
