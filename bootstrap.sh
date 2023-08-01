@@ -9,8 +9,6 @@ else
     machine_os=linux
 fi
 
-home-manager -f home.nix switch -b backup
-
 if [[ $1 = --all ]]; then
     host_dir=./host-$(hostname -s)
 
@@ -20,3 +18,6 @@ if [[ $1 = --all ]]; then
     [[ -d $host_dir ]] && \
         pushd $host_dir && . up.sh && popd
 fi
+
+home-manager -f home.nix switch -b backup
+
