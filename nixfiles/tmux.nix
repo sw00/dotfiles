@@ -28,8 +28,9 @@
 
         switch $_machine_os
         case wsl
-          set STATS (powershell.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" | tr -s '\r' ';')
-          echo $STATS | sed -rn 's#SSID :\s+(.*); Rec.*:\s+([^ ]*); Trans.*:\s+([^ ]*); Sig.*: ([^ ]*).*#"\1" D:\2 U:\3 S:\4#p'
+          pwsh.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" \
+            | tr -s '\r\n' ';' \
+            | sed -rn 's#.*:\s(.*);.*:\s(.*);.*:\s(.*);.*:\s(.*);#"\1" D:\2 U:\3 S:\4#p'
         end
     '';
   };
