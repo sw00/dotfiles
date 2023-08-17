@@ -1,9 +1,9 @@
 {
-  "app_specific_configuration_path": "$Env:USERPROFILE/applications.yaml",
+  "app_specific_configuration_path": "C:/Users/settw/.config/komorebi/applications.yaml",
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
   "alt_focus_hack": true,
-  "default_workspace_padding": 10,
+  "default_workspace_padding": 5,
   "default_container_padding": 5,
   "active_window_border": false,
   "active_window_border_colours": {
@@ -32,11 +32,19 @@
         },
         {
           "name": "II",
-          "layout": "VerticalStack"
+          "layout": "BSP"
         },
         {
           "name": "III",
-          "layout": "Columns"
+          "layout": "BSP"
+        },
+        {
+          "name": "IV",
+          "layout": "BSP"
+        },
+        {
+          "name": "V",
+          "layout": "BSP"
         }
       ]
     },

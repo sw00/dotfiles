@@ -18,6 +18,15 @@ done
 
 # komorebi
 WIN_HOME=$(wslpath $(wslvar USERPROFILE))
+KOMOREBI_HOME=$WIN_HOME/.config/komorebi
 WIN_STARTUP="$(wslpath $(wslvar APPDATA))/Microsoft/Windows/Start Menu/Programs/Startup"
-cp -f "$FILES_DIR/komorebi.json" "$WIN_HOME/"
-cp -f "$FILES_DIR/komorebi.ps1" "$WIN_STARTUP"
+
+cp $FILES_DIR/bootstrap-komorebi.ps1 "$WIN_HOME/"
+cp $FILES_DIR/komorebi.ahk "$WIN_STARTUP/"
+
+mkdir -p "$KOMOREBI_HOME"
+cp $FILES_DIR/komorebi.json "$KOMOREBI_HOME/"
+cp $FILES_DIR/komorebic.lib.ahk "$KOMOREBI_HOME/"
+
+pwsh.exe -File "C:\Users\settw\bootstrap-komorebi.ps1"
+
