@@ -64,6 +64,8 @@
       { name = "foreign-env"; src=pkgs.fishPlugins.foreign-env.src; }
       { name = "fzf"; src = pkgs.fishPlugins.fzf-fish.src; }
       { name = "pure"; src = pkgs.fishPlugins.pure.src; }
+      { name = "sdkman-for-fish"; src = pkgs.fishPlugins.sdkman-for-fish.src; }
+
       {
         name = "bang-bang";
         src = pkgs.fetchFromGitHub {
