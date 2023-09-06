@@ -15,29 +15,6 @@
         else
             set -g _machine_os linux
         end
-
-        # Be sure your x server is running!!!
-        set -x DISPLAY (cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0
-
-        pgrep dbus-daemon > /dev/null
-
-        if test $status -eq 1
-        dbus-launch --sh-syntax | read --line bus_address ignored bus_pid bus_windowid
-
-        set -Ux DBUS_SESSION_BUS_ADDRESS (string match -r "'(.*)'" $bus_address)[2]
-        set -Ux DBUS_SESSION_BUS_ID (string match -r "=(.*);" $bus_pid)[2]
-        set -Ux DBUS_SESSION_BUS_WINDOWID (string match -r "=(.*);" $bus_windowid)[2]
-        end
-
-        # pgrep limited to 15 chars, so truncate `daemon`
-        pgrep -f gnome-keyring-d > /dev/null
-
-        if test $status -eq 1
-        gnome-keyring-daemon 2&> /dev/null | read --line gnome_keyring_control ssh_auth_sock
-
-        set -Ux GNOME_KEYRING_CONTROL (string split -m 1 = $gnome_keyring_control)[2]
-        set -Ux SSH_AUTH_SOCK (string split -m 1 = $ssh_auth_sock)[2]
-        end
     '';
 
     functions = {
