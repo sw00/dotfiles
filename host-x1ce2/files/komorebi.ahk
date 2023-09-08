@@ -4,6 +4,8 @@ ErrorLevel := ProcessExist("komorebi.exe")
 if (ErrorLevel = 0)
     RunWait("komorebic.exe start --config " . komorebiConfigHome . "\komorebi.json", , "Hide")
 
+MaxRetries:=3
+RetryCount := 0
 Loop
 {
     RunWait("komorebic.exe state", , "Hide UseErrorLevel")
@@ -13,7 +15,13 @@ Loop
     }
     Else
     {
-        Sleep(1000)
+    	RetryCount++
+        if (RetryCount >= MaxRetries){
+        	Break
+        }
+        else {
+            Sleep(1000)
+        }
     }
 }
 
