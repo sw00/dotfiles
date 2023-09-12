@@ -3,5 +3,5 @@
         email = sett@wethinkcode.co.za
 
 [url "git@github.com:"]
-    insteadOf = "https://github.com/"
+    insteadOf = https://github.com/
 
