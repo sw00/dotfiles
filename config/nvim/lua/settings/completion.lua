@@ -56,8 +56,8 @@ function on_attach_lsp(client, bufnr)
 
     -- navigation/context actions:
     nmapbuf('K', 'lua vim.lsp.buf.hover()')                    -- show docs
-    nmapbuf('<leader>ld', 'lua vim.lsp.buf.declaration()')     -- goto declaration, i.e. initialisation
-    nmapbuf('<leader>lD', 'lua vim.lsp.buf.definition()')      -- goto definition
+    nmapbuf('<leader>lD', 'lua vim.lsp.buf.declaration()')     -- goto declaration, i.e. initialisation
+    nmapbuf('<leader>ld', 'lua vim.lsp.buf.definition()')      -- goto definition
     nmapbuf('<leader>li', 'lua vim.lsp.buf.implementation()')  -- goto implementation
     nmapbuf('<leader>ls', 'lua vim.lsp.buf.signature_help()')  -- show signature
     nmapbuf('<leader>lt', 'lua vim.lsp.buf.type_definition()') -- show type definition
