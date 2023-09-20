@@ -34,5 +34,10 @@
       target = "./wtc/bootcamp.yml";
       source = ../secrets/wtc/bootcamp.yml;
     };
+
+    xdg.configFile."local.yml" = {
+      target = "./wtc/local.yml";
+      source = ../secrets/wtc/local.yml;
+    };
 }
 
