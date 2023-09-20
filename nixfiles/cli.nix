@@ -3,6 +3,7 @@
 {
   home.sessionVariables = {
     BROWSER = "explorer.exe"; # WSL
+    VAGRANT_WSL_ENABLE_WINDOWS_ACCESS = "1"; # more WSL + vagrant
   };
 
   home.packages = with pkgs; [
