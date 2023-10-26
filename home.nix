@@ -42,7 +42,7 @@ in
 
   # Packages to be installed
   home.packages = with pkgs; [
-    git git-crypt gnupg tig
+    git git-crypt tig
     wget zip unzip gnumake gcc pkg-config openssl
     nodejs # for lsp
     dbus gnome.gnome-keyring
