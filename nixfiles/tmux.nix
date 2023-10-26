@@ -1,11 +1,6 @@
 { config, pkgs, ... }:
 {
 
-  home.packages = with pkgs; [
-    python310
-    python310Packages.libtmux
-  ];
-
   programs.tmux = {
     enable = true;
     shortcut = "a";

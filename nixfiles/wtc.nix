@@ -2,7 +2,7 @@
 
 {
     home.packages = with pkgs; [
-        azure-cli doctl terraform
+        doctl terraform
     ];
 
     programs.fish.functions = {
