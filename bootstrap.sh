@@ -21,5 +21,6 @@ elif [[ $1 = --update ]]; then
 	nix-channel --update
 fi
 
+export NIXPKGS_ALLOW_UNFREE=1
 home-manager -f home.nix switch -b backup
 
