@@ -8,6 +8,7 @@
     python310Packages.ipython
     python310Packages.ipykernel
     python310Packages.libtmux
+    python310Packages.pynvim
   ];
 
   programs.fish.shellAbbrs = {
