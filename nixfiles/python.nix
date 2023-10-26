@@ -2,6 +2,7 @@
 
 {
   home.packages = with pkgs; [
+    pipenv
     python310
     python310Packages.pip
     python310Packages.pipx
