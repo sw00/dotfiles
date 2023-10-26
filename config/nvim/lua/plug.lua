@@ -69,6 +69,13 @@ return require('packer').startup(function(use)
     use { 'vim-test/vim-test', config = function()
         vim.cmd([[ let test#strategy='toggleterm' ]])
     end }
+    use {
+        "nvim-neotest/neotest",
+        requires = {
+            "nvim-lua/plenary.nvim",
+            "antoinemadec/FixCursorHold.nvim"
+        }
+    }
 
     -- [[ Snippets ]]
     use 'dcampos/nvim-snippy'

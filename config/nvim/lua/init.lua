@@ -13,7 +13,7 @@ require('plug') -- Plugins
 require('func') -- Functions
 
 -- PLUGINS
-require('nvim-tree').setup{}
+require('nvim-tree').setup {}
 require('lualine').setup {
     options = { theme = 'nord' },
     sections = {
@@ -23,19 +23,19 @@ require('lualine').setup {
         }
     }
 }
-require'fidget'.setup {}
+require 'fidget'.setup {}
 
 -- editor plugins
-require'mini.comment'.setup {}
-require'mini.pairs'.setup {}
-require'mini.trailspace'.setup {}
-require'mini.surround'.setup {}
-require'mini.bufremove'.setup {}
-require'mini.bracketed'.setup {}
+require 'mini.comment'.setup {}
+require 'mini.pairs'.setup {}
+require 'mini.trailspace'.setup {}
+require 'mini.surround'.setup {}
+require 'mini.bufremove'.setup {}
+require 'mini.bracketed'.setup {}
 
 -- tabline
 require('mini.tabline').setup {
-	tabpage_section = 'none'
+    tabpage_section = 'none'
 }
 vim.cmd("au FileType * if index(['gitcommit','fugitive'], &ft) >= 0 | let b:minitabline_disable=v:true | endif")
 
@@ -45,7 +45,7 @@ require('settings.snippy')
 require('settings.null-ls')
 
 -- tags
-require'symbols-outline'.setup()
+require 'symbols-outline'.setup()
 
 -- diagnostics
 vim.diagnostic.config { virtual_text = false, underline = true }
@@ -78,6 +78,16 @@ require('nvim-treesitter.configs').setup {
         }
     },
 
+}
+
+-- testing
+require('neotest').setup {
+    adapters = {
+        require('neotest-python'),
+        require('neotest-vim-test') {
+            ignore_filetypes = { "python" }
+        }
+    }
 }
 
 -- terminal
