@@ -3,13 +3,13 @@
 {
   home.packages = with pkgs; [
     pipenv
-    python310
-    python310Packages.pip
-    python310Packages.pipx
-    python310Packages.ipython
-    python310Packages.ipykernel
-    python310Packages.libtmux
-    python310Packages.pynvim
+    python311
+    python311Packages.pip
+    python311Packages.pipx
+    python311Packages.ipython
+    python311Packages.ipykernel
+    python311Packages.libtmux
+    python311Packages.pynvim
   ];
 
   programs.fish.shellAbbrs = {
