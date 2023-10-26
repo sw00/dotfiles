@@ -17,6 +17,8 @@ if [[ $1 = --all ]]; then
 
     [[ -d $host_dir ]] && \
         pushd $host_dir && . up.sh && popd
+elif [[ $1 = --update ]]; then
+	nix-channel --update
 fi
 
 home-manager -f home.nix switch -b backup
