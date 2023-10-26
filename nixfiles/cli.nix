@@ -14,6 +14,10 @@
   ];
 
   programs.fish = {
+    shellInit = "
+      fish_add_path ~/.asdf/shims
+    ";
+
     shellAbbrs = {
       doco = "docker compose";
     };
