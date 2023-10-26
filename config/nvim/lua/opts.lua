@@ -14,6 +14,7 @@ opt.shell = 'fish'              -- shell
 
 -- [[ Code Folds ]]
 opt.foldmethod = "indent"       -- folds defined by indentation
+opt.foldlevelstart = 1          -- only fold if level is higher than 1
 
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'			-- string encoding
