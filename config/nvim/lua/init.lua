@@ -80,15 +80,18 @@ require('nvim-treesitter.configs').setup {
 
 }
 
--- testing
-require('neotest').setup {
-    adapters = {
-        require('neotest-python'),
-        require('neotest-vim-test') {
-            ignore_filetypes = { "python" }
-        }
-    }
-}
+-- -- testing
+-- require('neotest').setup {
+--     consumers = {
+--         require('neotest').output_panel
+--     },
+--     adapters = {
+--         require('neotest-python'),
+--         require('neotest-vim-test') {
+--             ignore_filetypes = { "python" }
+--         }
+--     }
+-- }
 
 -- terminal
 require("toggleterm").setup {
