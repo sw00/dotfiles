@@ -40,6 +40,7 @@
     ];
 
     extraConfig = ''
+      set -sa terminal-features ',XXX:RGB'
       set -ag terminal-overrides ',*:cud1=\E[1B'
 
       bind R source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded..."
