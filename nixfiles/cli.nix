@@ -7,10 +7,11 @@
   };
 
   home.packages = with pkgs; [
-    fzf ripgrep fd autojump bat
+    fzf ripgrep fd autojump bat jq
     python3Packages.howdoi cheat
     inotify-tools xsel htop
     asdf-vm
+    nixfmt
   ];
 
   programs.fish = {
@@ -23,11 +24,6 @@
     };
 
     functions = {
-      jq = {
-        description = "The json query tool.";
-        body = "nix run nixpkgs#jq -- $argv";
-      };
-
       yq = {
         description = "The yaml query tool (Golang version).";
         body = "nix run nixpkgs#yq -- $argv";
