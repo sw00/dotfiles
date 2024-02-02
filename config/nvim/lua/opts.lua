@@ -17,8 +17,6 @@ opt.foldmethod = "indent"       -- folds defined by indentation
 opt.foldlevelstart = 1          -- only fold if level is higher than 1
 
 -- [[ Filetypes ]]
-vim.g.do_filetype_lua = 1       -- enable filetype.lua
-vim.g.did_load_filetypes = 0    -- disable filetype.vim
 opt.encoding = 'utf-8'			-- string encoding
 opt.fileencoding = 'utf-8'		-- file encoding
 

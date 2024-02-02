@@ -1,3 +1,7 @@
+-- VIM STARTUP GLOBALS
+-- vim.cmd([[let g:did_load_filetypes = 1]])     -- disable filetype.vim
+-- vim.cmd([[let g:do_filetype_lua = 1]]) 	      -- enable filetype.lua
+
 -- REMAP LEADER KEY
 vim.g.mapleader = ","
 vim.g.localleader = "\\"
