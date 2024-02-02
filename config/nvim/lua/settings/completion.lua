@@ -34,7 +34,7 @@ end
 local navic = require("nvim-navic")
 
 local has_completion_capabilities = function(client)
-    return client.server_capabilities.completionProvider or client.server_capabilities.textDocument.completion
+    return client.server_capabilities.textDocument.completion
 end
 
 function on_attach_lsp(client, bufnr)
