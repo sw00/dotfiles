@@ -27,6 +27,7 @@ in
     # ./nixfiles/java.nix
     ./nixfiles/ruby.nix
     ./nixfiles/wtc.nix
+    ./nixfiles/go.nix
   ];
 
   home.username = "sett";
