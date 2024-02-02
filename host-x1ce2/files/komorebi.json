@@ -5,22 +5,22 @@
   "alt_focus_hack": true,
   "default_workspace_padding": 5,
   "default_container_padding": 5,
-  "active_window_border": false,
+  "active_window_border": true,
   "active_window_border_colours": {
     "single": {
-      "r": 66,
-      "g": 165,
-      "b": 245
+      "r": 144,
+      "g": 144,
+      "b": 200
     },
     "stack": {
-      "r": 256,
-      "g": 165,
-      "b": 66
+      "r": 144,
+      "g": 64,
+      "b": 81
     },
     "monocle": {
-      "r": 255,
-      "g": 51,
-      "b": 153
+      "r": 250,
+      "g": 250,
+      "b": 250
     }
   },
   "monitors": [
@@ -53,20 +53,20 @@
         {
           "name": "I",
           "layout": "Rows",
-          "workspace_padding": 0,
-          "container_padding": 0
+          "workspace_padding": 1,
+          "container_padding": 1
         },
         {
           "name": "II",
           "layout": "Rows",
-          "workspace_padding": 0,
-          "container_padding": 0
+          "workspace_padding": 1,
+          "container_padding": 1
         },
         {
           "name": "II",
           "layout": "Rows",
-          "workspace_padding": 0,
-          "container_padding": 0
+          "workspace_padding": 1,
+          "container_padding": 1
         }
       ]
     }
