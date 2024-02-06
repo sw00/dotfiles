@@ -109,7 +109,10 @@ require("toggleterm").setup {
 vim.api.nvim_set_keymap('n', '<c-~>', '<cmd>ToggleTerm<cr>', { noremap = true, silent = true })
 vim.cmd('au TermOpen * setlocal nonumber norelativenumber')
 
-vim.cmd([[
+local in_wsl = os.getenv("WSL_DISTRO_NAME") ~= nil
+
+if in_wsl then
+    vim.cmd([[
     let g:clipboard = {
                 \   'name': 'WslClipboard',
                 \   'copy': {
@@ -123,3 +126,4 @@ vim.cmd([[
                 \   'cache_enabled': 0,
                 \ }
 ]])
+end
