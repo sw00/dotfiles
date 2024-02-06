@@ -39,12 +39,20 @@
       --level 1
     '';
 
-    ".alacritty.yml".source = mkOutOfStoreSymlink ../config/alacritty/alacritty.yml;
+    ".alacritty.yml".source =
+      mkOutOfStoreSymlink ../config/alacritty/alacritty.yml;
 
-    ".xinitrc" = {
+    ".xprofile" = {
       text = ''
         setxkbmap -layout us -option ctrl:nocaps
-        '';
+      '';
+      executable = true;
+    };
+
+    ".Xmodmap" = {
+      text = ''
+        -layout us -option ctrl:nocaps
+      '';
     };
   };
 }
