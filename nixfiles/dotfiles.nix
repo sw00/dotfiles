@@ -38,5 +38,13 @@
       --suppress-size
       --level 1
     '';
+
+    ".alacritty.yml".source = mkOutOfStoreSymlink ../config/alacritty/alacritty.yml;
+
+    ".xinitrc" = {
+      text = ''
+        setxkbmap -layout us -option ctrl:nocaps
+        '';
+    };
   };
 }
