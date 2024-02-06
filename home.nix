@@ -15,6 +15,7 @@ in
   };
 
   imports = [
+    ./nixfiles/fonts.nix
     ./nixfiles/dotfiles.nix
     ./nixfiles/gpg.nix
     ./nixfiles/fish.nix
