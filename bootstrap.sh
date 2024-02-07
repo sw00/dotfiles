@@ -13,7 +13,7 @@ if [[ $1 = --all ]]; then
     host_dir=./host-$(hostname -s)
 
     [[ $machine_os = 'wsl' ]] && \
-        cp config/alacritty/* $(wslpath $(wslvar APPDATA))/alacritty/
+        # cp config/alacritty/* $(wslpath $(wslvar APPDATA))/alacritty/
 
     [[ -d $host_dir ]] && \
         pushd $host_dir && . up.sh && popd

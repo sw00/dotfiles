@@ -16,8 +16,14 @@ for file in ${files_list[@]}; do
     fi
 done
 
-# komorebi
+WIN_CONFIG=$(wslpath $(wslvar APPDATA))
 WIN_HOME=$(wslpath $(wslvar USERPROFILE))
+
+# alacritty
+mkdir -p $WIN_CONFIG/Alacritty
+cp -f $FILES_DIR/alacritty.toml $WIN_CONFIG/Alacritty/
+
+# komorebi
 KOMOREBI_HOME=$WIN_HOME/.config/komorebi
 WIN_STARTUP="$(wslpath $(wslvar APPDATA))/Microsoft/Windows/Start Menu/Programs/Startup"
 
