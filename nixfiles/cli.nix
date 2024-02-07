@@ -7,12 +7,17 @@
   };
 
   home.packages = with pkgs; [
-    fzf ripgrep fd autojump bat jq
+    fzf ripgrep fd bat jq
     python3Packages.howdoi cheat
     inotify-tools xsel htop
     asdf-vm
     nixfmt
   ];
+
+  programs.autojump = {
+    enable = true;
+    enableFishIntegration = true;
+  };
 
   programs.fish = {
     shellInit = "
