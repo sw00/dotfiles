@@ -30,6 +30,10 @@ Loop
 ; Load library
 #Include C:\Users\settw\.config\komorebi\komorebic.lib.ahk
 
+; Set monitor index preferences
+MonitorIndexPreference(0, 0, 0, 2560, 1440)
+MonitorIndexPreference(1, 2560, -185, 1080, 1920)
+
 
 ; Focus windows
 !h::Focus("left")
