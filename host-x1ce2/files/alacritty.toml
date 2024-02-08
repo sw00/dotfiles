@@ -1,8 +1,8 @@
 live_config_reload = true
 
 [shell]
-args = ["tmux new-session -As 0"]
-program = "wsl"
+args = ["~", "tmux", "new-session", "-As","0"]
+program = "wsl.exe"
 
 [env]
 TERM = "alacritty"
