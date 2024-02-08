@@ -1,7 +1,15 @@
 { config, pkgs, ... }:
-let pkgs = import (builtins.fetchTarball {
+let 
+  pkgs = import (builtins.fetchTarball {
             url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.05.tar.gz";
             }) {};
+
+  username = "sett";
+  homeDir = "/home/${username}";
+
+  machine_os = if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop"
+  then "wsl"
+  else "linux";
 in
 
 {
@@ -31,8 +39,8 @@ in
     ./nixfiles/go.nix
   ];
 
-  home.username = "sett";
-  home.homeDirectory = "/home/sett";
+  home.username = username;
+  home.homeDirectory = homeDir;
 
   home.stateVersion = "23.05";
 
@@ -44,8 +52,14 @@ in
 
   # PATH
   home.sessionPath = [
+    "${homeDir}/bin"
     "/nix/var/nix/profiles/default/bin/nix"
   ];
+
+  # Global variables
+  home.sessionVariables = {
+    _machine_os = machine_os;
+  };
 
   # Packages to be installed
   home.packages = with pkgs; [
