@@ -42,6 +42,11 @@ in
   # Let home manager install and manage itself.
   programs.home-manager.enable = true;
 
+  # PATH
+  home.sessionPath = [
+    "/nix/var/nix/profiles/default/bin/nix"
+  ];
+
   # Packages to be installed
   home.packages = with pkgs; [
     git git-crypt tig

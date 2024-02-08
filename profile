@@ -26,13 +26,13 @@ if [ -n "$BASH_VERSION" ]; then
     fi
 fi
 
-# Set locale archive location (for Nix)
-export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
+# # Set locale archive location (for Nix)
+# export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 
-if [ -e /home/sett/.nix-profile/etc/profile.d/nix.sh ]; then . /home/sett/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
+# if [ -e /home/sett/.nix-profile/etc/profile.d/nix.sh ]; then . /home/sett/.nix-profile/etc/profile.d/nix.sh; fi # added by Nix installer
 
-# jump into fish shell
-if test -t 1; then
- exec fish
-fi
+# # jump into fish shell
+# if test -t 1; then
+#  exec fish
+# fi
 
