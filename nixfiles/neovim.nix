@@ -2,26 +2,20 @@
 
 {
   programs.neovim = {
-    enable              = true;
+    enable = true;
     # defaultEditor       = true;
-    viAlias             = true;
-    vimAlias            = true;
-    vimdiffAlias        = true;
-    withPython3         = true;
+    viAlias = true;
+    vimAlias = true;
+    vimdiffAlias = true;
+    withPython3 = true;
 
     extraConfig = ''
-        :luafile ~/.config/nvim/lua/init.lua
+      :luafile ~/.config/nvim/lua/init.lua
     '';
-    plugins = with pkgs.vimPlugins; [
-  	packer-nvim
-	mini-nvim
-    nvim-tree-lua
-    ];
+    plugins = with pkgs.vimPlugins; [ packer-nvim mini-nvim nvim-tree-lua ];
   };
 
-  home.sessionVariables = {
-    EDITOR = "nvim";
-  };
+  home.sessionVariables = { EDITOR = "nvim"; };
 
   xdg.configFile.nvim = {
     source = ../config/nvim;

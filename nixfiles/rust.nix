@@ -1,6 +1,1 @@
-{ config, pkgs, ... }:
-{
-    home.packages = with pkgs; [
-        rustup
-    ];
-}
+{ config, pkgs, ... }: { home.packages = with pkgs; [ rustup ]; }

@@ -7,9 +7,16 @@
   };
 
   home.packages = with pkgs; [
-    fzf ripgrep fd bat jq
-    python3Packages.howdoi cheat
-    inotify-tools xsel htop
+    fzf
+    ripgrep
+    fd
+    bat
+    jq
+    python3Packages.howdoi
+    cheat
+    inotify-tools
+    xsel
+    htop
     asdf-vm
     nixfmt
   ];
@@ -20,13 +27,9 @@
   };
 
   programs.fish = {
-    shellInit = "
-      fish_add_path ~/.asdf/shims
-    ";
+    shellInit = "\n      fish_add_path ~/.asdf/shims\n    ";
 
-    shellAbbrs = {
-      doco = "docker compose";
-    };
+    shellAbbrs = { doco = "docker compose"; };
 
     functions = {
       yq = {
@@ -37,7 +40,7 @@
       lrnx = {
         argumentNames = "language";
         description = "Open learnxinyminutes.com for <language>.";
-        body = "$BROWSER \"https://learnxinyminutes.com/docs/$language\"";
+        body = ''$BROWSER "https://learnxinyminutes.com/docs/$language"'';
       };
 
       pgcli = {

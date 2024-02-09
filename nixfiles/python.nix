@@ -12,8 +12,6 @@
     python311Packages.pynvim
   ];
 
-  programs.fish.shellAbbrs = {
-    ipy = "ipython";
-  };
+  programs.fish.shellAbbrs = { ipy = "ipython"; };
 
 }

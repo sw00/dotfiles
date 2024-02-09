@@ -1,18 +1,18 @@
 { config, pkgs, ... }:
-let 
+let
   pkgs = import (builtins.fetchTarball {
-            url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
-            }) {};
+    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
+  }) { };
 
   username = "sett";
   homeDir = "/home/${username}";
 
-  machine_os = if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop"
-  then "wsl"
-  else "linux";
-in
+  machine_os = if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop" then
+    "wsl"
+  else
+    "linux";
 
-{
+in {
   # Assume non-NixOS Linux:
   targets.genericLinux.enable = true;
 
@@ -51,22 +51,27 @@ in
   programs.home-manager.enable = true;
 
   # PATH
-  home.sessionPath = [
-    "${homeDir}/bin"
-    "/nix/var/nix/profiles/default/bin/nix"
-  ];
+  home.sessionPath =
+    [ "${homeDir}/bin" "/nix/var/nix/profiles/default/bin/nix" ];
 
   # Global variables
-  home.sessionVariables = {
-    _machine_os = machine_os;
-  };
+  home.sessionVariables = { _machine_os = machine_os; };
 
   # Packages to be installed
   home.packages = with pkgs; [
-    git git-crypt tig
-    wget zip unzip gnumake gcc pkg-config openssl
+    git
+    git-crypt
+    tig
+    wget
+    zip
+    unzip
+    gnumake
+    gcc
+    pkg-config
+    openssl
     nodejs # for lsp
-    dbus gnome.gnome-keyring
+    dbus
+    gnome.gnome-keyring
     wslu
     bitwarden-cli
   ];

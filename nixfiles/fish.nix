@@ -5,43 +5,55 @@
     enable = true;
 
     shellInit = ''
-        set -xg sysinfo (uname -a)
+      set -xg sysinfo (uname -a)
 
-        if string match -eiq wsl $sysinfo
-            set -g _machine_os wsl
-            alias psh='powershell.exe -Command '
-        else if string match -eiq darwin $syinfo
-            set -g _machine_os darwin
-        else
-            set -g _machine_os linux
-        end
+      if string match -eiq wsl $sysinfo
+          set -g _machine_os wsl
+          alias psh='powershell.exe -Command '
+      else if string match -eiq darwin $syinfo
+          set -g _machine_os darwin
+      else
+          set -g _machine_os linux
+      end
     '';
 
     functions = {
       opn = {
         body = ''
-                switch $_machine_os
-                case wsl
-                    wslview $argv
-                case '*'
-                    open $argv
-                end
+          switch $_machine_os
+          case wsl
+              wslview $argv
+          case '*'
+              open $argv
+          end
         '';
       };
 
       nix_shell_info = {
         body = ''
-                if test -n \"$IN_NIX_SHELL\"; echo -n \"<nix-shell> \"; end
+          if test -n \"$IN_NIX_SHELL\"; echo -n \"<nix-shell> \"; end
         '';
       };
 
     };
 
     plugins = [
-      { name = "foreign-env"; src=pkgs.fishPlugins.foreign-env.src; }
-      { name = "fzf"; src = pkgs.fishPlugins.fzf-fish.src; }
-      { name = "pure"; src = pkgs.fishPlugins.pure.src; }
-      { name = "sdkman-for-fish"; src = pkgs.fishPlugins.sdkman-for-fish.src; }
+      {
+        name = "foreign-env";
+        src = pkgs.fishPlugins.foreign-env.src;
+      }
+      {
+        name = "fzf";
+        src = pkgs.fishPlugins.fzf-fish.src;
+      }
+      {
+        name = "pure";
+        src = pkgs.fishPlugins.pure.src;
+      }
+      {
+        name = "sdkman-for-fish";
+        src = pkgs.fishPlugins.sdkman-for-fish.src;
+      }
 
       {
         name = "bang-bang";
