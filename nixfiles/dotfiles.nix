@@ -34,20 +34,5 @@
       --level 1
     '';
 
-    ".alacritty.toml".source =
-      mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
-
-    ".xprofile" = {
-      text = ''
-        setxkbmap -layout us -option ctrl:nocaps
-      '';
-      executable = true;
-    };
-
-    ".Xmodmap" = {
-      text = ''
-        -layout us -option ctrl:nocaps
-      '';
-    };
   };
 }

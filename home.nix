@@ -13,6 +13,9 @@ let
     "linux";
 
 in {
+  # Propagate some values to submodules
+  _module.args = { inherit machine_os; };
+
   # Assume non-NixOS Linux:
   targets.genericLinux.enable = true;
 
@@ -23,6 +26,7 @@ in {
   };
 
   imports = [
+    ./nixfiles/desktop.nix
     ./nixfiles/fonts.nix
     ./nixfiles/dotfiles.nix
     ./nixfiles/gpg.nix
