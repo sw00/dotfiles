@@ -88,7 +88,7 @@ TERM = "alacritty"
 
 [font]
 builtin_box_drawing = true
-size = 10.0
+size = 12.0
 
 [font.glyph_offset]
 x = 0
