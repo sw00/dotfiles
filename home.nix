@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 let 
   pkgs = import (builtins.fetchTarball {
-            url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.05.tar.gz";
+            url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
             }) {};
 
   username = "sett";
