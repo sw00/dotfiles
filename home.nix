@@ -55,8 +55,11 @@ in {
   programs.home-manager.enable = true;
 
   # PATH
-  home.sessionPath =
-    [ "${homeDir}/bin" "/nix/var/nix/profiles/default/bin/nix" ];
+  home.sessionPath = [
+    "${homeDir}/bin"
+    "${homeDir}/.local/bin"
+    "/nix/var/nix/profiles/default/bin/nix"
+  ];
 
   # Global variables
   home.sessionVariables = { _machine_os = machine_os; };

@@ -22,7 +22,11 @@ in {
   fonts.fontconfig.enable = enableOnNonWSL;
 
   # Desktop Apps, fonts, extras
-  home.packages = [ alacrittyPkg ];
+  home.packages = [ alacrittyPkg pkgs.awesome ];
+
+  # AwesomeWM config
+  xdg.configFile."rc.lua".source =
+    config.lib.file.mkOutOfStoreSymlink ../config/awesome/rc.lua;
 
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
@@ -45,8 +49,44 @@ in {
   # Config files
   home.file = let mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
   in {
+    "awesome.desktop" = { # should be copied to /usr/share/xsession/
+      target = ".local/share/xsession/awesome.desktop";
+      text = ''
+        [Desktop Entry]
+        Name=awesome
+        Comment=Highly configurable framework window manager
+        Exec=${pkgs.awesome}/bin/awesome
+        TryExec=${pkgs.awesome}/bin/awesome
+        Type=Application
+        DesktopNames=awesome:AwesomeWM
+      '';
+    };
+
+    "run-alacritty.sh" = {
+      target = ".local/bin/run-alacritty.sh";
+      executable = true;
+      text = ''
+        #!/usr/bin/env bash
+        ${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty
+      '';
+    };
+
     ".alacritty.toml".source =
       mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
+
+    ".xinitrc" = {
+      text = ''
+        exec ${pkgs.awesome}/bin/awesome
+      '';
+      executable = true;
+    };
+
+    ".Xsession" = {
+      text = ''
+        exec ${pkgs.awesome}/bin/awesome
+      '';
+      executable = true;
+    };
 
     ".xprofile" = {
       text = ''
