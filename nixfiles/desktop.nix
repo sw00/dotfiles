@@ -21,8 +21,15 @@ in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
 
+  # # Submodules
+  # imports = [ ./desktop/awesome.nix ];
+
   # Desktop Apps, fonts, extras
-  home.packages = [ alacrittyPkg ];
+  home.packages = [ alacrittyPkg pkgs.awesome ];
+
+  # AwesomeWM config
+  xdg.configFile."rc.lua".source =
+    config.lib.file.mkOutOfStoreSymlink ../config/awesome/rc.lua;
 
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
@@ -47,6 +54,20 @@ in {
   in {
     ".alacritty.toml".source =
       mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
+
+    ".xinitrc" = {
+      text = ''
+        exec ${pkgs.awesome}/bin/awesome
+      '';
+      executable = true;
+    };
+
+    ".Xsession" = {
+      text = ''
+        exec ${pkgs.awesome}/bin/awesome
+      '';
+      executable = true;
+    };
 
     ".xprofile" = {
       text = ''

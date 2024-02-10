@@ -84,7 +84,7 @@ log_level = "Warn"
 persistent_logging = false
 print_events = false
 render_timer = false
-renderer = "None"
+renderer = "glsl2"
 
 [font]
 builtin_box_drawing = false
