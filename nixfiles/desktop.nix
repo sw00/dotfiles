@@ -22,7 +22,7 @@ in {
   fonts.fontconfig.enable = enableOnNonWSL;
 
   # Desktop Apps, fonts, extras
-  home.packages = [ alacrittyPkg pkgs.awesome ];
+  home.packages = [ alacrittyPkg ] ++ (with pkgs; [ awesome megasync ]);
 
   # AwesomeWM config
   xdg.configFile."rc.lua" = {
