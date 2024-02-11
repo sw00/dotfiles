@@ -66,7 +66,6 @@ in {
       target = ".local/bin/run-alacritty.sh";
       executable = true;
       text = ''
-        #!/usr/bin/env bash
         ${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty
       '';
     };
@@ -74,31 +73,15 @@ in {
     ".alacritty.toml".source =
       mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
 
-    ".xinitrc" = {
-      text = ''
-        exec ${pkgs.awesome}/bin/awesome
-      '';
-      executable = true;
-    };
-
     ".Xsession" = {
       text = ''
-        exec ${pkgs.awesome}/bin/awesome
-      '';
-      executable = true;
-    };
-
-    ".xprofile" = {
-      text = ''
         setxkbmap -layout us -option ctrl:nocaps
+
+        xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
+        xinput set-prop 'Synaptics TM3512-010' 'libinput Accel Speed' 0.42
+        xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
       '';
       executable = true;
-    };
-
-    ".Xmodmap" = {
-      text = ''
-        -layout us -option ctrl:nocaps
-      '';
     };
   };
 
