@@ -25,8 +25,10 @@ in {
   home.packages = [ alacrittyPkg pkgs.awesome ];
 
   # AwesomeWM config
-  xdg.configFile."rc.lua".source =
-    config.lib.file.mkOutOfStoreSymlink ../config/awesome/rc.lua;
+  xdg.configFile."rc.lua" = {
+    source = config.lib.file.mkOutOfStoreSymlink ../config/awesome/rc.lua;
+    target = "awesome/rc.lua";
+  };
 
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
@@ -66,14 +68,14 @@ in {
       target = ".local/bin/run-alacritty.sh";
       executable = true;
       text = ''
-        ${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty
+        ${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty $@
       '';
     };
 
     ".alacritty.toml".source =
       mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
 
-    ".Xsession" = {
+    ".xprofile" = {
       text = ''
         setxkbmap -layout us -option ctrl:nocaps
 
