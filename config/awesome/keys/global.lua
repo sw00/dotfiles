@@ -5,6 +5,8 @@ local menubar = require("menubar")
 
 local hotkeys_popup = require("awful.hotkeys_popup")
 
+local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
+
 
 return gears.table.join(
     awful.key({ modkey, }, "s", hotkeys_popup.show_help,
@@ -54,7 +56,7 @@ return gears.table.join(
     -- Laptop stuff
     awful.key({ modkey, "Shift" }, "d", function() awful.spawn.with_shell("autorandr -c") end,
         { description = "Configure displays" }),
-    awful.key({ }, "XF86Display", function() awful.spawn.with_shell("autorandr -c") end,
+    awful.key({}, "XF86Display", function() awful.spawn.with_shell("autorandr -c") end,
         { description = "Configure displays" }),
     awful.key({}, "XF86AudioRaiseVolume",
         function() awful.util.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%", false) end,
@@ -86,6 +88,11 @@ return gears.table.join(
         function() awful.spawn.with_shell("playerctl stop") end,
         { description = "mic mute", group = "media" }),
 
+    -- Brightness controls
+    awful.key({}, "XF86MonBrightnessUp", function() brightness_widget:inc() end,
+        { description = "increase brightness", group = "custom" }),
+    awful.key({}, "XF86MonBrightnessDown", function() brightness_widget:dec() end,
+        { description = "decrease brightness", group = "custom" }),
 
     -- Standard program
     awful.key({ modkey, }, "Return", function() awful.spawn(terminal) end,

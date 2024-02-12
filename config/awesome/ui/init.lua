@@ -7,6 +7,9 @@ local beautiful = require('beautiful')
 -- Create a textclock widget
 mytextclock = wibox.widget.textclock()
 
+-- Brightness control widget
+local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
+
 -- Create a wibox for each screen and add it
 local taglist_buttons = gears.table.join(
     awful.button({}, 1, function(t) t:view_only() end),
@@ -109,6 +112,12 @@ awful.screen.connect_for_each_screen(function(s)
         {             -- Right widgets
             layout = wibox.layout.fixed.horizontal,
             wibox.widget.systray(),
+            brightness_widget {
+                type = 'arc',
+                program = 'brightnessctl',
+                tooltip = true,
+                step = 5,
+            },
             mytextclock,
             s.mylayoutbox,
         },

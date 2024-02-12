@@ -21,6 +21,7 @@ let
     awesome
     arandr
     autorandr
+    brightnessctl
     networkmanagerapplet
     pavucontrol
     playerctl
@@ -29,6 +30,24 @@ let
     megasync
   ];
 
+  # awesomewm config
+  awesomeWmConfig = /home/sett/config/awesome;
+  awesomeWmWidgets = pkgs.fetchFromGitHub {
+    owner = "streetturtle";
+    repo = "awesome-wm-widgets";
+    rev = "85fbddf6d932172acacf72253c3d96b66cd4dd57";
+    hash = "sha256-VUljSRsBB5S6XCPtT+dcvM6uOcESO4nJNl3x0IJEA7E=";
+    # hash = lib.fakeHash;
+  };
+
+  awesomeXdgConfig = pkgs.symlinkJoin {
+    name = "awesomewm-xdg-config";
+    paths = [
+      awesomeWmConfig
+      awesomeWmWidgets
+    ];
+  };
+
 in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
@@ -36,10 +55,13 @@ in {
   home.packages = desktopPackages;
 
   # AwesomeWM config
-  xdg.configFile."awesome" = {
-    source = config.lib.file.mkOutOfStoreSymlink ../config/awesome;
-    target = "awesome";
+  xdg.configFile = with config.lib.file; {
+  "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
+  "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
+  "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
+  "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
   };
+
 
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
