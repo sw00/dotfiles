@@ -25,9 +25,9 @@ in {
   home.packages = [ alacrittyPkg ] ++ (with pkgs; [ awesome megasync ]);
 
   # AwesomeWM config
-  xdg.configFile."rc.lua" = {
-    source = config.lib.file.mkOutOfStoreSymlink ../config/awesome/rc.lua;
-    target = "awesome/rc.lua";
+  xdg.configFile."awesome" = {
+    source = config.lib.file.mkOutOfStoreSymlink ../config/awesome;
+    target = "awesome";
   };
 
   # Desktop shortcuts
