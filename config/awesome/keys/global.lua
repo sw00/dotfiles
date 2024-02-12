@@ -6,6 +6,7 @@ local menubar = require("menubar")
 local hotkeys_popup = require("awful.hotkeys_popup")
 
 local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
+local volume_widget = require('awesome-wm-widgets.pactl-widget.volume')
 
 
 return gears.table.join(
@@ -58,15 +59,18 @@ return gears.table.join(
         { description = "Configure displays" }),
     awful.key({}, "XF86Display", function() awful.spawn.with_shell("autorandr -c") end,
         { description = "Configure displays" }),
-    awful.key({}, "XF86AudioRaiseVolume",
-        function() awful.util.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%", false) end,
-        { description = "volume up", group = "volume" }),
-    awful.key({}, "XF86AudioLowerVolume",
-        function() awful.util.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%", false) end,
-        { description = "volume down", group = "volume" }),
-    awful.key({}, "XF86AudioMute",
-        function() awful.util.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle", false) end,
-        { description = "audio mute", group = "volume" }),
+    awful.key({}, "XF86AudioRaiseVolume", function() volume_widget:inc(5) end),
+    awful.key({}, "XF86AudioLowerVolume", function() volume_widget:dec(5) end),
+    awful.key({}, "XF86AudioMute", function() volume_widget:toggle() end),
+    --    awful.key({}, "XF86AudioRaiseVolume",
+    --        function() awful.util.spawn("pactl set-sink-volume @DEFAULT_SINK@ +5%", false) end,
+    --        { description = "volume up", group = "volume" }),
+    --    awful.key({}, "XF86AudioLowerVolume",
+    --        function() awful.util.spawn("pactl set-sink-volume @DEFAULT_SINK@ -5%", false) end,
+    --        { description = "volume down", group = "volume" }),
+    --    awful.key({}, "XF86AudioMute",
+    --        function() awful.util.spawn("pactl set-sink-mute @DEFAULT_SINK@ toggle", false) end,
+    --        { description = "audio mute", group = "volume" }),
     awful.key({}, "XF86AudioMicMute",
         function() awful.util.spawn("pactl set-source-mute @DEFAULT_SOURCE@ toggle", false) end,
         { description = "mic mute", group = "volume" }),

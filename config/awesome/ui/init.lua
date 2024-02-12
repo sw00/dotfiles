@@ -10,6 +10,7 @@ mytextclock = wibox.widget.textclock()
 -- Third-party widgets
 local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
 local batteryarc_widget = require("awesome-wm-widgets.batteryarc-widget.batteryarc")
+local volume_widget = require('awesome-wm-widgets.pactl-widget.volume')
 
 -- Create a wibox for each screen and add it
 local taglist_buttons = gears.table.join(
@@ -113,6 +114,10 @@ awful.screen.connect_for_each_screen(function(s)
         {             -- Right widgets
             layout = wibox.layout.fixed.horizontal,
             wibox.widget.systray(),
+            volume_widget {
+                widget_type = 'arc',
+                tooltip = true,
+            },
             brightness_widget {
                 type = 'arc',
                 program = 'brightnessctl',
