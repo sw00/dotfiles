@@ -100,6 +100,12 @@ in {
       '';
       executable = true;
     };
+
+    ".Xresources" = {
+      text = ''
+        Xcursor.size: 16
+      '';
+    };
   };
 
 }
