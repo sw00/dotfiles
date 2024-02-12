@@ -69,6 +69,24 @@ return gears.table.join(
         function() awful.util.spawn("pactl set-source-mute @DEFAULT_SOURCE@ toggle", false) end,
         { description = "mic mute", group = "volume" }),
 
+    -- Other media keys
+    awful.key({}, "XF86AudioNext",
+        function() awful.spawn.with_shell("playerctl next") end,
+        { description = "mic mute", group = "media" }),
+    awful.key({}, "XF86AudioPrev",
+        function() awful.spawn.with_shell("playerctl previous") end,
+        { description = "mic mute", group = "media" }),
+    awful.key({}, "XF86AudioPlay",
+        function() awful.spawn.with_shell("playerctl play") end,
+        { description = "mic mute", group = "media" }),
+    awful.key({}, "XF86AudioPause",
+        function() awful.spawn.with_shell("playerctl pause") end,
+        { description = "mic mute", group = "media" }),
+    awful.key({}, "XF86AudioStop",
+        function() awful.spawn.with_shell("playerctl stop") end,
+        { description = "mic mute", group = "media" }),
+
+
     -- Standard program
     awful.key({ modkey, }, "Return", function() awful.spawn(terminal) end,
         { description = "open a terminal", group = "launcher" }),

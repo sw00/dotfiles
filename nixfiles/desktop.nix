@@ -22,8 +22,11 @@ let
     arandr
     autorandr
     networkmanagerapplet
-    megasync
     pavucontrol
+    playerctl
+    lxappearance
+
+    megasync
   ];
 
 in {
