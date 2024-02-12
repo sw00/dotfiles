@@ -110,7 +110,7 @@ local lua_handler = function()
         settings = {
             Lua = {
                 diagnostics = {
-                    globals = { 'vim' }
+                    globals = { 'vim', 'client' }
                 }
             }
         }
