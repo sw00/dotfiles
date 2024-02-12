@@ -7,8 +7,9 @@ local beautiful = require('beautiful')
 -- Create a textclock widget
 mytextclock = wibox.widget.textclock()
 
--- Brightness control widget
+-- Third-party widgets
 local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
+local batteryarc_widget = require("awesome-wm-widgets.batteryarc-widget.batteryarc")
 
 -- Create a wibox for each screen and add it
 local taglist_buttons = gears.table.join(
@@ -117,7 +118,13 @@ awful.screen.connect_for_each_screen(function(s)
                 program = 'brightnessctl',
                 tooltip = true,
                 step = 5,
+                timeout = 10,
             },
+            batteryarc_widget({
+                notifcation_position = "top_left",
+                show_current_level = true,
+                arc_thickness = 1,
+            }),
             mytextclock,
             s.mylayoutbox,
         },

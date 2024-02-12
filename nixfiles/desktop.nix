@@ -19,6 +19,7 @@ let
   alacrittyPkg = nixpkgsUnstable.alacritty;
   desktopPackages = with pkgs; [
     awesome
+    acpi
     arandr
     autorandr
     brightnessctl
@@ -114,11 +115,11 @@ in {
 
         xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
         xinput set-prop 'Synaptics TM3512-010' 'libinput Accel Speed' 0.42
-        xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
+        xinput set-prop 'Synaptics TM3512-010' 'libinput Tapping Enabled' 1
         xinput set-prop 'Synaptics TM3512-010' 'libinput Scrolling Pixel Distance' 10
 
-        nm-applet &
         megasync &
+        nm-applet &
       '';
       executable = true;
     };
