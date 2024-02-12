@@ -13,16 +13,24 @@ let
     hash = "sha256-2en1kvde3cJVc3ZnTy8QeD2oKcseLFjYPLKhIGDanQ0=";
   }) { });
 
-  alacrittyPkg = nixpkgsUnstable.alacritty;
-
   nixgl = import <nixgl> { };
+
+  # Desktop Apps, utils, fonts, extras
+  alacrittyPkg = nixpkgsUnstable.alacritty;
+  desktopPackages = with pkgs; [
+    awesome
+    arandr
+    autorandr
+    networkmanagerapplet
+    megasync
+    pavucontrol
+  ];
 
 in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
 
-  # Desktop Apps, fonts, extras
-  home.packages = [ alacrittyPkg ] ++ (with pkgs; [ arandr autorandr awesome megasync ]);
+  home.packages = desktopPackages;
 
   # AwesomeWM config
   xdg.configFile."awesome" = {
@@ -83,9 +91,12 @@ in {
         xinput set-prop 'Synaptics TM3512-010' 'libinput Accel Speed' 0.42
         xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
         xinput set-prop 'Synaptics TM3512-010' 'libinput Scrolling Pixel Distance' 10
-        '';
-        executable = true;
-      };
+
+        nm-applet &
+        megasync &
+      '';
+      executable = true;
+    };
   };
 
 }
