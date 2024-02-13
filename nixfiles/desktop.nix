@@ -50,7 +50,7 @@ in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
 
-  home.packages = if enableOnNonWSL then desktopPackages else [];
+  home.packages = if enableOnNonWSL then desktopPackages else [ ];
 
   # Services
   services.autorandr.enable = enableOnNonWSL;
@@ -128,6 +128,10 @@ in {
         xinput set-prop 'Synaptics TM3512-010' 'libinput Accel Speed' 0.42
         xinput set-prop 'Synaptics TM3512-010' 'libinput Tapping Enabled' 1
         xinput set-prop 'Synaptics TM3512-010' 'libinput Scrolling Pixel Distance' 10
+
+        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Natural Scrolling Enabled' 1
+        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Accel Speed' 0.28
+        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Tapping Enabled' 1
 
         megasync &
         nm-applet &
