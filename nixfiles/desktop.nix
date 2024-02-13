@@ -50,7 +50,7 @@ in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
 
-  home.packages = desktopPackages;
+  home.packages = if enableOnNonWSL then desktopPackages else [];
 
   # Services
   services.autorandr.enable = enableOnNonWSL;
