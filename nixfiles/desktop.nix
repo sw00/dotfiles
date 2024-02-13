@@ -43,10 +43,7 @@ let
 
   awesomeXdgConfig = pkgs.symlinkJoin {
     name = "awesomewm-xdg-config";
-    paths = [
-      awesomeWmConfig
-      awesomeWmWidgets
-    ];
+    paths = [ awesomeWmConfig awesomeWmWidgets ];
   };
 
 in {
@@ -60,12 +57,23 @@ in {
 
   # AwesomeWM config
   xdg.configFile = with config.lib.file; {
-  "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
-  "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
-  "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
-  "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
+    "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
+    "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
+    "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
+    "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
   };
 
+  # Lock screen
+  services.betterlockscreen = {
+    enable = enableOnNonWSL;
+    inactiveInterval = 5;
+    arguments = [
+      "--color"
+      "#00838F" # some shade of teal
+      "--off"
+      "120" # turn off screen after 2min
+    ];
+  };
 
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
