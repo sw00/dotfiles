@@ -82,17 +82,16 @@ return gears.table.join(
     -- Other media keys
     awful.key({}, "XF86AudioNext",
         function() awful.spawn.with_shell("playerctl next") end,
-        { description = "mic mute", group = "media" }),
+        { description = "skip to next", group = "media" }),
     awful.key({}, "XF86AudioPrev",
         function() awful.spawn.with_shell("playerctl previous") end,
-        { description = "mic mute", group = "media" }),
+        { description = "back to previous", group = "media" }),
     awful.key({}, "XF86AudioPlay",
         function() awful.spawn.with_shell("playerctl play-pause") end,
-        { description = "mic mute", group = "media" }),
-        { description = "mic mute", group = "media" }),
+        { description = "toggle play/pause", group = "media" }),
     awful.key({}, "XF86AudioStop",
         function() awful.spawn.with_shell("playerctl stop") end,
-        { description = "mic mute", group = "media" }),
+        { description = "stop", group = "media" }),
 
     -- Brightness controls
     awful.key({}, "XF86MonBrightnessUp", function() brightness_widget:inc() end,
