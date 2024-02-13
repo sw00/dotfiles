@@ -77,9 +77,9 @@ in {
     pkg-config
     openssl
     nodejs # for lsp
-    dbus
-    gnome.gnome-keyring
-    wslu
     bitwarden-cli
   ];
+
+  # Keyring service
+  services.gnome-keyring.enable = true;
 }
