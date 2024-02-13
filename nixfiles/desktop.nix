@@ -55,6 +55,9 @@ in {
 
   home.packages = desktopPackages;
 
+  # Services
+  services.autorandr.enable = enableOnNonWSL;
+
   # AwesomeWM config
   xdg.configFile = with config.lib.file; {
   "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
