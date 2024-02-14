@@ -30,7 +30,7 @@ let
       lxappearance
 
       megasync
-    ] ++ (with nixpkgsUnstable; [ alacritty xsecurelock ]);
+    ] ++ (with nixpkgsUnstable; [ alacritty ]);
 
   # awesome-wm-widgets
   awesomeWmWidgets = pkgs.fetchFromGitHub {
@@ -56,18 +56,6 @@ in {
     "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
     "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
-  };
-
-  # Lock screen
-  services.betterlockscreen = {
-    enable = enableOnNonWSL;
-    inactiveInterval = 5;
-    arguments = [
-      "--color"
-      "#00838F" # some shade of teal
-      "--off"
-      "120" # turn off screen after 2min
-    ];
   };
 
   # Desktop shortcuts
