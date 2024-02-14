@@ -31,19 +31,13 @@ let
     megasync
   ];
 
-  # awesomewm config
-  awesomeWmConfig = /home/sett/config/awesome;
+  # awesome-wm-widgets
   awesomeWmWidgets = pkgs.fetchFromGitHub {
     owner = "streetturtle";
     repo = "awesome-wm-widgets";
     rev = "85fbddf6d932172acacf72253c3d96b66cd4dd57";
     hash = "sha256-VUljSRsBB5S6XCPtT+dcvM6uOcESO4nJNl3x0IJEA7E=";
     # hash = lib.fakeHash;
-  };
-
-  awesomeXdgConfig = pkgs.symlinkJoin {
-    name = "awesomewm-xdg-config";
-    paths = [ awesomeWmConfig awesomeWmWidgets ];
   };
 
 in {
@@ -123,15 +117,6 @@ in {
     ".xprofile" = {
       text = ''
         setxkbmap -layout us -option ctrl:nocaps
-
-        xinput set-prop 'Synaptics TM3512-010' 'libinput Natural Scrolling Enabled' 1
-        xinput set-prop 'Synaptics TM3512-010' 'libinput Accel Speed' 0.42
-        xinput set-prop 'Synaptics TM3512-010' 'libinput Tapping Enabled' 1
-        xinput set-prop 'Synaptics TM3512-010' 'libinput Scrolling Pixel Distance' 10
-
-        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Natural Scrolling Enabled' 1
-        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Accel Speed' 0.28
-        xinput set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Tapping Enabled' 1
 
         megasync &
         nm-applet &
