@@ -8,7 +8,6 @@ local hotkeys_popup = require("awful.hotkeys_popup")
 local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightness")
 local volume_widget = require('awesome-wm-widgets.pactl-widget.volume')
 
-
 return gears.table.join(
     awful.key({ modkey, }, "s", hotkeys_popup.show_help,
         { description = "show help", group = "awesome" }),

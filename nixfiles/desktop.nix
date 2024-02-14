@@ -17,19 +17,20 @@ let
 
   # Desktop Apps, utils, fonts, extras
   alacrittyPkg = nixpkgsUnstable.alacritty;
-  desktopPackages = with pkgs; [
-    awesome
-    acpi
-    arandr
-    autorandr
-    brightnessctl
-    networkmanagerapplet
-    pavucontrol
-    playerctl
-    lxappearance
+  desktopPackages = with pkgs;
+    [
+      awesome
+      acpi
+      arandr
+      autorandr
+      brightnessctl
+      networkmanagerapplet
+      pavucontrol
+      playerctl
+      lxappearance
 
-    megasync
-  ];
+      megasync
+    ] ++ (with nixpkgsUnstable; [ alacritty xsecurelock ]);
 
   # awesome-wm-widgets
   awesomeWmWidgets = pkgs.fetchFromGitHub {
@@ -100,14 +101,6 @@ in {
         TryExec=${pkgs.awesome}/bin/awesome
         Type=Application
         DesktopNames=awesome:AwesomeWM
-      '';
-    };
-
-    "run-alacritty.sh" = {
-      target = ".local/bin/run-alacritty.sh";
-      executable = true;
-      text = ''
-        ${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty $@
       '';
     };
 
