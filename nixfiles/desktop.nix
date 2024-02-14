@@ -111,6 +111,7 @@ in {
         systemctl --user import-environment XDG_SESSION_ID
         systemctl --user start xss-lock
         systemctl --user start xautolock-session
+        systemctl --user start gnome-keyring
 
         megasync &
         nm-applet &
