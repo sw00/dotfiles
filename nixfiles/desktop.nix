@@ -58,6 +58,15 @@ in {
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
   };
 
+  # Lock screen
+  services.screen-locker = {
+    enable = enableOnNonWSL;
+    lockCmd = "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
+    inactiveInterval = 5;
+
+    xautolock.enable = true;
+  };
+
   # Desktop shortcuts
   xdg.desktopEntries.Alacritty = {
     name = "Alacritty";
@@ -98,6 +107,10 @@ in {
     ".xprofile" = {
       text = ''
         setxkbmap -layout us -option ctrl:nocaps
+
+        systemctl --user import-environment XDG_SESSION_ID
+        systemctl --user start xss-lock
+        systemctl --user start xautolock-session
 
         megasync &
         nm-applet &

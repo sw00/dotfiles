@@ -9,6 +9,9 @@ local brightness_widget = require("awesome-wm-widgets.brightness-widget.brightne
 local volume_widget = require('awesome-wm-widgets.pactl-widget.volume')
 
 return gears.table.join(
+    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1") end,
+        { description = "lock screen", group = "awesome" }),
+
     awful.key({ modkey, }, "s", hotkeys_popup.show_help,
         { description = "show help", group = "awesome" }),
     awful.key({ modkey, }, "Left", awful.tag.viewprev,
