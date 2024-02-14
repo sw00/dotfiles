@@ -9,7 +9,7 @@ set -ex
 BASEDIR=$(dirname $0)
 
 PREFIX=$HOME/.nix-profile
-HOSTNAME=$(hostname -s)
+HOSTNAME=$(cat /etc/hostname)
 
 
 backup_if_exists() {
