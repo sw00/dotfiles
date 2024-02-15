@@ -22,7 +22,6 @@ let
       awesome
       acpi
       arandr
-      autorandr
       brightnessctl
       networkmanagerapplet
       pavucontrol
@@ -48,21 +47,25 @@ in {
 
   home.packages = if enableOnNonWSL then desktopPackages else [ ];
 
-  # Services
-  services.autorandr.enable = enableOnNonWSL;
+  services.grobi.enable = enableOnNonWSL;
 
-  # AwesomeWM config
+  # XDG configs
   xdg.configFile = with config.lib.file; {
+    # awesomewm
     "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
     "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
     "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
+
+    # grobi
+    "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
   };
 
   # Lock screen
   services.screen-locker = {
     enable = enableOnNonWSL;
-    lockCmd = "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
+    lockCmd =
+      "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
     inactiveInterval = 5;
 
     xautolock.enable = true;
@@ -110,6 +113,7 @@ in {
         setxkbmap -layout us -option ctrl:nocaps
 
         systemctl --user import-environment XDG_SESSION_ID
+        systemctl --user start grobi
         systemctl --user start xss-lock
         systemctl --user start xautolock-session
         systemctl --user start gnome-keyring
