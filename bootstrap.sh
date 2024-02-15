@@ -10,13 +10,8 @@ else
 fi
 
 if [[ $1 = --all ]]; then
-    host_dir=./host-$(hostname -s)
-
     [[ $machine_os = 'wsl' ]] && \
         pushd ./wsl-up && . up.sh && popd
-
-    [[ -d $host_dir ]] && \
-        pushd $host_dir && . up.sh && popd
 elif [[ $1 = --update ]]; then
 	nix-channel --update
 fi
