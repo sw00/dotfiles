@@ -30,6 +30,7 @@ let
       lxappearance
 
       megasync
+      brave
     ] ++ (with nixpkgsUnstable; [ alacritty ]);
 
   # awesome-wm-widgets
