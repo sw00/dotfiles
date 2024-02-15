@@ -1,4 +1,0 @@
-if command -v rbenv; then 
-  PATH="$HOME/.rbenv/bin:$PATH"
-fi
-
