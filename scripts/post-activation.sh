@@ -22,7 +22,7 @@ backup_if_exists() {
         else
             backup="$(basename "$dest").$(date +%Y%m%d%H%M%S)"
             echo "+++ $dest exists with different content, making backup: $backup"
-            cp $dest $(dirname $dest)/$backup_filename
+            cp $dest "$(dirname $dest)/$backup"
         fi
     fi
 }
@@ -47,7 +47,24 @@ register_xdg_autostarts() {
     ln -s $PREFIX/etc/xdg/autostart/* /etc/xdg/autostart/
 }
 
-register_xinput_config
-register_xsessions
-register_udev_rules
+install_usr_bins() {
+    src_dir=$BASEDIR/../root/usr_bin
+
+    for f in $(ls $src_dir); do
+        src="$src_dir/$f" # ../usr_bin/script.sh
+        dest="/usr/bin/${f%.sh}" # /usr/bin/script
+
+
+        backup_if_exists $src $dest
+        echo "++++ $src"
+        echo "---- $dest"
+        cp -f $src $dest
+        chmod +x $dest
+    done
+}
+
+# register_xinput_config
+# register_xsessions
+# register_udev_rules
 # register_xdg_autostarts
+install_usr_bins
