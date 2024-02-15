@@ -38,14 +38,6 @@
 [includeIf "gitdir:/etc/"]
 	path = ~/.gitconfig-etckeeper
 
-[includeIf "gitdir:skatelescope/"]
-	path = ~/.gitconfig-ska
-
-[includeIf "gitdir:kat-src/"]
-	path = ~/.gitconfig-ska
-
-[includeIf "gitdir:wethinkcode/"]
-	path = ~/.gitconfig-wtc
 [core]
 	autocrlf = false
 	eol = lf

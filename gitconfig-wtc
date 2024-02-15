@@ -1,7 +1,0 @@
-[user]
-        name = Sett Wai
-        email = sett@wethinkcode.co.za
-
-[url "git@github.com:"]
-    insteadOf = https://github.com/
-
