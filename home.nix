@@ -39,7 +39,6 @@ in {
     ./nixfiles/rust.nix
     # ./nixfiles/java.nix
     ./nixfiles/ruby.nix
-    ./nixfiles/wtc.nix
     ./nixfiles/go.nix
   ];
 
