@@ -54,6 +54,7 @@ in {
   xdg.configFile = with config.lib.file; {
     # awesomewm
     "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
+    "awesome/theme.lua".source = mkOutOfStoreSymlink ../config/awesome/theme.lua;
     "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
     "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
