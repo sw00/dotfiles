@@ -135,6 +135,7 @@ in {
 
     ".Xresources" = {
       text = ''
+        # include "nord.Xresources"
         Xcursor.size: 16
       '';
     };
