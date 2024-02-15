@@ -1,29 +1,36 @@
 { config, pkgs, ... }:
 let
-  ipAddressScript = pkgs.writeScript "ip_addresses" ''
-    #!/usr/bin/env fish
+  ipAddressScript = pkgs.writeShellScript "ip_addresses" ''
+    OS=$(uname -a)
 
-    switch $_machine_os
-    case wsl
-        set HOST (powershell.exe -Command "(ipconfig.exe) -Match 'IPv4'" | tr -s '\n\r' '\n' | awk '!/172(\.[0-9]+){3}/{ print $NF }')
-        set WSL_VM (ip a | awk '/inet.*([0-9]+\.)/{ print $2 }' | tail -1)
+    if [[ $OS == Linux* ]]; then
+      if [[ $OS == *microsoft* ]]; then
+        HOST=$(powershell.exe -Command "(ipconfig.exe) -Match 'IPv4'" | tr -s '\n\r' '\n' | awk '!/172(\.[0-9]+){3}/{ print $NF }')
+        WSL_VM=$(ip a | awk '/inet.*([0-9]+\.)/{ print $2 }' | tail -1)
         echo "[$HOST] [$WSL_VM]"
-    case darwin
-        ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
-    case '*'
+      else
         ip address | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
-    end
+      fi
+    elif [[ $OS == "Darwin" ]]; then
+      ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
+    fi
   '';
 
-  wifiStatusScript = pkgs.writeScript "wifi_status" ''
-    #!/usr/bin/env fish
-
-    switch $_machine_os
-    case wsl
+  wifiStatusScript = pkgs.writeShellScript "wifi_status" ''
+    if grep -qEi '(microsoft|wsl)' /proc/version; then
       pwsh.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" \
         | tr -s '\r\n' ';' \
         | sed -rn 's#.*:\s(.*);.*:\s(.*);.*:\s(.*);.*:\s(.*);#"\1" D:\2 U:\3 S:\4#p'
-    end
+    else
+        iwconfig_output=$(iwconfig 2>&1)
+
+        essid=$(echo "$iwconfig_output" | grep -oP 'ESSID:"\K([^"]+)')
+        bit_rate=$(echo "$iwconfig_output" | grep -oP 'Bit Rate=\K[^ ]+' | cut -d' ' -f1)
+        link_quality=$(echo "$iwconfig_output" | grep -oP 'Link Quality=\K[^ ]+' | cut -d' ' -f1)
+        signal_level=$(echo "$iwconfig_output" | grep -oP 'Signal level=\K[^ ]+' | cut -d' ' -f1)
+
+        echo "\"$essid\" D:$bit_rate Q:$link_quality S:$signal_level dBm"
+    fi
   '';
 
 in {

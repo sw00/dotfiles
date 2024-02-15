@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-
-if grep -qEi '(microsoft|wsl)' /proc/version; then
-	pwsh.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" \
-        | tr -s '\r\n' ';' \
-        | sed -rn 's#.*:\s(.*);.*:\s(.*);.*:\s(.*);.*:\s(.*);#"\1" D:\2 U:\3 S:\4#p'
-fi
