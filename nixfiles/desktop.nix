@@ -22,6 +22,7 @@ let
       awesome
       acpi
       arandr
+      grobi
       brightnessctl
       networkmanagerapplet
       pavucontrol
@@ -108,16 +109,23 @@ in {
     ".alacritty.toml".source =
       mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
 
+    ".Xmodmap".text = ''
+      clear lock
+      clear control
+      keycode 66 = Control_L
+      add control = Control_L Control_R
+      '';
+
     ".xprofile" = {
       text = ''
-        setxkbmap -layout us -option ctrl:nocaps
-
         systemctl --user import-environment XDG_SESSION_ID
-        systemctl --user start grobi
-        systemctl --user start xss-lock
-        systemctl --user start xautolock-session
-        systemctl --user start gnome-keyring
+        systemctl --user start \
+            grobi
+            xss-lock
+            xautolock-session
+            gnome-keyring
 
+        grobi update &
         megasync &
         nm-applet &
       '';
