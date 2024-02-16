@@ -25,6 +25,7 @@ let
       grobi
       brightnessctl
       networkmanagerapplet
+      volctl
       pavucontrol
       playerctl
       lxappearance
@@ -53,6 +54,7 @@ let
 
     run grobi update
     run nm-applet
+    run volctl
     run megasync
 
     systemctl --user import-environment XDG_SESSION_ID
