@@ -119,16 +119,18 @@ in {
 
     ".xprofile" = {
       text = ''
-        systemctl --user import-environment XDG_SESSION_ID
-        systemctl --user start \
-            grobi
-            xss-lock
-            xautolock-session
-            gnome-keyring
+        if [[ $XDG_SESSION_DESKTOP = awesome ]]; then
+          systemctl --user import-environment XDG_SESSION_ID
+          systemctl --user start \
+              grobi \
+              xss-lock \
+              xautolock-session \
+              gnome-keyring
 
-        grobi update &
-        megasync &
-        nm-applet &
+          grobi update &
+          megasync &
+          nm-applet &
+        fi
       '';
       executable = true;
     };
