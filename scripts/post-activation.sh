@@ -22,7 +22,7 @@ backup_if_exists() {
         else
             backup="$(basename "$dest").$(date +%Y%m%d%H%M%S)"
             echo "+++ $dest exists with different content, making backup: $backup"
-            cp $dest $(dirname $dest)/$backup_filename
+            cp $dest $(dirname $dest)/$backup
         fi
     fi
 }
