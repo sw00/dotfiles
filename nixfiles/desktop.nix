@@ -43,6 +43,26 @@ let
     # hash = lib.fakeHash;
   };
 
+  autorunSh = pkgs.writeShellScript "autorun.sh" ''
+    run() {
+        if ! pgrep -f "$1" ;
+        then
+            "$@"&
+        fi
+    }
+
+    run grobi update
+    run nm-applet
+    run megasync
+
+    systemctl --user import-environment XDG_SESSION_ID
+    systemctl --user start \
+        grobi \
+        xss-lock \
+        xautolock-session \
+        gnome-keyring
+  '';
+
   linkIconThemes = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $XDG_DATA_HOME/
   '';
@@ -64,6 +84,7 @@ in {
     "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
     "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
+    "awesome/autorun.sh".source = autorunSh;
 
     # grobi
     "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
@@ -100,9 +121,7 @@ in {
   # Theme
   gtk = {
     enable = true;
-    theme = {
-      name = "Adwaita";
-    };
+    theme = { name = "Adwaita"; };
     cursorTheme.name = "Adwaita";
     cursorTheme.size = 16;
     iconTheme.name = "Adawaita";
@@ -133,24 +152,6 @@ in {
       keycode 66 = Control_L
       add control = Control_L Control_R
     '';
-
-    ".xprofile" = {
-      text = ''
-        if [[ $XDG_SESSION_DESKTOP = awesome ]]; then
-          systemctl --user import-environment XDG_SESSION_ID
-          systemctl --user start \
-              grobi \
-              xss-lock \
-              xautolock-session \
-              gnome-keyring
-
-          grobi update &
-          megasync &
-          nm-applet &
-        fi
-      '';
-      executable = true;
-    };
 
   };
 
