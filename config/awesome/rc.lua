@@ -43,6 +43,24 @@ do
 end
 -- }}}
 
+-- Utility functions
+local util = {
+    move_mouse_onto_focused_client = function()
+    local c = client.focus 
+    gears.timer( {  timeout = 0.1,
+                autostart = true,
+                single_shot = true,
+                callback =  function()
+                    if mouse.object_under_pointer() ~= c then
+                        local geometry = c:geometry()
+                        local x = geometry.x + geometry.width/2
+                        local y = geometry.y + geometry.height/2
+                        mouse.coords({x = x, y = y}, true)
+                    end
+                end } )
+end
+}
+
 -- {{{ Variable definitions
 -- Themes define colours, icons, font and wallpapers.
 beautiful.init(gears.filesystem.get_configuration_dir() .. "theme.lua")
@@ -229,32 +247,35 @@ root.buttons(gears.table.join(
 
 -- {{{ Key bindings
 globalkeys = gears.table.join(
-    awful.key({ modkey, "Control" }, "l", function() awful.spawn.with_shell("XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1") end,
+	-- Global stuff
+    awful.key({ modkey }, "Escape", function() awful.spawn.with_shell("XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1") end,
         { description = "lock screen", group = "awesome" }),
-
-    awful.key({ modkey, }, "s", hotkeys_popup.show_help,
+    awful.key({ modkey, "Shift"}, "/", hotkeys_popup.show_help,
         { description = "show help", group = "awesome" }),
-    awful.key({ modkey, }, "Left", awful.tag.viewprev,
+    awful.key({ modkey, }, "a", function() mymainmenu:show() end,
+        { description = "show main menu", group = "awesome" }),
+
+    -- Tags
+    awful.key({ modkey, }, "-", awful.tag.viewprev,
         { description = "view previous", group = "tag" }),
-    awful.key({ modkey, }, "Right", awful.tag.viewnext,
+    awful.key({ modkey, }, "=", awful.tag.viewnext,
         { description = "view next", group = "tag" }),
-    awful.key({ modkey, }, "Escape", awful.tag.history.restore,
+    awful.key({ modkey, }, "`", awful.tag.history.restore,
         { description = "go back", group = "tag" }),
 
-    awful.key({ modkey, }, "j",
-        function()
-            awful.client.focus.byidx(1)
-        end,
-        { description = "focus next by index", group = "client" }
-    ),
-    awful.key({ modkey, }, "k",
-        function()
-            awful.client.focus.byidx(-1)
-        end,
-        { description = "focus previous by index", group = "client" }
-    ),
-    awful.key({ modkey, }, "w", function() mymainmenu:show() end,
-        { description = "show main menu", group = "awesome" }),
+    -- Focus manipulation
+    awful.key({ modkey, }, "j", function() 
+        awful.client.focus.global_bydirection("down") 
+
+    end, { description = "focus down", group = "client" }),
+    awful.key({ modkey, }, "k", function() awful.client.focus.global_bydirection("up") 
+        if client.focus then client.focus:raise() end
+    end,
+        { description = "focus up", group = "client" }),
+    awful.key({ modkey, }, "h", function() awful.client.focus.global_bydirection("left") end,
+        { description = "focus left", group = "client" }),
+    awful.key({ modkey, }, "l", function() awful.client.focus.global_bydirection("right") end,
+        { description = "focus right", group = "client" }),
 
     -- Layout manipulation
     awful.key({ modkey, "Shift" }, "j", function() awful.client.swap.global_bydirection("down") end,
@@ -392,6 +413,8 @@ clientkeys = gears.table.join(
     awful.key({ modkey,           }, "o",      function (c) c:move_to_screen()               end,
               {description = "move to screen", group = "client"}),
     awful.key({ modkey,           }, "t",      function (c) c.ontop = not c.ontop            end,
+              {description = "toggle keep on top", group = "client"}),
+    awful.key({ modkey,    "Shift"}, "t",      function (c) awful.titlebar.toggle(c)         end,
               {description = "toggle keep on top", group = "client"}),
     awful.key({ modkey,           }, "n",
         function (c)
@@ -537,9 +560,9 @@ awful.rules.rules = {
         }
       }, properties = { floating = true }},
 
-    -- Add titlebars to normal clients and dialogs
+    -- No titlebars by default
     { rule_any = {type = { "normal", "dialog" }
-      }, properties = { titlebars_enabled = true }
+      }, properties = { titlebars_enabled = false }
     },
 
     -- Set Firefox to always map on the tag named "2" on screen 1.
@@ -610,6 +633,9 @@ end)
 
 client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
 client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_normal end)
+
+client.connect_signal("focus", util.move_mouse_onto_focused_client)
+client.connect_signal("swapped", util.move_mouse_onto_focused_client)
 -- }}}
 
 -- Autostart
