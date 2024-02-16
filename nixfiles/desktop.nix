@@ -28,6 +28,7 @@ let
       pavucontrol
       playerctl
       lxappearance
+      elementary-xfce-icon-theme
 
       megasync
       brave
@@ -42,6 +43,10 @@ let
     # hash = lib.fakeHash;
   };
 
+  linkIconThemes = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $XDG_DATA_HOME/
+  '';
+
 in {
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
@@ -54,7 +59,8 @@ in {
   xdg.configFile = with config.lib.file; {
     # awesomewm
     "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
-    "awesome/theme.lua".source = mkOutOfStoreSymlink ../config/awesome/theme.lua;
+    "awesome/theme.lua".source =
+      mkOutOfStoreSymlink ../config/awesome/theme.lua;
     "awesome/keys".source = mkOutOfStoreSymlink ../config/awesome/keys;
     "awesome/ui".source = mkOutOfStoreSymlink ../config/awesome/ui;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
@@ -91,6 +97,17 @@ in {
     };
   };
 
+  # Theme
+  gtk = {
+    enable = true;
+    theme = {
+      name = "Adwaita";
+    };
+    cursorTheme.name = "Adwaita";
+    cursorTheme.size = 16;
+    iconTheme.name = "Adawaita";
+  };
+
   # Config files
   home.file = let mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
   in {
@@ -115,7 +132,7 @@ in {
       clear control
       keycode 66 = Control_L
       add control = Control_L Control_R
-      '';
+    '';
 
     ".xprofile" = {
       text = ''
@@ -135,12 +152,7 @@ in {
       executable = true;
     };
 
-    ".Xresources" = {
-      text = ''
-        # include "nord.Xresources"
-        Xcursor.size: 16
-      '';
-    };
   };
 
+  home.activation.linkIconThemes = linkIconThemes;
 }
