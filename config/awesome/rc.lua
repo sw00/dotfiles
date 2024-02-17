@@ -355,7 +355,7 @@ globalkeys = gears.table.join(
     -- Standard program
     awful.key({ modkey, }, "Return", function() awful.spawn(terminal) end,
         { description = "open a terminal", group = "launcher" }),
-    awful.key({ modkey, "Control" }, "r", awesome.restart,
+    awful.key({ modkey, "Control" }, "BackSpace", awesome.restart,
         { description = "reload awesome", group = "awesome" }),
     awful.key({ modkey, "Shift" }, "q", awesome.quit,
         { description = "quit awesome", group = "awesome" }),
@@ -414,7 +414,7 @@ clientkeys = gears.table.join(
             c:raise()
         end,
         { description = "toggle fullscreen", group = "client" }),
-    awful.key({ modkey, "Shift" }, "c", function(c) c:kill() end,
+    awful.key({ "Control", "Shift" }, "q", function(c) c:kill() end,
         { description = "close", group = "client" }),
     awful.key({ modkey, "Control" }, "space", awful.client.floating.toggle,
         { description = "toggle floating", group = "client" }),
@@ -654,6 +654,13 @@ client.connect_signal("unfocus", function(c) c.border_color = beautiful.border_n
 client.connect_signal("focus", util.move_mouse_onto_focused_client)
 client.connect_signal("swapped", util.move_mouse_onto_focused_client)
 -- }}}
+
+-- Garbage collector (yes, really)
+gears.timer {
+    timeout = 30,
+    autostart = true,
+    callback = function() collectgarbage() end
+}
 
 -- Autostart
 awful.spawn.with_shell("~/.config/awesome/autorun.sh")
