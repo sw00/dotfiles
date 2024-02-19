@@ -34,6 +34,7 @@ let
       flameshot
       megasync
       brave
+      calibre
     ] ++ (with nixpkgsUnstable; [ alacritty ]);
 
   # awesome-wm-widgets
@@ -118,6 +119,15 @@ in {
           "${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
       };
     };
+  };
+
+  xdg.desktopEntries.Calibre = {
+    name = "Calibre";
+    exec =
+      "${nixgl.auto.nixGLDefault}/bin/nixGL ${pkgs.calibre}/bin/calibre";
+    icon = "calibre-gui";
+    categories = [ "Office" ];
+    startupNotify = true;
   };
 
   # Theme
