@@ -1,6 +1,60 @@
 # Desktop (non-CLI) apps and config are specified here
 { config, pkgs, fetchFromGitHub, lib, machine_os, ... }:
 let
+  # awesomeOverlay = (final: prev: {
+  #   awesome = throw "Superseded by nix-master.";
+  #   awesome-master = prev.awesome.override {
+  #     version = "master-e6f5c7980862b7c3ec6c50c643b15ff2249310cc";
+  #     patches = [];
+  #     src = pkgs.fetchFromGitHub {
+  #       owner = "AwesomeWM";
+  #       repo = "awesome";
+  #       rev = "e6f5c7980862b7c3ec6c50c643b15ff2249310cc";
+  #       hash = lib.fakeHash;
+  #     };
+  #   };
+  # };
+
+  # awesomeOverlay = final: prev: {
+  #   awesome-master = let rev = "e6f5c7980862b7c3ec6c50c643b15ff2249310cc";
+  #   in (prev.awesome.overrideAttrs (old: {
+  #     version = "master-${rev}";
+  #     patches = [ ];
+  #     src = prev.fetchFromGitHub {
+  #       owner = "awesomeWM";
+  #       repo = "awesome";
+  #       inherit rev;
+  #       sha256 = "afviu5b86JDWd5F12Ag81JPTu9qbXi3fAlBp9tv58fI=";
+  #     };
+  #     GI_TYPELIB_PATH = "${prev.playerctl}/lib/girepository-1.0:"
+  #       + "${prev.upower}/lib/girepository-1.0:" + old.GI_TYPELIB_PATH;
+  #   })).override { gtk3Support = true; };
+  #   awesome = throw
+  #     "renamed to 'awesome-master', since stable would be used here on update this error exists. For the nixpkgs version, use 'awesome-stable'";
+  #   awesome-stable = prev.awesome;
+  # };
+
+  awesomeOverlay = (self: super: {
+    myAwesome = super.awesome.overrideAttrs (old: rec {
+      pname = "myAwesome";
+      version = "master-e6f5c7980862b7c3ec6c50c643b15ff2249310cc";
+      src = super.fetchFromGitHub {
+        owner = "awesomeWM";
+        repo = "awesome";
+        rev = "16c560a568ca6f06990a0d7d4d8de3e9a77db8ec";
+        sha256 = "ceHs6tbReKDW0aG1kyV6vlIjv4DGnumJgEY4Wq5wATk=";
+      };
+      patches = [ ];
+    });
+  });
+
+  bling = pkgs.fetchFromGitHub {
+    owner = "BlingCorp";
+    repo = "bling";
+    rev = "1f6bd0d5ef150a1801d20c69437ceff61d65fac5";
+    sha256 = "0D2ck1qiA1ydLax45utJw1RhZZwhqg4KRoqgDFz4Gsg=";
+  };
+
   enableOnNonWSL = if machine_os != "wsl " then true else false;
 
   nerdfonts = pkgs.nerdfonts.override { fonts = [ "CascadiaCode" ]; };
@@ -19,7 +73,7 @@ let
   alacrittyPkg = nixpkgsUnstable.alacritty;
   desktopPackages = with pkgs;
     [
-      awesome
+      myAwesome
       acpi
       arandr
       grobi
@@ -72,6 +126,8 @@ let
   '';
 
 in {
+  nixpkgs.overlays = [ awesomeOverlay ];
+
   xdg.enable = true;
   fonts.fontconfig.enable = enableOnNonWSL;
 
@@ -87,6 +143,7 @@ in {
       mkOutOfStoreSymlink ../config/awesome/theme.lua;
     "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
     "awesome/autorun.sh".source = autorunSh;
+    "awesome/bling".source = bling;
 
     # grobi
     "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
@@ -138,8 +195,8 @@ in {
         [Desktop Entry]
         Name=awesome
         Comment=Highly configurable framework window manager
-        Exec=${pkgs.awesome}/bin/awesome
-        TryExec=${pkgs.awesome}/bin/awesome
+        Exec=${pkgs.myAwesome}/bin/awesome
+        TryExec=${pkgs.myAwesome}/bin/awesome
         Type=Application
         DesktopNames=awesome:AwesomeWM
       '';
