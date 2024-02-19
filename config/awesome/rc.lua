@@ -242,7 +242,7 @@ awful.screen.connect_for_each_screen(function(s)
             layout = wibox.layout.fixed.horizontal,
             mykeyboardlayout,
             wibox.widget.systray(),
-            batteryarc_widget({show_current_level = true, arc_thickness = 1}),
+            batteryarc_widget({ show_current_level = true, arc_thickness = 1 }),
             mytextclock,
             s.mylayoutbox,
         },
@@ -268,6 +268,7 @@ globalkeys = gears.table.join(
         { description = "show help", group = "awesome" }),
     awful.key({ modkey, }, "a", function() mymainmenu:show() end,
         { description = "show main menu", group = "awesome" }),
+    awful.key({}, "Print", function() awful.spawn.easy_async("flameshot gui") end),
 
     -- Tags
     awful.key({ modkey, }, "-", awful.tag.viewprev,
@@ -547,7 +548,7 @@ awful.rules.rules = {
     {
         rule_any = {
             instance = {
-                "DTA", -- Firefox addon DownThemAll.
+                "DTA",   -- Firefox addon DownThemAll.
                 "copyq", -- Includes session name in class.
                 "pinentry",
             },
@@ -556,7 +557,7 @@ awful.rules.rules = {
                 "Blueman-manager",
                 "Gpick",
                 "Kruler",
-                "MessageWin", -- kalarm.
+                "MessageWin",  -- kalarm.
                 "Sxiv",
                 "Tor Browser", -- Needs a fixed window size to avoid fingerprinting by screen size.
                 "Wpa_gui",
@@ -571,9 +572,9 @@ awful.rules.rules = {
                 "Event Tester", -- xev.
             },
             role = {
-                "AlarmWindow", -- Thunderbird's calendar.
+                "AlarmWindow",   -- Thunderbird's calendar.
                 "ConfigManager", -- Thunderbird's about:config.
-                "pop-up",  -- e.g. Google Chrome's (detached) Developer Tools.
+                "pop-up",        -- e.g. Google Chrome's (detached) Developer Tools.
             }
         },
         properties = { floating = true }

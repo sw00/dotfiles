@@ -31,6 +31,7 @@ let
       lxappearance
       elementary-xfce-icon-theme
 
+      flameshot
       megasync
       brave
     ] ++ (with nixpkgsUnstable; [ alacritty ]);
@@ -55,6 +56,7 @@ let
     run grobi update
     run nm-applet
     run volctl
+    run flameshot
     run megasync
 
     systemctl --user import-environment XDG_SESSION_ID
