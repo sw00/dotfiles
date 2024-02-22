@@ -18,7 +18,7 @@
   home.sessionVariables = { EDITOR = "nvim"; };
 
   xdg.configFile.nvim = {
-    source = ../config/nvim;
+    source = config.lib.file.mkOutOfStoreSymlink ../config/nvim;
     recursive = true;
   };
 
