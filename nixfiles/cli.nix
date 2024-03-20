@@ -22,9 +22,13 @@
     nixfmt
   ];
 
-  programs.autojump = {
+  programs.zoxide = {
     enable = true;
     enableFishIntegration = true;
+  };
+
+  programs.direnv = {
+    enable = true;
   };
 
   programs.fish = {
