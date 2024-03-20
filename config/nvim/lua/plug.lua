@@ -39,7 +39,7 @@ return require('packer').startup(function(use)
     use { "akinsho/toggleterm.nvim", tag = 'v2.6.0' }
 
     -- [[ Navigation ]]
-    use { 'kyazdani42/nvim-tree.lua', tag = 'nightly' }
+    use { 'nvim-tree/nvim-tree.lua', tag = 'v1.1' }
     use { 'nvim-telescope/telescope.nvim',
         tag = '0.1.4',
         requires = {
@@ -56,7 +56,7 @@ return require('packer').startup(function(use)
 
     -- [[ Completion ]]
     use { 'williamboman/mason.nvim', run = ':MasonUpdate' }
-    use { 'j-hui/fidget.nvim', tag = 'v1.3.0' }
+    use { 'j-hui/fidget.nvim', tag = 'v1.4.0' }
 
     use { 'neovim/nvim-lspconfig',
         requires = { 'williamboman/mason.nvim', 'williamboman/mason-lspconfig' }

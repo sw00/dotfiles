@@ -27,7 +27,11 @@ require('lualine').setup {
         }
     }
 }
-require 'fidget'.setup {}
+require 'fidget'.setup {
+    integration = {
+        ["nvim-tree"] = { enable = true }
+    }
+}
 
 -- editor plugins
 require 'mini.comment'.setup {}
