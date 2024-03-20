@@ -1,7 +1,8 @@
 live_config_reload = true
 
 [shell]
-program = "fish"
+args = ["new-session", "-As", "0"]
+program = "tmux"
 
 [bell]
 animation = "EaseOutExpo"
