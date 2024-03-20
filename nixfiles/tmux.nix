@@ -35,6 +35,8 @@ let
 
 in {
 
+  home.packages = with pkgs; [ tmux-sessionizer ];
+
   programs.tmux = {
     enable = true;
     shortcut = "a";
@@ -70,6 +72,10 @@ in {
       {
         plugin = resurrect;
         extraConfig = "set -g @resurrect-strategy-nvim 'session'";
+      }
+      {
+        plugin = fingers;
+        extraConfig = ''set -g @fingers-backdrop-style "dim"'';
       }
     ];
 
@@ -108,7 +114,7 @@ in {
       set -g window-status-last-style "bg=black,fg=green"
 
       set -g status-right-length 120
-      set -g status-left ""
+      set -g status-left "#(tms sessions)"
 
       set -g status-right "#(${wifiStatusScript}) | #(${ipAddressScript}) | %b %d %R "
       set -g status-interval 20
