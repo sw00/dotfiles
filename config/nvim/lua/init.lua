@@ -56,7 +56,7 @@ vim.diagnostic.config { virtual_text = false, underline = true }
 
 -- treesitter
 local ts_langs = { 'python', 'ruby', 'rust', 'elixir', 'lua' }
-local non_ts_langs = { 'bash', 'yaml', 'json' }
+local non_ts_langs = { 'bash', 'yaml', 'json', 'vimdoc' }
 
 require('nvim-treesitter.configs').setup {
     ensure_installed = ts_langs,
