@@ -9,7 +9,7 @@ let
         WSL_VM=$(ip a | awk '/inet.*([0-9]+\.)/{ print $2 }' | tail -1)
         echo "[$HOST] [$WSL_VM]"
       else
-        ip address | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
+        ip address | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | grep -vE '127|172'
       fi
     elif [[ $OS == "Darwin" ]]; then
       ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
@@ -114,12 +114,13 @@ in {
       set -g window-status-last-style "bg=black,fg=green"
 
       set -g status-right-length 120
-      set -g status-left "#(tms sessions)"
 
       set -g status-right "#(${wifiStatusScript}) | #(${ipAddressScript}) | %b %d %R "
       set -g status-interval 20
 
-      bind -g C-o display-popup -E "tms"
+      bind-key C-o display-popup -E "tms"
+      bind-key C-j display-popup -E "tms switch"
+      bind-key C-x display-popup -E "tms kill"
     '';
   };
 
