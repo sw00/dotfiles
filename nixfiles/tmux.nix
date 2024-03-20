@@ -118,6 +118,8 @@ in {
 
       set -g status-right "#(${wifiStatusScript}) | #(${ipAddressScript}) | %b %d %R "
       set -g status-interval 20
+
+      bind -g C-o display-popup -E "tms"
     '';
   };
 
