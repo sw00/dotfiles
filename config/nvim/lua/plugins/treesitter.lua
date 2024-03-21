@@ -3,7 +3,7 @@ local non_ts_langs = { 'bash', 'yaml', 'json', 'vimdoc' }
 
 return {
     'nvim-treesitter/nvim-treesitter',
-    build = 'TSUpdate',
+    build = ':TSUpdate',
     opts = {
         ensure_installed = ts_langs,
         sync_install = true, -- install parsers synchronously for ensure_installed langs
