@@ -5,7 +5,6 @@ return {
             require('nvim-tree').setup {}
         end
     },
-    'simrat39/symbols-outline.nvim',
     {
         'j-hui/fidget.nvim',
         opts = {

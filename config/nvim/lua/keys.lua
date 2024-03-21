@@ -75,9 +75,6 @@ nmap('<leader>tl', '<cmd>TestLast<cr>')
 nmap('<leader>tg', '<cmd>TestVisit<cr>')
 
 
--- [[ tagbar ]]
-nmap('<F8>', [[:SymbolsOutline<CR>]])
-
 -- [[ trouble ]]
 nmap('<leader>xx', vimcmd('TroubleToggle'))
 nmap('<leader>xw', vimcmd('TroubleToggle workspace_diagnostics'))
