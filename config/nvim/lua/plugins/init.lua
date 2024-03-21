@@ -1,8 +1,4 @@
 return {
-    -- [[ Version Control ]]
-     { 'tpope/vim-fugitive', 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' },
-     { 'junegunn/gv.vim' },
-
     -- [[ Completion ]]
      { 'williamboman/mason.nvim', run = ':MasonUpdate' },
 

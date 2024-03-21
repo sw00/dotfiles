@@ -1,7 +1,6 @@
 return {
-    {
-        { 'nvim-tree/nvim-tree.lua', opts = {} },
-    },
+    { 'tpope/vim-fugitive',      dependencies = { 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' } },
+    { 'nvim-tree/nvim-tree.lua', opts = {} },
     {
         'j-hui/fidget.nvim',
         opts = {
