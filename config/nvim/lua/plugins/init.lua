@@ -1,12 +1,4 @@
 return {
-    -- [[ Navigation ]]
-     { 'nvim-telescope/telescope.nvim',
-        tag = '0.1.4',
-        dependencies = {
-            'nvim-lua/plenary.nvim',
-            { 'devicons', opt = true },
-        }
-    },
      'folke/trouble.nvim',
 
     -- [[ Version Control ]]
