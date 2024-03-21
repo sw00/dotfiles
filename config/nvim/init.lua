@@ -1,7 +1,3 @@
--- VIM STARTUP GLOBALS
--- vim.cmd([[let g:did_load_filetypes = 1]])     -- disable filetype.vim
--- vim.cmd([[let g:do_filetype_lua = 1]]) 	      -- enable filetype.lua
-
 -- REMAP LEADER KEY
 vim.g.mapleader = ","
 vim.g.localleader = "\\"
@@ -29,29 +25,6 @@ require('func') -- Functions
 -- add plugins
 require('lazy').setup({import = 'plugins'})
 
-
--- PLUGINS
-
--- diagnostics
-vim.diagnostic.config { virtual_text = false, underline = true }
-
--- -- testing
--- require('neotest').setup {
---     consumers = {
---         require('neotest').output_panel
---     },
---     adapters = {
---         require('neotest-python'),
---         require('neotest-vim-test') {
---             ignore_filetypes = { "python" }
---         }
---     }
--- }
-
--- terminal
-vim.api.nvim_set_keymap('n', '<c-~>', '<cmd>ToggleTerm<cr>', { noremap = true, silent = true })
-vim.cmd('au TermOpen * setlocal nonumber norelativenumber')
-
 local in_wsl = os.getenv("WSL_DISTRO_NAME") ~= nil
 
 if in_wsl then
@@ -70,5 +43,3 @@ if in_wsl then
                 \ }
 ]])
 end
-
-
