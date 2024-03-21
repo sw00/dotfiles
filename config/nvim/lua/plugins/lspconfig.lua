@@ -3,7 +3,7 @@ return {
     'simrat39/rust-tools.nvim',
     {
         'neovim/nvim-lspconfig',
-        dependencies = { 'mason', 'williamboman/mason-lspconfig', 'WhoIsSethDaniel/mason-tool-installer.nvim', 'nvim-navic', { 'j-hui/fidget.nvim', opts = {} }, { 'folke/neodev.nvim', opts = {} } },
+        dependencies = { 'mason', 'williamboman/mason-lspconfig', 'WhoIsSethDaniel/mason-tool-installer.nvim', { 'j-hui/fidget.nvim', opts = {} }, { 'folke/neodev.nvim', opts = {} } },
         config = function()
             -- define lsp attach function
             vim.api.nvim_create_autocmd('LspAttach', {
