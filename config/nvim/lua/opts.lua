@@ -16,7 +16,7 @@ opt.shell = 'fish' -- shell
 -- [[ Code Folds ]]
 opt.foldmethod = 'expr' -- folds defined by expression
 opt.foldexpr = 'nvim_treesitter#foldexpr()'
-opt.foldlevelstart = 2  -- only fold if level is higher than
+opt.foldlevelstart = 5  -- only fold if level is higher than
 
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'     -- string encoding
