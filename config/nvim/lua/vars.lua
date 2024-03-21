@@ -1,13 +1,6 @@
 --[[ vars.lua ]]
 local g = vim.g
 
-g.t_co = 256
-g.background = "dark"
-
-OPTIONS = {
-    theme = 'tomorrow_night_blue'
-}
-
 -- fugitive/rhubarb domains
 g.fugitive_gitlab_domains = {
     'https://gitlab.wethinkcode.co.za',
