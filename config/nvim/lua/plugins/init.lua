@@ -37,11 +37,6 @@ return {
         }
     },
 
-    -- [[ Snippets ]]
-     'dcampos/nvim-snippy',
-
-     { 'jose-elias-alvarez/null-ls.nvim', dependencies = 'nvim-lua/plenary.nvim' },
-
     -- [[ Syntax ]]
      'LnL7/vim-nix'
 }
