@@ -74,15 +74,6 @@ nmap('<leader>ta', '<cmd>TestSuite<cr>')
 nmap('<leader>tl', '<cmd>TestLast<cr>')
 nmap('<leader>tg', '<cmd>TestVisit<cr>')
 
-
--- [[ trouble ]]
-nmap('<leader>xx', vimcmd('TroubleToggle'))
-nmap('<leader>xw', vimcmd('TroubleToggle workspace_diagnostics'))
-nmap('<leader>xd', vimcmd('TroubleToggle document_diagnostics'))
-nmap('<leader>xq', vimcmd('TroubleToggle quickfix'))
-nmap('<leader>xl', vimcmd('TroubleToggle loclist'))
-nmap('<leader>xr', vimcmd('TroubleToggle lsp_references'))
-
 -- [[ lspconfig ]]
 -- Diagnostics - see `:h vim.diagnostic.*`
 nmap('<leader>d', vimcmd('lua vim.diagnostic.open_float()'))
