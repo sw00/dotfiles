@@ -33,5 +33,27 @@ return {
             }
         end
     },
-    'stevearc/dressing.nvim',
+    {
+        'stevearc/dressing.nvim',
+        opts = {
+            input = {
+                enabled = true
+            }
+
+        }
+    },
+    {
+        'lewis6991/gitsigns.nvim',
+        opts = {
+            signs = {
+                add = { text = '+' },
+                change = { text = '~' },
+                delete = { text = '_' },
+                topdelete = { text = '‾' },
+                changedelete = { text = '~' },
+            },
+        },
+    },
+    -- highlight todo, notes in comments
+    { 'folke/todo-comments.nvim',     event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 }
