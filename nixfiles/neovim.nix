@@ -17,9 +17,16 @@
 
   home.sessionVariables = { EDITOR = "nvim"; };
 
-  xdg.configFile.nvim = {
-    source = config.lib.file.mkOutOfStoreSymlink ../config/nvim;
+  xdg.configFile.nvim-colors = {
+    source = config.lib.file.mkOutOfStoreSymlink ../config/nvim/colors;
     recursive = true;
+    target = "nvim/colors";
+  };
+
+  xdg.configFile.nvim-lua = {
+    source = config.lib.file.mkOutOfStoreSymlink ../config/nvim/lua;
+    recursive = true;
+    target = "nvim/lua";
   };
 
 }

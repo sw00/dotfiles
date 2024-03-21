@@ -6,14 +6,27 @@
 vim.g.mapleader = ","
 vim.g.localleader = "\\"
 
-local packer_path = vim.fn.stdpath('config') .. '/packer.nvim/lua'
-vim.o.packpath = vim.o.packpath .. ',' .. packer_path
+-- Bootstrap lazy.nvim
+local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+if not vim.loop.fs_stat(lazypath) then
+  vim.fn.system({
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    "--branch=stable", -- latest stable release
+    lazypath,
+  })
+end
+vim.opt.rtp:prepend(lazypath)
+
+-- add plugins
+require('lazy').setup('plugins')
 
 -- IMPORTS
 require('vars') -- Variables
 require('opts') -- Options
 require('keys') -- Keymaps
-require('plug') -- Plugins
 require('func') -- Functions
 
 -- PLUGINS
