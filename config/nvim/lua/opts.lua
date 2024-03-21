@@ -7,16 +7,17 @@ opt.number = true        -- show line numbers
 -- opt.relativenumber = true		-- show relative line numbers
 opt.signcolumn = 'yes'   -- keep signcolumn on
 opt.cursorline = true    -- show cursor line
-opt.inccommand = 'split' -- preview substitutions while typing
 opt.mouse = 'a'          -- capture mouse input
 opt.scrolloff = 10       -- lines above and below cursor
+opt.showmode = false
 
 -- [[ Shell ]]
 opt.shell = 'fish' -- shell
 
 -- [[ Code Folds ]]
-opt.foldmethod = "indent" -- folds defined by indentation
-opt.foldlevelstart = 1    -- only fold if level is higher than 1
+opt.foldmethod = 'expr' -- folds defined by expression
+opt.foldexpr = 'nvim_treesitter#foldexpr()'
+opt.foldlevelstart = 2    -- only fold if level is higher than 
 
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'     -- string encoding
