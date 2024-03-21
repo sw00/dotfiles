@@ -1,14 +1,13 @@
 --[[ opts.lua ]]
 local opt = vim.opt
-local cmd = vim.api.nvim_command
 
 -- [[ Context ]]
-opt.number = true        -- show line numbers
+opt.number = true      -- show line numbers
 -- opt.relativenumber = true		-- show relative line numbers
-opt.signcolumn = 'yes'   -- keep signcolumn on
-opt.cursorline = true    -- show cursor line
-opt.mouse = 'a'          -- capture mouse input
-opt.scrolloff = 10       -- lines above and below cursor
+opt.signcolumn = 'yes' -- keep signcolumn on
+opt.cursorline = true  -- show cursor line
+opt.mouse = 'a'        -- capture mouse input
+opt.scrolloff = 10     -- lines above and below cursor
 opt.showmode = false
 
 -- [[ Shell ]]
@@ -17,7 +16,7 @@ opt.shell = 'fish' -- shell
 -- [[ Code Folds ]]
 opt.foldmethod = 'expr' -- folds defined by expression
 opt.foldexpr = 'nvim_treesitter#foldexpr()'
-opt.foldlevelstart = 2    -- only fold if level is higher than 
+opt.foldlevelstart = 2  -- only fold if level is higher than
 
 -- [[ Filetypes ]]
 opt.encoding = 'utf-8'     -- string encoding
@@ -70,3 +69,6 @@ opt.clipboard = 'unnamedplus' -- always use clipboard (instead of vim registers)
 -- [[ Optimisations ]]
 opt.updatetime = 250 -- write to swapfile to disk every 250ms
 opt.timeoutlen = 700 -- timeout for a mapped sequence to take
+
+-- disable inline diagnostic text
+vim.diagnostic.config({ virtual_text = false })

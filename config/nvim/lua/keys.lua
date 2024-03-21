@@ -26,15 +26,12 @@ local vimcmd = function(cmd)
 end
 
 -- [[ QoL ]]
-imap('kj', '<esc>') -- quick escape to normal mode from insert mode
-tmap('kj', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
-tmap('<esc><esc>', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
-nmap('<space><space>', ':nohlsearch<CR>') -- cancel search highlights
-nmap('<leader><leader>', '<c-^>') -- switch to previous buffer
+imap('kj', '<esc>')                             -- quick escape to normal mode from insert mode
+tmap('kj', '<c-\\><c-n>')                       -- quick escape to normal mode from terminal mode
+tmap('<esc><esc>', '<c-\\><c-n>')               -- quick escape to normal mode from terminal mode
+nmap('<space><space>', ':nohlsearch<CR>')       -- cancel search highlights
+nmap('<leader><leader>', '<c-^>')               -- switch to previous buffer
 nmap('<leader>ns', '<cmd>lua NewScratch()<cr>') -- open a scratch buffer
-
--- [[ Meta ]]
-nmap('<leader>R', ':source $MYVIMRC<CR>') -- reload config
 
 -- [[ Butter Fingers ]]
 nmap(':Q<CR>', ':q<CR>')
@@ -44,13 +41,8 @@ nmap(':wQ<CR>', ':wq!<CR>')
 nmap(':X<CR>', ':x!<CR>')
 
 -- [[ Save ]]
-nmap('<F2>', ':w<CR>') -- quicksave
+nmap('<F2>', ':w<CR>')  -- quicksave
 nmap('<c-s>', ':w<CR>') -- save current buffer
-nmap('<c-S>', ':w!<CR>') -- force save current buffer
-
--- [[ Comments ]]
-nmap('<c-/>', '<Plug>CommentaryLine') -- comment out line
-vmap('<c-/>', '<Plug>Commentary') -- comment out selection
 
 -- [[ Splits ]]
 nmap('<c-j>', '<c-w>j')
@@ -59,13 +51,12 @@ nmap('<c-h>', '<c-w>h')
 nmap('<c-l>', '<c-w>l')
 
 -- [[ nvim-tree ]]
-nmap('<c-n>', ':NvimTreeToggle<CR>') -- toggle nvim-tree
+nmap('<c-n>', ':NvimTreeToggle<CR>')        -- toggle nvim-tree
 nmap('<F3>', ':NvimTreeFindFileToggle<CR>') -- toggle nvim-tree
 
 
 -- [[ version control ]]
 nmap('<c-G>', [[:Git<CR>]])
-nmap('<leader>gv', [[:GV<CR>]])
 
 -- [[ vim-test ]]
 nmap('<leader>tt', '<cmd>TestNearest<cr>')
@@ -76,13 +67,10 @@ nmap('<leader>tg', '<cmd>TestVisit<cr>')
 
 -- [[ lspconfig ]]
 -- Diagnostics - see `:h vim.diagnostic.*`
-nmap('<leader>d', vimcmd('lua vim.diagnostic.open_float()'))
-nmap('[d', vimcmd('lua vim.diagnostic.goto_prev()'))
-nmap(']d', vimcmd('lua vim.diagnostic.goto_next()'))
-nmap('<leader>dq', vimcmd('lua vim.diagnostic.setloclist()'))
-
--- [[formatting]]
-nmap('<space>f', vimcmd('lua vim.lsp.buf.format { async = true }')) -- format code
+vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
+vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
+vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
+vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
 -- [[ zen mode ]]
 nmap('<F12>', vimcmd('ZenMode'))
