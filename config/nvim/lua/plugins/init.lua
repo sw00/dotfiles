@@ -1,9 +1,4 @@
 return {
-    -- [[ Completion ]]
-     { 'williamboman/mason.nvim', run = ':MasonUpdate' },
-
-
-
     -- [[ Testing ]]
      { 'vim-test/vim-test', config = function()
         vim.cmd([[ let test#strategy='toggleterm' ]])

@@ -3,198 +3,101 @@ return {
     'simrat39/rust-tools.nvim',
     {
         'neovim/nvim-lspconfig',
-        dependencies = { 'mason', 'williamboman/mason-lspconfig', 'nvim-navic' },
+        dependencies = { 'mason', 'williamboman/mason-lspconfig', 'WhoIsSethDaniel/mason-tool-installer.nvim', 'nvim-navic', { 'j-hui/fidget.nvim', opts = {} }, { 'folke/neodev.nvim', opts = {} } },
         config = function()
-            -- keymap
-            -- tab key is mapped in `settings/snippy.lua`
-            local keys = {
-                ['cr']        = vim.api.nvim_replace_termcodes('<CR>', true, true, true),
-                ['ctrl-y']    = vim.api.nvim_replace_termcodes('<C-y>', true, true, true),
-                ['ctrl-y_cr'] = vim.api.nvim_replace_termcodes('<C-y><CR>', true, true, true),
-            }
+            -- define lsp attach function
+            vim.api.nvim_create_autocmd('LspAttach', {
+                group = vim.api.nvim_create_augroup('lsp-attach', { clear = true }),
+                callback = function(event)
+                    local map = function(keys, func, desc)
+                        vim.keymap.set('n', keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
+                    end
 
-            _G.cr_action = function()
-                if vim.fn.pumvisible() ~= 0 then
-                    local item_selected = vim.fn.complete_info()['selected'] ~= -1
-                    return item_selected and keys['ctrl-y'] or keys['ctrl-y_cr']
-                else
-                    return keys['cr']
+                    map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+                    map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+                    map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+                    map('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
+                    map('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
+                    map('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+                    map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+                    map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+                    map('K', vim.lsp.buf.hover, 'Hover Documentation')
+                    map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
+
+                    -- edit actions
+                    map('<leader>lf', function() vim.lsp.buf.format { async = true } end, '[L]SP [F]ormat')
+
+                    -- highlight word under cursor for a little while
+                    local client = vim.lsp.get_client_by_id(event.data.client_id)
+                    if client and client.server_capabilities.documentHighlightProvider then
+                        vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
+                            buffer = event.buf,
+                            callback = vim.lsp.buf.document_highlight,
+                        })
+
+                        vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
+                            buffer = event.buf,
+                            callback = vim.lsp.buf.clear_references,
+                        })
+                    end
                 end
-            end
-
-            vim.api.nvim_set_keymap('i', '<CR>', 'v:lua._G.cr_action()', { noremap = true, expr = true })
-
-            local vimcmd = function(cmd)
-                return '<cmd>' .. cmd .. '<CR>'
-            end
-
-            local navic = require("nvim-navic")
-
-            local has_completion_capabilities = function(client)
-                return client.server_capabilities.textDocument.completion
-            end
-
-            function on_attach_lsp(client, bufnr)
-                if has_completion_capabilities(client) then
-                    vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.completefunc_lsp')
-                else
-                    vim.api.nvim_buf_set_option(bufnr, 'completefunc', 'v:lua.MiniCompletion.complete_fallback()')
-                end
-
-                if client.server_capabilities.documentSymbolProvider then
-                    navic.attach(client, bufnr)
-                end
-
-                -- define local fn nmapbuf for code dedup/readability
-                local nmapbuf = function(shortcut, cmd)
-                    local opts = { noremap = true, silent = false }
-                    vim.api.nvim_buf_set_keymap(bufnr, 'n', shortcut, vimcmd(cmd), opts)
-                end
-
-                -- navigation/context actions:
-                nmapbuf('K', 'lua vim.lsp.buf.hover()')                -- show docs
-                nmapbuf('<leader>lD', 'vsp <CR>:lua vim.lsp.buf.declaration()') -- goto declaration, i.e. initialisation
-                nmapbuf('<leader>ld', 'vsp <CR>:lua vim.lsp.buf.definition()') -- goto definition
-                nmapbuf('<leader>li', 'vsp <CR>:lua vim.lsp.buf.implementation()') -- goto implementation
-                nmapbuf('<leader>ls', 'lua vim.lsp.buf.signature_help()') -- show signature
-                nmapbuf('<leader>lt', 'lua vim.lsp.buf.type_definition()') -- show type definition
-                nmapbuf('<leader>lr', 'lua vim.lsp.buf.references()')  -- list references (show usages)
-
-                -- edit actions:
-                nmapbuf('<space>wa>', 'lua vim.lsp.buf.add_workspace_folder()')    -- add workspace folder
-                nmapbuf('<space>wr>', 'lua vim.lsp.buf.remove_workspace_folder()') -- remove workspace folder
-                nmapbuf('<space>wl>', 'lua vim.inspect(vim.lsp.buf.list_workspace_folders())') -- remove workspace folder
-                nmapbuf('<space>lf', 'lua vim.lsp.buf.format { async = true }')    -- format code
-                nmapbuf('<space>rn', 'lua vim.lsp.buf.rename()')                   -- rename
-                nmapbuf('<space>ca', 'lua vim.lsp.buf.code_action()')              -- code action
-
-                -- global rust-tools commands
-                nmapbuf('<leader>R', 'RustRunnables') -- code action
-            end
-
-            -- [[LSP]]
-            local mason_lspconfig = require 'mason-lspconfig'
-            local lspconfig = require 'lspconfig'
-
-            require('mason').setup {
-                ui = {
-                    icons = {
-                        package_installed = "✓",
-                        package_pending = "➜",
-                        package_uninstalled = "✗"
-                    }
-                }
-            }
-
-            mason_lspconfig.setup({
-                ensure_installed = { 'lua_ls', 'pyright', 'rust_analyzer', 'elixirls', 'solargraph' }, -- definitely install these
-                automatic_installation = true,                                             -- install any additional servers with lspconfig setup defined
             })
 
-            -- mason handlers
             local capabilities = vim.lsp.protocol.make_client_capabilities()
+            capabilities = vim.tbl_deep_extend('force', capabilities,
+                require('cmp_nvim_lsp').default_capabilities())
 
-            local default_handler = function(server_name)
-                require('lspconfig')[server_name].setup {
-                    on_attach = on_attach_lsp,
-                    capabilities = capabilities
-                }
-            end
-
-            local lua_handler = function()
-                lspconfig.lua_ls.setup {
-                    on_attach = on_attach_lsp,
+            local servers = {
+                pyright = {},
+                elixirls = {
                     settings = {
-                        Lua = {
-                            diagnostics = {
-                                globals = { 'vim', 'client' }
-                            }
-                        }
-                    }
-                }
-            end
-
-            local rust_handler = function()
-                local rt = require("rust-tools")
-                rt.setup {
-                    tools = {
-                        inlay_hints = { only_current_line = true },
-                        hover_actions = { auto_focus = true }
-                    },
-                    server = {
-                        standalone = false,
-                        on_attach = function(client, bufnr)
-                            on_attach_lsp(client, bufnr)
-                            -- Hover actions
-                            vim.keymap.set("n", "<Leader>a", rt.hover_actions.hover_actions, { buffer = bufnr })
-                            -- Code action groups
-                            vim.keymap.set("n", "<Leader>c", rt.code_action_group.code_action_group, { buffer = bufnr })
-                        end,
-                        settings = {
-                            ['rust-analyzer'] = {
-                                completion = {
-                                    limit = 24, -- only return 2 dozen suggestions
-                                    callable = {
-                                        -- snippets = 'add_parentheses' -- don't autofill args
-                                        snippets = 'fill_arguments'
-                                    }
-                                }
-                            }
-                        },
-                    }
-                }
-            end
-
-            local elixir_handler = function()
-                local elixirls = lspconfig.elixirls
-                elixirls.setup {
-                    on_attach = on_attach_lsp,
-                    capabilities = capabilities,
-                    elixirLS = {
                         dialyzerEnabled = false,
                         fetchDeps = false,
                         enableTestLenses = true,
                     }
-                }
-            end
-
-            local ruby_handler = function()
-                local solargraph = lspconfig.solargraph
-                solargraph.setup {
-                    on_attach = on_attach_lsp,
-                    capabilities = capabilities,
-                    root_dir = lspconfig.util.root_pattern("Gemfile", ".git", "."),
+                },
+                rust_analyzer = {
                     settings = {
-                        solargraph = {
-                            autoformat = true,
-                            completion = true,
-                            diagnostic = true,
-                            references = true,
-                            folding = true,
-                            rename = true,
-                            symbols = true
+                        completion = {
+                            limit = 24, -- only return 2 dozen suggestions
+                            callable = {
+                                -- snippets = 'add_parentheses' -- don't autofill args
+                                snippets = 'fill_arguments'
+                            }
                         }
                     }
-                }
-            end
+                },
+                lua_ls = {
+                    settings = {
+                        Lua = {
+                            completion = {
+                                callSnippet = 'Replace',
+                            },
+                            -- diagnostics = { disable = { 'missing-fields' } },
+                        },
+                    },
+                },
+            }
 
-            mason_lspconfig.setup_handlers({
-                default_handler,
-                ["lua_ls"] = lua_handler,
-                ["rust_analyzer"] = rust_handler,
-                ["elixirls"] = elixir_handler,
-                ["solargraph"] = ruby_handler
+            require('mason').setup()
+            local ensure_installed = vim.tbl_keys(servers or {})
+            vim.list_extend(ensure_installed, {
+                'stylua', -- Used to format Lua code
             })
 
-            -- disable for these
-            local disabled_filetypes = { 'gitcommit' }
-
-            vim.api.nvim_create_autocmd("FileType", {
-                pattern = disabled_filetypes,
-                callback = function()
-                    vim.b.minicompletion_disable = true
-                end
-            })
+            require('mason-tool-installer').setup { ensure_installed = ensure_installed }
+            require('mason-lspconfig').setup {
+                handlers = {
+                    function(server_name)
+                        local server = servers[server_name] or {}
+                        -- This handles overriding only values explicitly passed
+                        -- by the server configuration above. Useful when disabling
+                        -- certain features of an LSP (for example, turning off formatting for tsserver)
+                        server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+                        require('lspconfig')[server_name].setup(server)
+                    end,
+                },
+            }
         end
-    },
+    }
 }
