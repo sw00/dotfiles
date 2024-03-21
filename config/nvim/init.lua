@@ -27,15 +27,10 @@ require('keys') -- Keymaps
 require('func') -- Functions
 
 -- add plugins
-require('lazy').setup('plugins')
+require('lazy').setup({import = 'plugins'})
 
 
 -- PLUGINS
--- completion
-require('settings.null-ls')
-
--- tags
-require 'symbols-outline'.setup()
 
 -- diagnostics
 vim.diagnostic.config { virtual_text = false, underline = true }
@@ -54,14 +49,6 @@ vim.diagnostic.config { virtual_text = false, underline = true }
 -- }
 
 -- terminal
-require("toggleterm").setup {
-    open_mapping = [[<c-\>]],
-    direction = 'float',
-    shell = vim.o.shell,
-    float_opts = {
-        border = 'rounded'
-    }
-}
 vim.api.nvim_set_keymap('n', '<c-~>', '<cmd>ToggleTerm<cr>', { noremap = true, silent = true })
 vim.cmd('au TermOpen * setlocal nonumber norelativenumber')
 
@@ -83,3 +70,5 @@ if in_wsl then
                 \ }
 ]])
 end
+
+
