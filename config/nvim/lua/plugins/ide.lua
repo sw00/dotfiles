@@ -34,5 +34,17 @@ return {
             vim.keymap.set("n", "<leader>xl", function() require("trouble").toggle("loclist") end)
             vim.keymap.set("n", "gR", function() require("trouble").toggle("lsp_references") end)
         end
-    }
+    },
+     { 'vim-test/vim-test', config = function()
+        vim.cmd([[ let test#strategy='toggleterm' ]])
+    end },
+     {
+        "nvim-neotest/neotest",
+        dependencies = {
+            "nvim-lua/plenary.nvim",
+            "antoinemadec/FixCursorHold.nvim",
+            "nvim-neotest/neotest-python",
+            "nvim-neotest/neotest-vim-test"
+        }
+    },
 }
