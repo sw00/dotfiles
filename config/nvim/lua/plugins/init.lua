@@ -1,9 +1,5 @@
 return {
-    -- [[ Editor ]]
-     { "akinsho/toggleterm.nvim", tag = 'v2.6.0' },
-
     -- [[ Navigation ]]
-     { 'nvim-tree/nvim-tree.lua', tag = 'v1.1' },
      { 'nvim-telescope/telescope.nvim',
         tag = '0.1.4',
         dependencies = {
@@ -11,7 +7,6 @@ return {
             { 'devicons', opt = true },
         }
     },
-     'simrat39/symbols-outline.nvim',
      'folke/trouble.nvim',
 
     -- [[ Version Control ]]
