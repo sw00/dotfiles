@@ -72,6 +72,5 @@ return {
      { 'jose-elias-alvarez/null-ls.nvim', dependencies = 'nvim-lua/plenary.nvim' },
 
     -- [[ Syntax ]]
-     { 'nvim-treesitter/nvim-treesitter', run = ':TSUpdate' },
      'LnL7/vim-nix'
 }
