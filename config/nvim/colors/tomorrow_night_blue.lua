@@ -1,5 +1,5 @@
 -- https://github.com/chriskempson/base16/blob/master/styling.md
-require('mini.base16').setup({
+require('mini.base16').setup {
     palette = {
         base00 = '#002451', -- default bg
         base01 = '#081c3c', -- lighter bg (line numbers, folds, status bars)
@@ -19,4 +19,4 @@ require('mini.base16').setup({
         base0F = '#00a5c5', -- deprecated, open/close embedded language tags
     },
     use_cterm = true,
-})
+}

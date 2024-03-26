@@ -1,44 +1,44 @@
 -- REMAP LEADER KEY
-vim.g.mapleader = ","
-vim.g.localleader = "\\"
+vim.g.mapleader = ','
+vim.g.localleader = '\\'
 
 -- IMPORTS
-require('opts') -- Options
-require('keys') -- Keymaps
-require('func') -- Functions
+require 'opts' -- Options
+require 'keys' -- Keymaps
+require 'func' -- Functions
 
 -- Highlight when yanking (copying) text
 --  Try it with `yap` in normal mode
 --  See `:help vim.highlight.on_yank()`
 vim.api.nvim_create_autocmd('TextYankPost', {
-  desc = 'Highlight when yanking (copying) text',
-  group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
-  callback = function()
-    vim.highlight.on_yank()
-  end,
+    desc = 'Highlight when yanking (copying) text',
+    group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
+    callback = function()
+        vim.highlight.on_yank()
+    end,
 })
 
 -- Bootstrap lazy.nvim
-local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
-  vim.fn.system({
-    "git",
-    "clone",
-    "--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git",
-    "--branch=stable", -- latest stable release
-    lazypath,
-  })
+    vim.fn.system {
+        'git',
+        'clone',
+        '--filter=blob:none',
+        'https://github.com/folke/lazy.nvim.git',
+        '--branch=stable', -- latest stable release
+        lazypath,
+    }
 end
 vim.opt.rtp:prepend(lazypath)
 
 -- add plugins
-require('lazy').setup({import = 'plugins'})
+require('lazy').setup { import = 'plugins' }
 
-local in_wsl = os.getenv("WSL_DISTRO_NAME") ~= nil
+local in_wsl = os.getenv 'WSL_DISTRO_NAME' ~= nil
 
 if in_wsl then
-    vim.cmd([[
+    vim.cmd [[
     let g:clipboard = {
                 \   'name': 'WslClipboard',
                 \   'copy': {
@@ -51,5 +51,5 @@ if in_wsl then
                 \   },
                 \   'cache_enabled': 0,
                 \ }
-]])
+]]
 end
