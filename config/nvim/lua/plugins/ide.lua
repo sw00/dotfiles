@@ -35,6 +35,15 @@ return {
         },
     },
     {
+        'hedyhli/outline.nvim',
+        lazy = true,
+        cmd = { 'Outline', 'OutlineOpen' },
+        keys = {
+            { '<F8>', '<cmd>Outline<cr>', desc = 'Toggle outline' },
+        },
+        opts = {},
+    },
+    {
         'j-hui/fidget.nvim',
         opts = {
             integration = {
