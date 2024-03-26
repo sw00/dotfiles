@@ -15,6 +15,10 @@ return {
             statusline.section_location = function()
                 return '%2l:%-2v'
             end
+            vim.api.nvim_create_autocmd('BufEnter', {
+                pattern = 'NvimTree*',
+                command = 'let ministatusline_disable=v:true',
+            })
 
             require('mini.tabline').setup {
                 tabpage_section = 'none',
