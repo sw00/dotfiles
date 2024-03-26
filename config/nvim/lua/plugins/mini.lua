@@ -16,15 +16,18 @@ return {
             statusline.section_location = function()
                 return '%2l:%-2v'
             end
-            vim.api.nvim_create_autocmd('BufEnter', {
-                pattern = 'NvimTree*',
-                command = 'let ministatusline_disable=v:true',
+            vim.api.nvim_create_autocmd('FileType', {
+                pattern = 'NvimTree',
+                command = 'let b:ministatusline_disable=v:true',
             })
 
             require('mini.tabline').setup {
                 tabpage_section = 'none',
             }
             vim.cmd [[ au FileType * if index(['gitcommit','fugitive'], &ft) >= 0 | let b:minitabline_disable=v:true | endif ]]
+
+            -- set colorscheme here
+            vim.cmd.colorscheme(vim.g.colorscheme)
         end,
     },
 }

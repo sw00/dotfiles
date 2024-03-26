@@ -23,7 +23,7 @@ opt.encoding = 'utf-8' -- string encoding
 opt.fileencoding = 'utf-8' -- file encoding
 
 -- [[ Theme ]]
-vim.cmd.colorscheme 'tomorrow_night_blue'
+vim.g.colorscheme = 'tomorrow_night_blue'
 vim.o.background = 'dark'
 opt.syntax = 'on' -- enable syntax highlighting
 opt.termguicolors = true -- vim colors override terminal colors
