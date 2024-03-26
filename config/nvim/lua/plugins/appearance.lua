@@ -9,16 +9,18 @@ return {
             vim.cmd.hi 'Comment gui=none'
         end,
     },
-    'Yggdroot/indentLine',
     {
         'folke/zen-mode.nvim',
         dependencies = 'folke/twilight.nvim',
+        keys = {
+            { '<F12>', '<cmd>ZenMode<cr>', desc = 'Toggle Zen Mode' },
+        },
         config = function()
             require('zen-mode').setup {
                 plugins = {
                     twilight = { enabled = true },
-                    tmux = { enabled = false },
-                    alacritty = { enabled = false, font = '14' },
+                    tmux = { enabled = true },
+                    alacritty = { enabled = true, font = '14' },
                 },
             }
         end,

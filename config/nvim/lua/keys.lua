@@ -51,6 +51,3 @@ nmap('<c-l>', '<c-w>l')
 -- [[ diagnostics ]]
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-
--- [[ zen mode ]]
-nmap('<F12>', vimcmd 'ZenMode')
