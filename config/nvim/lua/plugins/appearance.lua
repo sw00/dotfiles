@@ -3,6 +3,7 @@ return {
     'NLKNguyen/papercolor-theme',
     {
         'folke/zen-mode.nvim',
+        event = 'VeryLazy',
         dependencies = 'folke/twilight.nvim',
         keys = {
             { '<F12>', '<cmd>ZenMode<cr>', desc = 'Toggle Zen Mode' },

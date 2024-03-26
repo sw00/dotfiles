@@ -1,6 +1,5 @@
 return {
     { 'williamboman/mason.nvim', name = 'mason', build = ':MasonUpdate' },
-    'simrat39/rust-tools.nvim',
     {
         'neovim/nvim-lspconfig',
         dependencies = {
