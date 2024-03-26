@@ -1,4 +1,5 @@
 return {
+    'tpope/vim-sleuth',
     { 'tpope/vim-fugitive',      dependencies = { 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' } },
     { 'nvim-tree/nvim-tree.lua', opts = {} },
     {

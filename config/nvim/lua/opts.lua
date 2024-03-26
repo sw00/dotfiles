@@ -36,10 +36,6 @@ opt.incsearch = true  -- search terms in buffer as they are typed
 -- [[ Whitespace ]]
 opt.list = true -- show whitespace chars
 opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' } -- show whitespace chars
-opt.expandtab = true -- use spaces instead of tabs
-opt.shiftwidth = 4 -- indent size is 4 chars
-opt.softtabstop = 4 -- replace tabs with this many spaces in insert mode
-opt.tabstop = 4 -- number of spaces tabs represent
 opt.breakindent = true -- wrapped lines should continue from their original indent
 
 -- [[ Splits ]]
