@@ -6,7 +6,7 @@ require('mini.base16').setup {
         base02 = '#29293a', -- selection bg
         base03 = '#3779b7', -- comments, highlights, invisibles
         base04 = '#f1f1fe', -- dark fg (status bars)
-        base05 = '#99ffff', -- default fg (caret, delimiters, operators)
+        base05 = '#aaffff', -- default fg (caret, delimiters, operators)
         base06 = '#435571', -- light fg
         base07 = '#1e304e', -- light bg
         base08 = '#f1ffff', -- variables, tags, link text, diff deleted
@@ -20,3 +20,5 @@ require('mini.base16').setup {
     },
     use_cterm = true,
 }
+
+vim.g.colors_name = 'tomorrow_night_blue'

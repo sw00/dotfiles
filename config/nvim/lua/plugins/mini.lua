@@ -1,6 +1,7 @@
 return {
     {
         'echasnovski/mini.nvim',
+        priority = 1000,
         branch = 'stable',
         config = function()
             require('mini.pairs').setup {}

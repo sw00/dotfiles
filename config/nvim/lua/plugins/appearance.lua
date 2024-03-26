@@ -2,14 +2,6 @@ return {
     { 'kyazdani42/nvim-web-devicons', name = 'devicons' },
     'NLKNguyen/papercolor-theme',
     {
-        'folke/tokyonight.nvim',
-        priority = 1000,
-        init = function()
-            vim.cmd.colorscheme 'tokyonight-night'
-            vim.cmd.hi 'Comment gui=none'
-        end,
-    },
-    {
         'folke/zen-mode.nvim',
         dependencies = 'folke/twilight.nvim',
         keys = {
