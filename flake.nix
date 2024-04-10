@@ -17,8 +17,18 @@
     nixpkgs,
     home-manager,
     ...
-  } @ inputs: let
+  } @ inputs:
+  let
     inherit (self) outputs;
+
+    system = "x86_64-linux";
+
+    pkgs = import nixpkgs {
+      inherit system;
+
+      config.allowUnfree = true;
+    };
+
   in {
     # NixOS configuration entrypoint
     # Available through 'nixos-rebuild --flake .#your-hostname'
@@ -35,7 +45,7 @@
       # FIXME replace with your username@hostname
       "sett@x1c2e" = home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs system;};
+        extraSpecialArgs = {inherit inputs outputs;};
         modules = [./home-manager/home.nix];
       };
     };
