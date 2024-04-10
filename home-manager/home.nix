@@ -13,6 +13,13 @@ let
     "linux";
 
 in {
+  # nixpkgs config
+  nixpkgs = {
+    overlays = [];
+    config = {
+      allowUnfree = true;
+    };
+  };
   # Propagate some values to submodules
   _module.args = { inherit machine_os; };
 
