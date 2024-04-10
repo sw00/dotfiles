@@ -14,7 +14,7 @@
     enableSshSupport = true;
     defaultCacheTtlSsh = 300; # 5min
     enableExtraSocket = true; # for agent forwarding
-    pinentryPackage = pkgs.pinentry-qt;
+    pinentryFlavor = "qt";
   };
 
   programs.fish.shellInit = ''
