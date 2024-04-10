@@ -35,7 +35,7 @@
       # FIXME replace with your username@hostname
       "sett@x1c2e" = home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs;};
+        extraSpecialArgs = {inherit inputs outputs system;};
         modules = [./home-manager/home.nix];
       };
     };
