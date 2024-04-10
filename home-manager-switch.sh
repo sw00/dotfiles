@@ -22,7 +22,8 @@ popd
 
 echo "Home Manager switching to new generation..."
 
-home-manager --flake .#$profile switch --impure &>hm-switch.log || (cat hm-switch.log | grep --color error && exit 1)
+home-manager --flake .#$profile switch -b backup --impure \
+    &>hm-switch.log || (cat hm-switch.log | grep --color error && exit 1)
 
 current=$(home-manager generations | head -n1)
 

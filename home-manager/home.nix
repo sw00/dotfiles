@@ -29,7 +29,7 @@ in {
   # Enable nix experimental features
   xdg.configFile."nix.conf" = {
     target = "./nix";
-    source = ./config/nix;
+    source = ../config/nix;
   };
 
   imports = [
@@ -52,7 +52,7 @@ in {
   home.username = username;
   home.homeDirectory = homeDir;
 
-  home.stateVersion = "23.05";
+  home.stateVersion = "23.11";
 
   # Default LANG
   home.language.base = "en_US.UTF-8";

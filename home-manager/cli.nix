@@ -20,6 +20,7 @@
     htop
     asdf-vm
     nixfmt
+    lf
   ];
 
   programs.zoxide = {
