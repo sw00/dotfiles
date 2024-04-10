@@ -41,9 +41,7 @@ in
       ./hardware-configuration.nix
     ];
   # overlays
-  nixpkgs.overlays = [
-  awesomeOverlay
-];
+  # nixpkgs.overlays = [ awesomeOverlay ];
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
