@@ -26,20 +26,20 @@ in {
   };
 
   imports = [
-    ./nixfiles/desktop.nix
-    ./nixfiles/fonts.nix
-    ./nixfiles/dotfiles.nix
-    ./nixfiles/gpg.nix
-    ./nixfiles/fish.nix
-    ./nixfiles/cli.nix
-    ./nixfiles/tmux.nix
-    ./nixfiles/neovim.nix
-    ./nixfiles/git.nix
-    ./nixfiles/python.nix
-    ./nixfiles/rust.nix
+    ./desktop.nix
+    ./fonts.nix
+    ./dotfiles.nix
+    ./gpg.nix
+    ./fish.nix
+    ./cli.nix
+    ./tmux.nix
+    ./neovim.nix
+    ./git.nix
+    ./python.nix
+    ./rust.nix
     # ./nixfiles/java.nix
-    ./nixfiles/ruby.nix
-    ./nixfiles/go.nix
+    ./ruby.nix
+    ./go.nix
   ];
 
   home.username = username;

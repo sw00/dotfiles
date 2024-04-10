@@ -6,7 +6,7 @@ host=${1:-x1c2e}
 set -e
 
 # cd into host config dir
-pushd ~/dotfiles/nixfiles/hosts/$host
+pushd ~/dotfiles/nixos/$host
 
 $EDITOR configuration.nix
 
