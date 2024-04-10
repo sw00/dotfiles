@@ -39,6 +39,7 @@ let
       megasync
       brave
       calibre
+      spotify
     ] ++ (with nixpkgsUnstable; [ alacritty ]);
 
   # awesome-wm-widgets
