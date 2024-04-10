@@ -13,7 +13,11 @@ let
     hash = "sha256-2en1kvde3cJVc3ZnTy8QeD2oKcseLFjYPLKhIGDanQ0=";
   }) { });
 
-  nixgl = import <nixgl> { };
+  #nixgl = import <nixgl> { };
+  nixgl= (pkgs.callPackage "${builtins.fetchTarball {
+      url = https://github.com/guibou/nixGL/archive/d709a8abcde5b01db76ca794280745a43c8662be.tar.gz;
+      sha256 = "11g411shkbxl4wxcj01dqa698hip0jg5dq2czy7q4yax4rn3cnjp";
+    }}/nixGL.nix" {});
 
   # Desktop Apps, utils, fonts, extras
   alacrittyPkg = nixpkgsUnstable.alacritty;
