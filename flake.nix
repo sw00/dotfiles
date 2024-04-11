@@ -22,11 +22,13 @@
     inherit (self) outputs;
 
     system = "x86_64-linux";
+    username = "sett";
 
     pkgs = import nixpkgs {
       inherit system;
 
       config.allowUnfree = true;
+      config.allowUnfreePredicate = _: true;
     };
 
   in {
@@ -35,17 +37,27 @@
     nixosConfigurations = {
       x1c2e = nixpkgs.lib.nixosSystem {
         specialArgs = {inherit inputs outputs;};
-        modules = [./nixos/x1c2e/configuration.nix];
+        modules = [
+          ./nixos/x1c2e/configuration.nix
+
+          # home manager as nixos module
+          home-manager.nixosModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.users.sett = import ./home-manager/home.nix;
+            home-manager.extraSpecialArgs = {inherit username;};
+          }
+        ];
       };
     };
 
     # Standalone home-manager configuration entrypoint
     # Available through 'home-manager --flake .#your-username@your-hostname'
     homeConfigurations = {
-      # FIXME replace with your username@hostname
       "sett@x1c2e" = home-manager.lib.homeManagerConfiguration {
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
-        extraSpecialArgs = {inherit inputs outputs system;};
+        extraSpecialArgs = {inherit inputs outputs;};
         modules = [./home-manager/home.nix];
       };
     };

@@ -1,10 +1,9 @@
-{ config, pkgs, ... }:
+{ config, pkgs, username, ... }:
 let
   # pkgs = import (builtins.fetchTarball {
   #   url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
   # }) { };
 
-  username = "sett";
   homeDir = "/home/${username}";
 
   machine_os = if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop" then
@@ -13,13 +12,6 @@ let
     "linux";
 
 in {
-  # nixpkgs config
-  nixpkgs = {
-    overlays = [];
-    config = {
-      allowUnfree = true;
-    };
-  };
   # Propagate some values to submodules
   _module.args = { inherit machine_os; };
 
