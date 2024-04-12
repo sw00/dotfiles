@@ -8,6 +8,9 @@
     home-manager.url = "github:nix-community/home-manager/release-23.11";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
 
+    nixgl.url = "github:nix-community/nixGL";
+    nixgl.inputs.nixpkgs.follows = "nixpkgs";
+
     # TODO: use extra hardware config from nixos-hardware
     # hardware.url = "github:nixos/nixos-hardware";
   };
@@ -16,6 +19,7 @@
     self,
     nixpkgs,
     home-manager,
+    nixgl,
     ...
   } @ inputs: let
     inherit (self) outputs;
@@ -44,7 +48,7 @@
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
             home-manager.users.sett = import ./home-manager/home.nix;
-            home-manager.extraSpecialArgs = {inherit username;};
+            home-manager.extraSpecialArgs = {inherit nixgl system username;};
           }
         ];
       };

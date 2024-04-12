@@ -1,10 +1,12 @@
 # Desktop (non-CLI) apps and config are specified here
 {
-  config,
   pkgs,
-  fetchFromGitHub,
   lib,
+  config,
+  fetchFromGitHub,
   machine_os,
+  nixgl,
+  system,
   ...
 }: let
   enableOnNonWSL =
@@ -19,13 +21,7 @@
     repo = "nixpkgs";
     rev = "f8e2ebd66d097614d51a56a755450d4ae1632df1"; # nixos-unstable @ 2024-02-09
     hash = "sha256-2en1kvde3cJVc3ZnTy8QeD2oKcseLFjYPLKhIGDanQ0=";
-  }) {};
-
-  #nixgl = import <nixgl> { };
-  nixgl = pkgs.callPackage "${builtins.fetchTarball {
-    url = https://github.com/guibou/nixGL/archive/d709a8abcde5b01db76ca794280745a43c8662be.tar.gz;
-    sha256 = "11g411shkbxl4wxcj01dqa698hip0jg5dq2czy7q4yax4rn3cnjp";
-  }}/nixGL.nix" {};
+  }) { inherit system; };
 
   # Desktop Apps, utils, fonts, extras
   alacrittyPkg = nixpkgsUnstable.alacritty;
@@ -122,21 +118,21 @@ in {
   xdg.desktopEntries.Alacritty = {
     name = "Alacritty";
     genericName = "Terminal";
-    exec = "${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
+    exec = "${nixgl}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
     icon = "Alacritty";
     categories = ["System" "TerminalEmulator"];
     startupNotify = true;
     actions = {
       newTerminal = {
         name = "New Terminal";
-        exec = "${nixgl.auto.nixGLDefault}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
+        exec = "${nixgl}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
       };
     };
   };
 
   xdg.desktopEntries.Calibre = {
     name = "Calibre";
-    exec = "${nixgl.auto.nixGLDefault}/bin/nixGL ${pkgs.calibre}/bin/calibre";
+    exec = "${nixgl}/bin/nixGL ${pkgs.calibre}/bin/calibre";
     icon = "calibre-gui";
     categories = ["Office"];
     startupNotify = true;
