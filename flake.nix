@@ -17,8 +17,7 @@
     nixpkgs,
     home-manager,
     ...
-  } @ inputs:
-  let
+  } @ inputs: let
     inherit (self) outputs;
 
     system = "x86_64-linux";
@@ -30,7 +29,6 @@
       config.allowUnfree = true;
       config.allowUnfreePredicate = _: true;
     };
-
   in {
     # NixOS configuration entrypoint
     # Available through 'nixos-rebuild --flake .#your-hostname'

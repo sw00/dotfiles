@@ -1,6 +1,8 @@
-{ config, pkgs, ... }:
-
 {
+  config,
+  pkgs,
+  ...
+}: {
   home.packages = with pkgs; [
     pipenv
     python311
@@ -12,6 +14,5 @@
     python311Packages.pynvim
   ];
 
-  programs.fish.shellAbbrs = { ipy = "ipython"; };
-
+  programs.fish.shellAbbrs = {ipy = "ipython";};
 }

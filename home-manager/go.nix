@@ -1,6 +1,7 @@
-{ config, pkgs, ... }:
-
 {
-  home.packages = with pkgs; [ go ];
+  config,
+  pkgs,
+  ...
+}: {
+  home.packages = with pkgs; [go];
 }
-

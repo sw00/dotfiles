@@ -1,6 +1,8 @@
-{ config, pkgs, ... }:
-
 {
+  config,
+  pkgs,
+  ...
+}: {
   home.sessionVariables = {
     BROWSER = "explorer.exe"; # WSL
     VAGRANT_WSL_ENABLE_WINDOWS_ACCESS = "1"; # more WSL + vagrant
@@ -35,7 +37,7 @@
   programs.fish = {
     shellInit = "\n      fish_add_path ~/.asdf/shims\n    ";
 
-    shellAbbrs = { doco = "docker compose"; };
+    shellAbbrs = {doco = "docker compose";};
 
     functions = {
       yq = {

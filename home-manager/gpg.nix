@@ -1,6 +1,8 @@
-{ pkgs, config, ... }:
-
 {
+  pkgs,
+  config,
+  ...
+}: {
   programs.gpg.enable = true;
   programs.gpg.settings = {
     keyid-format = "LONG";

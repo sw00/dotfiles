@@ -1,19 +1,21 @@
-{ config, pkgs, username, ... }:
-let
+{
+  config,
+  pkgs,
+  username,
+  ...
+}: let
   # pkgs = import (builtins.fetchTarball {
   #   url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
   # }) { };
-
   homeDir = "/home/${username}";
 
-  machine_os = if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop" then
-    "wsl"
-  else
-    "linux";
-
+  machine_os =
+    if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop"
+    then "wsl"
+    else "linux";
 in {
   # Propagate some values to submodules
-  _module.args = { inherit machine_os; };
+  _module.args = {inherit machine_os;};
 
   # Assume non-NixOS Linux:
   targets.genericLinux.enable = true;
@@ -60,7 +62,7 @@ in {
   ];
 
   # Global variables
-  home.sessionVariables = { _machine_os = machine_os; };
+  home.sessionVariables = {_machine_os = machine_os;};
 
   # Packages to be installed
   home.packages = with pkgs; [

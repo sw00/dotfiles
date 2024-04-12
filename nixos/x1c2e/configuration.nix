@@ -1,9 +1,11 @@
 # Edit this configuration file to define what should be installed on
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
-
-{ config, pkgs, ... }:
-let
+{
+  config,
+  pkgs,
+  ...
+}: let
   awesome = pkgs.awesome.overrideAttrs (oa: {
     version = "8b1f8958b46b3e75618bc822d512bb4d449a89aa";
     src = pkgs.fetchFromGitHub {
@@ -13,33 +15,32 @@ let
       hash = "sha256-ZGZ53IWfQfNU8q/hKexFpb/2mJyqtK5M9t9HrXoEJCg=";
     };
 
-    patches = [ ];
+    patches = [];
 
     postPatch = ''
       patchShebangs tests/examples/_postprocess.lua
     '';
   });
-  
-  awesomeOverlay = (self: super: 
-  { myAwesome = super.awesome.overrideAttrs (old: rec 
-     { pname = "myAwesome"; 
-        version = "git-20220614-3a54221"; 
+
+  awesomeOverlay = (self: super: {
+    myAwesome = super.awesome.overrideAttrs (old: rec
+      {
+        pname = "myAwesome";
+        version = "git-20220614-3a54221";
         src = super.fetchFromGitHub {
           owner = "awesomeWM";
-          repo = "awesome"; 
-          rev = "8b1f8958b46b3e75618bc822d512bb4d449a89aa"; 
+          repo = "awesome";
+          rev = "8b1f8958b46b3e75618bc822d512bb4d449a89aa";
           sha256 = "";
-         }; 
-       patches = []; 
-     }); 
-} );
-in
-
-{
-  imports =
-    [ # Include the results of the hardware scan.
-      ./hardware-configuration.nix
-    ];
+        };
+        patches = [];
+      });
+  });
+in {
+  imports = [
+    # Include the results of the hardware scan.
+    ./hardware-configuration.nix
+  ];
   # overlays
   # nixpkgs.overlays = [ awesomeOverlay ];
 
@@ -75,11 +76,10 @@ in
 
   # Enable AwesomeWM
   services.xserver.windowManager.awesome.enable = true;
-#  services.xserver.windowManager.awesome.package = pkgs.awesome.overrideAttrs (old: {        src = pkgs.fetchFromGitHub {      	  owner = "awesomeWM";      	  repo = "awesome";      	  rev = "8b1f8958b46b3e75618bc822d512bb4d449a89aa";      	  sha256 = "sha256-ZGZ53IWfQfNU8q/hKexFpb/2mJyqtK5M9t9HrXoEJCg=";         };      }); 
-#  services.xserver.windowManager.awesome.package = awesome;
+  #  services.xserver.windowManager.awesome.package = pkgs.awesome.overrideAttrs (old: {        src = pkgs.fetchFromGitHub {      	  owner = "awesomeWM";      	  repo = "awesome";      	  rev = "8b1f8958b46b3e75618bc822d512bb4d449a89aa";      	  sha256 = "sha256-ZGZ53IWfQfNU8q/hKexFpb/2mJyqtK5M9t9HrXoEJCg=";         };      });
+  #  services.xserver.windowManager.awesome.package = awesome;
   services.xserver.displayManager.defaultSession = "none+awesome";
-  services.xserver.windowManager.awesome.luaModules = with pkgs.lua52Packages; [ luarocks lgi ];
-
+  services.xserver.windowManager.awesome.luaModules = with pkgs.lua52Packages; [luarocks lgi];
 
   # Configure keymap in X11
   services.xserver = {
@@ -115,11 +115,11 @@ in
   users.users.sett = {
     isNormalUser = true;
     description = "Sett";
-    extraGroups = [ "networkmanager" "wheel" ];
+    extraGroups = ["networkmanager" "wheel"];
     packages = with pkgs; [
       bitwarden
       firefox
-    #  thunderbird
+      #  thunderbird
     ];
   };
 
@@ -129,7 +129,12 @@ in
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-    vim git git-crypt wget alejandra libnotify
+    vim
+    git
+    git-crypt
+    wget
+    alejandra
+    libnotify
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
@@ -158,5 +163,4 @@ in
   # Before changing this value read the documentation for this option
   # (e.g. man configuration.nix or on https://nixos.org/nixos/options.html).
   system.stateVersion = "23.11"; # Did you read the comment?
-
 }

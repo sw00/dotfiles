@@ -1,5 +1,8 @@
-{ config, pkgs, ... }:
-let
+{
+  config,
+  pkgs,
+  ...
+}: let
   ipAddressScript = pkgs.writeShellScript "ip_addresses" ''
     OS=$(uname -a)
 
@@ -32,10 +35,8 @@ let
         echo "\"$essid\" D:$bit_rate Q:$link_quality S:$signal_level dBm"
     fi
   '';
-
 in {
-
-  home.packages = with pkgs; [ tmux-sessionizer ];
+  home.packages = with pkgs; [tmux-sessionizer];
 
   programs.tmux = {
     enable = true;
@@ -123,5 +124,4 @@ in {
       bind-key C-x display-popup -E "tms kill"
     '';
   };
-
 }

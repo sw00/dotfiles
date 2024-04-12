@@ -1,6 +1,9 @@
-{ config, pkgs, lib, ... }:
-
 {
+  config,
+  pkgs,
+  lib,
+  ...
+}: {
   programs.fish = {
     enable = true;
 
@@ -34,7 +37,6 @@
           if test -n \"$IN_NIX_SHELL\"; echo -n \"<nix-shell> \"; end
         '';
       };
-
     };
 
     plugins = [

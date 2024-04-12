@@ -1,11 +1,16 @@
-{ home, pkgs, isWSL, ... }:
-let nerdfonts = (pkgs.nerdfonts.override { fonts = [ "CascadiaCode" ]; });
+{
+  home,
+  pkgs,
+  isWSL,
+  ...
+}: let
+  nerdfonts = pkgs.nerdfonts.override {fonts = ["CascadiaCode"];};
 in {
   # enable fonts
   fonts.fontconfig.enable = true;
 
   home = {
-    packages = with pkgs; [ nerdfonts ];
+    packages = with pkgs; [nerdfonts];
 
     file = {
       ".local/share/fonts" = {
@@ -19,5 +24,4 @@ in {
       };
     };
   };
-
 }
