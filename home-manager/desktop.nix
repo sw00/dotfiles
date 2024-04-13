@@ -3,12 +3,14 @@
   pkgs,
   lib,
   config,
+  inputs,
   fetchFromGitHub,
   machine_os,
   nixgl,
   system,
   ...
 }: let
+  nixGL = import ./util/nixgl.nix {inherit pkgs config;};
   enableOnNonWSL =
     if machine_os != "wsl "
     then true
@@ -16,36 +18,29 @@
 
   nerdfonts = pkgs.nerdfonts.override {fonts = ["CascadiaCode"];};
 
-  nixpkgsUnstable = import (pkgs.fetchFromGitHub {
-    owner = "NixOS";
-    repo = "nixpkgs";
-    rev = "f8e2ebd66d097614d51a56a755450d4ae1632df1"; # nixos-unstable @ 2024-02-09
-    hash = "sha256-2en1kvde3cJVc3ZnTy8QeD2oKcseLFjYPLKhIGDanQ0=";
-  }) { inherit system; };
+  nixpkgsUnstable = import inputs.nixpkgs-unstable {inherit system;};
 
   # Desktop Apps, utils, fonts, extras
-  alacrittyPkg = nixpkgsUnstable.alacritty;
-  desktopPackages = with pkgs;
-    [
-      awesome
-      acpi
-      arandr
-      grobi
-      brightnessctl
-      networkmanagerapplet
-      volctl
-      pavucontrol
-      playerctl
-      lxappearance
-      elementary-xfce-icon-theme
+  desktopPackages = with pkgs; [
+    awesome
+    acpi
+    arandr
+    grobi
+    brightnessctl
+    networkmanagerapplet
+    volctl
+    pavucontrol
+    playerctl
+    lxappearance
+    elementary-xfce-icon-theme
 
-      flameshot
-      megasync
-      brave
-      calibre
-      spotify
-    ]
-    ++ (with nixpkgsUnstable; [alacritty]);
+    flameshot
+    megasync
+    brave
+    spotify
+    (nixGL calibre)
+    (nixGL nixpkgsUnstable.alacritty)
+  ];
 
   # awesome-wm-widgets
   awesomeWmWidgets = pkgs.fetchFromGitHub {
@@ -82,99 +77,87 @@
     $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $XDG_DATA_HOME/
   '';
 in {
-  xdg.enable = true;
-  fonts.fontconfig.enable = enableOnNonWSL;
+  options.nixGLPrefix = lib.mkOption {
+    type = lib.types.str;
+    default = "";
+    description = ''
+      Will be prepended to commands which require working OpenGL.
 
-  home.packages =
-    if enableOnNonWSL
-    then desktopPackages
-    else [];
-
-  services.grobi.enable = enableOnNonWSL;
-
-  # XDG configs
-  xdg.configFile = with config.lib.file; {
-    # awesomewm
-    "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
-    "awesome/theme.lua".source =
-      mkOutOfStoreSymlink ../config/awesome/theme.lua;
-    "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
-    "awesome/autorun.sh".source = autorunSh;
-
-    # grobi
-    "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
-  };
-
-  # Lock screen
-  services.screen-locker = {
-    enable = enableOnNonWSL;
-    lockCmd = "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
-    inactiveInterval = 5;
-
-    xautolock.enable = true;
-  };
-
-  # Desktop shortcuts
-  xdg.desktopEntries.Alacritty = {
-    name = "Alacritty";
-    genericName = "Terminal";
-    exec = "${nixgl}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
-    icon = "Alacritty";
-    categories = ["System" "TerminalEmulator"];
-    startupNotify = true;
-    actions = {
-      newTerminal = {
-        name = "New Terminal";
-        exec = "${nixgl}/bin/nixGL ${alacrittyPkg}/bin/alacritty %u";
-      };
-    };
-  };
-
-  xdg.desktopEntries.Calibre = {
-    name = "Calibre";
-    exec = "${nixgl}/bin/nixGL ${pkgs.calibre}/bin/calibre";
-    icon = "calibre-gui";
-    categories = ["Office"];
-    startupNotify = true;
-  };
-
-  # Theme
-  gtk = {
-    enable = true;
-    theme = {name = "Adwaita";};
-    cursorTheme.name = "Adwaita";
-    cursorTheme.size = 16;
-    iconTheme.name = "Adawaita";
-  };
-
-  # Config files
-  home.file = let
-    mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
-  in {
-    "awesome.desktop" = {
-      # should be copied to /usr/share/xsession/
-      target = ".local/share/xsession/awesome.desktop";
-      text = ''
-        [Desktop Entry]
-        Name=awesome
-        Comment=Highly configurable framework window manager
-        Exec=${pkgs.awesome}/bin/awesome
-        TryExec=${pkgs.awesome}/bin/awesome
-        Type=Application
-        DesktopNames=awesome:AwesomeWM
-      '';
-    };
-
-    ".alacritty.toml".source =
-      mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
-
-    ".Xmodmap".text = ''
-      clear lock
-      clear control
-      keycode 66 = Control_L
-      add control = Control_L Control_R
+      This needs to be set to the right nixGL package on non-NixOS systems.
     '';
   };
 
-  home.activation.linkIconThemes = linkIconThemes;
+  config = {
+    xdg.enable = true;
+    fonts.fontconfig.enable = enableOnNonWSL;
+
+    home.packages =
+      if enableOnNonWSL
+      then desktopPackages
+      else [];
+
+    services.grobi.enable = enableOnNonWSL;
+
+    # XDG configs
+    xdg.configFile = with config.lib.file; {
+      # awesomewm
+      "awesome/rc.lua".source = mkOutOfStoreSymlink ../config/awesome/rc.lua;
+      "awesome/theme.lua".source =
+        mkOutOfStoreSymlink ../config/awesome/theme.lua;
+      "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
+      "awesome/autorun.sh".source = autorunSh;
+
+      # grobi
+      "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
+    };
+
+    # Lock screen
+    services.screen-locker = {
+      enable = enableOnNonWSL;
+      lockCmd = "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
+      inactiveInterval = 5;
+
+      xautolock.enable = true;
+    };
+
+    # Theme
+    gtk = {
+      enable = true;
+      theme = {name = "Adwaita";};
+      cursorTheme.name = "Adwaita";
+      cursorTheme.size = 16;
+      iconTheme.name = "Adawaita";
+    };
+
+    # Config files
+    home.file = let
+      mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
+    in {
+      "awesome.desktop" = {
+        # should be copied to /usr/share/xsession/
+        target = ".local/share/xsession/awesome.desktop";
+        text = ''
+          [Desktop Entry]
+          Name=awesome
+          Comment=Highly configurable framework window manager
+          Exec=${pkgs.awesome}/bin/awesome
+          TryExec=${pkgs.awesome}/bin/awesome
+          Type=Application
+          DesktopNames=awesome:AwesomeWM
+        '';
+      };
+
+      ".alacritty.toml".source =
+        mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
+
+      ".Xmodmap".text = ''
+        clear lock
+        clear control
+        keycode 66 = Control_L
+        add control = Control_L Control_R
+      '';
+    };
+
+    home.activation.linkIconThemes = linkIconThemes;
+  };
 }
