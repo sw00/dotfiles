@@ -27,7 +27,7 @@ in {
   };
 
   imports = [
-    ./desktop.nix
+    ./desktop
     ./fonts.nix
     ./dotfiles.nix
     ./gpg.nix
