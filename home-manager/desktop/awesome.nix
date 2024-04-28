@@ -19,7 +19,7 @@
 
 in {
   options = {
-    desktop.awsome.enable = mkEnableOption "Awesome window manager";
+    cfg.enable = mkEnableOption "Awesome window manager";
   };
 
   config = lib.mkIf config.desktop.awesome.enable {

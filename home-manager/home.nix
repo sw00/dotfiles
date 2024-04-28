@@ -4,9 +4,6 @@
   username,
   ...
 }: let
-  # pkgs = import (builtins.fetchTarball {
-  #   url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/23.11.tar.gz";
-  # }) { };
   homeDir = "/home/${username}";
 
   machine_os =
@@ -36,11 +33,8 @@ in {
     ./tmux.nix
     ./neovim.nix
     ./git.nix
-    ./python.nix
-    ./rust.nix
+    ./programming.nix
     # ./nixfiles/java.nix
-    ./ruby.nix
-    ./go.nix
   ];
 
   home.username = username;
