@@ -64,7 +64,7 @@
   '';
 
   linkIconThemes = lib.hm.dag.entryAfter ["linkGeneration"] ''
-    $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $XDG_DATA_HOME/
+    $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $HOME/.local/share
   '';
 in {
   options.nixGLPrefix = lib.mkOption {
@@ -117,7 +117,7 @@ in {
       mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
     in {
       ".alacritty.toml".source =
-        mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
+        mkOutOfStoreSymlink ../../config/alacritty/alacritty.toml;
 
       ".Xmodmap".text = ''
         clear lock
