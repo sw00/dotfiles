@@ -24,6 +24,7 @@ in {
   };
 
   imports = [
+    ./apps.nix
     ./desktop
     ./fonts.nix
     ./dotfiles.nix
@@ -34,8 +35,12 @@ in {
     ./neovim.nix
     ./git.nix
     ./programming.nix
-    # ./nixfiles/java.nix
+    ./apps.nix
   ];
+
+  apps.enable = true;
+  apps.media = true;
+  apps.utilities = true;
 
   home.username = username;
   home.homeDirectory = homeDir;

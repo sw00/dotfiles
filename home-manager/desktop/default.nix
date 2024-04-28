@@ -32,13 +32,6 @@
     playerctl
     lxappearance
     elementary-xfce-icon-theme
-
-    flameshot
-    megasync
-    brave
-    spotify
-    (nixGL calibre)
-    (nixGL nixpkgsUnstable.alacritty)
   ];
 
   autorunSh = pkgs.writeShellScript "autorun.sh" ''
@@ -67,6 +60,7 @@
     $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $HOME/.local/share
   '';
 in {
+  options.desktop.enable = lib.mkEnableOption "enable desktop environment";
   options.nixGLPrefix = lib.mkOption {
     type = lib.types.str;
     default = "";
