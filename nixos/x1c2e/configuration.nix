@@ -4,11 +4,13 @@
 {
   config,
   pkgs,
+  inputs,
   ...
 }: {
   imports = [
     # Include the results of the hardware scan.
     ./hardware-configuration.nix
+    inputs.hardware.nixosModules.lenovo-thinkpad-x1-extreme-gen2
   ];
 
   # Enable flakes

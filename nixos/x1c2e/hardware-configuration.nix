@@ -12,41 +12,10 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  boot.initrd.availableKernelModules = ["xhci_pci" "nvme" "usb_storage" "usbhid" "sd_mod" "sdhci_pci" "battery"];
+  boot.initrd.availableKernelModules = ["xhci_pci" "nvme" "usb_storage" "usbhid" "sd_mod" "sdhci_pci"];
   boot.initrd.kernelModules = [];
   boot.kernelModules = ["kvm-intel"];
   boot.extraModulePackages = [];
-
-  hardware.trackpoint.device = "TPPS/2 Elan TrackPoint";
-  hardware.bumblebee.connectDisplay = true;
-
-  nixpkgs.overlays = [
-    (_self: super: {
-      bumblebee = super.bumblebee.override {
-        extraNvidiaDeviceOptions = ''
-          Option "AllowEmptyInitialConfiguration"
-        '';
-      };
-    })
-  ];
-
-  services.xserver = lib.mkMerge [
-    {
-      # Set the right DPI. xdpyinfo says the screen is 508×285 mm but
-      # it actually is 344×193 mm.
-      monitorSection = ''
-        DisplaySize 344 193
-      '';
-    }
-
-    # To support intel-virtual-output when using Bumblebee.
-    (lib.mkIf config.hardware.bumblebee.enable {
-      deviceSection = ''Option "VirtualHeads" "1"'';
-      videoDrivers = ["intel"];
-    })
-  ];
-
-  services.throttled.enable = lib.mkDefault true;
 
   fileSystems."/" = {
     device = "/dev/disk/by-uuid/01f29941-99f3-4752-b794-f7eb5e2015a9";

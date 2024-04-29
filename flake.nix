@@ -12,8 +12,7 @@
     nixgl.url = "github:nix-community/nixGL";
     nixgl.inputs.nixpkgs.follows = "nixpkgs";
 
-    # TODO: use extra hardware config from nixos-hardware
-    # hardware.url = "github:nixos/nixos-hardware";
+    hardware.url = "github:nixos/nixos-hardware";
   };
 
   outputs = {
