@@ -19,6 +19,10 @@ with pkgs; let
     calibre
   ];
 
+  office = [
+    discord
+  ];
+
   utilities = [
     flameshot
   ];
@@ -26,6 +30,7 @@ in
   with lib; {
     options.apps.enable = mkEnableOption "enable desktop apps";
     options.apps.media = mkEnableOption "install media apps";
+    options.apps.office = mkEnableOption "install office apps";
     options.apps.utilities = mkEnableOption "install utility apps";
 
     config = mkIf cfg.enable {
@@ -34,6 +39,11 @@ in
         ++ (
           if cfg.media
           then media
+          else []
+        )
+        ++ (
+          if cfg.office
+          then office
           else []
         )
         ++ (

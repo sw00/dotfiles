@@ -71,7 +71,7 @@ in {
     '';
   };
 
-  config = {
+  config = lib.mkIf config.desktop.enable {
     xdg.enable = true;
     fonts.fontconfig.enable = enableOnNonWSL;
 

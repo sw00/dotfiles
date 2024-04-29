@@ -38,8 +38,10 @@ in {
     ./apps.nix
   ];
 
+  desktop.enable = true;
   apps.enable = true;
   apps.media = true;
+  apps.office = true;
   apps.utilities = true;
 
   home.username = username;
