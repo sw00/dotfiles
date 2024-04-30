@@ -5,6 +5,9 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
 
+    darwin.url = "github:lnl7/nix-darwin";
+    darwin.inputs.nixpkgs.follows = "nixpkgs";
+
     # Home manager
     home-manager.url = "github:nix-community/home-manager/release-23.11";
     home-manager.inputs.nixpkgs.follows = "nixpkgs";
@@ -19,6 +22,7 @@
     self,
     nixpkgs,
     nixpkgs-unstable,
+    darwin,
     home-manager,
     nixgl,
     ...
@@ -50,7 +54,34 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {inherit inputs system username;};
+            home-manager.extraSpecialArgs = {inherit inputs username;};
+            home-manager.users.${username} = {
+              imports = [
+                ./home-manager/home.nix
+              ];
+              desktop.enable = false;
+              apps.enable = true;
+              apps.media = true;
+              apps.office = true;
+              apps.utilities = true;
+            };
+          }
+        ];
+      };
+    };
+
+    # MacOS configuration entrypoint
+    # Available through 'nixos-rebuild --flake .#your-hostname'
+    darwinConfigurations = {
+      workmac = darwin.lib.darwinSystem {
+        system = "x86_64-darwin";
+        modules = [
+          ./configuration.nix
+          home-manager.darwinModules.home-manager
+          {
+            home-manager.useGlobalPkgs = true;
+            home-manager.useUserPackages = true;
+            home-manager.extraSpecialArgs = {inherit inputs username;};
             home-manager.users.${username} = {
               imports = [
                 ./home-manager/home.nix
