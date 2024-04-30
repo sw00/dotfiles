@@ -74,7 +74,7 @@
     # Available through 'nixos-rebuild --flake .#your-hostname'
     darwinConfigurations = {
       workmac = darwin.lib.darwinSystem {
-        system = "x86_64-darwin";
+        system = "aarch64-darwin";
         modules = [
           ./configuration.nix
           home-manager.darwinModules.home-manager
