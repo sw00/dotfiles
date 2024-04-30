@@ -4,8 +4,24 @@
   lib,
   ...
 }: {
+
   # python
   home.packages = with pkgs; [
+    # common deps
+    wget
+    zip
+    unzip
+    gnumake
+    gcc
+    pkg-config
+    openssl
+    # nodejs # for lsp
+
+    # git
+    git
+    git-crypt
+    tig
+
     # python
     pipenv
     python311
@@ -28,8 +44,14 @@
     jetbrains.idea-community
   ];
 
+  # git configs
+  home.file.".gitconfig".source = ../gitconfig;
+  home.file.".gitconfig-etckeeper".source = ../gitconfig-etckeeper;
+
+  # aliases
   programs.fish.shellAbbrs = {ipy = "ipython";};
 
+  # bootstrap rust
   home.activation.initRustToolchain = lib.hm.dag.entryAfter ["writeBoundary"] ''
     $DRY_RUN_CMD ${pkgs.rustup}/bin/rustup default stable
   '';

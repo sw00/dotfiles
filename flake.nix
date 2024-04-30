@@ -50,14 +50,16 @@
           {
             home-manager.useGlobalPkgs = true;
             home-manager.useUserPackages = true;
-            home-manager.extraSpecialArgs = {inherit inputs nixgl system username;};
+            home-manager.extraSpecialArgs = {inherit inputs system username;};
             home-manager.users.${username} = {
               imports = [
                 ./home-manager/home.nix
-                ({...}: {
-                  nixGLPrefix = "${nixgl.packages.x86_64-linux.nixGLIntel}/bin/nixGLIntel ";
-                })
               ];
+              desktop.enable = false;
+              apps.enable = true;
+              apps.media = true;
+              apps.office = true;
+              apps.utilities = true;
             };
           }
         ];

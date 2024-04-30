@@ -3,23 +3,8 @@
   pkgs,
   lib,
   config,
-  inputs,
-  fetchFromGitHub,
-  machine_os,
-  nixgl,
-  system,
   ...
 }: let
-  nixGL = import ../util/nixgl.nix {inherit pkgs config;};
-  enableOnNonWSL =
-    if machine_os != "wsl "
-    then true
-    else false;
-
-  nerdfonts = pkgs.nerdfonts.override {fonts = ["CascadiaCode"];};
-
-  nixpkgsUnstable = import inputs.nixpkgs-unstable {inherit system;};
-
   # Desktop Apps, utils, fonts, extras
   desktopPackages = with pkgs; [
     acpi
@@ -59,30 +44,17 @@
   linkIconThemes = lib.hm.dag.entryAfter ["linkGeneration"] ''
     $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $HOME/.local/share
   '';
+
 in {
   options.desktop.enable = lib.mkEnableOption "enable desktop environment";
-  options.nixGLPrefix = lib.mkOption {
-    type = lib.types.str;
-    default = "";
-    description = ''
-      Will be prepended to commands which require working OpenGL.
-
-      This needs to be set to the right nixGL package on non-NixOS systems.
-    '';
-  };
 
   config = lib.mkIf config.desktop.enable {
     xdg.enable = true;
-    fonts.fontconfig.enable = enableOnNonWSL;
+    fonts.fontconfig.enable = true;
+    services.grobi.enable = true;
 
-    home.packages =
-      if enableOnNonWSL
-      then desktopPackages
-      else [];
+    home.packages = desktopPackages;
 
-    services.grobi.enable = enableOnNonWSL;
-
-    # XDG configs
     xdg.configFile = with config.lib.file; {
       # grobi
       "grobi.conf".source = mkOutOfStoreSymlink ../config/grobi.conf;
@@ -90,7 +62,7 @@ in {
 
     # Lock screen
     services.screen-locker = {
-      enable = enableOnNonWSL;
+      enable = true;
       lockCmd = "sh -c 'XSECURELOCK_PASSWORD_PROMPT=kaomoji xsecurelock || kill -9 -1' ";
       inactiveInterval = 5;
 
@@ -104,21 +76,6 @@ in {
       cursorTheme.name = "Adwaita";
       cursorTheme.size = 16;
       iconTheme.name = "Adawaita";
-    };
-
-    # Config files
-    home.file = let
-      mkOutOfStoreSymlink = config.lib.file.mkOutOfStoreSymlink;
-    in {
-      ".alacritty.toml".source =
-        mkOutOfStoreSymlink ../../config/alacritty/alacritty.toml;
-
-      ".Xmodmap".text = ''
-        clear lock
-        clear control
-        keycode 66 = Control_L
-        add control = Control_L Control_R
-      '';
     };
 
     home.activation.linkIconThemes = linkIconThemes;

@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  inputs,
   username,
   ...
 }: let
@@ -13,9 +14,6 @@
 in {
   # Propagate some values to submodules
   _module.args = {inherit machine_os;};
-
-  # Assume non-NixOS Linux:
-  targets.genericLinux.enable = true;
 
   # Enable nix experimental features
   xdg.configFile."nix.conf" = {
@@ -33,16 +31,9 @@ in {
     ./cli.nix
     ./tmux.nix
     ./neovim.nix
-    ./git.nix
     ./programming.nix
     ./apps.nix
   ];
-
-  desktop.enable = true;
-  apps.enable = true;
-  apps.media = true;
-  apps.office = true;
-  apps.utilities = true;
 
   home.username = username;
   home.homeDirectory = homeDir;
@@ -64,22 +55,6 @@ in {
 
   # Global variables
   home.sessionVariables = {_machine_os = machine_os;};
-
-  # Packages to be installed
-  home.packages = with pkgs; [
-    git
-    git-crypt
-    tig
-    wget
-    zip
-    unzip
-    gnumake
-    gcc
-    pkg-config
-    openssl
-    nodejs # for lsp
-    bitwarden-cli
-  ];
 
   # Keyring service
   services.gnome-keyring.enable = true;

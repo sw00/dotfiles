@@ -37,5 +37,17 @@
       --suppress-size
       --level 1
     '';
+
+    #alacritty
+    ".alacritty.toml".source =
+      mkOutOfStoreSymlink ../config/alacritty/alacritty.toml;
+
+    #keymap
+    ".Xmodmap".text = ''
+      clear lock
+      clear control
+      keycode 66 = Control_L
+      add control = Control_L Control_R
+    '';
   };
 }
