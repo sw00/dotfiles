@@ -15,13 +15,13 @@
     fd
     bat
     jq
-    python3Packages.howdoi
+    # python3Packages.howdoi - broken
     cheat
-    inotify-tools
-    xsel
+    # inotify-tools - not on aarch64-darwin
+    # xsel - platform specific
     htop
     asdf-vm
-    nixfmt
+    # nixfmt - use alejandra
     lf
   ];
 

@@ -16,7 +16,6 @@
     hash = "sha256-VUljSRsBB5S6XCPtT+dcvM6uOcESO4nJNl3x0IJEA7E=";
     # hash = lib.fakeHash;
   };
-
 in {
   options = {
     cfg.enable = mkEnableOption "Awesome window manager";
@@ -71,6 +70,5 @@ in {
       "awesome/awesome-wm-widgets".source = awesomeWmWidgets;
       "awesome/autorun.sh".source = autorunSh;
     };
-
   };
 }

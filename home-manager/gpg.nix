@@ -11,7 +11,10 @@
   };
 
   services.gpg-agent = {
-    enable = true;
+    enable =
+      if pkgs.stdenv.isDarwin
+      then false
+      else true;
     enableFishIntegration = true;
     enableSshSupport = true;
     defaultCacheTtlSsh = 300; # 5min

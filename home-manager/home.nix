@@ -5,7 +5,11 @@
   username,
   ...
 }: let
-  homeDir = "/home/${username}";
+  homeDir = "/${
+    if pkgs.stdenv.isDarwin
+    then "Users"
+    else "home"
+  }/${username}";
 
   machine_os =
     if builtins.pathExists "/proc/sys/fs/binfmt_misc/WSLInterop"
@@ -55,7 +59,4 @@ in {
 
   # Global variables
   home.sessionVariables = {_machine_os = machine_os;};
-
-  # Keyring service
-  services.gnome-keyring.enable = true;
 }

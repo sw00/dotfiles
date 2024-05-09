@@ -44,7 +44,6 @@
   linkIconThemes = lib.hm.dag.entryAfter ["linkGeneration"] ''
     $DRY_RUN_CMD ln -sf $HOME/.nix-profile/share/icons $HOME/.local/share
   '';
-
 in {
   options.desktop.enable = lib.mkEnableOption "enable desktop environment";
 

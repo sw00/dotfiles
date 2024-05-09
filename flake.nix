@@ -71,12 +71,13 @@
     };
 
     # MacOS configuration entrypoint
-    # Available through 'nixos-rebuild --flake .#your-hostname'
+    # Available through 'darwin-rebuild switch --flake .#your-hostname'
     darwinConfigurations = {
-      workmac = darwin.lib.darwinSystem {
+      mbpm3 = darwin.lib.darwinSystem {
         system = "aarch64-darwin";
+        specialArgs = {inherit inputs outputs self;};
         modules = [
-          ./configuration.nix
+          ./macos/mbpm3/configuration.nix
           home-manager.darwinModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
@@ -87,15 +88,16 @@
                 ./home-manager/home.nix
               ];
               desktop.enable = false;
-              apps.enable = true;
-              apps.media = true;
-              apps.office = true;
-              apps.utilities = true;
+              apps.enable = false;
+
+              programs.alacritty.enable = true;
             };
           }
         ];
       };
     };
+    # Expose the package set, including overlays, for convenience.
+    #darwinPackages = self.darwinConfigurations."mbpm3".pkgs;
 
     # Standalone home-manager configuration entrypoint
     # Available through 'home-manager --flake .#your-username@your-hostname'

@@ -4,7 +4,6 @@
   lib,
   ...
 }: {
-
   # python
   home.packages = with pkgs; [
     # common deps
@@ -15,7 +14,8 @@
     gcc
     pkg-config
     openssl
-    # nodejs # for lsp
+
+    nodejs # for lsp
 
     # git
     git

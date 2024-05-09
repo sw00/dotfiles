@@ -8,7 +8,7 @@ with pkgs; let
   # https://github.com/nix-community/home-manager/issues/3968#issuecomment-2084040097
   smonaNixgl = builtins.fetchTarball {
     url = "https://github.com/Smona/home-manager/archive/refs/heads/nixgl-compat.zip";
-    sha256 = "0h5nwm0f0fqrgkjp87ms3pmwrxc09qk2fiipc6rgjydkzqiw155j";
+    sha256 = "0gfzknd0ndshvls67y4n3rqrjzma2iw0h8s3kjk6n4bxg6rixi2q";
   };
   nixGlModule = "${smonaNixgl}/modules/misc/nixgl.nix";
 
