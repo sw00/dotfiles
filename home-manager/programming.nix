@@ -32,8 +32,6 @@
     python311Packages.pipx
     python311Packages.ipython
     python311Packages.ipykernel
-    python311Packages.libtmux
-    python311Packages.pynvim
 
     # ruby
     ruby_3_2

@@ -20,7 +20,7 @@
       "iterm2"
       "docker"
       "openlens"
-      "pycharm"
+      "pycharm-ce"
     ];
   };
 }
