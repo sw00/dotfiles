@@ -56,9 +56,8 @@
   # Homebrew management
   homebrew = {
     enable = true;
+    onActivation.cleanup = "zap";
     brews = [
-      "git"
-      "git-crypt"
       "minikube"
       "kubectx"
     ];
