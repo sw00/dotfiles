@@ -59,4 +59,7 @@
     remapCapsLockToControl = true;
     nonUS.remapTilde = true;
   };
+
+  system.defaults.NSGlobalDomain."com.apple.keyboard.fnState" = true;
+  system.defaults.dock.autohide = true;
 }
