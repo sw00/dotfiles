@@ -1,12 +1,14 @@
 {
   pkgs,
   self,
+  lib,
+  config,
   ...
 }: {
   # List packages installed in system profile. To search by name, run:
   # $ nix-env -qaP | grep wget
   environment.systemPackages = with pkgs; [
-    vim
+    tmux
   ];
 
   # Auto upgrade nix package and the daemon service.
@@ -19,6 +21,15 @@
   # Create /etc/zshrc that loads the nix-darwin environment.
   programs.zsh.enable = true; # default shell on catalina
   programs.fish.enable = true;
+  programs.fish.loginShellInit =
+    let
+      dquote = str: "\"" + str + "\"";
+
+      makeBinPathList = map (path: path + "/bin");
+    in ''
+      fish_add_path --move --prepend --path ${lib.concatMapStringsSep " " dquote (makeBinPathList config.environment.profiles)}
+      set fish_user_paths $fish_user_paths
+    '';
 
   # Append nix-darwin bins to system path
   environment.systemPath = [ /run/current-system/sw/bin ];

@@ -89,8 +89,6 @@
               ];
               desktop.enable = false;
               apps.enable = false;
-
-              programs.alacritty.enable = true;
             };
           }
         ];
