@@ -86,6 +86,15 @@
             home-manager.users.${username} = {
               imports = [
                 ./home-manager/home.nix
+                ({
+                  config,
+                  lib,
+                  ...
+                }: {
+                  home.file.".alacritty.toml" = lib.mkForce {
+                    source = config.lib.file.mkOutOfStoreSymlink ./macos/mbpm3/alacritty.toml;
+                  };
+                })
               ];
               desktop.enable = false;
               apps.enable = false;
