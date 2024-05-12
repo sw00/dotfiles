@@ -18,6 +18,8 @@
       else
           set -g _machine_os linux
       end
+
+      fenv source $HOME/dotfiles/secrets/env.sh
     '';
 
     functions = {
