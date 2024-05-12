@@ -53,29 +53,6 @@
     shell = pkgs.fish;
   };
 
-  # Homebrew management
-  homebrew = {
-    enable = true;
-    onActivation.cleanup = "zap";
-    brews = [
-      "minikube"
-      "kubectx"
-    ];
-
-    casks = [
-      "bitwarden"
-      "flameshot"
-      "brave-browser"
-      "discord"
-      "visual-studio-code"
-      "spotify"
-      "alacritty"
-      "iterm2"
-      "docker"
-      "openlens"
-    ];
-  };
-
   # Remap keys
   system.keyboard = {
     enableKeyMapping = true;

@@ -78,6 +78,7 @@
         specialArgs = {inherit inputs outputs self;};
         modules = [
           ./macos/mbpm3/configuration.nix
+          ./macos/mbpm3/homebrew.nix
           home-manager.darwinModules.home-manager
           {
             home-manager.useGlobalPkgs = true;
@@ -95,7 +96,7 @@
                     source = config.lib.file.mkOutOfStoreSymlink ./macos/mbpm3/alacritty.toml;
                   };
 
-                  programs.fish.shellInit=  ''
+                  programs.fish.shellInit = ''
                     eval "$(/opt/homebrew/bin/brew shellenv)"
                   '';
                 })
