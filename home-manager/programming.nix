@@ -15,6 +15,9 @@
     pkg-config
     openssl
 
+    # asdf
+    asdf-vm
+
     nodejs # for lsp
 
     # git

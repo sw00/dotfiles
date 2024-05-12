@@ -20,7 +20,6 @@
     # inotify-tools - not on aarch64-darwin
     # xsel - platform specific
     htop
-    asdf-vm
     # nixfmt - use alejandra
     lf
   ];
