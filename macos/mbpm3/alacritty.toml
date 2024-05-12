@@ -1,7 +1,7 @@
 live_config_reload = true
 
 [shell]
-args = ["-c", "tmux", "new-session", "-As", "0"]
+args = ["-c", "tmux new-session -As 0"]
 program = "/run/current-system/sw/bin/fish"
 
 [bell]

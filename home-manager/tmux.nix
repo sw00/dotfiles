@@ -115,6 +115,7 @@ in {
       set -g window-status-style "bg=black"
       set -g window-status-last-style "bg=black,fg=green"
 
+      set -g status-left-length 32
       set -g status-right-length 120
 
       set -g status-right "#(${wifiStatusScript}) | #(${ipAddressScript}) | %b %d %R "
