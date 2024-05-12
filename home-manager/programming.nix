@@ -44,7 +44,6 @@
     # java
     jdk
     maven
-    jetbrains.idea-community
   ];
 
   # git configs
