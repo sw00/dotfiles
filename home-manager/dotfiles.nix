@@ -29,9 +29,6 @@
     ".ssh/config.d".source = mkOutOfStoreSymlink ../secrets/ssh/config.d;
     ".ssh/config".source = mkOutOfStoreSymlink ../secrets/ssh/config;
 
-    # specific files
-    ".netrc".source = mkOutOfStoreSymlink ../secrets/netrc;
-
     ".erdtreerc".text = ''
       --icons
       --suppress-size
