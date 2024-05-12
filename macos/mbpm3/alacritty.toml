@@ -106,7 +106,7 @@ y = 0
 alphabet = "jfkdls;ahgurieowpq"
 
 [[hints.enabled]]
-command = "explorer.exe"
+command = "open"
 hyperlinks = true
 post_processing = true
 regex = "(ipfs:|ipns:|magnet:|mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-<>\"\\s{-}\\^⟨⟩`]+"
