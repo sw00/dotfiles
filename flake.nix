@@ -94,6 +94,10 @@
                   home.file.".alacritty.toml" = lib.mkForce {
                     source = config.lib.file.mkOutOfStoreSymlink ./macos/mbpm3/alacritty.toml;
                   };
+
+                  programs.fish.shellInit=  ''
+                    eval "$(/opt/homebrew/bin/brew shellenv)"
+                  '';
                 })
               ];
               desktop.enable = false;
