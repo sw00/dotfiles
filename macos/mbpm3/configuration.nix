@@ -20,6 +20,12 @@
   programs.zsh.enable = true; # default shell on catalina
   programs.fish.enable = true;
 
+  # Append nix-darwin bins to system path
+  environment.systemPath = [ /run/current-system/sw/bin ];
+
+  # Register the shells
+  environment.shells = with pkgs; [ bashInteractive zsh fish ];
+
   # Set Git commit hash for darwin-version.
   system.configurationRevision = self.rev or self.dirtyRev or null;
 
@@ -30,10 +36,13 @@
   # The platform the configuration will be used on.
   nixpkgs.hostPlatform = "aarch64-darwin";
 
+  networking.hostName = "mbpm3";
+
   # User
   users.users.sett = {
     name = "sett";
     home = "/Users/sett";
+    shell = pkgs.fish;
   };
 
   # Homebrew management
@@ -48,6 +57,7 @@
 
     casks = [
       "bitwarden"
+      "flameshot"
       "brave-browser"
       "discord"
       "visual-studio-code"
@@ -63,5 +73,7 @@
   system.keyboard = {
     enableKeyMapping = true;
     remapCapsLockToControl = true;
+    nonUS.remapTilde = true;
   };
+
 }

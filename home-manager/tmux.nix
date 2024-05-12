@@ -81,6 +81,7 @@ in {
     ];
 
     extraConfig = ''
+      set -g default-command "''${SHELL}"
       set -ag terminal-overrides ',alacritty:RGB,gnome*:RGB,*:RGB'
 
       bind R source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded..."
