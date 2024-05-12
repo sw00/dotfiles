@@ -1,8 +1,8 @@
 live_config_reload = true
 
 [shell]
-args = ["new-session", "-As", "0"]
-program = "/etc/profiles/per-user/sett/bin/tmux"
+args = ["-c", "tmux", "new-session", "-As", "0"]
+program = "/run/current-system/sw/bin/fish"
 
 [bell]
 animation = "EaseOutExpo"

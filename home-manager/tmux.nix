@@ -120,9 +120,9 @@ in {
       set -g status-right "#(${wifiStatusScript}) | #(${ipAddressScript}) | %b %d %R "
       set -g status-interval 20
 
-      bind-key C-o display-popup -E "tms"
-      bind-key C-j display-popup -E "tms switch"
-      bind-key C-x display-popup -E "tms kill"
+      bind-key C-o display-popup -E "${pkgs.tmux-sessionizer}/bin/tms"
+      bind-key C-j display-popup -E "${pkgs.tmux-sessionizer}/bin/tms switch"
+      bind-key C-x display-popup -E "${pkgs.tmux-sessionizer}/bin/tms kill"
     '';
   };
 }
