@@ -25,6 +25,8 @@ in {
     source = ../config/nix;
   };
 
+  home.packages = [pkgs.alejandra];
+
   imports = [
     ./apps.nix
     ./desktop

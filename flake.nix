@@ -103,6 +103,7 @@
               ];
               desktop.enable = false;
               apps.enable = false;
+              devops.enable = true;
             };
           }
         ];

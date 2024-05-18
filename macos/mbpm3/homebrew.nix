@@ -5,8 +5,6 @@
     onActivation.cleanup = "zap";
     brews = [
       "minikube"
-      "kubectx"
-      "azure-cli"
       "libpq"
       "cloudflared"
     ];
