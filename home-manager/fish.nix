@@ -41,51 +41,59 @@
       };
     };
 
-    plugins = [
-      {
-        name = "foreign-env";
-        src = pkgs.fishPlugins.foreign-env.src;
-      }
-      {
-        name = "fzf";
-        src = pkgs.fishPlugins.fzf-fish.src;
-      }
-      {
-        name = "pure";
-        src = pkgs.fishPlugins.pure.src;
-      }
-      {
-        name = "sdkman-for-fish";
-        src = pkgs.fishPlugins.sdkman-for-fish.src;
-      }
+    plugins = let
+      optionals =
+        if pkgs.stdenv.isDarwin
+        then [
+          {
+            name = "pbcopy";
+            src = pkgs.fetchFromGitHub {
+              owner = "oh-my-fish";
+              repo = "plugin-pbcopy";
+              rev = "e8d78bb01f66246f7996a4012655b8ddbad777c2";
+              sha256 = "B6/0tNk5lb+1nup1dfXhPD2S5PURZyFd8nJJF6shvq4=";
+            };
+          }
+        ]
+        else [];
+    in
+      optionals
+      ++ [
+        {
+          name = "foreign-env";
+          src = pkgs.fishPlugins.foreign-env.src;
+        }
+        {
+          name = "fzf";
+          src = pkgs.fishPlugins.fzf-fish.src;
+        }
+        {
+          name = "pure";
+          src = pkgs.fishPlugins.pure.src;
+        }
+        {
+          name = "sdkman-for-fish";
+          src = pkgs.fishPlugins.sdkman-for-fish.src;
+        }
 
-      {
-        name = "bang-bang";
-        src = pkgs.fetchFromGitHub {
-          owner = "oh-my-fish";
-          repo = "plugin-bang-bang";
-          rev = "816c66df34e1cb94a476fa6418d46206ef84e8d3";
-          sha256 = "35xXBWCciXl4jJrFUUN5NhnHdzk6+gAxetPxXCv4pDc=";
-        };
-      }
-      {
-        name = "pbcopy";
-        src = pkgs.fetchFromGitHub {
-          owner = "oh-my-fish";
-          repo = "plugin-pbcopy";
-          rev = "e8d78bb01f66246f7996a4012655b8ddbad777c2";
-          sha256 = "B6/0tNk5lb+1nup1dfXhPD2S5PURZyFd8nJJF6shvq4=";
-        };
-      }
-      {
-        name = "git";
-        src = pkgs.fetchFromGitHub {
-          owner = "jhillyerd";
-          repo = "plugin-git";
-          rev = "v0.1";
-          sha256 = "MfrRQdcj7UtIUgtqKjt4lqFLpA6YZgKjE03VaaypNzE=";
-        };
-      }
-    ];
+        {
+          name = "bang-bang";
+          src = pkgs.fetchFromGitHub {
+            owner = "oh-my-fish";
+            repo = "plugin-bang-bang";
+            rev = "816c66df34e1cb94a476fa6418d46206ef84e8d3";
+            sha256 = "35xXBWCciXl4jJrFUUN5NhnHdzk6+gAxetPxXCv4pDc=";
+          };
+        }
+        {
+          name = "git";
+          src = pkgs.fetchFromGitHub {
+            owner = "jhillyerd";
+            repo = "plugin-git";
+            rev = "v0.1";
+            sha256 = "MfrRQdcj7UtIUgtqKjt4lqFLpA6YZgKjE03VaaypNzE=";
+          };
+        }
+      ];
   };
 }
