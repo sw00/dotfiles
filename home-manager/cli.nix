@@ -4,11 +4,15 @@
   ...
 }: {
   home.sessionVariables = {
-    BROWSER = if pkgs.stdenv.isDarwin then "open" else "explorer.exe"; # WSL
+    BROWSER =
+      if pkgs.stdenv.isDarwin
+      then "open"
+      else "explorer.exe"; # WSL
     VAGRANT_WSL_ENABLE_WINDOWS_ACCESS = "1"; # more WSL + vagrant
   };
 
   home.packages = with pkgs; [
+    xsel
     tree
     fzf
     ripgrep

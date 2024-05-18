@@ -37,6 +37,7 @@ in {
     ./neovim.nix
     ./programming.nix
     ./apps.nix
+    ./devops.nix
   ];
 
   home.username = username;

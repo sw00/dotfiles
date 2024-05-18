@@ -7,6 +7,8 @@
       "minikube"
       "kubectx"
       "azure-cli"
+      "libpq"
+      "cloudflared"
     ];
 
     casks = [
@@ -21,6 +23,9 @@
       "docker"
       "openlens"
       "pycharm-ce"
+      "dbeaver-community"
+      "audacity"
+      "handbrake"
     ];
   };
 }
