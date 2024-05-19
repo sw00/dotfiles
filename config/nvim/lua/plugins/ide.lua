@@ -21,6 +21,7 @@ return {
     },
     {
         'tpope/vim-fugitive',
+        event = 'VimEnter',
         dependencies = { 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' },
         keys = {
             { '<c-g>', '<cmd>Git<CR>', desc = 'Fugitive' },
