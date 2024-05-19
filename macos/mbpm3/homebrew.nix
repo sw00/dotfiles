@@ -15,6 +15,8 @@
       "brave-browser"
       "discord"
       "visual-studio-code"
+      "vscodium"
+      "obsidian"
       "spotify"
       "alacritty"
       "iterm2"
