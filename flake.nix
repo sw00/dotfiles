@@ -77,6 +77,16 @@
         system = "aarch64-darwin";
         specialArgs = {inherit inputs outputs self;};
         modules = [
+          {
+            nixpkgs.overlays = [
+              (final: prev: {
+                unstable = import nixpkgs-unstable {
+                  inherit system;
+                  config.allowUnfree = true;
+                };
+              })
+            ];
+          }
           ./macos/mbpm3/configuration.nix
           ./macos/mbpm3/homebrew.nix
           home-manager.darwinModules.home-manager
