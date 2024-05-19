@@ -23,6 +23,7 @@
     # git
     git
     git-crypt
+    git-lfs
     tig
 
     # python
