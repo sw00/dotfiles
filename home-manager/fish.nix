@@ -44,7 +44,8 @@
     plugins = let
       optionals =
         if pkgs.stdenv.isDarwin
-        then [
+        then []
+        else [
           {
             name = "pbcopy";
             src = pkgs.fetchFromGitHub {
@@ -54,8 +55,7 @@
               sha256 = "B6/0tNk5lb+1nup1dfXhPD2S5PURZyFd8nJJF6shvq4=";
             };
           }
-        ]
-        else [];
+        ];
     in
       optionals
       ++ [
