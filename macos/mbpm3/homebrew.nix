@@ -7,6 +7,7 @@
       "minikube"
       "libpq"
       "cloudflared"
+      "xz"
     ];
 
     casks = [
