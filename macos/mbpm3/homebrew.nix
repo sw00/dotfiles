@@ -4,6 +4,7 @@
     enable = true;
     onActivation.cleanup = "zap";
     brews = [
+      "gh"
       "minikube"
       "libpq"
       "cloudflared"
