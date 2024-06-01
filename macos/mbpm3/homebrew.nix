@@ -17,6 +17,7 @@
       "bitwarden"
       "flameshot"
       "brave-browser"
+      "rectangle"
       "discord"
       "visual-studio-code"
       "vscodium"
