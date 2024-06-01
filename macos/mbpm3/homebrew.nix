@@ -10,6 +10,7 @@
       "libpq"
       "cloudflared"
       "xz"
+      "helm"
     ];
 
     casks = [
