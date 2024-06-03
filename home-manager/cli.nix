@@ -39,7 +39,13 @@
   programs.fish = {
     shellInit = "\n      fish_add_path ~/.asdf/shims\n    ";
 
-    shellAbbrs = {doco = "docker compose";};
+    shellAbbrs = {
+    doco = "docker compose";
+
+    # gh cli
+    ghce = "gh copilot explain";
+    ghcs = "gh copilot suggest";
+    };
 
     functions = {
       yq = {
