@@ -11,6 +11,8 @@
       "cloudflared"
       "xz"
       "helm"
+      "kubeseal"
+      "k9s"
     ];
 
     casks = [

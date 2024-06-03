@@ -11,7 +11,7 @@ in {
   };
 
   config = lib.mkIf cfg.enable {
-    home.packages = with pkgs; [argocd kubectx k9s azure-cli];
+    home.packages = with pkgs; [argocd kubectx azure-cli];
 
     programs.fish.shellAbbrs = {
       kx = "kubectx";
