@@ -13,6 +13,7 @@
       "helm"
       "kubeseal"
       "k9s"
+      "homeport/tap/dyff"
     ];
 
     casks = [
