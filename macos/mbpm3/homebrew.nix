@@ -4,6 +4,10 @@
     enable = true;
     global.autoUpdate = true;
     onActivation.cleanup = "zap";
+    taps = [
+      "boz/repo"
+    ];
+
     brews = [
       "gh"
       "minikube"
@@ -14,6 +18,7 @@
       "kubeseal"
       "k9s"
       "homeport/tap/dyff"
+      "boz/repo/kail"
     ];
 
     casks = [
