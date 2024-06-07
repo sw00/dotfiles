@@ -19,6 +19,7 @@
       "k9s"
       "homeport/tap/dyff"
       "boz/repo/kail"
+      "kustomize"
     ];
 
     casks = [
