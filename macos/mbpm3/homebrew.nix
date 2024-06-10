@@ -20,6 +20,7 @@
       "homeport/tap/dyff"
       "boz/repo/kail"
       "kustomize"
+      "d2"
     ];
 
     casks = [
