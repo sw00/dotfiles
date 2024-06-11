@@ -21,6 +21,7 @@
       "boz/repo/kail"
       "kustomize"
       "d2"
+      "bitwarden-cli"
     ];
 
     casks = [

@@ -18,6 +18,7 @@
     fd
     bat
     jq
+    yq
     # python3Packages.howdoi - broken
     cheat
     # inotify-tools - not on aarch64-darwin
@@ -48,11 +49,6 @@
     };
 
     functions = {
-      yq = {
-        description = "The yaml query tool (Golang version).";
-        body = "nix run nixpkgs#yq -- $argv";
-      };
-
       lrnx = {
         argumentNames = "language";
         description = "Open learnxinyminutes.com for <language>.";
