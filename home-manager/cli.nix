@@ -18,7 +18,7 @@
     fd
     bat
     jq
-    yq
+    yq-go
     # python3Packages.howdoi - broken
     cheat
     # inotify-tools - not on aarch64-darwin
