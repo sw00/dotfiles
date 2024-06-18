@@ -42,6 +42,8 @@
       "dbeaver-community"
       "audacity"
       "handbrake"
+      "calibre"
+      "megasync"
     ];
   };
 }
