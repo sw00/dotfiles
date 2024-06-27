@@ -22,6 +22,8 @@
       "kustomize"
       "d2"
       "bitwarden-cli"
+      "kind"
+      "lnav"
     ];
 
     casks = [
