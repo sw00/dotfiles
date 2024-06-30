@@ -9,6 +9,7 @@
     ];
 
     brews = [
+      "caffeine"
       "gh"
       "minikube"
       "libpq"
