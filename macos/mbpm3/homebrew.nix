@@ -47,6 +47,7 @@
       "handbrake"
       "calibre"
       "megasync"
+      "zotero"
     ];
   };
 }
