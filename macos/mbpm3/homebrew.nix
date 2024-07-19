@@ -25,6 +25,7 @@
       "bitwarden-cli"
       "kind"
       "lnav"
+      "ffmpeg"
     ];
 
     casks = [
