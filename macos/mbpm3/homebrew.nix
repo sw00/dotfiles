@@ -26,6 +26,7 @@
       "kind"
       "lnav"
       "ffmpeg"
+      "git-lfs"
     ];
 
     casks = [
