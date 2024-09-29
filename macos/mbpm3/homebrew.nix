@@ -9,7 +9,6 @@
     ];
 
     brews = [
-      "caffeine"
       "gh"
       "minikube"
       "libpq"
@@ -30,6 +29,7 @@
     ];
 
     casks = [
+      "caffeine"
       "bitwarden"
       "flameshot"
       "brave-browser"
