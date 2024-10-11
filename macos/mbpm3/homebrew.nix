@@ -27,6 +27,7 @@
       "ffmpeg"
       "git-lfs"
       "opentofu"
+      "aider"
     ];
 
     casks = [
@@ -51,6 +52,7 @@
       "calibre"
       "megasync"
       "zotero"
+      "msty"
     ];
   };
 }
