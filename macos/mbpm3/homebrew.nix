@@ -26,6 +26,7 @@
       "lnav"
       "ffmpeg"
       "git-lfs"
+      "opentofu"
     ];
 
     casks = [
