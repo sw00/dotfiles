@@ -27,7 +27,6 @@
       "ffmpeg"
       "git-lfs"
       "opentofu"
-      "aider"
     ];
 
     casks = [
