@@ -52,6 +52,7 @@
       "megasync"
       "zotero"
       "msty"
+      "firefox@developer-edition"
     ];
   };
 }
