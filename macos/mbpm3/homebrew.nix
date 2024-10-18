@@ -53,6 +53,7 @@
       "zotero"
       "msty"
       "firefox@developer-edition"
+      "vlc"
     ];
   };
 }
