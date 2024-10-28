@@ -56,6 +56,7 @@
       "vlc"
       "linear-linear"
       "cap"
+      "loom"
     ];
   };
 }
