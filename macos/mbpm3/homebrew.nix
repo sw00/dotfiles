@@ -55,6 +55,7 @@
       "firefox@developer-edition"
       "vlc"
       "linear-linear"
+      "cap"
     ];
   };
 }
