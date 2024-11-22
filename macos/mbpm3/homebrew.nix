@@ -27,6 +27,7 @@
       "ffmpeg"
       "git-lfs"
       "opentofu"
+      "websocat"
     ];
 
     casks = [
