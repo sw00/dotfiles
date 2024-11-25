@@ -17,6 +17,7 @@ in {
       kx = "kubectx";
       kn = "kubens";
       kc = "kubectl";
+      flyl = "fly -t lelapa";
     };
   };
 }
