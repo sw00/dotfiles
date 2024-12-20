@@ -28,6 +28,7 @@
       "git-lfs"
       "opentofu"
       "websocat"
+      "bruno"
     ];
 
     casks = [
