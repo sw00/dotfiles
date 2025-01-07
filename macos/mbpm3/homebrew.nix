@@ -28,7 +28,6 @@
       "git-lfs"
       "opentofu"
       "websocat"
-      "bruno"
     ];
 
     casks = [
@@ -59,6 +58,9 @@
       "linear-linear"
       "cap"
       "loom"
+      "bruno"
+      "macfuse"
+      "mounty"
     ];
   };
 }
