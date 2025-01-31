@@ -61,6 +61,7 @@
       "bruno"
       "macfuse"
       "mounty"
+      "drawio"
     ];
   };
 }
