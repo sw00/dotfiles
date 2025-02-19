@@ -32,6 +32,7 @@
 
     casks = [
       "caffeine"
+      "tomighty"
       "bitwarden"
       "flameshot"
       "brave-browser"
@@ -45,6 +46,7 @@
       "iterm2"
       "docker"
       "openlens"
+      "monokle"
       "pycharm-ce"
       "dbeaver-community"
       "audacity"
