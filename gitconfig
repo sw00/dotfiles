@@ -39,7 +39,7 @@
 	path = ~/.gitconfig-etckeeper
 
 [core]
-	autocrlf = false
+	autocrlf = input
 	eol = lf
 	safecrlf = warn
 
