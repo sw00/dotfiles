@@ -64,6 +64,7 @@
       "macfuse"
       "mounty"
       "drawio"
+      "obs"
     ];
   };
 }
