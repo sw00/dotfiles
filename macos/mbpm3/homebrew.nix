@@ -65,6 +65,7 @@
       "mounty"
       "drawio"
       "obs"
+      "appcleaner"
     ];
   };
 }
