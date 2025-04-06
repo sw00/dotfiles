@@ -2,3 +2,5 @@ vim/.netrwhist
 *.swp
 *.log
 .aider*
+
+**/tmux/plugins
