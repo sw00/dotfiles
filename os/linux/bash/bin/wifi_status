@@ -1,0 +1,36 @@
+#!/bin/bash
+
+# WSL implementation
+if grep -qEi '(microsoft|wsl)' /proc/version 2>/dev/null; then
+  pwsh.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" \
+    | tr -s '\r\n' ';' \
+    | sed -rn 's#.*:\s(.*);.*:\s(.*);.*:\s(.*);.*:\s(.*);#"\1" D:\2 U:\3 S:\4#p'
+
+# Linux implementation
+else
+    # Try iwconfig first
+    if command -v iwconfig >/dev/null 2>&1; then
+        info=$(iwconfig 2>&1)
+        essid=$(echo "$info" | grep -Eo 'ESSID:"[^"]+"' | cut -d'"' -f2)
+        rate=$(echo "$info" | grep -Eo 'Bit Rate=[0-9.]+ [^ ]+' | cut -d'=' -f2 | cut -d' ' -f1)
+        quality=$(echo "$info" | grep -Eo 'Link Quality=[0-9]+/[0-9]+' | cut -d'=' -f2)
+        signal=$(echo "$info" | grep -Eo 'Signal level=[-0-9]+ dBm' | grep -Eo '[-0-9]+')
+
+        [ -n "$essid" ] && echo "\"$essid\" D:$rate Q:$quality S:$signal dBm" || echo "Not connected"
+
+    # Try nmcli as fallback
+    elif command -v nmcli >/dev/null 2>&1; then
+        con=$(nmcli -t -f ACTIVE,SSID,SIGNAL,RATE dev wifi | grep '^yes')
+        [ -n "$con" ] && echo "\"$(echo "$con" | cut -d':' -f2)\" D:$(echo "$con" | cut -d':' -f4 | sed 's/ Mbit\/s//')Mbps Q:$(echo "$con" | cut -d':' -f3)% S:N/A" || echo "Not connected"
+
+    # Last resort, try iw
+    elif command -v iw >/dev/null 2>&1; then
+        interface=$(iw dev | grep Interface | awk '{print $2}' | head -1)
+        [ -n "$interface" ] && info=$(iw dev "$interface" link) || info=""
+        [ -n "$info" ] && ssid=$(echo "$info" | grep SSID | awk '{print $2}') || ssid=""
+        [ -n "$ssid" ] && echo "\"$ssid\" D:$(echo "$info" | grep "tx bitrate" | awk '{print $3}')Mbps S:$(echo "$info" | grep signal | awk '{print $2}') Q:N/A" || echo "Not connected"
+
+    else
+        echo "No wireless tools found"
+    fi
+fi

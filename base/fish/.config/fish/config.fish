@@ -16,6 +16,7 @@ set -gx EDITOR nvim
 fenv source $HOME/dotfiles/secrets/env.sh
 
 # add directories to PATH
+fish_add_path ~/bin
 fish_add_path ~/.asdf/shims
 
 # Initialize Homebrew if available
@@ -45,8 +46,8 @@ status --is-interactive; and begin
     alias vim nvim
 
     # Start tmux if not already in tmux (for Alacritty)
-    if status is-interactive
-        and not set -q TMUX
-        tmux new-session -As 0 || tmux attach-session -d
-    end
+    # if status is-interactive
+    #     and not set -q TMUX
+    #     tmux new-session -As 0 || tmux attach-session -d
+    # end
 end

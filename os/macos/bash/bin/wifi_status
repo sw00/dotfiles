@@ -1,0 +1,29 @@
+#!/bin/bash
+
+airport="/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
+if [ -f "$airport" ]; then
+info=$("$airport" -I)
+# Debug: uncomment to see raw output
+# echo "$info"
+
+# Fix: macOS airport output parsing
+ssid=$(echo "$info" | awk -F': ' '/^\s*SSID/ {print $2}')
+rate=$(echo "$info" | awk -F': ' '/lastTxRate/ {print $2}')
+rssi=$(echo "$info" | awk -F': ' '/agrCtlRSSI/ {print $2}')
+noise=$(echo "$info" | awk -F': ' '/agrCtlNoise/ {print $2}')
+
+# Calculate signal quality
+if [ -n "$rssi" ] && [ -n "$noise" ]; then
+    snr=$((rssi - noise))
+    quality=$((snr > 100 ? 100 : snr))
+    [ "$quality" -lt 0 ] && quality=0
+fi
+
+if [ -n "$ssid" ]; then
+    echo "\"$ssid\" D:${rate:-0}Mbps Q:${quality:-0}% S:${rssi:-0}dBm"
+else
+    echo "Not connected"
+fi
+else
+echo "Airport utility not found"
+fi

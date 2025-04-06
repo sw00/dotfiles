@@ -2,7 +2,7 @@
 live_config_reload = true
 
 [terminal.shell]
-args = ["--login"]
+args = ["-c", "tmux new-session -As 0 || tmux attach-session -d"]
 program = "/opt/homebrew/bin/fish"
 
 [bell]
