@@ -1,9 +1,9 @@
 [general]
 live_config_reload = true
 
-[shell]
-args = ["-c", "tmux new-session -As 0"]
-program = "/run/current-system/sw/bin/fish"
+[terminal.shell]
+args = ["--login"]
+program = "/opt/homebrew/bin/fish"
 
 [bell]
 animation = "EaseOutExpo"
