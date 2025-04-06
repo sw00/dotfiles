@@ -5,7 +5,7 @@ DOTFILES="$HOME/dotfiles"
 
 # Install base configuration for all hosts
 echo "Installing base configurations..."
-stow -d ~/dotfiles/base -t ~ bash git nvim ssh
+stow -d ~/dotfiles/base -t ~ bash git nvim ssh fish tmux
 
 # Detect and install OS-specific configurations
 if [ "$(uname)" == "Darwin" ]; then
