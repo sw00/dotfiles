@@ -1,29 +1,61 @@
 #!/bin/bash
 
-airport="/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport"
-if [ -f "$airport" ]; then
-info=$("$airport" -I)
-# Debug: uncomment to see raw output
-# echo "$info"
+# Get WiFi info using system_profiler
+wifi_info=$(system_profiler SPAirPortDataType 2>/dev/null)
 
-# Fix: macOS airport output parsing
-ssid=$(echo "$info" | awk -F': ' '/^\s*SSID/ {print $2}')
-rate=$(echo "$info" | awk -F': ' '/lastTxRate/ {print $2}')
-rssi=$(echo "$info" | awk -F': ' '/agrCtlRSSI/ {print $2}')
-noise=$(echo "$info" | awk -F': ' '/agrCtlNoise/ {print $2}')
-
-# Calculate signal quality
-if [ -n "$rssi" ] && [ -n "$noise" ]; then
-    snr=$((rssi - noise))
-    quality=$((snr > 100 ? 100 : snr))
-    [ "$quality" -lt 0 ] && quality=0
-fi
+# Extract SSID (network name)
+ssid=$(echo "$wifi_info" | sed -n '/Current Network Information:/,/PHY Mode:/p' | head -2 | tail -1 | sed 's/^ *//' | sed 's/:$//')
 
 if [ -n "$ssid" ]; then
-    echo "\"$ssid\" D:${rate:-0}Mbps Q:${quality:-0}% S:${rssi:-0}dBm"
+  # Find the section for the current network
+  current_section=$(echo "$wifi_info" | sed -n "/Current Network Information:/,/Other Local Wi-Fi Networks:/p")
+  
+  # Extract signal and noise values directly
+  signal_noise_line=$(echo "$current_section" | grep "Signal / Noise")
+  
+  # Parse the line directly
+  if [ -n "$signal_noise_line" ]; then
+    # Extract first number (signal)
+    rssi=$(echo "$signal_noise_line" | grep -o -- "-[0-9]\+" | head -1)
+    
+    # Extract second number (noise)
+    noise=$(echo "$signal_noise_line" | grep -o -- "-[0-9]\+" | tail -1)
+  fi
+  
+  # Get transmission rate
+  tx_rate=$(echo "$current_section" | grep "Transmit Rate" | awk '{print $NF}')
+  
+  # Calculate signal quality
+  if [ -n "$rssi" ] && [ -n "$noise" ]; then
+    # Signal-to-Noise Ratio calculation
+    rssi_num=${rssi#-} # Remove minus sign
+    noise_num=${noise#-} # Remove minus sign
+    snr=$((noise_num - rssi_num))
+    
+    # Convert SNR to quality percentage (0-100)
+    if [ $snr -gt 40 ]; then
+      quality=100
+    elif [ $snr -lt 0 ]; then
+      quality=0
+    else
+      quality=$((snr * 100 / 40))
+    fi
+  elif [ -n "$rssi" ]; then
+    # Estimate quality from RSSI if noise is not available
+    rssi_num=${rssi#-} # Remove minus sign
+    if [ $rssi_num -lt 50 ]; then
+      quality=100
+    elif [ $rssi_num -gt 100 ]; then
+      quality=0
+    else
+      quality=$((100 - (rssi_num - 50) * 2))
+    fi
+  else
+    quality="N/A"
+  fi
+  
+  # Output the final result
+  echo "\"$ssid\" D:${tx_rate:-N/A}Mbps Q:${quality:-N/A}% S:${rssi:-N/A}dBm"
 else
-    echo "Not connected"
-fi
-else
-echo "Airport utility not found"
+  echo "Not connected"
 fi
