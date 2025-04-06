@@ -1,0 +1,14 @@
+tap "homebrew/bundle"
+tap "homeport/tap"
+# Ambitious Vim-fork focused on extensibility and agility
+brew "neovim"
+# GPU-accelerated terminal emulator
+cask "alacritty"
+# Desktop password and login vault
+cask "bitwarden"
+# Web browser focusing on privacy
+cask "brave-browser"
+# Utility that prevents the system from going to sleep
+cask "caffeine"
+# Move and resize windows using keyboard shortcuts or snap areas
+cask "rectangle"
