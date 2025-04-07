@@ -33,7 +33,7 @@ return {
             vim.keymap.set('n', '<leader>fk', builtin.keymaps, { desc = '[F]ind [K]eymaps' })
             vim.keymap.set('n', '<leader>ff', builtin.find_files, { desc = '[F]ind [F]iles' })
             vim.keymap.set('n', '<leader>fF', function()
-                builtin.find_files { no_ignore = true, hidden = true }
+                builtin.find_files { no_ignore = false, hidden = true }
             end, { desc = '[F]ind all [F]iles (hidden,ignored)' })
             vim.keymap.set('n', '<leader>ft', builtin.builtin, { desc = '[F]ind [S]elect Telescope' })
             vim.keymap.set('n', '<leader>fw', builtin.grep_string, { desc = '[F]ind current [W]ord' })
