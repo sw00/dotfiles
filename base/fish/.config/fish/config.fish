@@ -18,6 +18,7 @@ fenv source $HOME/dotfiles/secrets/env.sh
 # add directories to PATH
 fish_add_path ~/bin
 fish_add_path ~/.asdf/shims
+fish_add_path ~/.local/bin
 
 # Initialize Homebrew if available
 if test -d /opt/homebrew/bin
