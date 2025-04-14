@@ -2,23 +2,53 @@ tap "boz/repo"
 tap "homebrew/bundle"
 tap "homeport/tap"
 
+# dotfiles/git
+brew "stow"
+brew "git"
+brew "git-crypt"
+brew "git-lfs"
+brew "tig"
+brew "gnupg"
+brew "pinentry-mac"
+
+# shell
+brew "fish"
+brew "fisher"
 brew "tmux"
 brew "tmux-sessionizer"
-brew "ffmpeg"
-brew "git-lfs"
-brew "helm"
+brew "tmux-fingers"
+
+# shell utils
+brew "fzf"
+brew "rg"
+brew "fd"
+brew "jq""
+brew "lf"
+
+# swdev
+brew "neovim"
+brew "asdf"
+
+# devops
 brew "k9s"
-brew "kubeseal"
+brew "boz/repo/kail"
+brew "kubectl"
+brew "kubectx"
+brew "kubens"
+brew "helm"
 brew "kustomize"
-brew "libpq"
+brew "kubeseal"
+brew "argocd"
 brew "lnav"
+brew "websocat"
 brew "opentofu"
 brew "pgbadger"
+
+# dependencies
+brew "libpq"
+brew "ffmpeg"
 brew "pytorch"
-brew "stow"
-brew "websocat"
-brew "boz/repo/kail"
-brew "homeport/tap/dyff"
+brew "numpy"
 
 # casks
 cask "appcleaner"
@@ -44,6 +74,7 @@ cask "tomighty"
 cask "vlc"
 cask "vscodium"
 cask "zotero"
+cask "jan"
 
 # vscodium/vscode extensions
 vscode "janisdd.vscode-edit-csv"
