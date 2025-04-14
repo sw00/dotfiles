@@ -49,4 +49,4 @@
 	process = git-lfs filter-process
 	required = true
 [gpg]
-	program=/etc/profiles/per-user/sett/bin/gpg
+	program=gpg
