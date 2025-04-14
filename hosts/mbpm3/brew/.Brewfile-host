@@ -1,6 +1,6 @@
 tap "boz/repo"
-tap "homebrew/bundle"
 tap "homeport/tap"
+tap "morantron/tmux-fingers"
 
 # dotfiles/git
 brew "stow"
@@ -22,7 +22,7 @@ brew "tmux-fingers"
 brew "fzf"
 brew "rg"
 brew "fd"
-brew "jq""
+brew "jq"
 brew "lf"
 
 # swdev
@@ -34,7 +34,6 @@ brew "k9s"
 brew "boz/repo/kail"
 brew "kubectl"
 brew "kubectx"
-brew "kubens"
 brew "helm"
 brew "kustomize"
 brew "kubeseal"
@@ -78,7 +77,7 @@ cask "jan"
 
 # vscodium/vscode extensions
 vscode "janisdd.vscode-edit-csv"
-vscode "jeanp413.open-remote-ssh"
+# vscode "jeanp413.open-remote-ssh"
 vscode "mechatroner.rainbow-csv"
 vscode "mitchdenny.ecdc"
 vscode "ms-python.autopep8"
@@ -96,3 +95,7 @@ vscode "redhat.vscode-yaml"
 vscode "subframe7536.theme-maple"
 vscode "vmware.vscode-concourse"
 vscode "vscodevim.vim"
+
+# Mac App Store Apps
+mas "Pixelmator", id: 407_963_104
+
