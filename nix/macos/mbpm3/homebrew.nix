@@ -31,6 +31,7 @@
     ];
 
     casks = [
+      "gpg-suite"
       "caffeine"
       "tomighty"
       "bitwarden"
