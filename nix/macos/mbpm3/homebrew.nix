@@ -26,6 +26,7 @@
       "lnav"
       "ffmpeg"
       "git-lfs"
+      "git-delta"
       "opentofu"
       "websocat"
     ];
