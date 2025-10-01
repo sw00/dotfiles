@@ -51,4 +51,8 @@ status --is-interactive; and begin
     #     and not set -q TMUX
     #     tmux new-session -As 0 || tmux attach-session -d
     # end
+
+    # cross-platform FZF bindings
+    bind \ct '_fzf_search_directory'
 end
+
