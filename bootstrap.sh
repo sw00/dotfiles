@@ -32,7 +32,7 @@ fi
 # Load launch agents on macOS
 if [ "$(uname)" == "Darwin" ]; then
     echo "Loading macOS launch agents..."
-    for plist in ~/Library/LaunchAgents/com.user.*.plist; do
+    for plist in ~/Library/LaunchAgents/*.plist; do
         if [ -f "$plist" ]; then
             launchctl unload "$plist" 2>/dev/null
             launchctl load "$plist"
