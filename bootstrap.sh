@@ -55,28 +55,91 @@ ensure_macos_prereqs() {
     done
 }
 
-ensure_linux_prereqs() {
-    local missing=()
-    for pkg in stow git-crypt; do
-        command -v "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
-    done
-    [[ ${#missing[@]} -eq 0 ]] && return 0
+# Mapping from command name → apt/dnf/pacman package name (where they differ)
+declare -A PKG_APT=(
+    [nvim]=neovim
+    [fzf]=fzf
+    [fd]=fd-find
+    [rg]=ripgrep
+    [fish]=fish
+    [tmux]=tmux
+    [stow]=stow
+    [git-crypt]=git-crypt
+)
+declare -A PKG_DNF=(
+    [nvim]=neovim
+    [fd]=fd-find
+    [rg]=ripgrep
+)
 
-    if   command -v apt-get >/dev/null 2>&1; then
-        log "apt-get install ${missing[*]}"
-        sudo apt-get update
-        sudo apt-get install -y "${missing[@]}"
-    elif command -v dnf >/dev/null 2>&1; then
-        log "dnf install ${missing[*]}"
-        sudo dnf install -y "${missing[@]}"
-    elif command -v pacman >/dev/null 2>&1; then
-        log "pacman -S ${missing[*]}"
-        sudo pacman -S --noconfirm "${missing[@]}"
-    elif command -v nix-env >/dev/null 2>&1; then
-        log "nix-env -iA ${missing[*]}"
-        nix-env -iA "${missing[@]/#/nixpkgs.}"
-    else
-        err "missing prerequisites (${missing[*]}) and no known package manager available"
+_pkg_name() {
+    local cmd="$1" mgr="$2"
+    local map="PKG_${mgr^^}"
+    echo "${!map[$cmd]:-$cmd}"
+}
+
+_install_pkgs() {
+    local mgr="$1"; shift
+    local cmds=("$@")
+    local pkg_names=()
+    for cmd in "${cmds[@]}"; do
+        pkg_names+=("$(_pkg_name "$cmd" "$mgr")")
+    done
+    case "$mgr" in
+        apt)    sudo apt-get update -qq && sudo apt-get install -y "${pkg_names[@]}" ;;
+        dnf)    sudo dnf install -y "${pkg_names[@]}" ;;
+        pacman) sudo pacman -S --noconfirm "${pkg_names[@]}" ;;
+        nix)    nix-env -iA "${pkg_names[@]/#/nixpkgs.}" ;;
+    esac
+}
+
+_detect_pkg_mgr() {
+    if   command -v apt-get >/dev/null 2>&1; then echo apt
+    elif command -v dnf     >/dev/null 2>&1; then echo dnf
+    elif command -v pacman  >/dev/null 2>&1; then echo pacman
+    elif command -v nix-env >/dev/null 2>&1; then echo nix
+    else echo ""
+    fi
+}
+
+ensure_linux_prereqs() {
+    local mgr; mgr="$(_detect_pkg_mgr)"
+    [[ -n "$mgr" ]] || err "no known package manager found"
+
+    local missing=()
+    for cmd in stow git-crypt; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        log "installing prerequisites via $mgr: ${missing[*]}"
+        _install_pkgs "$mgr" "${missing[@]}"
+    fi
+}
+
+ensure_tools() {
+    # Install the core interactive toolchain if not already present.
+    # Called after stow so configs are in place before first launch.
+    local mgr; mgr="$(_detect_pkg_mgr)"
+    [[ -n "$mgr" ]] || { warn "no package manager — skipping tool installation"; return 0; }
+
+    local wanted=(fish nvim tmux fzf fd rg)
+    local missing=()
+    for cmd in "${wanted[@]}"; do
+        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+    done
+    [[ ${#missing[@]} -eq 0 ]] && { log "core tools already installed"; return 0; }
+
+    log "installing core tools via $mgr: ${missing[*]}"
+    _install_pkgs "$mgr" "${missing[@]}"
+
+    # asdf: not in most distro repos — install via official script if absent
+    if ! command -v asdf >/dev/null 2>&1 && [[ ! -f "$HOME/.asdf/asdf.sh" ]]; then
+        log "installing asdf"
+        git clone https://github.com/asdf-vm/asdf.git "$HOME/.asdf" \
+            --branch "$(git -C /tmp ls-remote --tags https://github.com/asdf-vm/asdf.git \
+                | awk -F/ '{print $NF}' | grep '^v' | sort -V | tail -1)" 2>/dev/null \
+            || git clone https://github.com/asdf-vm/asdf.git "$HOME/.asdf"
     fi
 }
 
@@ -146,7 +209,17 @@ main() {
         load_macos_launch_agents
     fi
 
+    # Install tools after configs are stowed so first-launch config is ready
+    case "$platform" in
+        linux|wsl) ensure_tools ;;
+    esac
+
     log "bootstrap complete"
+    log "next steps:"
+    log "  1. Start a new shell (or: exec fish) to pick up Fish config"
+    if [[ "$platform" == "wsl" ]] && [[ -f "$DOTFILES/hosts/$host/wsl/up.sh" ]]; then
+        log "  2. Run hosts/$host/wsl/up.sh to set up Windows-side configs"
+    fi
 }
 
 main "$@"

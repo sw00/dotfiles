@@ -17,13 +17,6 @@
 	username = sw00
 [push]
 	default = current
-[filter "media"]
-	clean = git-media-clean %f
-	smudge = git-media-smudge %f
-[filter "hawser"]
-	clean = git hawser clean %f
-	smudge = git hawser smudge %f
-	required = true
 [credential]
 	helper = cache --timeout=144000
 [diff]

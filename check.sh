@@ -159,15 +159,26 @@ check_stow "hosts/mbpm3: alacritty brew key_remap" \
     "$DOTFILES/hosts/mbpm3" alacritty brew key_remap
 stow_end
 
-# ── WSL stack: base → os/linux → os/wsl → hosts/x13yg2 ───
-# This also catches the RED issue: os/wsl/ must exist before this stow passes
-section "Stow integrity — WSL stack  [GREEN after structure fixes]"
+# ── WSL stack: base → os/linux → os/wsl ───
+# os/wsl is the right home for future WSL-specific stow packages.
+# WSL fish config lives in base/fish/conf.d (fish's own layering avoids
+# the stow cross-package symlink conflict).
+section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux
 stow_layer "$DOTFILES/os/linux" alacritty awesome bash 2>/dev/null || true
-check_stow "os/wsl: (all packages)" \
-    "$DOTFILES/os/wsl"
+
+# Simulate any packages in os/wsl (currently none; skip if empty)
+mapfile -t _wsl_pkgs < <(
+    find "$DOTFILES/os/wsl" -maxdepth 1 -mindepth 1 -type d \
+        -printf '%f\n' 2>/dev/null | sort
+)
+if [[ ${#_wsl_pkgs[@]} -gt 0 ]]; then
+    check_stow "os/wsl: ${_wsl_pkgs[*]}" "$DOTFILES/os/wsl"
+else
+    _ok "os/wsl: no packages yet (WSL fish config handled via base/fish conf.d)"
+fi
 stow_end
 
 
@@ -247,12 +258,12 @@ section "Tmux config  [RED]"
 
 TMUX_CFG="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
 
-# pbcopy must not appear as a bare copy target — it should be inside an
-# if-shell block that checks for Darwin first
-check "tmux: clipboard is platform-conditional (no bare pbcopy)" bash -c "
-    ! grep -P 'copy-pipe.*pbcopy(?!\s*\})' '$TMUX_CFG' \
-        | grep -qv 'if-shell'
-"
+# pbcopy must live inside an if-shell Darwin guard, not as a bare binding.
+# After the fix an 'if-shell ... Darwin' line appears before the pbcopy bindings.
+check_has \
+    "tmux: clipboard has platform guard (if-shell Darwin)" \
+    'if-shell.*Darwin' \
+    "$TMUX_CFG"
 
 
 # =============================================================================

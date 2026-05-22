@@ -1,0 +1,4 @@
+[wsl2]
+memory=6GB      # 8GB total; leave ~2GB for Windows
+processors=6    # 8 cores total; leave 2 for Windows
+swap=4GB

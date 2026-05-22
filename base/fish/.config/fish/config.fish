@@ -1,7 +1,7 @@
 # Auto-install Fisher if not installed
 if not functions -q fisher
     set -q XDG_CONFIG_HOME; or set XDG_CONFIG_HOME ~/.config
-    curl -sL https://git.io/fisher | source && fisher install jorgebucaran/fisher
+    curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/HEAD/functions/fisher.fish | source && fisher install jorgebucaran/fisher
     
     # If you have a fish_plugins file, install those plugins too
     if test -f $XDG_CONFIG_HOME/fish/fish_plugins
