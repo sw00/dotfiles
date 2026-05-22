@@ -1,4 +1,4 @@
 [wsl2]
-memory=6GB      # 8GB total; leave ~2GB for Windows
-processors=6    # 8 cores total; leave 2 for Windows
+memory=12GB     # 16GB physical; leave ~4GB for Windows
+processors=8    # 4 cores / 8 logical; WSL can use all (Windows scheduler handles it)
 swap=4GB
