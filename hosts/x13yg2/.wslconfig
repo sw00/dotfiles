@@ -1,4 +1,4 @@
 [wsl2]
-memory=12GB     # 16GB physical; leave ~4GB for Windows
+memory=10GB     # 16GB physical; leaves ~6GB for Windows 11 + Brave + VSCodium
 processors=8    # 4 cores / 8 logical; WSL can use all (Windows scheduler handles it)
 swap=4GB
