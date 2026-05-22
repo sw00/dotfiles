@@ -18,6 +18,8 @@
 [push]
 	default = current
 [credential]
+	# Platform-specific helpers are set in os/*/git layers.
+	# Fallback: in-memory cache for Linux environments without a keystore.
 	helper = cache --timeout=144000
 [diff]
 	tool = vimdiff
@@ -53,3 +55,7 @@
 	required = true
 [gpg]
 	program=gpg
+
+# Included only when stowed by os/wsl; git silently ignores missing paths.
+[include]
+	path = ~/.gitconfig-wsl

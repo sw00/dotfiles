@@ -13,21 +13,28 @@ end
 
 # Environment variables
 set -gx EDITOR nvim
-fenv source $HOME/dotfiles/secrets/env.sh
+fenv source ~/dotfiles/secrets/env.sh
 
 # add directories to PATH
 fish_add_path ~/bin
-fish_add_path ~/.asdf/shims
 fish_add_path ~/.local/bin
+
+# mise — version manager for CLI tools and runtimes
+# Activates shims and completions for all managed tools.
+if command -q mise
+    mise activate fish | source
+end
 
 # Initialize Homebrew if available
 if test -d /opt/homebrew/bin
     eval (/opt/homebrew/bin/brew shellenv)
 end
 
-# Startup GPG agent
+# Startup GPG agent (only when gpg-connect-agent is available)
 set -x GPG_TTY (tty)
-gpg-connect-agent updatestartuptty /bye >/dev/null
+if command -q gpg-connect-agent
+    gpg-connect-agent updatestartuptty /bye >/dev/null
+end
 
 status --is-login; and begin
     # Login shell initialisation

@@ -55,27 +55,24 @@ ensure_macos_prereqs() {
     done
 }
 
-# Mapping from command name → apt/dnf/pacman package name (where they differ)
-declare -A PKG_APT=(
-    [nvim]=neovim
-    [fzf]=fzf
-    [fd]=fd-find
-    [rg]=ripgrep
-    [fish]=fish
-    [tmux]=tmux
-    [stow]=stow
-    [git-crypt]=git-crypt
-)
-declare -A PKG_DNF=(
-    [nvim]=neovim
-    [fd]=fd-find
-    [rg]=ripgrep
-)
-
+# Mapping from command name → package name where they differ per manager.
+# Key is the command; value is the installable package name.
 _pkg_name() {
     local cmd="$1" mgr="$2"
-    local map="PKG_${mgr^^}"
-    echo "${!map[$cmd]:-$cmd}"
+    case "$mgr:$cmd" in
+        # apt
+        apt:nvim)       echo neovim ;;   # Ubuntu 24.04 apt name
+        apt:fd)         echo fd-find ;;
+        apt:rg)         echo ripgrep ;;
+        apt:delta)      echo git-delta ;;
+        apt:git-lfs)    echo git-lfs ;;
+        # dnf
+        dnf:nvim)       echo neovim ;;
+        dnf:fd)         echo fd-find ;;
+        dnf:rg)         echo ripgrep ;;
+        dnf:delta)      echo git-delta ;;
+        *)              echo "$cmd" ;;
+    esac
 }
 
 _install_pkgs() {
@@ -117,29 +114,44 @@ ensure_linux_prereqs() {
     fi
 }
 
-ensure_tools() {
-    # Install the core interactive toolchain if not already present.
-    # Called after stow so configs are in place before first launch.
+ensure_system_tools() {
+    # Install tools that must exist before mise runs:
+    # login shell, terminal multiplexer, bootstrap deps, system integrations.
     local mgr; mgr="$(_detect_pkg_mgr)"
-    [[ -n "$mgr" ]] || { warn "no package manager — skipping tool installation"; return 0; }
+    [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish nvim tmux fzf fd rg)
+    local wanted=(fish tmux git-lfs lf tig)
+    # WSL-specific additions
+    if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+        wanted+=(wslu xclip)
+    fi
+
     local missing=()
     for cmd in "${wanted[@]}"; do
         command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
     done
-    [[ ${#missing[@]} -eq 0 ]] && { log "core tools already installed"; return 0; }
+    [[ ${#missing[@]} -eq 0 ]] && { log "system tools already installed"; return 0; }
 
-    log "installing core tools via $mgr: ${missing[*]}"
+    log "installing system tools via $mgr: ${missing[*]}"
     _install_pkgs "$mgr" "${missing[@]}"
+}
 
-    # asdf: not in most distro repos — install via official script if absent
-    if ! command -v asdf >/dev/null 2>&1 && [[ ! -f "$HOME/.asdf/asdf.sh" ]]; then
-        log "installing asdf"
-        git clone https://github.com/asdf-vm/asdf.git "$HOME/.asdf" \
-            --branch "$(git -C /tmp ls-remote --tags https://github.com/asdf-vm/asdf.git \
-                | awk -F/ '{print $NF}' | grep '^v' | sort -V | tail -1)" 2>/dev/null \
-            || git clone https://github.com/asdf-vm/asdf.git "$HOME/.asdf"
+ensure_mise() {
+    # Install mise if absent, then install all tools from .config/mise/config.toml.
+    if ! command -v mise >/dev/null 2>&1; then
+        log "installing mise"
+        curl -fsSL https://mise.run | sh
+        # Add to PATH for the remainder of this script
+        export PATH="$HOME/.local/bin:$PATH"
+    else
+        log "mise $(mise --version) already installed"
+    fi
+
+    if [[ -f "$HOME/.config/mise/config.toml" ]]; then
+        log "mise install (CLI tools + runtimes)"
+        mise install --yes
+    else
+        warn "no mise config found at ~/.config/mise/config.toml — skipping"
     fi
 }
 
@@ -188,13 +200,16 @@ main() {
     esac
 
     log "stowing base configs"
-    stow_dir "$DOTFILES/base" bash git nvim ssh fish tmux
+    stow_dir "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
 
     case "$platform" in
         macos) stow_dir "$DOTFILES/os/macos" ;;
         linux) stow_dir "$DOTFILES/os/linux" ;;
         wsl)
-            stow_dir "$DOTFILES/os/linux"
+            # WSL: only stow the shell/CLI layer from os/linux.
+            # Alacritty runs on Windows (copied by hosts/*/wsl/up.sh).
+            # Awesome WM is irrelevant in WSL.
+            stow_dir "$DOTFILES/os/linux" bash
             stow_dir "$DOTFILES/os/wsl"
             ;;
     esac
@@ -209,9 +224,16 @@ main() {
         load_macos_launch_agents
     fi
 
-    # Install tools after configs are stowed so first-launch config is ready
+    # Install tools after configs are stowed so first-launch config is ready.
+    # System tools (apt/brew) first, then mise for CLI tools and runtimes.
     case "$platform" in
-        linux|wsl) ensure_tools ;;
+        linux|wsl)
+            ensure_system_tools
+            ensure_mise
+            ;;
+        macos)
+            ensure_mise
+            ;;
     esac
 
     log "bootstrap complete"

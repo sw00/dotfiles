@@ -23,6 +23,7 @@ fi
 
 # ── ~/.wslconfig (Windows side) ────────────────────────────────────────────
 DOTFILES_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+
 if [[ -f "$DOTFILES_ROOT/hosts/x13yg2/.wslconfig" ]]; then
     log "installing .wslconfig → $WIN_HOME/.wslconfig"
     cp -f "$DOTFILES_ROOT/hosts/x13yg2/.wslconfig" "$WIN_HOME/.wslconfig"
@@ -30,10 +31,14 @@ if [[ -f "$DOTFILES_ROOT/hosts/x13yg2/.wslconfig" ]]; then
 fi
 
 # ── Alacritty ──────────────────────────────────────────────────────────────
-if [[ -f "$FILES/alacritty.toml" ]]; then
+ALACRITTY_BASE="$DOTFILES_ROOT/base/alacritty/.config/alacritty/base.toml"
+ALACRITTY_HOST="$DOTFILES_ROOT/hosts/x13yg2/alacritty/.config/alacritty/alacritty.toml"
+
+if [[ -f "$ALACRITTY_HOST" ]]; then
     log "installing Alacritty config"
     mkdir -p "$WIN_APPDATA/Alacritty"
-    cp -f "$FILES/alacritty.toml" "$WIN_APPDATA/Alacritty/alacritty.toml"
+    cp -f "$ALACRITTY_BASE" "$WIN_APPDATA/Alacritty/base.toml"
+    cp -f "$ALACRITTY_HOST" "$WIN_APPDATA/Alacritty/alacritty.toml"
 fi
 
 log "Windows-side setup complete"

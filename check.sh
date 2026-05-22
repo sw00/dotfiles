@@ -129,8 +129,8 @@ fi
 section "Stow integrity — base packages  [GREEN]"
 
 stow_begin
-check_stow "base: bash git nvim ssh fish tmux" \
-    "$DOTFILES/base" bash git nvim ssh fish tmux
+check_stow "base: bash git nvim ssh fish tmux alacritty mise" \
+    "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
 stow_end
 
 # ── Linux stack: base → os/linux → hosts/x1c2e ───
@@ -166,10 +166,9 @@ stow_end
 section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux
-stow_layer "$DOTFILES/os/linux" alacritty awesome bash 2>/dev/null || true
+stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux alacritty
+stow_layer "$DOTFILES/os/linux" bash
 
-# Simulate any packages in os/wsl (currently none; skip if empty)
 mapfile -t _wsl_pkgs < <(
     find "$DOTFILES/os/wsl" -maxdepth 1 -mindepth 1 -type d \
         -printf '%f\n' 2>/dev/null | sort
@@ -177,7 +176,7 @@ mapfile -t _wsl_pkgs < <(
 if [[ ${#_wsl_pkgs[@]} -gt 0 ]]; then
     check_stow "os/wsl: ${_wsl_pkgs[*]}" "$DOTFILES/os/wsl"
 else
-    _ok "os/wsl: no packages yet (WSL fish config handled via base/fish conf.d)"
+    _ok "os/wsl: git config handled via os/wsl/git stow layer"
 fi
 stow_end
 
@@ -237,16 +236,19 @@ check "extras/wslconfig.* moved to hosts/" bash -c "
 # =============================================================================
 section "Fish config  [RED]"
 
-# The git.io URL shortener was shut down
 check_not \
     "config.fish: Fisher URL is not the deprecated git.io shortlink" \
     'git\.io/fisher' \
     "$FISH_CFG"
 
-# asdf needs its fish integration sourced, not just shims on PATH
 check_has \
-    "config.fish: asdf.fish is sourced for shell integration" \
-    'asdf\.fish' \
+    "config.fish: mise activate is present" \
+    'mise activate' \
+    "$FISH_CFG"
+
+check_not \
+    "config.fish: no asdf references (replaced by mise)" \
+    'asdf' \
     "$FISH_CFG"
 
 
@@ -331,10 +333,41 @@ check_has \
     "$DOTFILES/hosts/mbpm3/alacritty/.config/alacritty/alacritty.toml"
 
 check_has \
-    "alacritty (wsl): config uses 'import' for shared base" \
+    "alacritty (wsl/x13yg2): config uses 'import' for shared base" \
     '^import' \
     "$DOTFILES/hosts/x13yg2/alacritty/.config/alacritty/alacritty.toml"
 
+check "alacritty (wsl/x13yg2): stow package exists" \
+    test -d "$DOTFILES/hosts/x13yg2/alacritty"
+
+check "alacritty: base.toml exists in base/alacritty" \
+    test -f "$DOTFILES/base/alacritty/.config/alacritty/base.toml"
+
+
+# =============================================================================
+# 10. MISE  [GREEN]
+# =============================================================================
+section "Mise config  [GREEN]"
+
+MISE_CFG="$DOTFILES/base/mise/.config/mise/config.toml"
+
+check "mise: config.toml exists in base/mise stow package" \
+    test -f "$MISE_CFG"
+
+check_has "mise: neovim is managed by mise (not snap/apt)" \
+    'neovim' "$MISE_CFG"
+
+check_has "mise: fzf is managed by mise" \
+    'fzf' "$MISE_CFG"
+
+check_has "mise: node runtime is declared" \
+    'node' "$MISE_CFG"
+
+check_has "mise: python runtime is declared" \
+    'python' "$MISE_CFG"
+
+check_not "mise: asdf not referenced in fish config (replaced by mise)" \
+    'asdf' "$FISH_CFG"
 
 # =============================================================================
 # SUMMARY

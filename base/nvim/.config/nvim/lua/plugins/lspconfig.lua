@@ -7,7 +7,7 @@ return {
             'williamboman/mason-lspconfig',
             'WhoIsSethDaniel/mason-tool-installer.nvim',
             { 'j-hui/fidget.nvim', opts = {} },
-            { 'folke/neodev.nvim', opts = {} },
+            { 'folke/lazydev.nvim', ft = 'lua', opts = {} },
         },
         config = function()
             -- define lsp attach function

@@ -1,0 +1,32 @@
+# ~/.config/mise/config.toml
+# Global mise config — CLI tools and language runtimes.
+# Managed via stow (base/mise). Run `mise install` after bootstrap.
+# Docs: https://mise.jdx.dev/configuration.html
+
+[settings]
+experimental = true   # required for some aqua-backed tools
+
+# ── CLI tools ────────────────────────────────────────────────────────────────
+# These replace stale apt packages (fzf 0.44→0.72, fd 9→10, etc.)
+[tools]
+neovim   = "latest"
+fzf      = "latest"
+fd       = "latest"
+ripgrep  = "latest"
+bat      = "latest"
+delta    = "latest"
+jq       = "latest"
+yq       = "latest"
+zoxide   = "latest"
+direnv   = "latest"
+
+# ── Language runtimes ────────────────────────────────────────────────────────
+# Pin to a minor, let mise pick the patch. Update intentionally.
+node     = "22"
+python   = "3.12"
+
+# Uncomment as needed per project:
+# ruby   = "3.3"
+# go     = "latest"
+# rust   = "latest"
+# java   = "temurin-21"

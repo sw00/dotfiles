@@ -1,0 +1,4 @@
+# WSL2 git config — included from ~/.gitconfig via os/wsl stow layer
+# Uses the Windows Credential Manager via Git for Windows helper.
+[credential]
+	helper = /mnt/c/Program Files/Git/mingw64/bin/git-credential-manager.exe
