@@ -11,23 +11,15 @@ local function imap(shortcut, command)
     map('i', shortcut, command)
 end
 
-local function vmap(shortcut, command)
-    map('v', shortcut, command)
-end
-
 local function tmap(shortcut, command)
     map('t', shortcut, command)
-end
-
-local vimcmd = function(cmd)
-    return '<cmd>' .. cmd .. '<CR>'
 end
 
 -- [[ QoL ]]
 imap('kj', '<esc>') -- quick escape to normal mode from insert mode
 tmap('kj', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
 tmap('<esc><esc>', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
-nmap('<space><space>', ':nohlsearch<CR>') -- cancel search highlights
+nmap('<space><space>', '<cmd>nohlsearch<CR>') -- cancel search highlights
 
 -- [[ Butter Fingers ]]
 -- Map common capitalisation typos as Ex command aliases.
@@ -48,5 +40,10 @@ nmap('<c-h>', '<c-w>h')
 nmap('<c-l>', '<c-w>l')
 
 -- [[ diagnostics ]]
+-- ]d / [d / ]D / [D  — navigate diagnostics (owned by mini.bracketed)
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+
+-- [[ Buffers ]]
+vim.keymap.set('n', '<leader>bd', function() require('mini.bufremove').delete() end,  { desc = '[B]uffer [D]elete (preserve layout)' })
+vim.keymap.set('n', '<leader>bw', function() require('mini.bufremove').wipeout() end, { desc = '[B]uffer [W]ipeout (preserve layout)' })
