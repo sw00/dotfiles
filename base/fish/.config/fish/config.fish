@@ -19,9 +19,12 @@ fish_add_path ~/bin
 fish_add_path ~/.local/bin
 
 # ── mise (version manager) ────────────────────────────────────────────────────
-# Activates shims + completions for all managed tools (nvim, fzf, node, etc.)
+# --shims mode: prepends ~/.local/share/mise/shims to PATH and exits.
+# Shims resolve the correct tool version per-directory at invocation time,
+# so per-project .mise.toml still works. Avoids the ~76ms hook-env scan that
+# `mise activate fish` (dynamic mode) runs on every shell startup.
 if command -q mise
-    mise activate fish | source
+    mise activate --shims fish | source
 end
 
 # ── Homebrew (macOS only) ─────────────────────────────────────────────────────

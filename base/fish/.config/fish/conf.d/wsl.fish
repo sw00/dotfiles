@@ -4,10 +4,11 @@
 
 string match -qi '*microsoft*' (uname -r 2>/dev/null); or return
 
-# Resolve %LOCALAPPDATA% to a WSL path once at startup so the codium
-# function below can locate VSCodium.exe without calling cmd.exe each time.
+# Resolve %LOCALAPPDATA% to a WSL path and cache it as a universal variable
+# so cmd.exe is only invoked once (first fish session ever on this machine).
+# Universal variables persist in ~/.config/fish/fish_variables across sessions.
 if command -q cmd.exe; and not set -q WIN_LOCALAPPDATA
-    set -gx WIN_LOCALAPPDATA \
+    set -Ux WIN_LOCALAPPDATA \
         (wslpath (cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | string trim))
 end
 
