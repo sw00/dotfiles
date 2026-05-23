@@ -304,6 +304,22 @@ ensure_mise() {
     fi
 }
 
+ensure_pi() {
+    # Install pi (https://pi.dev) as a global npm package via the mise-managed Node.
+    # mise auto-installs node.default_packages_file entries only when provisioning
+    # a *new* Node version; this function covers already-provisioned machines.
+    if command -v pi >/dev/null 2>&1; then
+        log "pi $(pi --version 2>/dev/null | head -1) already installed"
+        return 0
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+        warn "npm not found — skipping pi installation (re-run after mise installs Node)"
+        return 0
+    fi
+    log "installing pi (pi.dev terminal coding agent)"
+    npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+}
+
 stow_dir() {
     # stow_dir <package-parent-dir> [explicit packages...]
     # Auto-discovers top-level packages if none given. No-ops if dir missing.
@@ -508,6 +524,7 @@ main() {
             ensure_system_tools
             ensure_fisher
             ensure_mise
+            ensure_pi
             ensure_sesh
             ensure_tmux_plugins
             ;;
@@ -516,6 +533,7 @@ main() {
             ensure_vscodium_extensions
             ensure_fisher
             ensure_mise
+            ensure_pi
             ensure_sesh
             ensure_tmux_plugins
             ;;

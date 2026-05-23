@@ -52,3 +52,9 @@ python  = "3.12"
 # Installed automatically whenever mise provisions a new Python version.
 # Add packages here rather than running pip manually or using venvs for tools.
 python.default_packages_file = "~/.config/mise/default-python-packages"
+
+# npm packages installed globally into the mise-managed Node for tool use.
+# NOT for project dependencies — use a per-project package.json for those.
+# Installed automatically whenever mise provisions a new Node version.
+# Add packages here rather than running npm install -g manually.
+node.default_packages_file   = "~/.config/mise/default-node-packages"

@@ -1,0 +1,10 @@
+# npm packages installed into the mise-managed Node for tool use.
+# NOT for project dependencies — use a per-project package.json for those.
+#
+# mise installs these automatically when provisioning a new Node version
+# (node.default_packages_file in config.toml).
+# To install into the current Node without re-provisioning:
+#   npm install -g --ignore-scripts $(grep -v '^#' ~/.config/mise/default-node-packages | grep -v '^$')
+#
+# ── Coding agent ──────────────────────────────────────────────────────────────
+@earendil-works/pi-coding-agent  # pi.dev — terminal coding agent (https://pi.dev)
