@@ -48,9 +48,13 @@ fi
 # ── .wslconfig (host-specific hardware tuning) ────────────────────────────────
 WSLCONFIG="$DOTFILES/hosts/$HOST/.wslconfig"
 if [[ -f "$WSLCONFIG" ]]; then
-    log "installing .wslconfig → $WIN_HOME/.wslconfig"
-    cp -f "$WSLCONFIG" "$WIN_HOME/.wslconfig"
-    warn ".wslconfig updated — restart WSL to apply: wsl.exe --shutdown"
+    if ! diff -q "$WSLCONFIG" "$WIN_HOME/.wslconfig" >/dev/null 2>&1; then
+        log "installing .wslconfig → $WIN_HOME/.wslconfig"
+        cp -f "$WSLCONFIG" "$WIN_HOME/.wslconfig"
+        warn ".wslconfig changed — restart WSL to apply: wsl.exe --shutdown"
+    else
+        log ".wslconfig unchanged"
+    fi
 else
     warn "no .wslconfig for host '$HOST' (expected hosts/$HOST/.wslconfig) — skipping"
 fi

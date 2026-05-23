@@ -249,11 +249,86 @@ load_macos_launch_agents() {
     shopt -s nullglob
     local plist
     for plist in "$HOME/Library/LaunchAgents/"*.plist; do
-        log "loading launch agent: $(basename "$plist")"
-        launchctl bootout "gui/$uid" "$plist" >/dev/null 2>&1 || true
-        launchctl bootstrap "gui/$uid" "$plist"
+        # Extract the service label from the plist so we can check if it is
+        # already loaded before stopping and restarting it.
+        local label
+        label=$(python3 -c "
+import plistlib, sys
+with open(sys.argv[1], 'rb') as f:
+    pl = plistlib.load(f)
+print(pl.get('Label', ''))
+" "$plist" 2>/dev/null)
+        if [[ -z "$label" ]]; then
+            warn "could not read Label from $(basename "$plist") — skipping"
+            continue
+        fi
+        if launchctl print "gui/$uid/$label" >/dev/null 2>&1; then
+            log "launch agent already loaded: $label"
+        else
+            log "loading launch agent: $label"
+            launchctl bootout "gui/$uid" "$plist" >/dev/null 2>&1 || true
+            launchctl bootstrap "gui/$uid" "$plist"
+        fi
     done
     shopt -u nullglob
+}
+
+_stow_preflight() {
+    # Simulate every stow operation that main() will perform and collect
+    # conflicts. Exits with an error listing them all if any are found,
+    # before any real change is made.
+    local sim_target; sim_target=$(mktemp -d)
+    local conflicts=0
+
+    _sim_stow() {
+        local parent="$1"; shift
+        [[ -d "$parent" ]] || return 0
+        local pkgs=("$@")
+        if [[ ${#pkgs[@]} -eq 0 ]]; then
+            local d
+            while IFS= read -r -d '' d; do
+                pkgs+=("$(basename "$d")")
+            done < <(find "$parent" -maxdepth 1 -mindepth 1 -type d -print0)
+        fi
+        [[ ${#pkgs[@]} -eq 0 ]] && return 0
+        local out
+        out=$(stow -n --no-folding -d "$parent" -t "$sim_target" "${pkgs[@]}" 2>&1)
+        # Conflicts appear as lines containing the target path as a real file
+        local found
+        found=$(echo "$out" | grep -E 'existing target is neither|cannot stow' || true)
+        if [[ -n "$found" ]]; then
+            # Translate simulated paths back to real home paths
+            echo "$found" | sed "s|$sim_target|$HOME|g" >&2
+            conflicts=$((conflicts + 1))
+        fi
+        # Pre-populate sim_target with what this layer would create, so
+        # subsequent layers see a realistic state.
+        stow --no-folding -d "$parent" -t "$sim_target" "${pkgs[@]}" 2>/dev/null || true
+    }
+
+    if _repo_is_locked; then
+        _sim_stow "$DOTFILES/base" bash git nvim fish tmux alacritty mise
+    else
+        _sim_stow "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
+    fi
+
+    case "$platform" in
+        macos) _sim_stow "$DOTFILES/os/macos" ;;
+        linux) _sim_stow "$DOTFILES/os/linux" ;;
+        wsl)
+            _sim_stow "$DOTFILES/os/linux" bash
+            _sim_stow "$DOTFILES/os/wsl" git
+            ;;
+    esac
+
+    [[ -d "$DOTFILES/hosts/$host" ]] && _sim_stow "$DOTFILES/hosts/$host"
+
+    rm -rf "$sim_target"
+    unset -f _sim_stow
+
+    if [[ $conflicts -gt 0 ]]; then
+        err "stow conflicts detected (see above).\n  Back up or remove the conflicting files, then re-run bootstrap.sh."
+    fi
 }
 
 _repo_is_locked() {
@@ -280,6 +355,10 @@ main() {
         macos)     ensure_macos_prereqs ;;
         linux|wsl) ensure_linux_prereqs ;;
     esac
+
+    # Pre-flight: dry-run all stow operations and report conflicts clearly
+    # rather than aborting mid-run with a cryptic stow error.
+    _stow_preflight
 
     # gnupg and ssh configs include encrypted files (.ssh/config.d/*, secrets/).
     # Stowing them while git-crypt is locked installs encrypted blobs as configs.
