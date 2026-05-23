@@ -22,9 +22,33 @@
     ],
 
     // ── Terminal ─────────────────────────────────────────────────────────
-    "terminal.integrated.defaultProfile.windows": "WSL",
+    // Default to WSL; the profile below starts fish directly (no tmux).
+    // Alacritty uses wsl.exe + tmux; VSCodium intentionally does not.
+    "terminal.integrated.defaultProfile.windows": "Ubuntu-24.04 (WSL)",
     "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font Mono",
     "terminal.integrated.fontSize": 13,
+    "terminal.integrated.profiles.windows": {
+        "PowerShell": {
+            "source": "PowerShell",
+            "icon": "terminal-powershell"
+        },
+        "Command Prompt": {
+            "path": [
+                "${env:windir}\\Sysnative\\cmd.exe",
+                "${env:windir}\\System32\\cmd.exe"
+            ],
+            "args": [],
+            "icon": "terminal-cmd"
+        },
+        "Ubuntu-24.04 (WSL)": {
+            // Invoke fish --login directly.  This bypasses bash (the WSL
+            // default login shell) and avoids any tmux auto-start.
+            // Profile name must match defaultProfile above exactly.
+            "path": "C:\\WINDOWS\\System32\\wsl.exe",
+            "args": ["-d", "Ubuntu-24.04", "--", "fish", "--login"],
+            "icon": "terminal-linux"
+        }
+    },
 
     // ── Python ───────────────────────────────────────────────────────────
     "python.defaultInterpreterPath": "python",
@@ -44,6 +68,10 @@
     },
 
     // ── Git ───────────────────────────────────────────────────────────────
+    // Delegate all git calls to WSL git via the wrapper installed by
+    // up.sh at %LOCALAPPDATA%\bin\git.cmd.  The __WIN_LOCALAPPDATA__ token
+    // is substituted with the actual Windows path at deploy time.
+    "git.path": "__WIN_LOCALAPPDATA__\\bin\\git.cmd",
     "git.autofetch": true,
     "git.confirmSync": false,
 

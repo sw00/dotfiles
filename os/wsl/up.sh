@@ -24,6 +24,7 @@ fi
 # Resolve Windows user paths via cmd.exe (avoids dependency on wslu/wslvar)
 WIN_HOME=$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")
 WIN_APPDATA=$(wslpath "$(cmd.exe /c 'echo %APPDATA%' 2>/dev/null | tr -d '\r')")
+WIN_LOCALAPPDATA=$(wslpath "$(cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')")
 
 # ── Windows apps (winget) ────────────────────────────────────────────────────
 WINGET_LIST="$WINDOWS_SRC/winget.txt"
@@ -81,10 +82,33 @@ fi
 VSCODIUM_SRC="$WINDOWS_SRC/vscodium"
 VSCODIUM_WIN="$WIN_APPDATA/VSCodium/User"
 
+# Install the WSL→git wrapper so VSCodium's git.path can point at it.
+# The wrapper lives at %LOCALAPPDATA%\bin\git.cmd and simply calls wsl.exe git.
+GIT_WRAPPER_DIR="$WIN_LOCALAPPDATA/bin"
+GIT_WRAPPER="$GIT_WRAPPER_DIR/git.cmd"
+if [[ -f "$VSCODIUM_SRC/wsl-git.cmd" ]]; then
+    log "installing WSL git wrapper → $GIT_WRAPPER"
+    mkdir -p "$GIT_WRAPPER_DIR"
+    cp -f "$VSCODIUM_SRC/wsl-git.cmd" "$GIT_WRAPPER"
+fi
+
 if [[ -f "$VSCODIUM_SRC/settings.json" ]]; then
     log "installing VSCodium settings"
     mkdir -p "$VSCODIUM_WIN"
-    cp -f "$VSCODIUM_SRC/settings.json" "$VSCODIUM_WIN/settings.json"
+    # Substitute __WIN_LOCALAPPDATA__ with the real Windows path (backslash-
+    # escaped for JSON).  Python is used to avoid bash/sed backslash hell.
+    WIN_LOCALAPPDATA_WIN=$(cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')
+    python3 - "$VSCODIUM_SRC/settings.json" "$VSCODIUM_WIN/settings.json" \
+              "$WIN_LOCALAPPDATA_WIN" << 'PYEOF'
+import sys
+src, dst, win_path = sys.argv[1], sys.argv[2], sys.argv[3]
+# JSON requires backslashes doubled; win_path arrives with single backslashes.
+json_path = win_path.replace('\\', '\\\\')
+with open(src) as f:
+    content = f.read()
+with open(dst, 'w') as f:
+    f.write(content.replace('__WIN_LOCALAPPDATA__', json_path))
+PYEOF
 fi
 
 if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
@@ -108,7 +132,7 @@ if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
         log "installing VSCodium extensions"
         grep -v '^#' "$VSCODIUM_SRC/extensions.txt" | grep -v '^$' \
         | while read -r ext; do
-            "$CODIUM_CMD" --install-extension "$ext" --force 2>&1 \
+            cmd.exe /c "$(wslpath -w "$CODIUM_CMD")" --install-extension "$ext" --force 2>&1 \
                 | grep -v 'already installed' || true
         done
     else
@@ -152,7 +176,7 @@ Get-ChildItem "$tmp\extracted" -Filter "*NerdFontMono*.ttf" | ForEach-Object {
     Write-Host "    installed $($_.Name)"
 }
 Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "==> Fonts installed — restart Alacritty to apply"
+Write-Host "==> Fonts installed - restart Alacritty to apply"
 EOF
 
 log "installing CaskaydiaCove Nerd Font on Windows"
