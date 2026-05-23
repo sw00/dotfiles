@@ -234,10 +234,15 @@ section "Repository structure  [GREEN]"
 check "os/wsl/ directory exists" \
     test -d "$DOTFILES/os/wsl"
 
-# The machine running check.sh must have a matching host directory
+# The machine running check.sh must have a matching host directory.
+# Skipped in CI: the runner hostname is ephemeral and has no host config.
 HOST="$(hostname -s | tr '[:upper:]' '[:lower:]')"
-check "hosts/$HOST/ exists for current machine ($HOST)" \
-    test -d "$DOTFILES/hosts/$HOST"
+if [[ -z "${CI:-}" ]]; then
+    check "hosts/$HOST/ exists for current machine ($HOST)" \
+        test -d "$DOTFILES/hosts/$HOST"
+else
+    _skip "hosts/$HOST/ exists for current machine ($HOST)" "CI environment"
+fi
 
 # extras/ should not hold host-specific wslconfig files (they belong in hosts/)
 check "extras/wslconfig.* moved to hosts/" bash -c "
