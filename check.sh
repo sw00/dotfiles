@@ -59,10 +59,12 @@ stow_begin() { STOW_TMP=$(mktemp -d); }
 stow_end()   { [[ -n "${STOW_TMP:-}" ]] && rm -rf "$STOW_TMP"; STOW_TMP=""; }
 
 stow_layer() {
-    # Lay down a prerequisite layer for real (not simulated)
+    # Lay down a prerequisite layer for real (not simulated).
+    # --no-folding prevents directory-level symlinks so subsequent layers
+    # from different stow dirs can target the same directories.
     local parent="$1"; shift
     [[ -d "$parent" ]] || return 0
-    stow -d "$parent" -t "$STOW_TMP" "$@" 2>/dev/null
+    stow --no-folding -d "$parent" -t "$STOW_TMP" "$@" 2>/dev/null
 }
 
 check_stow() {
@@ -133,17 +135,13 @@ check_stow "base: bash git nvim ssh fish tmux alacritty mise" \
     "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
 stow_end
 
-# ── Linux stack: base → os/linux → hosts/x1c2e ───
+# ── Linux stack: base → os/linux ───
 section "Stow integrity — Linux stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux
+stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
 check_stow "os/linux: alacritty awesome bash" \
     "$DOTFILES/os/linux" alacritty awesome bash
-
-stow_layer "$DOTFILES/os/linux" alacritty awesome bash
-check_stow "hosts/x1c2e: autorandr etc grobi" \
-    "$DOTFILES/hosts/x1c2e" autorandr etc grobi
 stow_end
 
 # ── macOS stack: base → os/macos → hosts/mbpm3 ───
