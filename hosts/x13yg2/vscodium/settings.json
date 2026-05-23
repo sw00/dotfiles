@@ -1,0 +1,52 @@
+{
+    // ── Editor ───────────────────────────────────────────────────────────
+    "editor.fontFamily": "CaskaydiaCove Nerd Font Mono, Consolas, monospace",
+    "editor.fontSize": 13,
+    "editor.lineHeight": 1.5,
+    "editor.formatOnSave": true,
+    "editor.rulers": [88],
+    "editor.minimap.enabled": false,
+    "editor.renderWhitespace": "boundary",
+    "editor.wordWrap": "off",
+    "breadcrumbs.enabled": true,
+
+    // ── Vim ──────────────────────────────────────────────────────────────
+    "vim.leader": ",",
+    "vim.useSystemClipboard": true,
+    "vim.hlsearch": true,
+    "vim.incsearch": true,
+    "vim.useCtrlKeys": true,
+    "vim.normalModeKeyBindingsNonRecursive": [
+        { "before": ["<leader>", "w"], "commands": [":w"] },
+        { "before": ["<leader>", "q"], "commands": [":q"] }
+    ],
+
+    // ── Terminal ─────────────────────────────────────────────────────────
+    "terminal.integrated.defaultProfile.windows": "WSL",
+    "terminal.integrated.fontFamily": "CaskaydiaCove Nerd Font Mono",
+    "terminal.integrated.fontSize": 13,
+
+    // ── Python ───────────────────────────────────────────────────────────
+    "python.defaultInterpreterPath": "python",
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+    },
+    "isort.args": ["--profile", "black"],
+    "mypy-type-checker.args": ["--ignore-missing-imports"],
+
+    // ── Files ─────────────────────────────────────────────────────────────
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.associations": {
+        "*.toml": "toml",
+        "*.conf": "ini"
+    },
+
+    // ── Git ───────────────────────────────────────────────────────────────
+    "git.autofetch": true,
+    "git.confirmSync": false,
+
+    // ── Telemetry ─────────────────────────────────────────────────────────
+    "telemetry.telemetryLevel": "off"
+}
