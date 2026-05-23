@@ -129,8 +129,12 @@ fi
 section "Stow integrity — base packages  [GREEN]"
 
 stow_begin
-check_stow "base: bash git nvim ssh fish tmux alacritty mise" \
-    "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
+# base/gnupg removed: stowing it alongside os/*/gnupg causes a conflict on
+# the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
+# base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
+# are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
+check_stow "base: git nvim ssh fish tmux alacritty mise" \
+    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
 stow_end
 
 # ── Linux stack: base → os/linux ───
@@ -146,7 +150,7 @@ stow_end
 section "Stow integrity — macOS stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux
 check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
@@ -161,8 +165,8 @@ stow_end
 section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux alacritty
-stow_layer "$DOTFILES/os/linux" bash
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty
+stow_layer "$DOTFILES/os/linux" bash gnupg
 check_stow "os/wsl: git" "$DOTFILES/os/wsl" git
 stow_end
 
@@ -408,9 +412,20 @@ check_not "bootstrap: tmux not in ensure_system_tools (managed by mise)" \
 check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)" \
     'abbr.*psh' "$FISH_CFG"
 
-check_has "bootstrap: base/gnupg is stowed" \
+check_not "bootstrap: gnupg not in base stow (stowed per-OS to avoid conflict)" \
     'stow_dir.*base.*gnupg' \
     "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: WSL stows os/linux gnupg (pinentry-tty)" \
+    'stow_dir.*os/linux.*gnupg' \
+    "$DOTFILES/bootstrap.sh"
+
+check_has "os/macos/gpg-agent.conf: complete config (pinentry + TTL)" \
+    'default-cache-ttl' \
+    "$DOTFILES/os/macos/gnupg/.gnupg/gpg-agent.conf"
+
+check "base/gnupg removed (conflict source)" \
+    bash -c "! test -d '$DOTFILES/base/gnupg'"
 
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"

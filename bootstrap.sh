@@ -307,16 +307,16 @@ _stow_preflight() {
     }
 
     if _repo_is_locked; then
-        _sim_stow "$DOTFILES/base" bash git nvim fish tmux alacritty mise
+        _sim_stow "$DOTFILES/base" git nvim fish tmux alacritty mise
     else
-        _sim_stow "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
+        _sim_stow "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
     fi
 
     case "$platform" in
         macos) _sim_stow "$DOTFILES/os/macos" ;;
         linux) _sim_stow "$DOTFILES/os/linux" ;;
         wsl)
-            _sim_stow "$DOTFILES/os/linux" bash
+            _sim_stow "$DOTFILES/os/linux" bash gnupg
             _sim_stow "$DOTFILES/os/wsl" git
             ;;
     esac
@@ -363,22 +363,25 @@ main() {
     # gnupg and ssh configs include encrypted files (.ssh/config.d/*, secrets/).
     # Stowing them while git-crypt is locked installs encrypted blobs as configs.
     if _repo_is_locked; then
-        warn "git-crypt is locked — skipping gnupg and ssh stow"
+        warn "git-crypt is locked — skipping ssh stow"
         warn "run 'git-crypt unlock' then re-run bootstrap.sh to complete setup"
         log "stowing base configs (secrets excluded)"
-        stow_dir "$DOTFILES/base" bash git nvim fish tmux alacritty mise
+        stow_dir "$DOTFILES/base" git nvim fish tmux alacritty mise
     else
         log "stowing base configs"
-        stow_dir "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
+        stow_dir "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
     fi
 
+    # gnupg is stowed per-OS, not from base: macOS uses pinentry-ide,
+    # Linux/WSL use pinentry-tty. Both sources target the same file
+    # (gpg-agent.conf) so base/gnupg would cause a stow conflict.
     case "$platform" in
         macos) stow_dir "$DOTFILES/os/macos" ;;
         linux) stow_dir "$DOTFILES/os/linux" ;;
         wsl)
-            # WSL: only stow the shell/CLI layer from os/linux.
+            # WSL: stow shell + gnupg from os/linux (pinentry-tty).
             # Alacritty runs on Windows; awesome WM is irrelevant.
-            stow_dir "$DOTFILES/os/linux" bash
+            stow_dir "$DOTFILES/os/linux" bash gnupg
             # Explicit package list: os/wsl/windows/ is not a stow package.
             stow_dir "$DOTFILES/os/wsl" git
             ;;

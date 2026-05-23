@@ -16,7 +16,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y stow shellcheck fish
+          sudo apt-get install -y stow shellcheck fish tmux
 
       - name: Run check.sh
         run: bash check.sh

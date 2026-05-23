@@ -13,8 +13,6 @@
 [color "status"]
 	changed = "yellow "
 	untracked = "dim "
-[gitreview]
-	username = sw00
 [push]
 	default = current
 [credential]
@@ -22,13 +20,11 @@
 	# Fallback: in-memory cache for Linux environments without a keystore.
 	helper = cache --timeout=144000
 [diff]
-	tool = vimdiff
+	tool = nvimdiff
 [difftool]
 	prompt = false
 [alias]
 	dt = difftool
-[difftool "vimdiff"]
-	cmd = vimdiff \"$LOCAL\" \"$REMOTE\"
 
 [includeIf "gitdir:/etc/"]
 	path = ~/.gitconfig-etckeeper
