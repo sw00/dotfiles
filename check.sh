@@ -166,12 +166,18 @@ section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty
-stow_layer "$DOTFILES/os/linux" bash gnupg
-check_stow "os/wsl: git" "$DOTFILES/os/wsl" git
+stow_layer "$DOTFILES/os/linux" bash
+check_stow "os/wsl: git gnupg" "$DOTFILES/os/wsl" git gnupg
 stow_end
 
 check "os/wsl/up.sh exists" \
     test -f "$DOTFILES/os/wsl/up.sh"
+
+check "os/wsl/gnupg: pinentry-wsl.sh exists" \
+    test -f "$DOTFILES/os/wsl/gnupg/.gnupg/pinentry-wsl.sh"
+
+check "os/wsl/gnupg: pinentry-wsl.sh is executable" \
+    test -x "$DOTFILES/os/wsl/gnupg/.gnupg/pinentry-wsl.sh"
 
 check "os/wsl/windows/wsl.conf exists" \
     test -f "$DOTFILES/os/wsl/windows/wsl.conf"
@@ -179,7 +185,7 @@ check "os/wsl/windows/wsl.conf exists" \
 check_has "bootstrap: WSL calls os/wsl/up.sh" \
     'os/wsl/up.sh' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: os/wsl stow is explicit (git only)" \
+check_has "bootstrap: os/wsl stow is explicit (git gnupg)" \
     'stow_dir.*os/wsl.*git' "$DOTFILES/bootstrap.sh"
 
 # hosts/x13yg2: only alacritty/ should be a stow package (vscodium/ and wsl/ removed)
@@ -416,8 +422,8 @@ check_not "bootstrap: gnupg not in base stow (stowed per-OS to avoid conflict)" 
     'stow_dir.*base.*gnupg' \
     "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: WSL stows os/linux gnupg (pinentry-tty)" \
-    'stow_dir.*os/linux.*gnupg' \
+check_has "bootstrap: WSL stows os/wsl gnupg (pinentry-wsl)" \
+    'stow_dir.*os/wsl.*gnupg' \
     "$DOTFILES/bootstrap.sh"
 
 check_has "os/macos/gpg-agent.conf: complete config (pinentry + TTL)" \
@@ -435,6 +441,20 @@ check_has "bootstrap: lf in ensure_system_tools" \
 
 check_has "bootstrap: tig in ensure_system_tools" \
     'wanted=.*tig' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: pinentry-gtk2 in WSL system tools" \
+    'pinentry-gtk2' "$DOTFILES/bootstrap.sh"
+
+check_has "up.sh: gpg-agent reload present" \
+    'gpg-connect-agent reloadagent' "$DOTFILES/os/wsl/up.sh"
+
+# gpg-agent does not expand ~ in pinentry-program, so up.sh must write
+# gpg-agent.conf with $HOME expanded — not stow-managed.
+check "os/wsl/gnupg: gpg-agent.conf NOT stow-managed (written by up.sh)" \
+    bash -c "! test -f '$DOTFILES/os/wsl/gnupg/.gnupg/gpg-agent.conf'"
+
+check_has "up.sh: gpg-agent.conf written with absolute pinentry-wsl path" \
+    'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
 
 check_has "Brewfile-host: lf present" \
     'brew "lf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"

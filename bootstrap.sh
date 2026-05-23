@@ -117,7 +117,7 @@ ensure_system_tools() {
 
     local wanted=(fish git-lfs lf tig)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
-        wanted+=(wslview xclip)  # wslview is the binary from the wslu package
+        wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
     fi
 
     local missing=()
@@ -431,8 +431,8 @@ _stow_preflight() {
         macos) _sim_stow "$DOTFILES/os/macos" ;;
         linux) _sim_stow "$DOTFILES/os/linux" ;;
         wsl)
-            _sim_stow "$DOTFILES/os/linux" bash gnupg
-            _sim_stow "$DOTFILES/os/wsl" git
+            _sim_stow "$DOTFILES/os/linux" bash
+            _sim_stow "$DOTFILES/os/wsl" git gnupg
             ;;
     esac
 
@@ -493,11 +493,13 @@ main() {
         macos) stow_dir "$DOTFILES/os/macos" ;;
         linux) stow_dir "$DOTFILES/os/linux" ;;
         wsl)
-            # WSL: stow shell + gnupg from os/linux (pinentry-tty).
+            # WSL: stow shell from os/linux; gnupg comes from os/wsl so the
+            # VSCodium Remote pinentry wrapper (pinentry-wsl.sh) is used.
             # Alacritty runs on Windows; awesome WM is irrelevant.
-            stow_dir "$DOTFILES/os/linux" bash gnupg
+            stow_dir "$DOTFILES/os/linux" bash
             # Explicit package list: os/wsl/windows/ is not a stow package.
-            stow_dir "$DOTFILES/os/wsl" git
+            # gnupg: WSL-specific config pointing to pinentry-wsl.sh.
+            stow_dir "$DOTFILES/os/wsl" git gnupg
             ;;
     esac
 

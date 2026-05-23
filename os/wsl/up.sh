@@ -184,4 +184,36 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w "$PS_FONT"
     warn "font installation failed — install manually from https://www.nerdfonts.com/font-downloads"
 rm -f "$PS_FONT"
 
+# ── GPG agent ────────────────────────────────────────────────────────────────
+# gpg-agent does NOT expand ~ in pinentry-program; the path must be absolute.
+# Write gpg-agent.conf here with $HOME expanded at install time — same pattern
+# used for VSCodium settings.json / __WIN_LOCALAPPDATA__ substitution.
+log "configuring GPG pinentry for VSCodium Remote WSL"
+
+mkdir -p ~/.gnupg
+chmod 700 ~/.gnupg
+
+# Remove any stale stow symlink before writing the real file.
+[ -L ~/.gnupg/gpg-agent.conf ] && rm -f ~/.gnupg/gpg-agent.conf
+
+cat > ~/.gnupg/gpg-agent.conf << EOF
+# gpg-agent.conf — WSL2  (written by up.sh; \$HOME expanded at install time)
+#
+# pinentry-wsl.sh dispatches to the right pinentry for each context:
+#   - VSCodium Remote WSL server (no TTY)  -> pinentry-gtk-2 via WSLg
+#   - Alacritty / interactive terminal     -> pinentry-gtk-2 via WSLg
+#   - Fallback (no display)                -> pinentry-curses / pinentry-tty
+pinentry-program $HOME/.gnupg/pinentry-wsl.sh
+default-cache-ttl 3600
+max-cache-ttl 86400
+EOF
+
+# Ensure the wrapper is executable (stow creates a symlink; defend against
+# any git-clone or filesystem edge-case that strips the executable bit).
+chmod +x ~/.gnupg/pinentry-wsl.sh 2>/dev/null || true
+
+# Reload gpg-agent so it picks up the new pinentry-program immediately.
+# Safe to call even when no agent is running (exits 0 in that case).
+gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
+
 log "Windows-side setup complete"
