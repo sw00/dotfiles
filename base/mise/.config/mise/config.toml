@@ -45,3 +45,10 @@ python  = "3.12"
 # elixir = "latest"
 # ruby   = "3.3"
 # java   = "temurin-21"
+
+# ── Settings ─────────────────────────────────────────────────────────────────
+[settings]
+# Python packages needed by tools (tmux plugins, scripts, etc.) — not projects.
+# Installed automatically whenever mise provisions a new Python version.
+# Add packages here rather than running pip manually or using venvs for tools.
+python.default_packages_file = "~/.config/mise/default-python-packages"

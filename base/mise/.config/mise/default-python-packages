@@ -1,0 +1,10 @@
+# Python packages installed into the mise-managed Python for tool use.
+# NOT for project dependencies — use a per-project venv/.mise.toml for those.
+#
+# mise installs these automatically when provisioning a new Python version
+# (python.default_packages_file in config.toml).
+# To install into the current Python without re-provisioning:
+#   mise run python -- pip install -r ~/.config/mise/default-python-packages
+#
+# ── tmux plugins ──────────────────────────────────────────────────────────────
+libtmux          # ofirgall/tmux-window-name
