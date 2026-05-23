@@ -1,8 +1,6 @@
 tap "homeport/tap"
 # Mac App Store command-line interface
 brew "mas"
-# Ambitious Vim-fork focused on extensibility and agility
-brew "neovim"
 # GPU-accelerated terminal emulator
 cask "alacritty"
 # Desktop password and login vault

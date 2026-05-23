@@ -367,6 +367,19 @@ check_has "mise: python runtime is declared" \
 check_not "mise: asdf not referenced in fish config (replaced by mise)" \
     'asdf' "$FISH_CFG"
 
+check_has "mise: tmux-sessionizer is managed by mise" \
+    'tmux-sessionizer' "$MISE_CFG"
+
+check_not "mise: neovim not in macOS Brewfile-base (managed by mise)" \
+    'brew "neovim"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)" \
+    'abbr.*psh' "$FISH_CFG"
+
+check_has "bootstrap: base/gnupg is stowed" \
+    'stow_dir.*base.*gnupg' \
+    "$DOTFILES/bootstrap.sh"
+
 # =============================================================================
 # SUMMARY
 # =============================================================================

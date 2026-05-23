@@ -226,7 +226,7 @@ main() {
     esac
 
     log "stowing base configs"
-    stow_dir "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
+    stow_dir "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
 
     case "$platform" in
         macos) stow_dir "$DOTFILES/os/macos" ;;

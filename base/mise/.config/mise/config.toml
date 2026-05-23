@@ -18,7 +18,8 @@ delta    = "latest"
 jq       = "latest"
 yq       = "latest"
 zoxide   = "latest"
-direnv   = "latest"
+direnv            = "latest"
+tmux-sessionizer  = "latest"
 
 # ── Language runtimes ────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.

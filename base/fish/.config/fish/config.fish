@@ -56,7 +56,6 @@ abbr --add --global -- ipy   ipython
 abbr --add --global -- kc    kubectl
 abbr --add --global -- kn    kubens
 abbr --add --global -- kx    kubectx
-abbr --add --global -- psh   'powershell.exe -Command'
 
 # Aliases
 alias vi  nvim
