@@ -158,25 +158,34 @@ check_stow "hosts/mbpm3: alacritty brew key_remap" \
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
-# os/wsl is the right home for future WSL-specific stow packages.
-# WSL fish config lives in base/fish/conf.d (fish's own layering avoids
-# the stow cross-package symlink conflict).
+# os/wsl/windows/ holds content for the Windows side (pushed by up.sh, not stowed).
+# Only os/wsl/git/ is a stow package; bootstrap.sh lists it explicitly.
 section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux alacritty
 stow_layer "$DOTFILES/os/linux" bash
-
-mapfile -t _wsl_pkgs < <(
-    find "$DOTFILES/os/wsl" -maxdepth 1 -mindepth 1 -type d \
-        -printf '%f\n' 2>/dev/null | sort
-)
-if [[ ${#_wsl_pkgs[@]} -gt 0 ]]; then
-    check_stow "os/wsl: ${_wsl_pkgs[*]}" "$DOTFILES/os/wsl"
-else
-    _ok "os/wsl: git config handled via os/wsl/git stow layer"
-fi
+check_stow "os/wsl: git" "$DOTFILES/os/wsl" git
 stow_end
+
+check "os/wsl/up.sh exists" \
+    test -f "$DOTFILES/os/wsl/up.sh"
+
+check "os/wsl/windows/wsl.conf exists" \
+    test -f "$DOTFILES/os/wsl/windows/wsl.conf"
+
+check_has "bootstrap: WSL calls os/wsl/up.sh" \
+    'os/wsl/up.sh' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: os/wsl stow is explicit (git only)" \
+    'stow_dir.*os/wsl.*git' "$DOTFILES/bootstrap.sh"
+
+# hosts/x13yg2: only alacritty/ should be a stow package (vscodium/ and wsl/ removed)
+check "hosts/x13yg2: vscodium/ not present (moved to os/wsl/windows/)" \
+    bash -c "! test -d '$DOTFILES/hosts/x13yg2/vscodium'"
+
+check "hosts/x13yg2: wsl/ not present (script moved to os/wsl/up.sh)" \
+    bash -c "! test -d '$DOTFILES/hosts/x13yg2/wsl'"
 
 
 # =============================================================================

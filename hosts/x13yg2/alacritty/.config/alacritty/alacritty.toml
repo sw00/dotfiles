@@ -1,5 +1,5 @@
 # NOTE: This file is the source of truth but Alacritty runs on Windows.
-# up.sh copies both base.toml and this file to %APPDATA%\Alacritty\.
+# os/wsl/up.sh copies both base.toml and this file to %APPDATA%\Alacritty\.
 # The import path below is resolved by Alacritty on Windows.
 import = ["base.toml"]
 

@@ -233,10 +233,10 @@ main() {
         linux) stow_dir "$DOTFILES/os/linux" ;;
         wsl)
             # WSL: only stow the shell/CLI layer from os/linux.
-            # Alacritty runs on Windows (copied by hosts/*/wsl/up.sh).
-            # Awesome WM is irrelevant in WSL.
+            # Alacritty runs on Windows; awesome WM is irrelevant.
             stow_dir "$DOTFILES/os/linux" bash
-            stow_dir "$DOTFILES/os/wsl"
+            # Explicit package list: os/wsl/windows/ is not a stow package.
+            stow_dir "$DOTFILES/os/wsl" git
             ;;
     esac
 
@@ -248,6 +248,11 @@ main() {
 
     if [[ "$platform" == "macos" ]]; then
         load_macos_launch_agents
+    fi
+
+    if [[ "$platform" == "wsl" ]]; then
+        log "running Windows-side setup"
+        bash "$DOTFILES/os/wsl/up.sh"
     fi
 
     # Install tools after configs are stowed so first-launch config is ready.
@@ -267,9 +272,7 @@ main() {
     log "bootstrap complete"
     log "next steps:"
     log "  1. Start a new shell (or: exec fish) to pick up Fish config"
-    if [[ "$platform" == "wsl" ]] && [[ -f "$DOTFILES/hosts/$host/wsl/up.sh" ]]; then
-        log "  2. Run hosts/$host/wsl/up.sh to set up Windows-side configs"
-    fi
+
 }
 
 main "$@"
