@@ -1,6 +1,6 @@
 return {
-    { 'kyazdani42/nvim-web-devicons', name = 'devicons' },
-    'NLKNguyen/papercolor-theme',
+    { 'nvim-tree/nvim-web-devicons', name = 'devicons' },
+    { 'NLKNguyen/papercolor-theme', lazy = true },
     {
         'folke/zen-mode.nvim',
         event = 'VeryLazy',
@@ -19,17 +19,19 @@ return {
         end,
     },
     {
+        -- Nicer vim.ui.input (floating prompt) and vim.ui.select (pick list).
+        -- Replaces telescope-ui-select; dressing handles both in one place.
         'stevearc/dressing.nvim',
+        event = 'VeryLazy',
         opts = {
-            input = {
-                enabled = true,
-            },
+            input  = { enabled = true },
+            select = { enabled = true, backend = { 'telescope', 'builtin' } },
         },
     },
     -- highlight todo, notes in comments
     {
         'folke/todo-comments.nvim',
-        event = 'VimEnter',
+        event = 'BufReadPost',
         dependencies = { 'nvim-lua/plenary.nvim' },
         opts = { signs = false },
     },

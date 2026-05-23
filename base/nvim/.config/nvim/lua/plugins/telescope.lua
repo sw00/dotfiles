@@ -13,19 +13,34 @@ return {
                     return vim.fn.executable 'make' == 1
                 end,
             },
-            'nvim-telescope/telescope-ui-select.nvim',
         },
         config = function()
             require('telescope').setup {
-                extensions = {
-                    ['ui-select'] = {
-                        require('telescope.themes').get_dropdown(),
+                defaults = {
+                    -- ripgrep: include hidden files, skip .git internals
+                    vimgrep_arguments = {
+                        'rg', '--color=never', '--no-heading', '--with-filename',
+                        '--line-number', '--column', '--smart-case',
+                        '--hidden', '--glob', '!**/.git/*',
+                    },
+                    path_display = { 'truncate' },
+                    layout_config = { prompt_position = 'top' },
+                    sorting_strategy = 'ascending',
+                    -- telescope's previewer calls nvim-treesitter v1-incompatible APIs
+                    -- (parsers.ft_to_lang, configs.is_enabled, etc.) — disable it and
+                    -- fall back to Vim's built-in regex highlighting for the preview pane.
+                    preview = { treesitter = false },
+                },
+                pickers = {
+                    find_files = {
+                        hidden = true,
+                        file_ignore_patterns = { '%.git/', 'node_modules/', '%.cache/' },
                     },
                 },
+                extensions = {},
             }
 
             pcall(require('telescope').load_extensions, 'fzf')
-            pcall(require('telescope').load_extensions, 'ui-select')
 
             local builtin = require 'telescope.builtin'
 
