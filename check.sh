@@ -5,9 +5,7 @@
 # Usage:  ./check.sh
 # Exit:   0 = all tests passed, 1 = one or more failures
 #
-# Tests are labelled:
-#   [GREEN] regression guard  — should pass now and stay passing
-#   [RED]   TDD assertion     — fails now; passes after each planned change
+# All tests are regression guards — labelled [GREEN].
 # =============================================================================
 
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -217,10 +215,9 @@ fi
 
 
 # =============================================================================
-# 4. REPOSITORY STRUCTURE  [RED]
-# Fix: create os/wsl/, add hosts/x13yg2/, move extras/wslconfig.* to hosts/
+# 4. REPOSITORY STRUCTURE
 # =============================================================================
-section "Repository structure  [RED]"
+section "Repository structure  [GREEN]"
 
 # Every platform needs its os/ directory
 check "os/wsl/ directory exists" \
@@ -238,10 +235,9 @@ check "extras/wslconfig.* moved to hosts/" bash -c "
 
 
 # =============================================================================
-# 5. FISH CONFIG  [RED]
-# Fix: update Fisher URL, add asdf initialisation
+# 5. FISH CONFIG
 # =============================================================================
-section "Fish config  [RED]"
+section "Fish config  [GREEN]"
 
 check_not \
     "config.fish: Fisher URL is not the deprecated git.io shortlink" \
@@ -260,15 +256,12 @@ check_not \
 
 
 # =============================================================================
-# 6. TMUX CONFIG  [RED]
-# Fix: make clipboard commands platform-conditional (pbcopy → if-shell guard)
+# 6. TMUX CONFIG
 # =============================================================================
-section "Tmux config  [RED]"
+section "Tmux config  [GREEN]"
 
 TMUX_CFG="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
 
-# pbcopy must live inside an if-shell Darwin guard, not as a bare binding.
-# After the fix an 'if-shell ... Darwin' line appears before the pbcopy bindings.
 check_has \
     "tmux: clipboard has platform guard (if-shell Darwin)" \
     'if-shell.*Darwin' \
@@ -276,10 +269,9 @@ check_has \
 
 
 # =============================================================================
-# 7. GIT CONFIG  [RED]
-# Fix: remove [filter "media"] and [filter "hawser"] stale blocks
+# 7. GIT CONFIG
 # =============================================================================
-section "Git config  [RED]"
+section "Git config  [GREEN]"
 
 GITCFG="$DOTFILES/base/git/.gitconfig"
 
@@ -302,10 +294,9 @@ check "ssh/config.d/lan.conf: no duplicate Host entries" bash -c "
 
 
 # =============================================================================
-# 8. NEOVIM  [RED]
-# Fix: remove packer.snapshot, replace neodev.nvim with lazydev.nvim
+# 8. NEOVIM
 # =============================================================================
-section "Neovim  [RED]"
+section "Neovim  [GREEN]"
 
 check "nvim: packer.snapshot does not exist (migrated to lazy.nvim)" \
     bash -c "! test -f '$DOTFILES/base/nvim/.config/nvim/packer.snapshot'"
@@ -324,10 +315,9 @@ check_has \
 
 
 # =============================================================================
-# 9. ALACRITTY  [RED]
-# Fix: consolidate configs using Alacritty's `import` directive
+# 9. ALACRITTY
 # =============================================================================
-section "Alacritty  [RED]"
+section "Alacritty  [GREEN]"
 
 check_has \
     "alacritty (linux): config uses 'import' for shared base" \
@@ -421,6 +411,31 @@ check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)"
 check_has "bootstrap: base/gnupg is stowed" \
     'stow_dir.*base.*gnupg' \
     "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: git-crypt lock guard present" \
+    '_repo_is_locked' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: lf in ensure_system_tools" \
+    'wanted=.*lf' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: tig in ensure_system_tools" \
+    'wanted=.*tig' "$DOTFILES/bootstrap.sh"
+
+check_has "Brewfile-host: lf present" \
+    'brew "lf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "Brewfile-host: tig present" \
+    'brew "tig"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "mise: shellcheck declared" \
+    'shellcheck' "$MISE_CFG"
+
+check_not "mise: experimental flag removed" \
+    '^experimental' "$MISE_CFG"
+
+check_not "fish/conf.d/git.fish: no legacy omf hooks" \
+    'functions -e _git_install' \
+    "$DOTFILES/base/fish/.config/fish/conf.d/git.fish"
 
 check_has "Brewfile-base: CaskaydiaCove font cask present" \
     'font-caskaydia-cove-nerd-font' \

@@ -4,9 +4,6 @@
 # OS package managers (brew/apt/winget) handle Level 1 only.
 # Docs: https://mise.jdx.dev/configuration.html
 
-[settings]
-experimental = true   # required for aqua-backed tools
-
 # ── Core CLI tools ────────────────────────────────────────────────────────────
 [tools]
 neovim   = "latest"
@@ -18,7 +15,8 @@ delta    = "latest"
 jq       = "latest"
 yq       = "latest"
 zoxide   = "latest"
-direnv   = "latest"
+direnv      = "latest"
+shellcheck  = "latest"
 
 # ── Terminal / shell ──────────────────────────────────────────────────────────
 # tmux replaces apt/brew tmux; uniform version across all platforms.

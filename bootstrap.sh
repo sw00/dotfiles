@@ -107,14 +107,15 @@ ensure_linux_prereqs() {
 
 ensure_system_tools() {
     # Installs only what mise cannot provide:
-    #   fish   — login shell; must exist before mise activates
-    #   git-lfs — git integration, not a standalone CLI tool
+    #   fish    — login shell; must exist before mise activates
+    #   git-lfs — git integration, not a standalone binary tool
+    #   lf, tig — not in the aqua/mise registry; must come from system packages
     #   xclip / wslview — WSL platform integrations (no aqua equivalent)
     # Everything else (tmux, neovim, fzf, devops tools, ...) is in mise.
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish git-lfs)
+    local wanted=(fish git-lfs lf tig)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip)  # wslview is the binary from the wslu package
     fi
@@ -255,6 +256,18 @@ load_macos_launch_agents() {
     shopt -u nullglob
 }
 
+_repo_is_locked() {
+    # Detect whether git-crypt has not yet been unlocked on this clone.
+    # Encrypted blobs start with a 10-byte magic header: \x00GITCRYPT\x00
+    local sentinel="$DOTFILES/secrets/env.sh"
+    [[ -f "$sentinel" ]] || return 1  # no secrets file — assume unlocked
+    python3 -c "
+import sys
+with open(sys.argv[1], 'rb') as f:
+    sys.exit(0 if f.read(10) == b'\x00GITCRYPT\x00' else 1)
+" "$sentinel" 2>/dev/null
+}
+
 main() {
     [[ -d "$DOTFILES" ]] || err "dotfiles not at $DOTFILES (override with DOTFILES=...)"
 
@@ -268,8 +281,17 @@ main() {
         linux|wsl) ensure_linux_prereqs ;;
     esac
 
-    log "stowing base configs"
-    stow_dir "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
+    # gnupg and ssh configs include encrypted files (.ssh/config.d/*, secrets/).
+    # Stowing them while git-crypt is locked installs encrypted blobs as configs.
+    if _repo_is_locked; then
+        warn "git-crypt is locked — skipping gnupg and ssh stow"
+        warn "run 'git-crypt unlock' then re-run bootstrap.sh to complete setup"
+        log "stowing base configs (secrets excluded)"
+        stow_dir "$DOTFILES/base" bash git nvim fish tmux alacritty mise
+    else
+        log "stowing base configs"
+        stow_dir "$DOTFILES/base" bash git gnupg nvim ssh fish tmux alacritty mise
+    fi
 
     case "$platform" in
         macos) stow_dir "$DOTFILES/os/macos" ;;

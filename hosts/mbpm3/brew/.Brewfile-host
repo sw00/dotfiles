@@ -21,6 +21,10 @@ brew "tmux"
 brew "tmux-fingers"
 
 # ── macOS-specific ────────────────────────────────────────────────────────────
+# ── CLI tools not in mise/aqua ─────────────────────────────────────
+brew "lf"        # terminal file manager (not in aqua registry)
+brew "tig"       # text-mode git log/diff browser (not in aqua registry)
+
 brew "mas"       # Mac App Store CLI (needed for mas entries below)
 
 # ── Native compiled dependencies ──────────────────────────────────────────────
