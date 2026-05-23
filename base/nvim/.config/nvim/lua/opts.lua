@@ -1,6 +1,10 @@
 --[[ opts.lua ]]
 local opt = vim.opt
 
+-- Prepend Mason's bin dir to PATH so subprocesses (e.g. tree-sitter build
+-- invoked by nvim-treesitter) can find Mason-installed tools.
+vim.env.PATH = vim.fn.stdpath 'data' .. '/mason/bin:' .. vim.env.PATH
+
 -- [[ Context ]]
 opt.number = true -- show line numbers
 -- opt.relativenumber = true		-- show relative line numbers
@@ -18,7 +22,7 @@ end
 
 -- [[ Code Folds ]]
 opt.foldmethod = 'expr' -- folds defined by expression
-opt.foldexpr = 'nvim_treesitter#foldexpr()'
+opt.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
 opt.foldlevelstart = 5 -- only fold if level is higher than
 
 -- [[ Filetypes ]]
@@ -28,7 +32,6 @@ opt.fileencoding = 'utf-8' -- file encoding
 -- [[ Theme ]]
 vim.g.colorscheme = 'tomorrow_night_blue'
 vim.o.background = 'dark'
-opt.syntax = 'on' -- enable syntax highlighting
 opt.termguicolors = true -- vim colors override terminal colors
 
 -- [[ Search ]]
@@ -76,5 +79,21 @@ opt.clipboard = 'unnamedplus' -- always use clipboard (instead of vim registers)
 opt.updatetime = 250 -- write to swapfile to disk every 250ms
 opt.timeoutlen = 700 -- timeout for a mapped sequence to take
 
--- disable inline diagnostic text
-vim.diagnostic.config { virtual_text = false }
+-- Diagnostic presentation: signs with nerd-font icons; no inline virtual text (too noisy).
+vim.diagnostic.config {
+    virtual_text = false,
+    signs = {
+        text = {
+            [vim.diagnostic.severity.ERROR] = ' ',
+            [vim.diagnostic.severity.WARN]  = ' ',
+            [vim.diagnostic.severity.INFO]  = ' ',
+            [vim.diagnostic.severity.HINT]  = '󰌵 ',
+        },
+    },
+    float = {
+        border = 'rounded',
+        source = true, -- show which LSP reported the diagnostic
+    },
+    underline    = true,
+    update_in_insert = false, -- don't flash diagnostics while typing
+}
