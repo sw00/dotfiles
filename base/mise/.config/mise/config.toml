@@ -22,7 +22,8 @@ shellcheck  = "latest"
 # tmux replaces apt/brew tmux; uniform version across all platforms.
 # tmux-fingers is handled by TPM (see tmux.conf); not needed here.
 tmux              = "latest"
-tmux-sessionizer  = "latest"
+# sesh (smart session manager) has no mise registry entry; installed by
+# ensure_sesh in bootstrap.sh from GitHub releases.
 
 # ── Devops — everyday k8s navigation ─────────────────────────────────────────
 kubectl  = "latest"

@@ -2,6 +2,10 @@
 # macOS: bootstrap.sh ensure_vscodium_extensions() installs via codium CLI.
 # Windows/WSL: up.sh installs via codium.cmd --install-extension.
 
+# WSL remote — runs VSCodium server inside WSL2 so filesystem watching
+# and git both use native Linux APIs instead of Windows stubs.
+jeanp413.open-remote-wsl
+
 # Editor
 vscodevim.vim
 subframe7536.theme-maple

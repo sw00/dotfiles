@@ -373,8 +373,8 @@ check_not "mise: asdf not referenced in fish config (replaced by mise)" \
 check_has "mise: tmux is managed by mise (not apt/brew)" \
     '^tmux ' "$MISE_CFG"
 
-check_has "mise: tmux-sessionizer is managed by mise" \
-    'tmux-sessionizer' "$MISE_CFG"
+check_has "bootstrap: sesh installed via ensure_sesh" \
+    'ensure_sesh' "$DOTFILES/bootstrap.sh"
 
 check_has "mise: devops tools declared (kubectl, helm, k9s)" \
     'kubectl' "$MISE_CFG"
