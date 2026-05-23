@@ -195,6 +195,29 @@ PYEOF
     log "CaskaydiaCove Nerd Font installed"
 }
 
+ensure_vscodium_extensions() {
+    # Install VSCodium extensions from the canonical list used by all platforms.
+    # macOS: called after brew bundle (which installs the VSCodium cask).
+    # WSL/Windows: handled by up.sh via codium.cmd.
+    local ext_file="$DOTFILES/os/wsl/windows/vscodium/extensions.txt"
+    [[ -f "$ext_file" ]] || return 0
+
+    local codium_cmd=""
+    for candidate in codium codium-oss; do
+        command -v "$candidate" >/dev/null 2>&1 && codium_cmd="$candidate" && break
+    done
+    if [[ -z "$codium_cmd" ]]; then
+        warn "codium not found — skipping VSCodium extension installation"
+        return 0
+    fi
+
+    log "installing VSCodium extensions from extensions.txt"
+    grep -v '^#' "$ext_file" | grep -v '^$' | while read -r ext; do
+        "$codium_cmd" --install-extension "$ext" --force 2>&1 \
+            | grep -v 'already installed' || true
+    done
+}
+
 ensure_homebrew_bundle() {
     # Run brew bundle for each Brewfile stowed to ~.
     # Brewfile-base (os/macos) installs shared desktop apps.
@@ -413,6 +436,7 @@ main() {
             ;;
         macos)
             ensure_homebrew_bundle
+            ensure_vscodium_extensions
             ensure_fisher
             ensure_mise
             ;;

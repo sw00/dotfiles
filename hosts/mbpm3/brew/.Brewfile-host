@@ -24,7 +24,6 @@ brew "tmux-fingers"
 brew "lf"        # terminal file manager (not in aqua registry)
 brew "tig"       # text-mode git log/diff browser (not in aqua registry)
 
-brew "mas"       # Mac App Store CLI (needed for mas entries below)
 
 # ── Native compiled dependencies ──────────────────────────────────────────────
 # Libraries that Python/other packages link against at the C level.
@@ -58,26 +57,10 @@ cask "vscodium"
 cask "zotero"
 cask "jan"
 
-# ── VSCodium extensions ───────────────────────────────────────────────────────
-vscode "janisdd.vscode-edit-csv"
-# vscode "jeanp413.open-remote-ssh"
-vscode "mechatroner.rainbow-csv"
-vscode "mitchdenny.ecdc"
-vscode "ms-python.autopep8"
-vscode "ms-python.black-formatter"
-vscode "ms-python.debugpy"
-vscode "ms-python.isort"
-vscode "ms-python.mypy-type-checker"
-vscode "ms-python.python"
-vscode "ms-toolsai.jupyter"
-vscode "ms-toolsai.jupyter-keymap"
-vscode "ms-toolsai.jupyter-renderers"
-vscode "ms-toolsai.vscode-jupyter-cell-tags"
-vscode "ms-toolsai.vscode-jupyter-slideshow"
-vscode "redhat.vscode-yaml"
-vscode "subframe7536.theme-maple"
-vscode "vmware.vscode-concourse"
-vscode "vscodevim.vim"
+# ── VSCodium extensions ─────────────────────────────────────────────────────
+# Canonical list: os/wsl/windows/vscodium/extensions.txt
+# bootstrap.sh ensure_vscodium_extensions() installs from that file on all platforms.
+
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104

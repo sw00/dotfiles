@@ -1,6 +1,6 @@
-# VSCodium extensions — x13yg2 (Windows)
-# Installed by up.sh via codium.cmd --install-extension
-# Keep in sync with hosts/mbpm3/brew/.Brewfile-host vscode entries.
+# VSCodium extensions — canonical list, all platforms.
+# macOS: bootstrap.sh ensure_vscodium_extensions() installs via codium CLI.
+# Windows/WSL: up.sh installs via codium.cmd --install-extension.
 
 # Editor
 vscodevim.vim
