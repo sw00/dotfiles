@@ -229,6 +229,29 @@ ensure_homebrew_bundle() {
     done
 }
 
+ensure_tmux_plugins() {
+    # Plugins are sourced directly in tmux.conf (no TPM) to avoid TPM's
+    # startup overhead (~8 s on WSL from repeated tmux list-keys calls).
+    # This function clones each plugin if the directory is missing.
+    local plugins_dir="$HOME/.config/tmux/plugins"
+    mkdir -p "$plugins_dir"
+
+    declare -A plugins=(
+        [tmux-resurrect]="https://github.com/tmux-plugins/tmux-resurrect"
+        [tmux-window-name]="https://github.com/ofirgall/tmux-window-name"
+    )
+
+    for name in "${!plugins[@]}"; do
+        local dir="$plugins_dir/$name"
+        if [[ -d "$dir" ]]; then
+            log "tmux plugin already installed: $name"
+        else
+            log "cloning tmux plugin: $name"
+            git clone --depth=1 "${plugins[$name]}" "$dir"
+        fi
+    done
+}
+
 ensure_sesh() {
     # sesh (joshmedeski/sesh) is not in the mise registry; install the
     # pre-built binary from GitHub releases into ~/.local/bin.
@@ -486,6 +509,7 @@ main() {
             ensure_fisher
             ensure_mise
             ensure_sesh
+            ensure_tmux_plugins
             ;;
         macos)
             ensure_homebrew_bundle
@@ -493,6 +517,7 @@ main() {
             ensure_fisher
             ensure_mise
             ensure_sesh
+            ensure_tmux_plugins
             ;;
     esac
 
