@@ -376,11 +376,44 @@ check_has "mise: python runtime is declared" \
 check_not "mise: asdf not referenced in fish config (replaced by mise)" \
     'asdf' "$FISH_CFG"
 
+check_has "mise: tmux is managed by mise (not apt/brew)" \
+    '^tmux ' "$MISE_CFG"
+
 check_has "mise: tmux-sessionizer is managed by mise" \
     'tmux-sessionizer' "$MISE_CFG"
 
+check_has "mise: devops tools declared (kubectl, helm, k9s)" \
+    'kubectl' "$MISE_CFG"
+
 check_not "mise: neovim not in macOS Brewfile-base (managed by mise)" \
     'brew "neovim"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "Brewfile-host: no stale asdf entry" \
+    'brew "asdf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: fzf removed (managed by mise)" \
+    'brew "fzf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: numpy removed (not a system package)" \
+    'brew "numpy"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: pytorch removed (not a system package)" \
+    'brew "pytorch"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check "bootstrap: macOS calls ensure_homebrew_bundle" \
+    grep -q 'ensure_homebrew_bundle' "$DOTFILES/bootstrap.sh"
+
+check "os/wsl/windows/winget.txt exists" \
+    test -f "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Alacritty entry present" \
+    'Alacritty.Alacritty' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: VSCodium entry present" \
+    'VSCodium.VSCodium' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_not "bootstrap: tmux not in ensure_system_tools (managed by mise)" \
+    'wanted.*tmux\|tmux.*wanted' "$DOTFILES/bootstrap.sh"
 
 check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)" \
     'abbr.*psh' "$FISH_CFG"

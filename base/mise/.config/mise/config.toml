@@ -1,13 +1,13 @@
 # ~/.config/mise/config.toml
-# Global mise config — CLI tools and language runtimes.
-# Managed via stow (base/mise). Run `mise install` after bootstrap.
+# CLI tools and language runtimes — all platforms (macOS, Linux, WSL2).
+# This is the single source of truth for Level 2/3 tooling.
+# OS package managers (brew/apt/winget) handle Level 1 only.
 # Docs: https://mise.jdx.dev/configuration.html
 
 [settings]
-experimental = true   # required for some aqua-backed tools
+experimental = true   # required for aqua-backed tools
 
-# ── CLI tools ────────────────────────────────────────────────────────────────
-# These replace stale apt packages (fzf 0.44→0.72, fd 9→10, etc.)
+# ── Core CLI tools ────────────────────────────────────────────────────────────
 [tools]
 neovim   = "latest"
 fzf      = "latest"
@@ -18,15 +18,34 @@ delta    = "latest"
 jq       = "latest"
 yq       = "latest"
 zoxide   = "latest"
-direnv            = "latest"
+direnv   = "latest"
+
+# ── Terminal / shell ──────────────────────────────────────────────────────────
+# tmux replaces apt/brew tmux; uniform version across all platforms.
+# tmux-fingers is handled by TPM (see tmux.conf); not needed here.
+tmux              = "latest"
 tmux-sessionizer  = "latest"
 
-# ── Language runtimes ────────────────────────────────────────────────────────
+# ── Devops ────────────────────────────────────────────────────────────────────
+# All available via aqua; replaces Homebrew-only install on macOS.
+kubectl    = "latest"
+helm       = "latest"
+k9s        = "latest"
+kubectx    = "latest"
+kubens     = "latest"
+kubeseal   = "latest"
+kustomize  = "latest"
+argocd     = "latest"
+opentofu   = "latest"
+lnav       = "latest"
+websocat   = "latest"
+
+# ── Language runtimes ─────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.
 node     = "22"
 python   = "3.12"
 
-# Uncomment as needed per project:
+# Uncomment as needed:
 # ruby   = "3.3"
 # go     = "latest"
 # rust   = "latest"

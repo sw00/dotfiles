@@ -1,0 +1,13 @@
+# Windows apps installed by up.sh via winget.
+# Format: one package ID per line (winget install --id <ID>).
+# Find IDs with: winget search <name>
+
+# Terminal
+Alacritty.Alacritty
+
+# Editor
+VSCodium.VSCodium
+
+# Font: CaskaydiaCove Nerd Font
+# Install manually from https://www.nerdfonts.com/font-downloads
+# (no verified winget ID available)

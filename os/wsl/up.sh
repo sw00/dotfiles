@@ -25,6 +25,20 @@ fi
 WIN_HOME=$(wslpath "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')")
 WIN_APPDATA=$(wslpath "$(cmd.exe /c 'echo %APPDATA%' 2>/dev/null | tr -d '\r')")
 
+# ── Windows apps (winget) ────────────────────────────────────────────────────
+WINGET_LIST="$WINDOWS_SRC/winget.txt"
+if [[ -f "$WINGET_LIST" ]] && command -v winget.exe >/dev/null 2>&1; then
+    log "installing Windows apps via winget"
+    grep -v '^#' "$WINGET_LIST" | grep -v '^$' | while read -r pkg_id; do
+        winget.exe install --id "$pkg_id" \
+            --accept-source-agreements --accept-package-agreements \
+            --silent 2>&1 | grep -Ev 'already installed|No applicable|found an existing' \
+            || true
+    done
+else
+    warn "winget.exe not found or winget.txt missing — skipping Windows app installation"
+fi
+
 # ── /etc/wsl.conf ─────────────────────────────────────────────────────────────
 if [[ -f "$WINDOWS_SRC/wsl.conf" ]]; then
     log "installing /etc/wsl.conf"
@@ -100,7 +114,4 @@ if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
 fi
 
 log "Windows-side setup complete"
-log "Required Windows apps (install via winget if absent):"
-log "  winget install Alacritty.Alacritty"
-log "  winget install VSCodium.VSCodium"
-log "  CaskaydiaCove Nerd Font: https://www.nerdfonts.com/font-downloads"
+log "Manual step: install CaskaydiaCove Nerd Font from https://www.nerdfonts.com/font-downloads"

@@ -60,19 +60,9 @@ ensure_macos_prereqs() {
 _pkg_name() {
     local cmd="$1" mgr="$2"
     case "$mgr:$cmd" in
-        # apt
-        apt:nvim)       echo neovim ;;   # Ubuntu 24.04 apt name
-        apt:fd)         echo fd-find ;;
-        apt:rg)         echo ripgrep ;;
-        apt:delta)      echo git-delta ;;
-        apt:git-lfs)    echo git-lfs ;;
-        apt:wslview)    echo wslu ;;
-        # dnf
-        dnf:nvim)       echo neovim ;;
-        dnf:fd)         echo fd-find ;;
-        dnf:rg)         echo ripgrep ;;
-        dnf:delta)      echo git-delta ;;
-        *)              echo "$cmd" ;;
+        apt:wslview)  echo wslu ;;    # wslu provides wslview on Ubuntu
+        apt:git-lfs)  echo git-lfs ;;
+        *)            echo "$cmd" ;;
     esac
 }
 
@@ -116,13 +106,15 @@ ensure_linux_prereqs() {
 }
 
 ensure_system_tools() {
-    # Install tools that must exist before mise runs:
-    # login shell, terminal multiplexer, bootstrap deps, system integrations.
+    # Installs only what mise cannot provide:
+    #   fish   — login shell; must exist before mise activates
+    #   git-lfs — git integration, not a standalone CLI tool
+    #   xclip / wslview — WSL platform integrations (no aqua equivalent)
+    # Everything else (tmux, neovim, fzf, devops tools, ...) is in mise.
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish tmux git-lfs lf tig)
-    # WSL-specific additions
+    local wanted=(fish git-lfs)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip)  # wslview is the binary from the wslu package
     fi
@@ -160,6 +152,17 @@ ensure_fisher() {
         log "installing fish plugins"
         fish -c 'fisher update' 2>&1
     fi
+}
+
+ensure_homebrew_bundle() {
+    # Run brew bundle for each Brewfile stowed to ~.
+    # Brewfile-base (os/macos) installs shared desktop apps.
+    # Brewfile-host (hosts/<host>) installs machine-specific apps and deps.
+    for brewfile in ~/.Brewfile-base ~/.Brewfile-host; do
+        [[ -f "$brewfile" ]] || continue
+        log "brew bundle --file=$brewfile"
+        brew bundle --file="$brewfile" --no-lock
+    done
 }
 
 ensure_mise() {
@@ -264,6 +267,7 @@ main() {
             ensure_mise
             ;;
         macos)
+            ensure_homebrew_bundle
             ensure_fisher
             ensure_mise
             ;;

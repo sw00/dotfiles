@@ -1,55 +1,39 @@
-tap "boz/repo"
 tap "homeport/tap"
 tap "morantron/tmux-fingers"
 
-# dotfiles/git
+# ── Bootstrap / git ───────────────────────────────────────────────────────────
+# Must exist before mise runs. stow/git-crypt bootstrap the dotfiles themselves.
 brew "stow"
 brew "git"
 brew "git-crypt"
 brew "git-lfs"
-brew "tig"
 brew "gnupg"
 brew "pinentry-mac"
 
-# shell
+# ── Shell ─────────────────────────────────────────────────────────────────────
+# fish must be Homebrew-installed so it can be set as login shell via chsh.
 brew "fish"
-brew "fisher"
+
+# ── Terminal multiplexer ──────────────────────────────────────────────────────
+# tmux and tmux-fingers stay in Homebrew: the tmux-fingers tap formula provides
+# the pre-built binary that TPM links against on macOS.
 brew "tmux"
-brew "tmux-sessionizer"
 brew "tmux-fingers"
 
-# shell utils
-brew "fzf"
-brew "rg"
-brew "fd"
-brew "jq"
-brew "lf"
+# ── macOS-specific ────────────────────────────────────────────────────────────
+brew "mas"       # Mac App Store CLI (needed for mas entries below)
 
-# swdev
-brew "neovim"
-brew "asdf"
+# ── Native compiled dependencies ──────────────────────────────────────────────
+# Libraries that Python/other packages link against at the C level.
+# mise provides cross-platform binaries but not .dylib / header files.
+brew "libpq"     # PostgreSQL client lib (psycopg2, asyncpg, etc.)
+brew "ffmpeg"    # Audio/video processing
 
-# devops
-brew "k9s"
-brew "boz/repo/kail"
-brew "kubectl"
-brew "kubectx"
-brew "helm"
-brew "kustomize"
-brew "kubeseal"
-brew "argocd"
-brew "lnav"
-brew "websocat"
-brew "opentofu"
-brew "pgbadger"
+# ── Tap-specific formulae ─────────────────────────────────────────────────────
+# Not available in the aqua registry; must stay in Homebrew.
+brew "boz/repo/kail"   # Kubernetes log tail
 
-# dependencies
-brew "libpq"
-brew "ffmpeg"
-brew "pytorch"
-brew "numpy"
-
-# casks
+# ── Desktop apps ──────────────────────────────────────────────────────────────
 cask "appcleaner"
 cask "audacity"
 cask "bruno"
@@ -68,14 +52,13 @@ cask "monokle"
 cask "mounty"
 cask "obsidian"
 cask "pycharm-ce"
-cask "rectangle"
 cask "tomighty"
 cask "vlc"
 cask "vscodium"
 cask "zotero"
 cask "jan"
 
-# vscodium/vscode extensions
+# ── VSCodium extensions ───────────────────────────────────────────────────────
 vscode "janisdd.vscode-edit-csv"
 # vscode "jeanp413.open-remote-ssh"
 vscode "mechatroner.rainbow-csv"
@@ -96,6 +79,5 @@ vscode "subframe7536.theme-maple"
 vscode "vmware.vscode-concourse"
 vscode "vscodevim.vim"
 
-# Mac App Store Apps
+# ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104
-
