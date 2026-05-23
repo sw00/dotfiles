@@ -66,6 +66,7 @@ _pkg_name() {
         apt:rg)         echo ripgrep ;;
         apt:delta)      echo git-delta ;;
         apt:git-lfs)    echo git-lfs ;;
+        apt:wslview)    echo wslu ;;
         # dnf
         dnf:nvim)       echo neovim ;;
         dnf:fd)         echo fd-find ;;
@@ -123,7 +124,7 @@ ensure_system_tools() {
     local wanted=(fish tmux git-lfs lf tig)
     # WSL-specific additions
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
-        wanted+=(wslu xclip)
+        wanted+=(wslview xclip)  # wslview is the binary from the wslu package
     fi
 
     local missing=()
@@ -134,6 +135,31 @@ ensure_system_tools() {
 
     log "installing system tools via $mgr: ${missing[*]}"
     _install_pkgs "$mgr" "${missing[@]}"
+}
+
+ensure_fisher() {
+    # Install Fisher and plugins. Runs once; fish_plugins file is the manifest.
+    if ! command -v fish >/dev/null 2>&1; then
+        warn "fish not installed — skipping Fisher setup"
+        return 0
+    fi
+
+    local plugins="$HOME/.config/fish/fish_plugins"
+
+    if fish -c 'functions -q fisher' 2>/dev/null; then
+        log "fisher already installed"
+    else
+        log "installing fisher"
+        fish -c '
+            curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/HEAD/functions/fisher.fish \
+                | source && fisher install jorgebucaran/fisher
+        ' 2>&1
+    fi
+
+    if [[ -f "$plugins" ]]; then
+        log "installing fish plugins"
+        fish -c 'fisher update' 2>&1
+    fi
 }
 
 ensure_mise() {
@@ -229,9 +255,11 @@ main() {
     case "$platform" in
         linux|wsl)
             ensure_system_tools
+            ensure_fisher
             ensure_mise
             ;;
         macos)
+            ensure_fisher
             ensure_mise
             ;;
     esac

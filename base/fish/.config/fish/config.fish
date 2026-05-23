@@ -1,65 +1,68 @@
-# Auto-install Fisher if not installed
-if not functions -q fisher
-    set -q XDG_CONFIG_HOME; or set XDG_CONFIG_HOME ~/.config
-    curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/HEAD/functions/fisher.fish | source && fisher install jorgebucaran/fisher
-    
-    # If you have a fish_plugins file, install those plugins too
-    if test -f $XDG_CONFIG_HOME/fish/fish_plugins
-        fisher update
-    end
-    
-    echo "Fisher has been installed"
+# ── Environment ───────────────────────────────────────────────────────────────
+set -gx EDITOR nvim
+
+# Source secrets env file (bash export KEY=VALUE syntax).
+# Guards: file must exist and not be a git-crypt encrypted blob.
+set -l _secrets ~/dotfiles/secrets/env.sh
+if test -f $_secrets
+    and not string match -q (string sub -l 9 (cat $_secrets 2>/dev/null)) "\x00GITCRYPT"
+    grep -E '^export [A-Za-z_][A-Za-z0-9_]*=' $_secrets 2>/dev/null \
+        | string replace 'export ' '' \
+        | while read -l _line
+            set -l _kv (string split -m1 '=' -- $_line)
+            test (count $_kv) -ge 2; and set -gx $_kv[1] $_kv[2]
+        end
 end
 
-# Environment variables
-set -gx EDITOR nvim
-fenv source ~/dotfiles/secrets/env.sh
-
-# add directories to PATH
+# ── PATH ──────────────────────────────────────────────────────────────────────
 fish_add_path ~/bin
 fish_add_path ~/.local/bin
 
-# mise — version manager for CLI tools and runtimes
-# Activates shims and completions for all managed tools.
+# ── mise (version manager) ────────────────────────────────────────────────────
+# Activates shims + completions for all managed tools (nvim, fzf, node, etc.)
 if command -q mise
     mise activate fish | source
 end
 
-# Initialize Homebrew if available
+# ── Homebrew (macOS only) ─────────────────────────────────────────────────────
 if test -d /opt/homebrew/bin
     eval (/opt/homebrew/bin/brew shellenv)
 end
 
-# Startup GPG agent (only when gpg-connect-agent is available)
-set -x GPG_TTY (tty)
+# ── Tool integrations ─────────────────────────────────────────────────────────
+# zoxide — smart cd (replaces z/autojump)
+if command -q zoxide
+    zoxide init fish | source
+end
+
+# direnv — per-directory environment variables
+if command -q direnv
+    direnv hook fish | source
+end
+
+# ── GPG agent ─────────────────────────────────────────────────────────────────
+set -gx GPG_TTY (tty)
 if command -q gpg-connect-agent
     gpg-connect-agent updatestartuptty /bye >/dev/null
 end
 
-status --is-login; and begin
-    # Login shell initialisation
+# ── Interactive shell only ────────────────────────────────────────────────────
+status --is-interactive; or return
+
+# Abbreviations
+abbr --add --global -- doco  'docker compose'
+abbr --add --global -- flyl  'fly -t lelapa'
+abbr --add --global -- ipy   ipython
+abbr --add --global -- kc    kubectl
+abbr --add --global -- kn    kubens
+abbr --add --global -- kx    kubectx
+abbr --add --global -- psh   'powershell.exe -Command'
+
+# Aliases
+alias vi  nvim
+alias vim nvim
+
+# fzf keybindings (patrickf1/fzf.fish)
+if functions -q _fzf_search_directory
+    bind \ct _fzf_search_directory
 end
-
-status --is-interactive; and begin
-    # Abbreviations
-    abbr --add --global -- doco 'docker compose'
-    abbr --add --global -- flyl 'fly -t lelapa'
-    abbr --add --global -- ipy ipython
-    abbr --add --global -- kc kubectl
-    abbr --add --global -- kn kubens
-    abbr --add --global -- kx kubectx
-
-    # Aliases
-    alias vi nvim
-    alias vim nvim
-
-    # Start tmux if not already in tmux (for Alacritty)
-    # if status is-interactive
-    #     and not set -q TMUX
-    #     tmux new-session -As 0 || tmux attach-session -d
-    # end
-
-    # cross-platform FZF bindings
-    bind \ct '_fzf_search_directory'
-end
-

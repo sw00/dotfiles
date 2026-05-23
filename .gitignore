@@ -4,3 +4,6 @@ vim/.netrwhist
 .aider*
 
 **/tmux/plugins
+
+# Fish runtime state (machine-specific, managed by fish itself)
+**/fish/fish_variables
