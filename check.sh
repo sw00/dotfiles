@@ -422,6 +422,25 @@ check_has "bootstrap: base/gnupg is stowed" \
     'stow_dir.*base.*gnupg' \
     "$DOTFILES/bootstrap.sh"
 
+check_has "Brewfile-base: CaskaydiaCove font cask present" \
+    'font-caskaydia-cove-nerd-font' \
+    "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "bootstrap: ensure_nerd_font defined" \
+    'ensure_nerd_font' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap: ensure_nerd_font called for linux" bash -c "
+    grep -q 'platform.*linux' '$DOTFILES/bootstrap.sh' &&
+    grep -q 'ensure_nerd_font' '$DOTFILES/bootstrap.sh'
+"
+
+check_has "up.sh: font PS1 script targets NerdFontMono" \
+    'NerdFontMono' "$DOTFILES/os/wsl/up.sh"
+
+check_has "alacritty base.toml: font family is CaskaydiaCove Nerd Font Mono" \
+    'CaskaydiaCove Nerd Font Mono' \
+    "$DOTFILES/base/alacritty/.config/alacritty/base.toml"
+
 # =============================================================================
 # SUMMARY
 # =============================================================================

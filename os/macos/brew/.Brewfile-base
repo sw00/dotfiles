@@ -11,3 +11,8 @@ cask "brave-browser"
 cask "caffeine"
 # Move and resize windows using keyboard shortcuts or snap areas
 cask "rectangle"
+
+# ── Fonts ─────────────────────────────────────────────────────────────────────
+# Cascadia Code patched with Nerd Font glyphs. Referenced in alacritty and
+# VSCodium configs. Must be the same font across all platforms.
+cask "font-caskaydia-cove-nerd-font"

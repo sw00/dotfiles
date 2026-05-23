@@ -113,5 +113,47 @@ if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
     fi
 fi
 
+# ── Fonts ───────────────────────────────────────────────────────────────────────
+# Write a PowerShell script to a temp file to avoid bash/PS escaping tangles.
+# Per-user font dir (%LOCALAPPDATA%\Microsoft\Windows\Fonts) requires explicit
+# HKCU registry entries to be visible to all Windows apps.
+PS_FONT=$(mktemp --suffix=.ps1)
+cat > "$PS_FONT" << 'EOF'
+$fontDir = "$env:LOCALAPPDATA\Microsoft\Windows\Fonts"
+$sentinel = Join-Path $fontDir "CaskaydiaCoveNerdFontMono-Regular.ttf"
+
+if (Test-Path $sentinel) {
+    Write-Host "==> CaskaydiaCove Nerd Font Mono already installed"
+    exit 0
+}
+
+Write-Host "==> Downloading CaskaydiaCove Nerd Font..."
+$tmp = Join-Path $env:TEMP "NerdFonts"
+New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-WebRequest `
+    "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.zip" `
+    -OutFile "$tmp\CascadiaCode.zip" -UseBasicParsing
+
+Expand-Archive "$tmp\CascadiaCode.zip" -DestinationPath "$tmp\extracted" -Force
+New-Item -ItemType Directory -Force -Path $fontDir | Out-Null
+
+$regPath = "HKCU:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"
+Get-ChildItem "$tmp\extracted" -Filter "*NerdFontMono*.ttf" | ForEach-Object {
+    Copy-Item $_.FullName "$fontDir\" -Force
+    Set-ItemProperty -Path $regPath `
+        -Name ($_.BaseName + " (TrueType)") `
+        -Value "$fontDir\$($_.Name)" `
+        -Type String -Force
+    Write-Host "    installed $($_.Name)"
+}
+Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue
+Write-Host "==> Fonts installed — restart Alacritty to apply"
+EOF
+
+log "installing CaskaydiaCove Nerd Font on Windows"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w "$PS_FONT")" 2>&1 || \
+    warn "font installation failed — install manually from https://www.nerdfonts.com/font-downloads"
+rm -f "$PS_FONT"
+
 log "Windows-side setup complete"
-log "Manual step: install CaskaydiaCove Nerd Font from https://www.nerdfonts.com/font-downloads"

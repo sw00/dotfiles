@@ -154,6 +154,46 @@ ensure_fisher() {
     fi
 }
 
+ensure_nerd_font() {
+    # Install CaskaydiaCove Nerd Font Mono — the font used in alacritty and VSCodium.
+    # macOS: handled by Brewfile-base cask. Windows/WSL: handled by up.sh.
+    # This function is for native Linux only.
+    if fc-list 2>/dev/null | grep -qi 'CaskaydiaCove'; then
+        log "CaskaydiaCove Nerd Font already installed"
+        return 0
+    fi
+
+    if ! command -v fc-cache >/dev/null 2>&1; then
+        warn "fontconfig not found — skipping font installation"
+        return 0
+    fi
+
+    log "installing CaskaydiaCove Nerd Font"
+    local tmp; tmp=$(mktemp -d)
+    curl -fsSL \
+        "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/CascadiaCode.zip" \
+        -o "$tmp/CascadiaCode.zip"
+
+    local font_dir="$HOME/.local/share/fonts/CaskaydiaCove"
+    mkdir -p "$font_dir"
+
+    # Extract Mono variants only — these map to "CaskaydiaCove Nerd Font Mono".
+    # Uses Python stdlib zipfile to avoid an unzip dependency.
+    python3 - <<PYEOF
+import zipfile, os
+with zipfile.ZipFile('$tmp/CascadiaCode.zip') as z:
+    for name in z.namelist():
+        if 'NerdFontMono' in name and name.endswith('.ttf'):
+            dest = os.path.join('$font_dir', os.path.basename(name))
+            with open(dest, 'wb') as f:
+                f.write(z.read(name))
+PYEOF
+
+    fc-cache -f "$font_dir"
+    rm -rf "$tmp"
+    log "CaskaydiaCove Nerd Font installed"
+}
+
 ensure_homebrew_bundle() {
     # Run brew bundle for each Brewfile stowed to ~.
     # Brewfile-base (os/macos) installs shared desktop apps.
@@ -260,6 +300,7 @@ main() {
 
     # Install tools after configs are stowed so first-launch config is ready.
     # System tools (apt/brew) first, then mise for CLI tools and runtimes.
+    # Font: macOS → Brewfile cask; WSL → up.sh; Linux → ensure_nerd_font.
     case "$platform" in
         linux|wsl)
             ensure_system_tools
@@ -272,6 +313,10 @@ main() {
             ensure_mise
             ;;
     esac
+
+    if [[ "$platform" == "linux" ]]; then
+        ensure_nerd_font
+    fi
 
     log "bootstrap complete"
     log "next steps:"
