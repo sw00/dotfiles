@@ -254,6 +254,11 @@ check_not \
     'git\.io/fisher' \
     "$FISH_CFG"
 
+check_not \
+    "config.fish: gpg-connect-agent not called before interactive guard" \
+    'gpg-connect-agent' \
+    <(awk '/is-interactive/{exit} {print}' "$FISH_CFG")
+
 check_has \
     "config.fish: mise activate is present" \
     'mise activate' \
@@ -523,6 +528,9 @@ check_has "winget.txt: PyCharm Community present" \
 
 check_has "winget.txt: Firefox Developer Edition present" \
     'Mozilla.Firefox.DeveloperEdition' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Git for Windows present (required for GCM in gitconfig-wsl)" \
+    'Git.Git' "$DOTFILES/os/wsl/windows/winget.txt"
 
 check_has "Brewfile-base: CaskaydiaCove font cask present" \
     'font-caskaydia-cove-nerd-font' \

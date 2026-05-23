@@ -55,24 +55,25 @@ return {
 
             local servers = {
                 pyright = {},
-                elixirls = {
-                    settings = {
-                        dialyzerEnabled = false,
-                        fetchDeps = false,
-                        enableTestLenses = true,
-                    },
-                },
-                rust_analyzer = {
-                    settings = {
-                        completion = {
-                            limit = 24, -- only return 2 dozen suggestions
-                            callable = {
-                                -- snippets = 'add_parentheses' -- don't autofill args
-                                snippets = 'fill_arguments',
-                            },
-                        },
-                    },
-                },
+                -- elixirls and rust_analyzer are commented out: neither runtime
+                -- is in the global mise config, so Mason would install them on
+                -- every machine unnecessarily.  Uncomment per-project via
+                -- a local .nvim.lua or add the runtime to mise/config.toml.
+                -- elixirls = {
+                --     settings = {
+                --         dialyzerEnabled = false,
+                --         fetchDeps = false,
+                --         enableTestLenses = true,
+                --     },
+                -- },
+                -- rust_analyzer = {
+                --     settings = {
+                --         completion = {
+                --             limit = 24,
+                --             callable = { snippets = 'fill_arguments' },
+                --         },
+                --     },
+                -- },
                 lua_ls = {
                     settings = {
                         Lua = {

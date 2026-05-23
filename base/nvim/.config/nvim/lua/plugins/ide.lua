@@ -112,13 +112,7 @@ return {
             vim.cmd [[ let test#strategy='toggleterm' ]]
         end,
     },
-    {
-        'nvim-neotest/neotest',
-        dependencies = {
-            'nvim-lua/plenary.nvim',
-            'antoinemadec/FixCursorHold.nvim',
-            'nvim-neotest/neotest-python',
-            'nvim-neotest/neotest-vim-test',
-        },
-    },
+    -- neotest: add here with adapters when vim-test is retired, e.g.:
+    -- { 'nvim-neotest/neotest', dependencies = { 'nvim-neotest/neotest-python' },
+    --   opts = { adapters = { require('neotest-python') } } }
 }

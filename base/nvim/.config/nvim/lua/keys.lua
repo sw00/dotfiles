@@ -1,7 +1,5 @@
 --[[ keys.lua]]
-local map = vim.api.nvim_set_keymap
-
-function map(mode, shortcut, command)
+local function map(mode, shortcut, command)
     vim.api.nvim_set_keymap(mode, shortcut, command, { noremap = true, silent = true })
 end
 
@@ -32,11 +30,12 @@ tmap('<esc><esc>', '<c-\\><c-n>') -- quick escape to normal mode from terminal m
 nmap('<space><space>', ':nohlsearch<CR>') -- cancel search highlights
 
 -- [[ Butter Fingers ]]
-nmap(':Q<CR>', ':q<CR>')
-nmap(':Wq<CR>', ':wq<CR>')
-nmap(':WQ<CR>', ':wq!<CR>')
-nmap(':wQ<CR>', ':wq!<CR>')
-nmap(':X<CR>', ':x!<CR>')
+-- Map common capitalisation typos as Ex command aliases.
+-- (Normal-mode maps for ':Q<CR>' never fire because ':' enters cmdline mode.)
+vim.cmd 'command! -bang Q   q<bang>'
+vim.cmd 'command! -bang Wq  wq<bang>'
+vim.cmd 'command! -bang WQ  wq<bang>'
+vim.cmd 'command! -bang Xa  xa<bang>'
 
 -- [[ Save ]]
 nmap('<F2>', ':w<CR>') -- quicksave

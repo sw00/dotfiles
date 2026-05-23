@@ -44,13 +44,19 @@ if command -q direnv
 end
 
 # ── GPG agent ─────────────────────────────────────────────────────────────────
+# GPG_TTY must be exported to all shells (including non-interactive) so that
+# gpg can find the terminal for passphrase prompts started by git/scripts.
 set -gx GPG_TTY (tty)
-if command -q gpg-connect-agent
-    gpg-connect-agent updatestartuptty /bye >/dev/null
-end
 
 # ── Interactive shell only ────────────────────────────────────────────────────
 status --is-interactive; or return
+
+# updatestartuptty tells gpg-agent which TTY to use for pinentry.
+# Interactive-only: non-interactive shells (VSCodium server, scripts) have
+# no meaningful TTY and would just block or error.
+if command -q gpg-connect-agent
+    gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1
+end
 
 # Abbreviations
 abbr --add --global -- doco  'docker compose'

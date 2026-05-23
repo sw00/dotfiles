@@ -12,6 +12,9 @@ Obsidian.Obsidian
 VSCodium.VSCodium
 
 # ── Development ───────────────────────────────────────────────────────────────
+# Git for Windows — provides git-credential-manager.exe referenced in
+# os/wsl/git/.gitconfig-wsl for Windows Credential Manager integration.
+Git.Git
 Mozilla.Firefox.DeveloperEdition
 JetBrains.PyCharm.Community
 Flameshot.Flameshot

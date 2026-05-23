@@ -2,8 +2,11 @@
 import = ["~/.config/alacritty/base.toml"]
 
 [terminal.shell]
-program = "/opt/homebrew/bin/fish"
-args    = ["-c", "tmux new-session -As 0 || tmux attach-session -d"]
+# Use bash --login so Homebrew is on PATH (GUI apps don't source shell profiles).
+# bash then exec-replaces itself with fish which activates mise shims before
+# handing off to tmux.  Works on both Apple Silicon and Intel Macs.
+program = "/bin/bash"
+args    = ["--login", "-c", "exec fish -c 'tmux new-session -As 0'"]
 
 [font]
 size = 12.0

@@ -11,7 +11,10 @@ opt.scrolloff = 10 -- lines above and below cursor
 opt.showmode = false
 
 -- [[ Shell ]]
-opt.shell = 'fish' -- shell
+-- Use fish if available; fall back to whatever $SHELL resolves to.
+if vim.fn.executable 'fish' == 1 then
+    opt.shell = 'fish'
+end
 
 -- [[ Code Folds ]]
 opt.foldmethod = 'expr' -- folds defined by expression
@@ -55,10 +58,16 @@ opt.visualbell = true -- visualbell instead of beeping
 
 -- [[ Backup/Swapfile ]]
 opt.writebackup = true -- make backup file before overwriting
-opt.undofile = true -- save undo history
-opt.backupdir = '~/.vim-tmp,~/.tmp,~/tmp,/var/tmp/,/tmp'
-opt.directory = '~/.vim-tmp,~/.tmp,~/tmp,/var/tmp/,/tmp'
-opt.undodir = '~/.vim-tmp,~/.tmp,~/tmp,/var/tmp/,/tmp'
+opt.undofile    = true -- persist undo history across sessions
+-- Store all transient files under stdpath('state') (~/.local/state/nvim)
+-- rather than the old vim-style ~/.vim-tmp dirs which rarely exist.
+local _state = vim.fn.stdpath 'state'
+for _, sub in ipairs { 'backup', 'swap', 'undo' } do
+    vim.fn.mkdir(_state .. '/' .. sub, 'p')
+end
+opt.backupdir = { _state .. '/backup//', '.' }
+opt.directory = { _state .. '/swap//',   '.' }
+opt.undodir   = { _state .. '/undo//',   '.' }
 
 -- [[ Clipboard ]]
 opt.clipboard = 'unnamedplus' -- always use clipboard (instead of vim registers)
