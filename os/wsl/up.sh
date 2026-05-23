@@ -72,10 +72,10 @@ fi
 if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
     # Locate codium.cmd: system install, user install, Scoop, or Windows PATH.
     CODIUM_CMD=""
+    # winget installs to Program Files (system) or AppData/Local/Programs (user).
     for candidate in \
         "/mnt/c/Program Files/VSCodium/bin/codium.cmd" \
-        "/mnt/c/Users/$USER/AppData/Local/Programs/VSCodium/bin/codium.cmd" \
-        "$HOME/scoop/apps/vscodium/current/bin/codium.cmd"
+        "/mnt/c/Users/$USER/AppData/Local/Programs/VSCodium/bin/codium.cmd"
     do
         [[ -f "$candidate" ]] && CODIUM_CMD="$candidate" && break
     done
