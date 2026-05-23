@@ -1,16 +1,14 @@
-tap "homeport/tap"
 # Mac App Store command-line interface
 brew "mas"
-# GPU-accelerated terminal emulator
-cask "alacritty"
-# Desktop password and login vault
-cask "bitwarden"
-# Web browser focusing on privacy
-cask "brave-browser"
-# Utility that prevents the system from going to sleep
-cask "caffeine"
-# Move and resize windows using keyboard shortcuts or snap areas
-cask "rectangle"
+
+# ── Core desktop apps — all macs ─────────────────────────────────────────────
+cask "alacritty"        # terminal emulator
+cask "bitwarden"        # password/key vault
+cask "brave-browser"    # primary browser
+cask "obsidian"         # notes
+cask "caffeine"         # prevent sleep
+cask "rectangle"        # window management
+cask "flameshot"        # cross-platform screenshots
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 # Cascadia Code patched with Nerd Font glyphs. Referenced in alacritty and

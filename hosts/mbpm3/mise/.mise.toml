@@ -1,0 +1,14 @@
+# ~/.mise.toml — mbpm3 (work laptop) host-specific tools
+# Loaded by mise from $HOME and all subdirectories on this machine only.
+# Stowed by hosts/mbpm3/mise/ package; not present on other hosts.
+#
+# These are deployment/infra tools used in a work context.
+# Everyday k8s navigation tools (kubectl, k9s, kubectx, kubens) are global
+# and live in base/mise/.config/mise/config.toml.
+
+[tools]
+helm       = "latest"
+kubeseal   = "latest"
+kustomize  = "latest"
+argocd     = "latest"
+opentofu   = "latest"

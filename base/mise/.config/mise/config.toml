@@ -6,15 +6,15 @@
 
 # ── Core CLI tools ────────────────────────────────────────────────────────────
 [tools]
-neovim   = "latest"
-fzf      = "latest"
-fd       = "latest"
-ripgrep  = "latest"
-bat      = "latest"
-delta    = "latest"
-jq       = "latest"
-yq       = "latest"
-zoxide   = "latest"
+neovim      = "latest"
+fzf         = "latest"
+fd          = "latest"
+ripgrep     = "latest"
+bat         = "latest"
+delta       = "latest"
+jq          = "latest"
+yq          = "latest"
+zoxide      = "latest"
 direnv      = "latest"
 shellcheck  = "latest"
 
@@ -24,27 +24,23 @@ shellcheck  = "latest"
 tmux              = "latest"
 tmux-sessionizer  = "latest"
 
-# ── Devops ────────────────────────────────────────────────────────────────────
-# All available via aqua; replaces Homebrew-only install on macOS.
-kubectl    = "latest"
-helm       = "latest"
-k9s        = "latest"
-kubectx    = "latest"
-kubens     = "latest"
-kubeseal   = "latest"
-kustomize  = "latest"
-argocd     = "latest"
-opentofu   = "latest"
-lnav       = "latest"
-websocat   = "latest"
+# ── Devops — everyday k8s navigation ─────────────────────────────────────────
+kubectl  = "latest"
+k9s      = "latest"
+kubectx  = "latest"
+kubens   = "latest"
+lnav     = "latest"
+# Deployment/infra tools are work-laptop specific:
+# see hosts/mbpm3/mise/.mise.toml for helm, kubeseal, kustomize, argocd, opentofu
 
 # ── Language runtimes ─────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.
-node     = "22"
-python   = "3.12"
+node    = "22"
+python  = "3.12"
 
-# Uncomment as needed:
-# ruby   = "3.3"
+# Uncomment when needed on a project:
 # go     = "latest"
 # rust   = "latest"
+# elixir = "latest"
+# ruby   = "3.3"
 # java   = "temurin-21"

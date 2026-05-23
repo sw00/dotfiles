@@ -151,8 +151,8 @@ check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
 stow_layer "$DOTFILES/os/macos" bash brew gnupg
-check_stow "hosts/mbpm3: alacritty brew key_remap" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew key_remap
+check_stow "hosts/mbpm3: alacritty brew fish key_remap mise" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
@@ -436,6 +436,58 @@ check_not "mise: experimental flag removed" \
 check_not "fish/conf.d/git.fish: no legacy omf hooks" \
     'functions -e _git_install' \
     "$DOTFILES/base/fish/.config/fish/conf.d/git.fish"
+
+# ── Tools / desktop audit ───────────────────────────────────────────────────────────
+check_not "mise: work-specific tools not in global config" \
+    'kubeseal\|kustomize\|argocd\|opentofu\|^helm' "$MISE_CFG"
+
+check "hosts/mbpm3: work mise tools declared" \
+    test -f "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "hosts/mbpm3: mise work tools include helm" \
+    'helm' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_not "Brewfile-base: homeport tap removed" \
+    'homeport' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "Brewfile-host: homeport tap removed" \
+    'homeport' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: monokle removed" \
+    'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "Brewfile-base: obsidian present" \
+    'obsidian' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: flameshot present" \
+    'flameshot' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "Brewfile-host: flameshot removed (moved to base)" \
+    'flameshot' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "fish/config.fish: flyl removed (host-specific, in hosts/mbpm3)" \
+    'flyl' "$DOTFILES/base/fish/.config/fish/config.fish"
+
+check_has "hosts/mbpm3: work.fish conf.d exists" \
+    'flyl' "$DOTFILES/hosts/mbpm3/fish/.config/fish/conf.d/work.fish"
+
+check_has "winget.txt: Bitwarden present" \
+    'Bitwarden.Bitwarden' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Brave present" \
+    'Brave.Brave' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Obsidian present" \
+    'Obsidian.Obsidian' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Flameshot present" \
+    'Flameshot.Flameshot' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: PyCharm Community present" \
+    'JetBrains.PyCharm.Community' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: Firefox Developer Edition present" \
+    'Mozilla.Firefox.DeveloperEdition' "$DOTFILES/os/wsl/windows/winget.txt"
 
 check_has "Brewfile-base: CaskaydiaCove font cask present" \
     'font-caskaydia-cove-nerd-font' \

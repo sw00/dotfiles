@@ -2,12 +2,20 @@
 # Format: one package ID per line (winget install --id <ID>).
 # Find IDs with: winget search <name>
 
-# Terminal
+# ── Terminal ──────────────────────────────────────────────────────────────────
 Alacritty.Alacritty
 
-# Editor
+# ── Core desktop ──────────────────────────────────────────────────────────────
+Bitwarden.Bitwarden
+Brave.Brave
+Obsidian.Obsidian
 VSCodium.VSCodium
 
-# Font: CaskaydiaCove Nerd Font
-# Install manually from https://www.nerdfonts.com/font-downloads
-# (no verified winget ID available)
+# ── Development ───────────────────────────────────────────────────────────────
+Mozilla.Firefox.DeveloperEdition
+JetBrains.PyCharm.Community
+Flameshot.Flameshot
+
+# ── Font: CaskaydiaCove Nerd Font ─────────────────────────────────────────────
+# Installed by the PowerShell block in up.sh (downloads from Nerd Fonts GitHub).
+# No winget ID — the release zip is fetched directly.

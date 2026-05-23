@@ -51,7 +51,6 @@ status --is-interactive; or return
 
 # Abbreviations
 abbr --add --global -- doco  'docker compose'
-abbr --add --global -- flyl  'fly -t lelapa'
 abbr --add --global -- ipy   ipython
 abbr --add --global -- kc    kubectl
 abbr --add --global -- kn    kubens
