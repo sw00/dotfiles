@@ -6,6 +6,10 @@ import = ["base.toml"]
 
 [terminal.shell]
 program = "wsl.exe"
+# Run tmux directly so wsl.exe allocates a PTY for the process.
+# bash --login -c would work for PATH but wsl.exe does not attach a PTY
+# when invoked with --, causing tmux to fail with "not a terminal".
+# The tmux.conf set-environment block handles PATH instead.
 args    = ["~", "tmux", "new-session", "-As", "0"]
 
 [font]
