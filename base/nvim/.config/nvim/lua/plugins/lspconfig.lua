@@ -6,7 +6,7 @@ return {
             'mason',
             'williamboman/mason-lspconfig',
             'WhoIsSethDaniel/mason-tool-installer.nvim',
-            { 'j-hui/fidget.nvim', opts = {} },
+            { 'j-hui/fidget.nvim', opts = { integration = { ['nvim-tree'] = { enable = true } } } },
             { 'folke/lazydev.nvim', ft = 'lua', opts = {} },
         },
         config = function()
@@ -18,12 +18,12 @@ return {
                         vim.keymap.set('n', keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
                     end
 
-                    map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-                    map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-                    map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
-                    map('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
-                    map('<leader>ds', require('telescope.builtin').lsp_document_symbols, '[D]ocument [S]ymbols')
-                    map('<leader>ws', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[W]orkspace [S]ymbols')
+                    map('gd',         function() require('telescope.builtin').lsp_definitions() end,              '[G]oto [D]efinition')
+                    map('gr',         function() require('telescope.builtin').lsp_references() end,               '[G]oto [R]eferences')
+                    map('gI',         function() require('telescope.builtin').lsp_implementations() end,           '[G]oto [I]mplementation')
+                    map('<leader>D',  function() require('telescope.builtin').lsp_type_definitions() end,          'Type [D]efinition')
+                    map('<leader>ds', function() require('telescope.builtin').lsp_document_symbols() end,          '[D]ocument [S]ymbols')
+                    map('<leader>ws', function() require('telescope.builtin').lsp_dynamic_workspace_symbols() end, '[W]orkspace [S]ymbols')
                     map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
                     map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
                     map('K', vim.lsp.buf.hover, 'Hover Documentation')
@@ -34,24 +34,37 @@ return {
                         vim.lsp.buf.format { async = true }
                     end, '[L]SP [F]ormat')
 
-                    -- highlight word under cursor for a little while
+                    -- Highlight word under cursor; autocmds are grouped so they
+                    -- can be cleanly removed when the LSP detaches or restarts.
                     local client = vim.lsp.get_client_by_id(event.data.client_id)
                     if client and client.server_capabilities.documentHighlightProvider then
+                        local hi = vim.api.nvim_create_augroup('lsp-highlight', { clear = false })
                         vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
-                            buffer = event.buf,
+                            buffer   = event.buf,
+                            group    = hi,
                             callback = vim.lsp.buf.document_highlight,
                         })
-
                         vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
-                            buffer = event.buf,
+                            buffer   = event.buf,
+                            group    = hi,
                             callback = vim.lsp.buf.clear_references,
+                        })
+                        -- On detach (LSP restart etc.) clear highlights and drop the
+                        -- autocmds so they don't accumulate across restarts.
+                        vim.api.nvim_create_autocmd('LspDetach', {
+                            buffer   = event.buf,
+                            group    = hi,
+                            callback = function()
+                                vim.lsp.buf.clear_references()
+                                vim.api.nvim_clear_autocmds { group = hi, buffer = event.buf }
+                            end,
                         })
                     end
                 end,
             })
 
-            local capabilities = vim.lsp.protocol.make_client_capabilities()
-            capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+            -- blink.cmp merges nvim default capabilities automatically
+            local capabilities = require('blink.cmp').get_lsp_capabilities()
 
             local servers = {
                 pyright = {},
@@ -89,7 +102,8 @@ return {
             require('mason').setup()
             local ensure_installed = vim.tbl_keys(servers or {})
             vim.list_extend(ensure_installed, {
-                'stylua', -- Used to format Lua code
+                'stylua',          -- lua formatter
+                'tree-sitter-cli', -- required by nvim-treesitter v1 to compile parsers
             })
 
             require('mason-tool-installer').setup { ensure_installed = ensure_installed }
