@@ -1,0 +1,9 @@
+# Fisher writes plugin files here at runtime. Only our own files are tracked.
+# Run `fisher update` (or bootstrap.sh) to reinstall plugins after cloning.
+*
+!.gitignore
+!config.fish
+!fish_plugins
+!conf.d/
+conf.d/*
+!conf.d/wsl.fish
