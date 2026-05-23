@@ -104,6 +104,7 @@ mapfile -t ALL_SCRIPTS < <(
         -not -path '*/.git/*' \
         -not -path '*/nix/*' \
         -not -path '*/tmux/plugins/*' \
+        -not -path '*/secrets/*' \
         \( -name '*.sh' -o -name '*.bash' \) \
         -type f | sort
 )
