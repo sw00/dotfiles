@@ -1,18 +1,18 @@
 return {
     -- Tabstop, shiftwidth detection
     'tpope/vim-sleuth',
-    -- Code comments
-    { 'numToStr/Comment.nvim', opts = {} },
+    -- Note: commenting is handled natively by Neovim 0.10+ (gc / gcc)
     { -- Autoformat
         'stevearc/conform.nvim',
+        event = { 'BufReadPre', 'BufNewFile' },
         opts = {
             notify_on_error = false,
             format_on_save = function(bufnr)
-                -- Disable for langs without well-defined style
+                -- Disable LSP formatting for langs without well-defined style
                 local disable_filetypes = { c = true, cpp = true }
                 return {
                     timeout_ms = 500,
-                    lsp_fallback = not disable_filetypes[vim.bo[bufnr].filetype],
+                    lsp_format = disable_filetypes[vim.bo[bufnr].filetype] and 'never' or 'fallback',
                 }
             end,
             formatters_by_ft = {
@@ -28,15 +28,24 @@ return {
     -- Git Signs & diff management
     {
         'lewis6991/gitsigns.nvim',
+        event = 'BufReadPre',
         config = function()
             require('gitsigns').setup {
                 signs = {
-                    add = { text = '+' },
-                    change = { text = '~' },
-                    delete = { text = '_' },
-                    topdelete = { text = '‾' },
-                    changedelete = { text = '~' },
+                    add          = { text = '▎' },
+                    change       = { text = '▎' },
+                    delete       = { text = '' },
+                    topdelete    = { text = '' },
+                    changedelete = { text = '▌' },
+                    untracked    = { text = '▎' },
                 },
+                word_diff  = false, -- toggle per-buffer with <leader>tw
+                current_line_blame_opts = {
+                    virt_text     = true,
+                    virt_text_pos = 'eol',
+                    delay         = 600,
+                },
+                current_line_blame_formatter = '<author>, <author_time:%Y-%m-%d> · <summary>',
                 on_attach = function(bufnr)
                     local gs = package.loaded.gitsigns
 
@@ -88,7 +97,8 @@ return {
                     map('n', '<leader>hD', function()
                         gs.diffthis '~'
                     end, { desc = 'Diff this' })
-                    map('n', '<leader>td', gs.toggle_deleted, { desc = 'Toggle deleted' })
+                    map('n', '<leader>td', gs.toggle_deleted,   { desc = 'Toggle deleted' })
+                    map('n', '<leader>tw', gs.toggle_word_diff,  { desc = 'Toggle word diff' })
 
                     -- Text object
                     map({ 'o', 'x' }, 'ih', ':<C-U>Gitsigns select_hunk<CR>')
