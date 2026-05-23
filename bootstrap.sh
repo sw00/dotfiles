@@ -60,8 +60,12 @@ ensure_macos_prereqs() {
 _pkg_name() {
     local cmd="$1" mgr="$2"
     case "$mgr:$cmd" in
-        apt:wslview)  echo wslu ;;    # wslu provides wslview on Ubuntu
+        apt:wslview)  echo wslu ;;          # wslu provides wslview on Ubuntu
         apt:git-lfs)  echo git-lfs ;;
+        apt:gcc)      echo build-essential ;; # meta-package: gcc g++ make libc6-dev
+        apt:make)     echo build-essential ;; # same meta-package; apt deduplicates
+        pacman:gcc)   echo base-devel ;;
+        pacman:make)  echo base-devel ;;
         *)            echo "$cmd" ;;
     esac
 }
@@ -111,11 +115,14 @@ ensure_system_tools() {
     #   git-lfs — git integration, not a standalone binary tool
     #   lf, tig — not in the aqua/mise registry; must come from system packages
     #   xclip / wslview — WSL platform integrations (no aqua equivalent)
+    #   gcc, make — build tools for neovim plugins (telescope-fzf-native, mason)
+    #               mapped to build-essential on apt, base-devel on pacman
+    #   unzip   — required by mason to unpack tool archives
     # Everything else (tmux, neovim, fzf, devops tools, ...) is in mise.
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish git-lfs lf tig)
+    local wanted=(fish git-lfs lf tig gcc make unzip)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
     fi
