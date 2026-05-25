@@ -396,6 +396,9 @@ check_has "bootstrap: sesh installed via ensure_sesh" \
 check_has "mise: devops tools declared (kubectl, helm, k9s)" \
     'kubectl' "$MISE_CFG"
 
+check_has "mise: mise itself in macOS Brewfile-base (Homebrew install beats curl on macOS)" \
+    'brew "mise"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
 check_not "mise: neovim not in macOS Brewfile-base (managed by mise)" \
     'brew "neovim"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
@@ -501,6 +504,24 @@ check_not "Brewfile-host: homeport tap removed" \
 
 check_not "Brewfile-host: monokle removed" \
     'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
+    'stern' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "hosts/mbpm3: k3d in work mise tools (was asdf)" \
+    'k3d' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "hosts/mbpm3: awscli in work mise tools (was asdf)" \
+    'awscli' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "Brewfile-host: pipx present (manages ~/.local/bin python tools)" \
+    'brew "pipx"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: asdf removed (replaced by mise)" \
+    'brew "asdf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migration)" \
+    'existing target is not owned by stow' "$DOTFILES/bootstrap.sh"
 
 check_has "Brewfile-base: obsidian present" \
     'obsidian' "$DOTFILES/os/macos/brew/.Brewfile-base"

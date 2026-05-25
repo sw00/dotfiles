@@ -1,6 +1,12 @@
 # Mac App Store command-line interface
 brew "mas"
 
+# ── Version / tool manager ────────────────────────────────────────────────────
+# mise manages all CLI tools and language runtimes (see ~/.config/mise/config.toml).
+# Homebrew-installed so it lands in /opt/homebrew/bin and is present before
+# ensure_mise runs; the curl fallback in ensure_mise is then a no-op on macOS.
+brew "mise"
+
 # ── Core desktop apps — all macs ─────────────────────────────────────────────
 cask "alacritty"        # terminal emulator
 cask "bitwarden"        # password/key vault

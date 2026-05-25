@@ -11,6 +11,11 @@ brew "pinentry-mac"
 # fish must be Homebrew-installed so it can be set as login shell via chsh.
 brew "fish"
 
+# ── Tool managers ─────────────────────────────────────────────────────────────
+# pipx manages ~/.local/bin Python tools (aider, black, mypy, pre-commit, etc.).
+# Homebrew-installed so it persists independently of mise Python versions.
+brew "pipx"
+
 # ── Terminal multiplexer ──────────────────────────────────────────────────────
 # tmux is managed by mise (consistent version across all platforms).
 # tmux-fingers bootstraps its own binary via TPM (<prefix>I); no tap needed.
