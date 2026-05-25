@@ -51,6 +51,9 @@ set -gx GPG_TTY (tty)
 # ── Interactive shell only ────────────────────────────────────────────────────
 status --is-interactive; or return
 
+# Disable the default fish greeting (MOTD)
+set -g fish_greeting
+
 # updatestartuptty tells gpg-agent which TTY to use for pinentry.
 # Interactive-only: non-interactive shells (VSCodium server, scripts) have
 # no meaningful TTY and would just block or error.
