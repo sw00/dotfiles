@@ -5,6 +5,12 @@
 # These are deployment/infra tools used in a work context.
 # Everyday k8s navigation tools (kubectl, k9s, kubectx, kubens) are global
 # and live in base/mise/.config/mise/config.toml.
+#
+# Several tools below use mise's pipx backend (isolated venvs per tool):
+#   azure      → pipx:azure-cli   (registry shorthand)
+#   pdm        → pipx:pdm         (registry shorthand)
+#   aider-chat → pipx:aider-chat  (no registry shorthand; explicit)
+# pipx itself is Homebrew-installed (Brewfile-host) as bootstrap infrastructure.
 
 [tools]
 helm       = "latest"
@@ -12,8 +18,12 @@ kubeseal   = "latest"
 kustomize  = "latest"
 argocd     = "latest"
 opentofu   = "latest"
-stern      = "latest"   # k8s log tailing (was: asdf)
-k3d        = "latest"   # local k3s clusters (was: asdf)
-awscli     = "latest"   # AWS CLI (was: asdf)
-azure      = "latest"
-pdm        = "latest"
+stern      = "latest"          # k8s log tailing (was: asdf)
+k3d        = "latest"          # local k3s clusters (was: asdf)
+awscli     = "latest"          # AWS CLI (was: asdf)
+azure      = "latest"          # resolves to pipx:azure-cli
+pdm        = "latest"          # resolves to pipx:pdm
+
+# ── AI coding assistant ───────────────────────────────────────────────────────
+# Managed via mise's pipx backend (isolated venv); was: standalone pipx install.
+"pipx:aider-chat" = "latest"

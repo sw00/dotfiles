@@ -12,8 +12,10 @@ brew "pinentry-mac"
 brew "fish"
 
 # ── Tool managers ─────────────────────────────────────────────────────────────
-# pipx manages ~/.local/bin Python tools (aider, black, mypy, pre-commit, etc.).
-# Homebrew-installed so it persists independently of mise Python versions.
+# pipx is bootstrap infrastructure for mise's pipx backend.
+# Python CLI tools (aider-chat, azure-cli, pdm, …) are declared in
+# hosts/mbpm3/mise/.mise.toml using "pipx:<tool>" = "latest"; mise calls
+# pipx to create the isolated venv. Do not use pipx directly to install tools.
 brew "pipx"
 
 # ── Terminal multiplexer ──────────────────────────────────────────────────────
