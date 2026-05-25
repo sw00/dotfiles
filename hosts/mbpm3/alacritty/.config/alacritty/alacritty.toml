@@ -13,7 +13,16 @@ size = 12.0
 
 [window]
 decorations    = "full"
-option_as_alt  = "OnlyLeft"
+option_as_alt  = "OnlyLeft"  # left Option → Alt in terminal
+
+# ── Keyboard bindings ────────────────────────────────────────────────────────
+# option_as_alt above consumes left-Option before Alacritty's built-in
+# ToggleSimpleFullscreen binding fires.  Re-declare it explicitly so
+# Alt+Enter still maximises the window.
+[[keyboard.bindings]]
+key    = "Return"
+mods   = "Alt"
+action = "ToggleSimpleFullscreen"
 
 [[hints.enabled]]
 command      = "open"
