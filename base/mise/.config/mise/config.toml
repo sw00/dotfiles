@@ -18,6 +18,7 @@ zoxide      = "latest"
 direnv      = "latest"
 shellcheck  = "latest"
 pre-commit  = "latest"
+lazygit     = "latest"
 
 # ── Terminal / shell ──────────────────────────────────────────────────────────
 # tmux replaces apt/brew tmux; uniform version across all platforms.
