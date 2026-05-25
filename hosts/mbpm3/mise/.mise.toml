@@ -15,3 +15,5 @@ opentofu   = "latest"
 stern      = "latest"   # k8s log tailing (was: asdf)
 k3d        = "latest"   # local k3s clusters (was: asdf)
 awscli     = "latest"   # AWS CLI (was: asdf)
+azure      = "latest"
+pdm        = "latest"

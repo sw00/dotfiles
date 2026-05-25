@@ -38,6 +38,7 @@ lnav     = "latest"
 # Pin to a minor, let mise pick the patch. Update intentionally.
 node    = "22"
 python  = "3.12"
+uv = "latest"
 
 # Uncomment when needed on a project:
 # go     = "latest"
