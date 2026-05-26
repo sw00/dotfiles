@@ -11,21 +11,11 @@ brew "pinentry-mac"
 # fish must be Homebrew-installed so it can be set as login shell via chsh.
 brew "fish"
 
-# ── Tool managers ─────────────────────────────────────────────────────────────
-# pipx is bootstrap infrastructure for mise's pipx backend.
-# Python CLI tools (aider-chat, azure-cli, pdm, …) are declared in
-# hosts/mbpm3/mise/.mise.toml using "pipx:<tool>" = "latest"; mise calls
-# pipx to create the isolated venv. Do not use pipx directly to install tools.
-brew "pipx"
-
-# ── Terminal multiplexer ──────────────────────────────────────────────────────
-# tmux is managed by mise (consistent version across all platforms).
-# tmux-fingers bootstraps its own binary via TPM (<prefix>I); no tap needed.
-
 # ── macOS-specific ────────────────────────────────────────────────────────────
 # ── CLI tools not in mise/aqua ─────────────────────────────────────
 brew "lf"        # terminal file manager (not in aqua registry)
 brew "tig"       # text-mode git log/diff browser (not in aqua registry)
+brew "graphviz"
 
 
 # ── Native compiled dependencies ──────────────────────────────────────────────
@@ -34,10 +24,6 @@ brew "tig"       # text-mode git log/diff browser (not in aqua registry)
 brew "libpq"     # PostgreSQL client lib (psycopg2, asyncpg, etc.)
 brew "ffmpeg"    # Audio/video processing
 
-# ── Tap-specific formulae ─────────────────────────────────────────────────────
-# Not available in the aqua registry; must stay in Homebrew.
-brew "boz/repo/kail"   # Kubernetes log tail
-
 # ── Desktop apps ──────────────────────────────────────────────────────────────
 cask "appcleaner"
 cask "audacity"
@@ -45,10 +31,10 @@ cask "bruno"
 cask "calibre"
 cask "dbeaver-community"
 cask "discord"
-cask "docker"
+cask "docker-desktop"
 cask "firefox@developer-edition"
 cask "freelens"
-cask "linear-linear"
+cask "linear"
 cask "loom"
 cask "macfuse"
 cask "megasync"
@@ -59,6 +45,7 @@ cask "vlc"
 cask "vscodium"
 cask "zotero"
 cask "jan"
+cask "notion"
 
 # ── VSCodium extensions ─────────────────────────────────────────────────────
 # Canonical list: os/wsl/windows/vscodium/extensions.txt
