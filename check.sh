@@ -514,9 +514,6 @@ check_has "hosts/mbpm3: k3d in work mise tools (was asdf)" \
 check_has "hosts/mbpm3: awscli in work mise tools (was asdf)" \
     'awscli' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
-check_has "Brewfile-host: pipx present (manages ~/.local/bin python tools)" \
-    'brew "pipx"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
 check_not "Brewfile-host: asdf removed (replaced by mise)" \
     'brew "asdf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 

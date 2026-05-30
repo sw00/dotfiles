@@ -10,7 +10,8 @@
 #   azure      → pipx:azure-cli   (registry shorthand)
 #   pdm        → pipx:pdm         (registry shorthand)
 #   aider-chat → pipx:aider-chat  (no registry shorthand; explicit)
-# pipx itself is Homebrew-installed (Brewfile-host) as bootstrap infrastructure.
+# mise installs the pipx backend automatically when needed — no separate
+# Homebrew installation required.
 
 [tools]
 helm       = "latest"
