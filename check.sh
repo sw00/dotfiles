@@ -578,6 +578,46 @@ check_has "alacritty base.toml: font family is CaskaydiaCove Nerd Font Mono" \
     'CaskaydiaCove Nerd Font Mono' \
     "$DOTFILES/base/alacritty/.config/alacritty/base.toml"
 
+
+# =============================================================================
+# 11. NEOVIM SMOKE TEST
+# =============================================================================
+section "Neovim smoke test"
+
+if command -v nvim >/dev/null 2>&1; then
+    # Parse-only check: verify all Lua config files have valid syntax.
+    # This catches typos, wrong module names, and API breakage without
+    # needing to bootstrap the full lazy.nvim plugin ecosystem.
+    # A full startup test with plugins lives in the CI workflow.
+    _nvim_lua_errors=0
+    while IFS= read -r -d '' _f; do
+        if ! nvim --headless -c "luafile $_f" -c 'qa' 2>/dev/null; then
+            _nvim_lua_errors=$((_nvim_lua_errors + 1))
+        fi
+    done < <(find "$DOTFILES/base/nvim/.config/nvim/lua" -name '*.lua' -print0)
+
+    if [[ $_nvim_lua_errors -eq 0 ]]; then
+        _ok "nvim: all Lua config files parse without syntax errors"
+    else
+        _fail "nvim: $_nvim_lua_errors Lua config file(s) have syntax errors"
+    fi
+
+    check_has "nvim: treesitter uses v1 API (no nvim-treesitter.configs)" \
+        'nvim-treesitter'\'').install' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+
+    check_not "nvim: treesitter does not use old .configs module" \
+        'nvim-treesitter%.configs' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+
+    check_has "nvim: treesitter install() is deferred (non-blocking)" \
+        'defer_fn' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+
+    check_has "nvim: treesitter highlighting uses vim.treesitter.start" \
+        'vim.treesitter.start' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+else
+    _skip "nvim: config loads without errors" "nvim not installed"
+fi
+
+
 # =============================================================================
 # SUMMARY
 # =============================================================================

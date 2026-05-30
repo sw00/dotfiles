@@ -6,31 +6,32 @@ return {
         -- v1.0 API: setup() only accepts install_dir
         require('nvim-treesitter').setup()
 
-        -- Install parsers (no-op if already installed)
-        require('nvim-treesitter').install({
-            'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc',
-            -- homelab / scripting
-            'python', 'json', 'json5', 'yaml', 'toml', 'dockerfile',
-            'hcl', -- Terraform / OpenTofu
-        })
+        -- Install parsers asynchronously so compilation never blocks startup.
+        -- install() is a no-op for already-installed parsers.
+        vim.defer_fn(function()
+            require('nvim-treesitter').install({
+                'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc',
+                -- homelab / scripting
+                'python', 'json', 'json5', 'yaml', 'toml', 'dockerfile',
+                'hcl', -- Terraform / OpenTofu
+            })
+        end, 0)
 
-        -- Highlighting is now a Neovim built-in; enable it per filetype
+        -- Highlighting is now a Neovim built-in; enable it per filetype.
+        -- Uses a wildcard pattern to cover any filetype with a parser installed,
+        -- rather than maintaining a hardcoded duplicate list.
         vim.api.nvim_create_autocmd('FileType', {
-            pattern = {
-                'bash', 'c', 'html', 'lua', 'markdown', 'vim',
-                'python', 'json', 'yaml', 'toml', 'dockerfile', 'hcl',
-            },
-            callback = function() vim.treesitter.start() end,
+            callback = function()
+                pcall(vim.treesitter.start)
+            end,
         })
 
         -- Indentation (experimental)
         vim.api.nvim_create_autocmd('FileType', {
-            pattern = {
-                'bash', 'c', 'html', 'lua', 'markdown', 'vim',
-                'python', 'json', 'yaml', 'toml', 'dockerfile', 'hcl',
-            },
             callback = function()
-                vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+                pcall(function()
+                    vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+                end)
             end,
         })
     end,

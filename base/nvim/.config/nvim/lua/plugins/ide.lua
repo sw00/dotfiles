@@ -14,8 +14,8 @@ return {
                 { '<leader>h', group = 'Git [H]unk' },
                 { '<leader>l', group = '[L]SP' },
                 { '<leader>r', group = '[R]ename' },
-                { '<leader>t', group = '[T]est / [T]oggle / [T]ree' },
-                { '<leader>v', group = '[V]irtualEnv Selector' },
+                { '<leader>t', group = '[T]est / [T]oggle' },
+                { '<leader>v', group = '[V]irtualEnv' },
                 { '<leader>w', group = '[W]orkspace' },
                 { '<leader>x', group = '[X] Trouble' },
             }

@@ -26,9 +26,12 @@ return {
                     path_display = { 'truncate' },
                     layout_config = { prompt_position = 'top' },
                     sorting_strategy = 'ascending',
-                    -- telescope's previewer calls nvim-treesitter v1-incompatible APIs
-                    -- (parsers.ft_to_lang, configs.is_enabled, etc.) — disable it and
-                    -- fall back to Vim's built-in regex highlighting for the preview pane.
+                    -- telescope 0.1.x previewer calls removed nvim-treesitter APIs
+                    -- (ts_parsers.ft_to_lang, ts_configs.is_enabled) that don't exist
+                    -- in v1.0. The pcall'd require returns nil, so the previewer silently
+                    -- falls back to regex highlighting anyway — setting this to false
+                    -- short-circuits the dead code path explicitly.  Upgrade telescope
+                    -- off 0.1.x to re-enable treesitter preview highlighting.
                     preview = { treesitter = false },
                 },
                 pickers = {

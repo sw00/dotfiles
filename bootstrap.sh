@@ -210,7 +210,8 @@ ensure_vscodium_extensions() {
     [[ -f "$ext_file" ]] || return 0
 
     local codium_cmd=""
-    for candidate in codium codium-oss; do
+    for candidate in codium codium-oss \
+        "/Applications/VSCodium.app/Contents/Resources/app/bin/codium"; do
         command -v "$candidate" >/dev/null 2>&1 && codium_cmd="$candidate" && break
     done
     if [[ -z "$codium_cmd" ]]; then
