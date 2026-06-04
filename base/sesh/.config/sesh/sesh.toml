@@ -1,0 +1,15 @@
+#:schema https://github.com/joshmedeski/sesh/raw/main/sesh.schema.json
+
+# Only surface tmux sessions and hand-configured sessions when `sesh list`
+# is called without extra flags.  Omitting "zoxide" here does NOT exclude it
+# from the list — zoxide results still appear but are shown last, after the
+# sources you care about.  The real filtering happens in the tmux C-o binding
+# below, where we replace `sesh list` with an explicit fd/find invocation that
+# only discovers git repos under ~/src/.
+sort_order = ["tmux", "config", "zoxide"]
+
+# Apply a default startup command to every repo under ~/src/.
+# Adjust the startup_command to whatever you want (nvim, fish, etc.).
+[[wildcard]]
+pattern = "~/src/*"
+startup_command = "nvim"
