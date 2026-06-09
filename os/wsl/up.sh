@@ -96,6 +96,17 @@ if [[ -f "$KOMOREBI_SRC/config.json" ]] || [[ -f "$KOMOREBI_HOST" ]]; then
     fi
     log "komorebi config installed to $KOMOREBI_WIN/config.json"
 
+    # Install whkdrc (hotkey bindings) alongside komorebi config
+    KOMOREBI_WHKD_SRC="$KOMOREBI_SRC/whkdrc"
+    KOMOREBI_WHKD_HOST="$DOTFILES/hosts/$HOST/komorebi/.config/komorebi/whkdrc"
+    if [[ -f "$KOMOREBI_WHKD_HOST" ]]; then
+        log "installing whkdrc ($HOST override)"
+        cp -f "$KOMOREBI_WHKD_HOST" "$KOMOREBI_WIN/whkdrc"
+    elif [[ -f "$KOMOREBI_WHKD_SRC" ]]; then
+        log "installing whkdrc (default)"
+        cp -f "$KOMOREBI_WHKD_SRC" "$KOMOREBI_WIN/whkdrc"
+    fi
+
     # Register komorebi and whkd to start automatically on Windows login
     # via scheduled tasks. This is komorebi's official auto-start mechanism.
     if command -v cmd.exe >/dev/null 2>&1; then

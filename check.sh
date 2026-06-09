@@ -364,8 +364,17 @@ check "komorebi: default config exists in os/wsl/windows" \
 check "komorebi (wsl/x13yg2): host config exists" \
     test -f "$DOTFILES/hosts/x13yg2/komorebi/.config/komorebi/config.json"
 
+check "komorebi: default whkdrc exists in os/wsl/windows" \
+    test -f "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+check "komorebi (wsl/x13yg2): host whkdrc exists" \
+    test -f "$DOTFILES/hosts/x13yg2/komorebi/.config/komorebi/whkdrc"
+
 check_has "up.sh: komorebi config installation present" \
     'KOMOREBI' "$DOTFILES/os/wsl/up.sh"
+
+check_has "up.sh: whkdrc installation present" \
+    'whkdrc' "$DOTFILES/os/wsl/up.sh"
 
 check "alacritty: base.toml exists in base/alacritty" \
     test -f "$DOTFILES/base/alacritty/.config/alacritty/base.toml"

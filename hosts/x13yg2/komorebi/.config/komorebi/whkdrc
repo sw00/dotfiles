@@ -1,0 +1,58 @@
+; whkdrc — hotkey daemon config for komorebi (x13yg2 overrides)
+; See https://github.com/LGUG2Z/whkd for full syntax
+
+; ── Focus windows ─────────────────────────────────────────────────────────
+alt     - h    : focus left
+alt     - j    : focus down
+alt     - k    : focus up
+alt     - l    : focus right
+
+; ── Move windows ──────────────────────────────────────────────────────────
+alt     - shift - h : move left
+alt     - shift - j : move down
+alt     - shift - k : move up
+alt     - shift - l : move right
+
+; ── Workspace navigation ──────────────────────────────────────────────────
+alt     - 1 : focus-workspace 1
+alt     - 2 : focus-workspace 2
+alt     - 3 : focus-workspace 3
+alt     - 4 : focus-workspace 4
+alt     - 5 : focus-workspace 5
+
+; ── Move windows across workspaces ────────────────────────────────────────
+alt     - shift - 1 : move-to-workspace 1
+alt     - shift - 2 : move-to-workspace 2
+alt     - shift - 3 : move-to-workspace 3
+alt     - shift - 4 : move-to-workspace 4
+alt     - shift - 5 : move-to-workspace 5
+
+; ── Monitor navigation ────────────────────────────────────────────────────
+alt     - tab         : cycle-monitors next
+alt     - shift - tab : cycle-monitors previous
+
+; ── Toggle modes ──────────────────────────────────────────────────────────
+alt     - f : toggle-float
+alt     - m : toggle-monocle
+alt     - t : toggle-tiling
+
+; ── Resize mode ───────────────────────────────────────────────────────────
+alt     - r : resize
+alt     - shift - r : resize-axis horizontal
+
+; ── Layout ────────────────────────────────────────────────────────────────
+alt     - x : cycle-layout next
+alt     - shift - x : cycle-layout previous
+ctrl    - alt - r : reload-configuration
+
+; ── Window operations ─────────────────────────────────────────────────────
+alt     - q        : close
+alt     - shift - q : ensure-stacked
+
+; ── Prompts and overlays ──────────────────────────────────────────────────
+alt     - p : toggle-palette
+alt     - o : toggle-workspace-offset
+
+; ── Mouse ─────────────────────────────────────────────────────────────────
+; alt - mouse-left    : move
+; alt - mouse-right   : resize
