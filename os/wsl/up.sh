@@ -96,26 +96,33 @@ if [[ -f "$KOMOREBI_SRC/config.json" ]] || [[ -f "$KOMOREBI_HOST" ]]; then
     fi
     log "komorebi config installed to $KOMOREBI_WIN/config.json"
 
-    # Install whkdrc (hotkey bindings) alongside komorebi config
+    # Install whkdrc (hotkey bindings) to whkd's default search path:
+    # %USERPROFILE%\.config\whkdrc (NOT under \komorebi\ — whkd won't find it
+    # there without WHKD_CONFIG_HOME set).
+    WHKD_WIN_DIR="$WIN_HOME/.config"
     KOMOREBI_WHKD_SRC="$KOMOREBI_SRC/whkdrc"
     KOMOREBI_WHKD_HOST="$DOTFILES/hosts/$HOST/komorebi/.config/komorebi/whkdrc"
+    mkdir -p "$WHKD_WIN_DIR"
     if [[ -f "$KOMOREBI_WHKD_HOST" ]]; then
-        log "installing whkdrc ($HOST override)"
-        cp -f "$KOMOREBI_WHKD_HOST" "$KOMOREBI_WIN/whkdrc"
+        log "installing whkdrc → $WHKD_WIN_DIR/whkdrc ($HOST override)"
+        cp -f "$KOMOREBI_WHKD_HOST" "$WHKD_WIN_DIR/whkdrc"
     elif [[ -f "$KOMOREBI_WHKD_SRC" ]]; then
-        log "installing whkdrc (default)"
-        cp -f "$KOMOREBI_WHKD_SRC" "$KOMOREBI_WIN/whkdrc"
+        log "installing whkdrc → $WHKD_WIN_DIR/whkdrc (default)"
+        cp -f "$KOMOREBI_WHKD_SRC" "$WHKD_WIN_DIR/whkdrc"
     fi
+    # Clean up stale copy from earlier bootstrap versions that wrote here.
+    rm -f "$KOMOREBI_WIN/whkdrc"
 
-    # Register komorebi and whkd to start automatically on Windows login
-    # via scheduled tasks. This is komorebi's official auto-start mechanism.
+    # Register komorebi + whkd to start automatically on Windows login.
+    # `komorebic enable-autostart --whkd` writes a .lnk into shell:startup;
+    # there is no separate whkd auto-start subcommand. cmd.exe is run from
+    # /mnt/c to avoid the "UNC paths not supported" fallback warning.
     if command -v cmd.exe >/dev/null 2>&1; then
-        log "registering komorebi auto-start (Windows scheduled task)"
-        cmd.exe /c 'komorebic install-auto-start' 2>&1 | head -5 || \
-            warn "komorebic install-auto-start failed — run it manually from Windows Terminal"
-        log "registering whkd auto-start (Windows scheduled task)"
-        cmd.exe /c 'whkd install-auto-start' 2>&1 | head -5 || \
-            warn "whkd install-auto-start failed — run it manually from Windows Terminal"
+        log "registering komorebi + whkd auto-start (shell:startup .lnk)"
+        if ! (cd /mnt/c && cmd.exe /c 'komorebic enable-autostart --whkd' 2>&1 \
+                | tr -d '\r'); then
+            warn "komorebic enable-autostart --whkd failed — run it manually"
+        fi
         log "komorebi + whkd will start automatically on next Windows login"
         warn "to start komorebi now without rebooting, run in Windows Terminal:"
         warn "  komorebic start --whkd"
