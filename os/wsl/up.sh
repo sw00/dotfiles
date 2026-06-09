@@ -185,7 +185,8 @@ if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
         log "installing VSCodium extensions"
         grep -v '^#' "$VSCODIUM_SRC/extensions.txt" | grep -v '^$' \
         | while read -r ext; do
-            cmd.exe /c "$(wslpath -w "$CODIUM_CMD")" --install-extension "$ext" --force 2>&1 \
+            # cd /mnt/c: cmd.exe rejects UNC paths (\\wsl.localhost\...) as CWD.
+            (cd /mnt/c && cmd.exe /c "$(wslpath -w "$CODIUM_CMD")" --install-extension "$ext" --force) 2>&1 \
                 | grep -v 'already installed' || true
         done
     else

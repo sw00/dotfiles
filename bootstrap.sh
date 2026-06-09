@@ -398,7 +398,11 @@ stow_dir() {
         done <<< "$_unowned"
     fi
 
-    stow --restow --no-folding -d "$parent" -t "$HOME" "${pkgs[@]}"
+    # Suppress the known stow BUG about absolute/relative mismatch — triggered
+    # by WSL cross-filesystem symlinks (e.g. ~/Downloads -> /mnt/c/...) that
+    # stow cannot own. Stow still completes correctly; the message is noise.
+    stow --restow --no-folding -d "$parent" -t "$HOME" "${pkgs[@]}" \
+        2> >(grep -v 'BUG in find_stowed_path' >&2)
 }
 
 load_macos_launch_agents() {
