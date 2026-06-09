@@ -1,6 +1,5 @@
 {
   "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.41/schema.json",
-  "app_specific_configuration_path": "$Env:USERPROFILE/applications.json",
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
   "default_workspace_padding": 3,
@@ -14,6 +13,20 @@
     "unfocused_border": "Base03",
     "bar_accent": "Base0D"
   },
+  "float_rules": [
+    { "kind": "Class", "id": "#32770" },
+    { "kind": "Class", "id": "Shell_TrayWnd" },
+    { "kind": "Class", "id": "WorkerW" },
+    { "kind": "Class", "id": "Progman" },
+    { "kind": "Class", "id": "Windows.UI.Core.CoreWindow" },
+    { "kind": "Class", "id": "ApplicationFrameWindow" },
+    { "kind": "Class", "id": "NotifyIconOverflowWindow" },
+    { "kind": "Exe",   "id": "Taskmgr.exe" },
+    { "kind": "Exe",   "id": "WindowsTerminal.exe" },
+    { "kind": "Exe",   "id": "brave.exe" },
+    { "kind": "Exe",   "id": "obsidian.exe" },
+    { "kind": "Exe",   "id": "flameshot.exe" }
+  ],
   "monitors": [
     {
       "workspaces": [

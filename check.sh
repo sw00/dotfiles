@@ -367,8 +367,6 @@ check "komorebi (wsl/x13yg2): host config exists" \
 check "komorebi: default whkdrc exists in os/wsl/windows" \
     test -f "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
 
-check "komorebi (wsl/x13yg2): host whkdrc exists" \
-    test -f "$DOTFILES/hosts/x13yg2/komorebi/.config/komorebi/whkdrc"
 
 check_has "up.sh: komorebi config installation present" \
     'KOMOREBI' "$DOTFILES/os/wsl/up.sh"

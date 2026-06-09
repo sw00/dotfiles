@@ -1,50 +1,37 @@
 {
-    "$schema": "https://raw.githubusercontent.com/komorebi-org/komorebi/master/config-schema.json",
-    "appearance": {
-        "focused_border_color": "#FF66D9EF",
-        "focused_border_width": 5,
-        "unfocused_border_color": "#00FFFFFF",
-        "unfocused_border_width": 2
-    },
-    "global": {
-        "alt_focus_hack": false,
-        "border": true,
-        "border_style": "System",
-        "focus_follows_mouse": false,
-        "hotkeys": [],
-        "mouse_follows_focus": false,
-        "tiling": true
-    },
-    "monitors": [
-        {
-            "containers": "BSP",
-            "theme": {
-                "appearance": {},
-                "behaviour": {},
-                "layouts": []
-            },
-            "workspaces": [
-                { "name": "I", "containers": "BSP" },
-                { "name": "II", "containers": "BSP" },
-                { "name": "III", "containers": "BSP" },
-                { "name": "IV", "containers": "BSP" },
-                { "name": "V", "containers": "BSP" }
-            ]
-        }
-    ],
-    "float_rules": [
-        { "kind": "Class", "id": "#32770", "effect": "Float" },
-        { "kind": "Class", "id": "Windows.UI.Core.CoreWindow", "effect": "Float" },
-        { "kind": "Class", "id": "ApplicationFrameWindow", "effect": "Float" },
-        { "kind": "Class", "id": "WorkerW", "effect": "Float" },
-        { "kind": "Class", "id": "Progman", "effect": "Float" },
-        { "kind": "Class", "id": "Shell_TrayWnd", "effect": "Float" },
-        { "kind": "Class", "id": "NotifyIconOverflowWindow", "effect": "Float" },
-        { "kind": "Process", "id": "Taskmgr.exe", "effect": "Float" },
-        { "kind": "Process", "id": "TaskManager.exe", "effect": "Float" },
-        { "kind": "Process", "id": "WindowsTerminal.exe", "effect": "Float" },
-        { "kind": "Process", "id": "brave.exe", "effect": "Float" },
-        { "kind": "Process", "id": "obsidian.exe", "effect": "Float" },
-        { "kind": "Process", "id": "flameshot.exe", "effect": "Float" }
-    ]
+  "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.41/schema.json",
+  "window_hiding_behaviour": "Cloak",
+  "cross_monitor_move_behaviour": "Insert",
+  "default_workspace_padding": 3,
+  "default_container_padding": 2,
+  "border": true,
+  "border_width": 2,
+  "border_offset": -1,
+  "theme": {
+    "palette": "Base16",
+    "name": "Ashes",
+    "unfocused_border": "Base03",
+    "bar_accent": "Base0D"
+  },
+  "float_rules": [
+    { "kind": "Class", "id": "#32770" },
+    { "kind": "Class", "id": "Shell_TrayWnd" },
+    { "kind": "Class", "id": "WorkerW" },
+    { "kind": "Class", "id": "Progman" },
+    { "kind": "Class", "id": "Windows.UI.Core.CoreWindow" },
+    { "kind": "Class", "id": "ApplicationFrameWindow" },
+    { "kind": "Class", "id": "NotifyIconOverflowWindow" },
+    { "kind": "Exe",   "id": "Taskmgr.exe" }
+  ],
+  "monitors": [
+    {
+      "workspaces": [
+        { "name": "I",   "layout": "BSP" },
+        { "name": "II",  "layout": "BSP" },
+        { "name": "III", "layout": "BSP" },
+        { "name": "IV",  "layout": "BSP" },
+        { "name": "V",   "layout": "BSP" }
+      ]
+    }
+  ]
 }
