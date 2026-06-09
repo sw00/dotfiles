@@ -96,14 +96,20 @@ if [[ -f "$KOMOREBI_SRC/config.json" ]] || [[ -f "$KOMOREBI_HOST" ]]; then
     fi
     log "komorebi config installed to $KOMOREBI_WIN/config.json"
 
-    # Register komorebi to start automatically on Windows login via
-    # a scheduled task. This is komorebi's official auto-start mechanism.
+    # Register komorebi and whkd to start automatically on Windows login
+    # via scheduled tasks. This is komorebi's official auto-start mechanism.
     if command -v cmd.exe >/dev/null 2>&1; then
         log "registering komorebi auto-start (Windows scheduled task)"
         cmd.exe /c 'komorebic install-auto-start' 2>&1 | head -5 || \
             warn "komorebic install-auto-start failed — run it manually from Windows Terminal"
-        log "komorebi will start automatically on next Windows login"
-        warn "to start komorebi now, run in Windows Terminal: komorebic start --whkd"
+        log "registering whkd auto-start (Windows scheduled task)"
+        cmd.exe /c 'whkd install-auto-start' 2>&1 | head -5 || \
+            warn "whkd install-auto-start failed — run it manually from Windows Terminal"
+        log "komorebi + whkd will start automatically on next Windows login"
+        warn "to start komorebi now without rebooting, run in Windows Terminal:"
+        warn "  whkd install-auto-start"
+        warn "  komorebic install-auto-start"
+        warn "  komorebic start"
     fi
 else
     warn "no komorebi config found -- skipping"

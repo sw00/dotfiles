@@ -21,6 +21,7 @@ Flameshot.Flameshot
 
 # ── Window manager ────────────────────────────────────────────────────────────
 LGUG2Z.komorebi
+LGUG2Z.whkd
 
 # ── Font: CaskaydiaCove Nerd Font ─────────────────────────────────────────────
 # Installed by the PowerShell block in up.sh (downloads from Nerd Fonts GitHub).

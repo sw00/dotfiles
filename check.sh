@@ -559,6 +559,9 @@ check_has "winget.txt: Flameshot present" \
 check_has "winget.txt: komorebi present" \
     'komorebi' "$DOTFILES/os/wsl/windows/winget.txt"
 
+check_has "winget.txt: whkd present" \
+    'whkd' "$DOTFILES/os/wsl/windows/winget.txt"
+
 check_has "winget.txt: PyCharm Community present" \
     'JetBrains.PyCharm.Community' "$DOTFILES/os/wsl/windows/winget.txt"
 
