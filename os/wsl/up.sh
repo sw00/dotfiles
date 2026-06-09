@@ -78,6 +78,37 @@ if [[ -f "$ALACRITTY_BASE" ]]; then
     fi
 fi
 
+# ── Komorebi (Windows tiling WM) ──────────────────────────────────────────────
+# Shared default config lives in os/wsl/windows/komorebi/.
+# Host-specific overrides go in hosts/<hostname>/komorebi/.
+KOMOREBI_SRC="$WINDOWS_SRC/komorebi"
+KOMOREBI_WIN="$WIN_HOME/.config/komorebi"
+KOMOREBI_HOST="$DOTFILES/hosts/$HOST/komorebi/.config/komorebi/config.json"
+
+if [[ -f "$KOMOREBI_SRC/config.json" ]] || [[ -f "$KOMOREBI_HOST" ]]; then
+    mkdir -p "$KOMOREBI_WIN"
+    if [[ -f "$KOMOREBI_HOST" ]]; then
+        log "installing komorebi config ($HOST override)"
+        cp -f "$KOMOREBI_HOST" "$KOMOREBI_WIN/config.json"
+    else
+        log "installing komorebi config (default)"
+        cp -f "$KOMOREBI_SRC/config.json" "$KOMOREBI_WIN/config.json"
+    fi
+    log "komorebi config installed to $KOMOREBI_WIN/config.json"
+
+    # Register komorebi to start automatically on Windows login via
+    # a scheduled task. This is komorebi's official auto-start mechanism.
+    if command -v cmd.exe >/dev/null 2>&1; then
+        log "registering komorebi auto-start (Windows scheduled task)"
+        cmd.exe /c 'komorebic install-auto-start' 2>&1 | head -5 || \
+            warn "komorebic install-auto-start failed — run it manually from Windows Terminal"
+        log "komorebi will start automatically on next Windows login"
+        warn "to start komorebi now, run in Windows Terminal: komorebic start --whkd"
+    fi
+else
+    warn "no komorebi config found -- skipping"
+fi
+
 # ── VSCodium ──────────────────────────────────────────────────────────────────
 VSCODIUM_SRC="$WINDOWS_SRC/vscodium"
 VSCODIUM_WIN="$WIN_APPDATA/VSCodium/User"

@@ -358,6 +358,15 @@ check_has \
 check "alacritty (wsl/x13yg2): stow package exists" \
     test -d "$DOTFILES/hosts/x13yg2/alacritty"
 
+check "komorebi: default config exists in os/wsl/windows" \
+    test -f "$DOTFILES/os/wsl/windows/komorebi/config.json"
+
+check "komorebi (wsl/x13yg2): host config exists" \
+    test -f "$DOTFILES/hosts/x13yg2/komorebi/.config/komorebi/config.json"
+
+check_has "up.sh: komorebi config installation present" \
+    'KOMOREBI' "$DOTFILES/os/wsl/up.sh"
+
 check "alacritty: base.toml exists in base/alacritty" \
     test -f "$DOTFILES/base/alacritty/.config/alacritty/base.toml"
 
@@ -546,6 +555,9 @@ check_has "winget.txt: Obsidian present" \
 
 check_has "winget.txt: Flameshot present" \
     'Flameshot.Flameshot' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_has "winget.txt: komorebi present" \
+    'komorebi' "$DOTFILES/os/wsl/windows/winget.txt"
 
 check_has "winget.txt: PyCharm Community present" \
     'JetBrains.PyCharm.Community' "$DOTFILES/os/wsl/windows/winget.txt"

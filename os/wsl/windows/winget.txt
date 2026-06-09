@@ -19,6 +19,9 @@ Mozilla.Firefox.DeveloperEdition
 JetBrains.PyCharm.Community
 Flameshot.Flameshot
 
+# ── Window manager ────────────────────────────────────────────────────────────
+LGUG2Z.komorebi
+
 # ── Font: CaskaydiaCove Nerd Font ─────────────────────────────────────────────
 # Installed by the PowerShell block in up.sh (downloads from Nerd Fonts GitHub).
 # No winget ID — the release zip is fetched directly.
