@@ -107,9 +107,7 @@ if [[ -f "$KOMOREBI_SRC/config.json" ]] || [[ -f "$KOMOREBI_HOST" ]]; then
             warn "whkd install-auto-start failed — run it manually from Windows Terminal"
         log "komorebi + whkd will start automatically on next Windows login"
         warn "to start komorebi now without rebooting, run in Windows Terminal:"
-        warn "  whkd install-auto-start"
-        warn "  komorebic install-auto-start"
-        warn "  komorebic start"
+        warn "  komorebic start --whkd"
     fi
 else
     warn "no komorebi config found -- skipping"
