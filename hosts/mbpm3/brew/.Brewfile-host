@@ -16,6 +16,10 @@ brew "fish"
 brew "lf"        # terminal file manager (not in aqua registry)
 brew "tig"       # text-mode git log/diff browser (not in aqua registry)
 brew "graphviz"
+brew "d2"        # modern diagram scripting language
+brew "wireguard-tools"
+brew "websocat"   # WebSocket tool
+brew "pstree"     # process tree viewer
 
 
 # ── Native compiled dependencies ──────────────────────────────────────────────
@@ -46,6 +50,14 @@ cask "vscodium"
 cask "zotero"
 cask "jan"
 cask "notion"
+cask "gpg-suite"            # GPG key management GUI
+cask "httpie-desktop"       # REST/GraphQL API testing client
+cask "readest"              # EPUB ebook reader
+cask "signal"               # Secure messaging
+cask "libreoffice"          # Office suite
+cask "microsoft-teams"      # Work messaging
+cask "monokle"              # Kubernetes config UI
+cask "mouseless"            # Keyboard-driven mouse
 
 # ── VSCodium extensions ─────────────────────────────────────────────────────
 # Canonical list: os/wsl/windows/vscodium/extensions.txt
@@ -54,3 +66,4 @@ cask "notion"
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104
+mas "WhatsApp Messenger", id: 310_633_997
