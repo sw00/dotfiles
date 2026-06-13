@@ -438,6 +438,31 @@ print(pl.get('Label', ''))
     shopt -u nullglob
 }
 
+disable_rectangle_autolaunch() {
+    # Rectangle is kept installed as a fallback manual tiling tool, but it
+    # should not start automatically on login. AeroSpace is now the primary
+    # tiling WM on macOS and starts via its own launch-on-login setting.
+    local bundle_id="com.knollsoft.Rectangle"
+
+    if ! defaults read "$bundle_id" >/dev/null 2>&1; then
+        log "Rectangle not installed or never launched — skipping autolaunch disable"
+        return 0
+    fi
+
+    if [[ "$(defaults read "$bundle_id" launchOnLogin 2>/dev/null)" == "0" ]]; then
+        log "Rectangle launch-on-login already disabled"
+    else
+        log "disabling Rectangle launch-on-login"
+        defaults write "$bundle_id" launchOnLogin -bool false
+    fi
+
+    # Also remove Rectangle from the system Login Items list, if present.
+    # Rectangle registers a helper app (RectangleLauncher.app) as a login item;
+    # setting launchOnLogin=false stops it from re-registering, but this line
+    # cleans up any existing system Login Item entry.
+    osascript -e 'tell application "System Events" to delete every login item whose name is "Rectangle"' >/dev/null 2>&1 || true
+}
+
 _stow_preflight() {
     # Dry-run every stow operation against $HOME to surface conflicts before
     # any real change is made.  Plain-file conflicts (e.g. fisher-managed files
@@ -580,6 +605,7 @@ main() {
         macos)
             ensure_homebrew_bundle
             ensure_vscodium_extensions
+            disable_rectangle_autolaunch
             ensure_fisher
             ensure_mise
             ensure_pi

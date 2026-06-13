@@ -555,6 +555,12 @@ check_has "Brewfile-host: monokle tracked" \
 check_has "Brewfile-host: aerospace present" \
     'aerospace' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
+check_has "bootstrap: disable_rectangle_autolaunch defined" \
+    'disable_rectangle_autolaunch()' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: disable_rectangle_autolaunch called on macOS" \
+    'disable_rectangle_autolaunch' "$DOTFILES/bootstrap.sh"
+
 check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
     'stern' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
