@@ -58,6 +58,12 @@ cask "microsoft-teams"      # Work messaging
 cask "monokle"              # Kubernetes config UI
 cask "mouseless"            # Keyboard-driven mouse
 
+# ── Tiling window manager ──────────────────────────────────────────────────
+# Aerospace replaces Rectangle's manual tiling with automatic tiling
+# on macOS, matching komorebi's workflow on Windows.
+tap "nikitabobko/tap"
+cask "aerospace"
+
 # ── VSCodium extensions ─────────────────────────────────────────────────────
 # Canonical list: os/wsl/windows/vscodium/extensions.txt
 # bootstrap.sh ensure_vscodium_extensions() installs from that file on all platforms.

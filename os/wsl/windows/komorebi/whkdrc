@@ -47,7 +47,11 @@ alt + f             : komorebic toggle-float
 alt + m             : komorebic toggle-monocle
 alt + t             : komorebic toggle-tiling
 
-# Resize
+# Resize (aligned with Aerospace)
+alt + -             : komorebic resize -50
+alt + =             : komorebic resize +50
+alt + shift + -     : komorebic resize -200
+alt + shift + =     : komorebic resize +200
 alt + shift + r     : komorebic resize-axis horizontal
 
 # Layout

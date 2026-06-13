@@ -1,0 +1,98 @@
+# AeroSpace config — based on default with minimal additions for komorebi parity.
+# See: https://nikitabobko.github.io/AeroSpace/guide
+#
+# Install: brew install --cask nikitabobko/tap/aerospace
+
+config-version = 2
+start-at-login = true
+
+# Normalizations (AeroSpace defaults)
+enable-normalization-flatten-containers = true
+enable-normalization-opposite-orientation-for-nested-containers = true
+
+# Layout
+default-root-container-layout = 'tiles'
+default-root-container-orientation = 'auto'
+accordion-padding = 30
+
+# Mouse follows focus when monitor changes
+on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
+
+# Keep hidden apps unhidden
+automatically-unhide-macos-hidden-apps = false
+
+# Keep numeric workspaces alive when empty (matching komorebi's persistent workspaces)
+persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7"]
+
+# Gaps — default 0; adjust if you want komorebi-like padding (inner=2, outer=3)
+[gaps]
+    inner.horizontal = 0
+    inner.vertical =   0
+    outer.left =       0
+    outer.bottom =     0
+    outer.top =        0
+    outer.right =      0
+
+# ── Key bindings (mode.main) ──────────────────────────────────────────────
+# Default AeroSpace bindings + minimal additions marked [ALIGNED].
+# Focus/move/workspace keys are already consistent with komorebi/whkdrc.
+[mode.main.binding]
+
+    # ── Focus (same as komorebi whkdrc) ─
+    alt-h = 'focus left'
+    alt-j = 'focus down'
+    alt-k = 'focus up'
+    alt-l = 'focus right'
+
+    # ── Move (same as komorebi whkdrc) ─
+    alt-shift-h = 'move left'
+    alt-shift-j = 'move down'
+    alt-shift-k = 'move up'
+    alt-shift-l = 'move right'
+
+    # ── Resize (same keys as komorebi whkdrc) ─
+    alt-minus = 'resize smart -50'
+    alt-equal = 'resize smart +50'
+
+    # ── Close window [ALIGNED: komorebi whkdrc has alt + q] ─
+    alt-q = 'close'
+
+    # ── Layout ─
+    alt-slash = 'layout tiles horizontal vertical'
+    alt-comma = 'layout accordion horizontal vertical'
+
+    # ── Workspace navigation (numerics match komorebi alt+1-7) ─
+    alt-1 = 'workspace 1'
+    alt-2 = 'workspace 2'
+    alt-3 = 'workspace 3'
+    alt-4 = 'workspace 4'
+    alt-5 = 'workspace 5'
+    alt-6 = 'workspace 6'
+    alt-7 = 'workspace 7'
+    alt-8 = 'workspace 8'
+    alt-9 = 'workspace 9'
+
+    # ── Move window to workspace (same as komorebi whkdrc) ─
+    alt-shift-1 = 'move-node-to-workspace 1'
+    alt-shift-2 = 'move-node-to-workspace 2'
+    alt-shift-3 = 'move-node-to-workspace 3'
+    alt-shift-4 = 'move-node-to-workspace 4'
+    alt-shift-5 = 'move-node-to-workspace 5'
+    alt-shift-6 = 'move-node-to-workspace 6'
+    alt-shift-7 = 'move-node-to-workspace 7'
+    alt-shift-8 = 'move-node-to-workspace 8'
+    alt-shift-9 = 'move-node-to-workspace 9'
+
+    # ── Monitor / workspace back-and-forth (same as komorebi whkdrc) ─
+    alt-tab = 'workspace-back-and-forth'
+    alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
+
+    # ── Service mode (AeroSpace default) ─
+    alt-shift-semicolon = 'mode service'
+
+# ── Service mode (AeroSpace default) ──────────────────────────────────────
+[mode.service.binding]
+    esc = ['reload-config', 'mode main']
+    r = ['flatten-workspace-tree', 'mode main']       # reset layout
+    f = ['layout floating tiling', 'mode main']        # toggle float
+    backspace = ['close-all-windows-but-current', 'mode main']

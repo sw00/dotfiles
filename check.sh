@@ -156,8 +156,8 @@ check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
 stow_layer "$DOTFILES/os/macos" bash brew gnupg
-check_stow "hosts/mbpm3: alacritty brew fish key_remap mise" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise
+check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
@@ -377,6 +377,43 @@ check_has "up.sh: whkdrc installation present" \
 check "alacritty: base.toml exists in base/alacritty" \
     test -f "$DOTFILES/base/alacritty/.config/alacritty/base.toml"
 
+# ── AeroSpace (macOS tiling WM, komorebi counterpart) ────────────────────
+check "aerospace: config exists" \
+    test -f "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: start-at-login enabled" \
+    'start-at-login = true' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-q close (aligned with komorebi)" \
+    'alt-q = .close.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-h/j/k/l focus (consistent with komorebi)" \
+    'alt-h = .focus left.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-shift-h/j/k/l move (consistent with komorebi)" \
+    'alt-shift-h = .move left.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-1-7 workspace (consistent with komorebi)" \
+    'alt-1 = .workspace 1.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-shift-1-7 move-to-workspace (consistent with komorebi)" \
+    'alt-shift-1 = .move-node-to-workspace 1.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-minus/equal resize (consistent with komorebi)" \
+    'alt-minus = .resize smart' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "whkdrc: alt-minus resize (aligned with aerospace)" \
+    'komorebic resize \-50' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+check_has "whkdrc: alt-equal resize (aligned with aerospace)" \
+    'komorebic resize \+50' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+check_has "aerospace: alt-tab workspace-back-and-forth (consistent with komorebi)" \
+    'alt-tab' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: alt-shift-tab move-workspace-to-monitor (consistent with komorebi)" \
+    'alt-shift-tab' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
 
 # =============================================================================
 # 10. MISE  [GREEN]
@@ -486,12 +523,6 @@ check "os/wsl/gnupg: gpg-agent.conf NOT stow-managed (written by up.sh)" \
 check_has "up.sh: gpg-agent.conf written with absolute pinentry-wsl path" \
     'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
 
-check_has "Brewfile-host: lf present" \
-    'brew "lf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_has "Brewfile-host: tig present" \
-    'brew "tig"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
 check_has "mise: shellcheck declared" \
     'shellcheck' "$MISE_CFG"
 
@@ -521,6 +552,9 @@ check_not "Brewfile-host: homeport tap removed" \
 check_has "Brewfile-host: monokle tracked" \
     'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
+check_has "Brewfile-host: aerospace present" \
+    'aerospace' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
 check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
     'stern' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
@@ -535,6 +569,15 @@ check_not "Brewfile-host: asdf removed (replaced by mise)" \
 
 check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migration)" \
     'existing target is not owned by stow' "$DOTFILES/bootstrap.sh"
+
+check_has "Brewfile-base: lf present (moved from host)" \
+    'brew "lf"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: tig present (moved from host)" \
+    'brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: graphviz present (moved from host)" \
+    'brew "graphviz"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
 check_has "Brewfile-base: obsidian present" \
     'obsidian' "$DOTFILES/os/macos/brew/.Brewfile-base"
