@@ -23,9 +23,28 @@ ms-toolsai.jupyter-renderers
 ms-toolsai.vscode-jupyter-cell-tags
 ms-toolsai.vscode-jupyter-slideshow
 
+# Git
+# Added during mbpm3 audit (Jun 2026)
+eamodio.gitlens
+
+# Kubernetes
+ms-kubernetes-tools.vscode-kubernetes-tools
+
+# Terraform
+hashicorp.terraform
+
 # Data / markup
 janisdd.vscode-edit-csv
 mechatroner.rainbow-csv
 mitchdenny.ecdc
 redhat.vscode-yaml
 vmware.vscode-concourse
+tamasfe.even-better-toml
+darkriszty.markdown-table-prettify
+
+# Remote
+jeanp413.open-remote-ssh
+
+# Visualisation
+mermaidchart.vscode-mermaid-chart
+terrastruct.d2
