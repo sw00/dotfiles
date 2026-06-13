@@ -424,10 +424,11 @@ print(pl.get('Label', ''))
             continue
         fi
         if launchctl print "gui/$uid/$label" >/dev/null 2>&1; then
-            log "launch agent already loaded: $label"
+            log "reloading launch agent: $label"
+            launchctl bootout "gui/$uid/$label" >/dev/null 2>&1 || true
+            launchctl bootstrap "gui/$uid" "$plist"
         else
             log "loading launch agent: $label"
-            launchctl bootout "gui/$uid" "$plist" >/dev/null 2>&1 || true
             launchctl bootstrap "gui/$uid" "$plist"
         fi
     done
