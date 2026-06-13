@@ -15,8 +15,7 @@ brew "fish"
 # ── CLI tools not in mise/aqua ─────────────────────────────────────
 brew "lf"        # terminal file manager (not in aqua registry)
 brew "tig"       # text-mode git log/diff browser (not in aqua registry)
-brew "graphviz"
-brew "d2"        # modern diagram scripting language
+brew "d2"        # modern diagram scripting language (not in mise)
 brew "wireguard-tools"
 brew "websocat"   # WebSocket tool
 brew "pstree"     # process tree viewer

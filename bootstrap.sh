@@ -64,6 +64,8 @@ _pkg_name() {
         apt:git-lfs)  echo git-lfs ;;
         apt:gcc)      echo build-essential ;; # meta-package: gcc g++ make libc6-dev
         apt:make)     echo build-essential ;; # same meta-package; apt deduplicates
+        apt:pstree)   echo psmisc ;;
+        pacman:pstree) echo psmisc ;;
         pacman:gcc)   echo base-devel ;;
         pacman:make)  echo base-devel ;;
         *)            echo "$cmd" ;;
@@ -113,7 +115,8 @@ ensure_system_tools() {
     # Installs only what mise cannot provide:
     #   fish    — login shell; must exist before mise activates
     #   git-lfs — git integration, not a standalone binary tool
-    #   lf, tig — not in the aqua/mise registry; must come from system packages
+    #   lf, tig, graphviz, pstree — not in the aqua/mise registry;
+    #                               must come from system packages
     #   xclip / wslview — WSL platform integrations (no aqua equivalent)
     #   gcc, make — build tools for neovim plugins (telescope-fzf-native, mason)
     #               mapped to build-essential on apt, base-devel on pacman
@@ -122,7 +125,7 @@ ensure_system_tools() {
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish git-lfs lf tig gcc make unzip)
+    local wanted=(fish git-lfs lf tig graphviz pstree wireguard-tools gcc make unzip)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
     fi

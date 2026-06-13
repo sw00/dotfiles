@@ -16,6 +16,13 @@ cask "caffeine"         # prevent sleep
 cask "rectangle"        # window management
 cask "flameshot"        # cross-platform screenshots
 
+# ── CLI tools not in mise/aqua ────────────────────────────────────────────────
+# These are not in the aqua/mise registry and must come from the OS package
+# manager on every platform (brew on macOS, ensure_system_tools on Linux/WSL).
+brew "lf"        # terminal file manager
+brew "tig"       # text-mode git log/diff browser
+brew "graphviz"  # graph visualization library
+
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 # Cascadia Code patched with Nerd Font glyphs. Referenced in alacritty and
 # VSCodium configs. Must be the same font across all platforms.
