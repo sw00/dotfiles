@@ -518,7 +518,7 @@ check_not "Brewfile-base: homeport tap removed" \
 check_not "Brewfile-host: homeport tap removed" \
     'homeport' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
-check_not "Brewfile-host: monokle removed" \
+check_has "Brewfile-host: monokle tracked" \
     'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
 check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
