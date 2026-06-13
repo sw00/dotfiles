@@ -41,6 +41,8 @@ lnav     = "latest"
 node    = "22"
 python  = "3.12"
 uv = "latest"
+github-cli = "latest"
+"pipx:httpie" = "latest"
 
 # Uncomment when needed on a project:
 # go     = "latest"
