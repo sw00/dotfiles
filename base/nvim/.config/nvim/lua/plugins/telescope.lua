@@ -2,7 +2,6 @@ return {
     {
         'nvim-telescope/telescope.nvim',
         event = 'VimEnter',
-        branch = '0.1.x',
         dependencies = {
             'nvim-lua/plenary.nvim',
             { 'devicons', enabled = vim.g.have_nerd_font },
@@ -26,13 +25,8 @@ return {
                     path_display = { 'truncate' },
                     layout_config = { prompt_position = 'top' },
                     sorting_strategy = 'ascending',
-                    -- telescope 0.1.x previewer calls removed nvim-treesitter APIs
-                    -- (ts_parsers.ft_to_lang, ts_configs.is_enabled) that don't exist
-                    -- in v1.0. The pcall'd require returns nil, so the previewer silently
-                    -- falls back to regex highlighting anyway — setting this to false
-                    -- short-circuits the dead code path explicitly.  Upgrade telescope
-                    -- off 0.1.x to re-enable treesitter preview highlighting.
-                    preview = { treesitter = false },
+                    -- Treesitter-based preview highlighting is now properly supported
+                    -- on telescope's master branch with nvim-treesitter v1.0.
                 },
                 pickers = {
                     find_files = {

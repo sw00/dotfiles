@@ -7,7 +7,29 @@ vim.env.PATH = vim.fn.stdpath 'data' .. '/mason/bin:' .. vim.env.PATH
 
 -- [[ Context ]]
 opt.number = true -- show line numbers
--- opt.relativenumber = true		-- show relative line numbers
+opt.relativenumber = true -- show relative line numbers
+
+-- Switch to absolute line numbers in insert mode (best of both worlds)
+local function update_relativenumber()
+    if vim.fn.mode():match('^[iR]') then
+        vim.opt.relativenumber = false
+    else
+        vim.opt.relativenumber = true
+    end
+end
+vim.api.nvim_create_autocmd({ 'InsertEnter', 'InsertLeave' }, {
+    desc = 'Toggle relative line numbers on InsertEnter/Leave',
+    callback = update_relativenumber,
+})
+-- Also refresh when switching buffers or regaining focus (some tmux scenarios)
+vim.api.nvim_create_autocmd({ 'BufEnter', 'FocusGained' }, {
+    desc = 'Refresh relative number state on buffer enter / focus',
+    callback = function()
+        -- defer so mode() reflects the current state
+        vim.defer_fn(update_relativenumber, 10)
+    end,
+})
+
 opt.signcolumn = 'yes' -- keep signcolumn on
 opt.cursorline = true -- show cursor line
 opt.mouse = 'a' -- capture mouse input

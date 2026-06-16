@@ -33,12 +33,6 @@ vim.cmd 'command! -bang Xa  xa<bang>'
 nmap('<F2>', ':w<CR>') -- quicksave
 nmap('<c-s>', ':w<CR>') -- save current buffer
 
--- [[ Splits ]]
-nmap('<c-j>', '<c-w>j')
-nmap('<c-k>', '<c-w>k')
-nmap('<c-h>', '<c-w>h')
-nmap('<c-l>', '<c-w>l')
-
 -- [[ diagnostics ]]
 -- ]d / [d / ]D / [D  — navigate diagnostics (owned by mini.bracketed)
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
@@ -47,3 +41,6 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- [[ Buffers ]]
 vim.keymap.set('n', '<leader>bd', function() require('mini.bufremove').delete() end,  { desc = '[B]uffer [D]elete (preserve layout)' })
 vim.keymap.set('n', '<leader>bw', function() require('mini.bufremove').wipeout() end, { desc = '[B]uffer [W]ipeout (preserve layout)' })
+
+-- Quick-save alias (avoids conflicting with <leader>w workspace group)
+vim.keymap.set('n', '<leader>s', ':w<CR>', { desc = '[S]ave buffer' })

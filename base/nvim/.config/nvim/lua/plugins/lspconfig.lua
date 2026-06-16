@@ -102,10 +102,11 @@ return {
             require('mason').setup()
             local ensure_installed = vim.tbl_keys(servers or {})
             vim.list_extend(ensure_installed, {
-                'stylua',          -- lua formatter
-                'tree-sitter-cli', -- required by nvim-treesitter v1 to compile parsers
-                'isort',           -- python import sorter (conform.nvim)
-                'black',           -- python formatter (conform.nvim)
+                'stylua', -- lua formatter
+                -- tree-sitter-cli omitted: nvim-treesitter v1.0 bundles its own
+                -- parser compilation, no external CLI needed.
+                'isort',  -- python import sorter (conform.nvim)
+                'black',  -- python formatter (conform.nvim)
             })
 
             require('mason-tool-installer').setup { ensure_installed = ensure_installed }

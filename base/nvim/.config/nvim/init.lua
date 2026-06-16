@@ -55,14 +55,7 @@ require('lazy').setup({ import = 'plugins' }, {
     },
 })
 
-local in_wsl = os.getenv 'WSL_DISTRO_NAME' ~= nil
-
-if in_wsl then
-    local ps_paste = 'powershell.exe -c [Console]::Out.Write($(Get-Clipboard -Raw).tostring().replace("`r", ""))'
-    vim.g.clipboard = {
-        name          = 'WslClipboard',
-        copy          = { ['+'] = 'clip.exe', ['*'] = 'clip.exe' },
-        paste         = { ['+'] = ps_paste,   ['*'] = ps_paste   },
-        cache_enabled = 0,
-    }
+-- Load WSL clipboard integration on Windows Subsystem for Linux
+if os.getenv 'WSL_DISTRO_NAME' ~= nil then
+    require 'wsl-clipboard'
 end
