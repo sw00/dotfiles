@@ -372,9 +372,12 @@ stow_dir() {
     _dry_out=$(stow -n --no-folding -d "$parent" -t "$HOME" "${pkgs[@]}" 2>&1 || true)
 
     local _plain
+    # stow < 2.4.1: "existing target is neither a link nor a directory: <target>"
+    # stow 2.4.1+: "cannot stow <source> over existing target <target> since neither a link nor a directory"
     _plain=$(printf '%s\n' "$_dry_out" \
-        | grep -oE 'existing target is neither a link nor a directory: .+' \
-        | sed 's/existing target is neither a link nor a directory: //' || true)
+        | grep -oE '(existing target is neither a link nor a directory: |cannot stow .+ over existing target ).+' \
+        | sed -E 's/(existing target is neither a link nor a directory: |cannot stow .+ over existing target )//' \
+        | sed 's/ since neither a link nor a directory.*//' || true)
     if [[ -n "$_plain" ]]; then
         while IFS= read -r rel; do
             [[ -z "$rel" ]] && continue
@@ -494,9 +497,9 @@ _stow_preflight() {
     }
 
     if _repo_is_locked; then
-        _sim_stow "$DOTFILES/base" git nvim fish tmux alacritty mise
+        _sim_stow "$DOTFILES/base" git nvim fish pi tmux alacritty mise
     else
-        _sim_stow "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
+        _sim_stow "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise
     fi
 
     case "$platform" in
@@ -552,10 +555,10 @@ main() {
         warn "git-crypt is locked — skipping ssh stow"
         warn "run 'git-crypt unlock' then re-run bootstrap.sh to complete setup"
         log "stowing base configs (secrets excluded)"
-        stow_dir "$DOTFILES/base" git nvim fish tmux alacritty mise
+        stow_dir "$DOTFILES/base" git nvim fish pi tmux alacritty mise
     else
         log "stowing base configs"
-        stow_dir "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
+        stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise
     fi
 
     # gnupg is stowed per-OS, not from base: macOS uses pinentry-ide,

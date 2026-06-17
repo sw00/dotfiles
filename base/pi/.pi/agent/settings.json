@@ -1,0 +1,24 @@
+{
+  "lastChangelogVersion": "0.79.3",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-sonnet-4-6",
+  "hideThinkingBlock": false,
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "opencode-go/glm-5.1",
+    "opencode-go/minimax-m3",
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/kimi-k2.7-code",
+    "opencode-go/mimo-v2.5",
+    "anthropic/claude-sonnet-4-6",
+    "openrouter/deepseek/deepseek-v4-flash",
+    "openrouter/minimax/minimax-m3",
+    "anthropic/claude-opus-4-8",
+    "opencode-go/qwen3.7-plus",
+    "openrouter/google/gemini-3.5-flash"
+  ],
+  "packages": [
+    "git:github.com/pankajudhas81/pi-claude-auth"
+  ],
+  "theme": "dark"
+}
