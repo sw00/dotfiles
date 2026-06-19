@@ -156,8 +156,8 @@ check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
 stow_layer "$DOTFILES/os/macos" bash brew gnupg
-check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace
+check_stow "hosts/mbpm3: alacritty brew fish key_remap megasync mise aerospace" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap megasync mise aerospace
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
