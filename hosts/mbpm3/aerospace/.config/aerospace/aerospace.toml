@@ -22,7 +22,7 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 automatically-unhide-macos-hidden-apps = false
 
 # Keep numeric workspaces alive when empty (matching komorebi's persistent workspaces)
-persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7"]
+persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 # Gaps — default 0; adjust if you want komorebi-like padding (inner=2, outer=3)
 [gaps]

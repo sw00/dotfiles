@@ -1,4 +1,5 @@
 return {
+  {
     'nvim-treesitter/nvim-treesitter',
     lazy = false, -- v1.0 does not support lazy-loading
     build = ':TSUpdate',
@@ -35,13 +36,14 @@ return {
             end,
         })
     end,
-},
-{
+  },
+  {
     'nvim-treesitter/nvim-treesitter-context',
     event = 'BufReadPost',
     opts = {
         enable = true,
-        max_lines = 5,          -- How many lines the context window can be at most
+        max_lines = 5,
         separator = '─',
     },
+  },
 }

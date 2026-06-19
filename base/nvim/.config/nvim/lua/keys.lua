@@ -1,46 +1,29 @@
 --[[ keys.lua]]
-local function map(mode, shortcut, command)
-    vim.api.nvim_set_keymap(mode, shortcut, command, { noremap = true, silent = true })
-end
-
-local function nmap(shortcut, command)
-    map('n', shortcut, command)
-end
-
-local function imap(shortcut, command)
-    map('i', shortcut, command)
-end
-
-local function tmap(shortcut, command)
-    map('t', shortcut, command)
-end
+local map = vim.keymap.set
 
 -- [[ QoL ]]
-imap('kj', '<esc>') -- quick escape to normal mode from insert mode
-tmap('kj', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
-tmap('<esc><esc>', '<c-\\><c-n>') -- quick escape to normal mode from terminal mode
-nmap('<space><space>', '<cmd>nohlsearch<CR>') -- cancel search highlights
+map('i', 'kj',       '<esc>',          { desc = 'Escape to normal mode' })
+map('t', 'kj',       '<c-\\><c-n>',    { desc = 'Escape to normal mode (terminal)' })
+map('t', '<esc><esc>','<c-\\><c-n>',   { desc = 'Escape to normal mode (terminal)' })
+map('n', '<space><space>', '<cmd>nohlsearch<CR>', { desc = 'Clear search highlight' })
 
 -- [[ Butter Fingers ]]
 -- Map common capitalisation typos as Ex command aliases.
--- (Normal-mode maps for ':Q<CR>' never fire because ':' enters cmdline mode.)
 vim.cmd 'command! -bang Q   q<bang>'
 vim.cmd 'command! -bang Wq  wq<bang>'
 vim.cmd 'command! -bang WQ  wq<bang>'
 vim.cmd 'command! -bang Xa  xa<bang>'
 
 -- [[ Save ]]
-nmap('<F2>', ':w<CR>') -- quicksave
-nmap('<c-s>', ':w<CR>') -- save current buffer
+map('n', '<F2>',    '<cmd>w<CR>', { desc = 'Save buffer' })
+map('n', '<c-s>',   '<cmd>w<CR>', { desc = 'Save buffer' })
+map('n', '<leader>s','<cmd>w<CR>', { desc = '[S]ave buffer' })
 
--- [[ diagnostics ]]
+-- [[ Diagnostics ]]
 -- ]d / [d / ]D / [D  — navigate diagnostics (owned by mini.bracketed)
-vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
-vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+map('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
+map('n', '<leader>q', vim.diagnostic.setloclist,  { desc = 'Open diagnostic [Q]uickfix list' })
 
 -- [[ Buffers ]]
-vim.keymap.set('n', '<leader>bd', function() require('mini.bufremove').delete() end,  { desc = '[B]uffer [D]elete (preserve layout)' })
-vim.keymap.set('n', '<leader>bw', function() require('mini.bufremove').wipeout() end, { desc = '[B]uffer [W]ipeout (preserve layout)' })
-
--- Quick-save alias (avoids conflicting with <leader>w workspace group)
-vim.keymap.set('n', '<leader>s', ':w<CR>', { desc = '[S]ave buffer' })
+map('n', '<leader>bd', function() require('mini.bufremove').delete()  end, { desc = '[B]uffer [D]elete (preserve layout)' })
+map('n', '<leader>bw', function() require('mini.bufremove').wipeout() end, { desc = '[B]uffer [W]ipeout (preserve layout)' })

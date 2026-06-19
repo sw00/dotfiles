@@ -461,6 +461,12 @@ check_not "Brewfile-host: no stale asdf entry" \
 check_not "Brewfile-host: fzf removed (managed by mise)" \
     'brew "fzf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
+check_not "Brewfile-host: lf not duplicated from Brewfile-base" \
+    'brew "lf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: tig not duplicated from Brewfile-base" \
+    'brew "tig"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
 check_not "Brewfile-host: numpy removed (not a system package)" \
     'brew "numpy"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
