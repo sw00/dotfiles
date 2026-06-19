@@ -22,7 +22,7 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 automatically-unhide-macos-hidden-apps = false
 
 # Keep numeric workspaces alive when empty (matching komorebi's persistent workspaces)
-persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
 # Gaps — default 0; adjust if you want komorebi-like padding (inner=2, outer=3)
 [gaps]
@@ -61,6 +61,10 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
     alt-slash = 'layout tiles horizontal vertical'
     alt-comma = 'layout accordion horizontal vertical'
 
+    # ── Float / fullscreen ─
+    alt-f = 'layout floating tiling'   # toggle float (stays in AeroSpace)
+    alt-m = 'fullscreen'               # native macOS fullscreen (window leaves AeroSpace)
+
     # ── Workspace navigation (numerics match komorebi alt+1-7) ─
     alt-1 = 'workspace 1'
     alt-2 = 'workspace 2'
@@ -71,6 +75,7 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
     alt-7 = 'workspace 7'
     alt-8 = 'workspace 8'
     alt-9 = 'workspace 9'
+    alt-0 = 'workspace 10'
 
     # ── Move window to workspace (same as komorebi whkdrc) ─
     alt-shift-1 = 'move-node-to-workspace 1'
@@ -82,13 +87,131 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
     alt-shift-7 = 'move-node-to-workspace 7'
     alt-shift-8 = 'move-node-to-workspace 8'
     alt-shift-9 = 'move-node-to-workspace 9'
+    alt-shift-0 = 'move-node-to-workspace 10'
 
-    # ── Monitor / workspace back-and-forth (same as komorebi whkdrc) ─
+    # ── Monitor focus (alt-ctrl = focus only, no window drag) ─
+    # home layout : h = U2722DE (left),  l = S2421HN (right)
+    # work layout : k = external (above), j = built-in (below)
+    alt-ctrl-h = 'focus-monitor --wrap-around left'
+    alt-ctrl-l = 'focus-monitor --wrap-around right'
+    alt-ctrl-j = 'focus-monitor --wrap-around down'
+    alt-ctrl-k = 'focus-monitor --wrap-around up'
+
+    # ── Move window to monitor (same directions as focus above) ─
+    alt-shift-ctrl-h = 'move-node-to-monitor --wrap-around left'
+    alt-shift-ctrl-l = 'move-node-to-monitor --wrap-around right'
+    alt-shift-ctrl-j = 'move-node-to-monitor --wrap-around down'
+    alt-shift-ctrl-k = 'move-node-to-monitor --wrap-around up'
+
+    # ── Workspace back-and-forth / cycle workspace across monitors ─
     alt-tab = 'workspace-back-and-forth'
     alt-shift-tab = 'move-workspace-to-monitor --wrap-around next'
 
     # ── Service mode (AeroSpace default) ─
     alt-shift-semicolon = 'mode service'
+
+# ── Workspace → monitor assignment ───────────────────────────────────────
+# Fallback chains mean this handles all three scenarios gracefully:
+#
+#   home (clamshell)  – U2722DE (primary, left) + S2421HN (portrait, right)
+#   work              – external (primary, above) + built-in (secondary, below)
+#                       set the work external as the macOS «main» display
+#   laptop only       – everything collapses to built-in / main
+#
+[workspace-to-monitor-force-assignment]
+# 1-5 → home primary (U2722DE) → work external (macOS main) → any main
+1 = ['U2722DE', 'main']
+2 = ['U2722DE', 'main']
+3 = ['U2722DE', 'main']
+4 = ['U2722DE', 'main']
+5 = ['U2722DE', 'main']
+# 6-10 → home secondary (S2421HN) → work laptop (built-in) → any main
+6 = ['S2421HN', 'built-in', 'main']
+7 = ['S2421HN', 'built-in', 'main']
+8 = ['S2421HN', 'built-in', 'main']
+9 = ['S2421HN', 'built-in', 'main']
+10 = ['S2421HN', 'built-in', 'main']
+
+# ── Auto-float rules ────────────────────────────────────────────────────────
+# Windows that work better floating than tiled. AeroSpace applies these
+# whenever a matching window is first detected (open or on config reload).
+
+# Password manager
+[[on-window-detected]]
+if.app-name-regex-substring = 'Bitwarden'
+run = 'layout floating'
+
+# macOS system UI (Ventura+ and older name)
+[[on-window-detected]]
+if.app-name-regex-substring = 'System Settings'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'System Preferences'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'System Information'
+run = 'layout floating'
+
+# Finder — open dialogs always float; main window preference
+[[on-window-detected]]
+if.app-name-regex-substring = 'Finder'
+run = 'layout floating'
+
+# Single-purpose utilities
+[[on-window-detected]]
+if.app-name-regex-substring = 'Calculator'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Activity Monitor'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Disk Utility'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Archive Utility'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'App Store'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Font Book'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Keychain Access'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Dictionary'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Stickies'
+run = 'layout floating'
+
+# Media / viewers that are typically transient
+[[on-window-detected]]
+if.app-name-regex-substring = 'QuickTime Player'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Preview'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'Digital Color Meter'
+run = 'layout floating'
+
+[[on-window-detected]]
+if.app-name-regex-substring = 'ColorSync Utility'
+run = 'layout floating'
 
 # ── Service mode (AeroSpace default) ──────────────────────────────────────
 [mode.service.binding]
