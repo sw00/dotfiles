@@ -22,7 +22,9 @@
     { "kind": "Class", "id": "ApplicationFrameWindow" },
     { "kind": "Class", "id": "NotifyIconOverflowWindow" },
     { "kind": "Exe",   "id": "Taskmgr.exe" },
+    { "kind": "Exe",   "id": "Bitwarden.exe" },
     { "kind": "Exe",   "id": "WindowsTerminal.exe" },
+    { "kind": "Exe",   "id": "Mullvad VPN.exe" },
     { "kind": "Exe",   "id": "brave.exe" },
     { "kind": "Exe",   "id": "obsidian.exe" },
     { "kind": "Exe",   "id": "flameshot.exe" }

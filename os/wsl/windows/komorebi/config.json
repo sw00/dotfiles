@@ -21,7 +21,11 @@
     { "kind": "Class", "id": "Windows.UI.Core.CoreWindow" },
     { "kind": "Class", "id": "ApplicationFrameWindow" },
     { "kind": "Class", "id": "NotifyIconOverflowWindow" },
-    { "kind": "Exe",   "id": "Taskmgr.exe" }
+    { "kind": "Exe",   "id": "Taskmgr.exe" },
+    { "kind": "Exe",   "id": "Bitwarden.exe" },
+    { "kind": "Exe",   "id": "Flameshot.exe" },
+    { "kind": "Exe",   "id": "Mullvad VPN.exe" },
+    { "kind": "Exe",   "id": "WindowsTerminal.exe" }
   ],
   "monitors": [
     {

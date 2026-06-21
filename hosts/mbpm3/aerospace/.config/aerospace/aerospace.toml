@@ -148,6 +148,11 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 if.app-name-regex-substring = 'Bitwarden'
 run = 'layout floating'
 
+# VPN settings
+[[on-window-detected]]
+if.app-name-regex-substring = 'Mullvad'
+run = 'layout floating'
+
 # macOS system UI (Ventura+ and older name)
 [[on-window-detected]]
 if.app-name-regex-substring = 'System Settings'
