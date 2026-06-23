@@ -43,6 +43,7 @@ python  = "3.12"
 uv = "latest"
 github-cli = "latest"
 "pipx:httpie" = "latest"
+bitwarden-secrets-manager = "latest"
 
 # Uncomment when needed on a project:
 # go     = "latest"
