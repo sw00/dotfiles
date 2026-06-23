@@ -144,6 +144,11 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 # Windows that work better floating than tiled. AeroSpace applies these
 # whenever a matching window is first detected (open or on config reload).
 
+# Screenshot tool — must float so the selection overlay doesn't get tiled/hidden
+[[on-window-detected]]
+if.app-name-regex-substring = 'flameshot'
+run = 'layout floating'
+
 # Password manager
 [[on-window-detected]]
 if.app-name-regex-substring = 'Bitwarden'
