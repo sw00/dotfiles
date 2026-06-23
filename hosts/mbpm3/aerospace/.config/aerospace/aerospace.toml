@@ -97,8 +97,9 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     alt-shift-0 = 'move-node-to-workspace 10'
 
     # ── Monitor focus (alt-ctrl = focus only, no window drag) ─
-    # home layout : h = U2722DE (left),  l = S2421HN (right)
-    # work layout : k = external (above), j = built-in (below)
+    # home (clamshell) : h = U2722DE (left),     l = S2421HN (right)
+    # work (docked)    : k = LS27C31x (above),    j = built-in (below)
+    # laptop only      : single monitor → all four are no-ops
     alt-ctrl-h = 'focus-monitor --wrap-around left'
     alt-ctrl-l = 'focus-monitor --wrap-around right'
     alt-ctrl-j = 'focus-monitor --wrap-around down'
@@ -121,18 +122,18 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 # Fallback chains mean this handles all three scenarios gracefully:
 #
 #   home (clamshell)  – U2722DE (primary, left) + S2421HN (portrait, right)
-#   work              – external (primary, above) + built-in (secondary, below)
-#                       set the work external as the macOS «main» display
+#   work              – LS27C31x (primary, above) + built-in (secondary, below)
+#                       (set the work external as the macOS «main» display)
 #   laptop only       – everything collapses to built-in / main
 #
 [workspace-to-monitor-force-assignment]
-# 1-5 → home primary (U2722DE) → work external (macOS main) → any main
-1 = ['U2722DE', 'main']
-2 = ['U2722DE', 'main']
-3 = ['U2722DE', 'main']
-4 = ['U2722DE', 'main']
-5 = ['U2722DE', 'main']
-# 6-10 → home secondary (S2421HN) → work laptop (built-in) → any main
+# 1-5 → home U2722DE → work LS27C31x → any main
+1 = ['U2722DE', 'LS27C31x', 'main']
+2 = ['U2722DE', 'LS27C31x', 'main']
+3 = ['U2722DE', 'LS27C31x', 'main']
+4 = ['U2722DE', 'LS27C31x', 'main']
+5 = ['U2722DE', 'LS27C31x', 'main']
+# 6-10 → home S2421HN → work built-in → any main
 6 = ['S2421HN', 'built-in', 'main']
 7 = ['S2421HN', 'built-in', 'main']
 8 = ['S2421HN', 'built-in', 'main']

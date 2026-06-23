@@ -414,6 +414,12 @@ check_has "aerospace: alt-tab workspace-back-and-forth (consistent with komorebi
 check_has "aerospace: alt-shift-tab move-workspace-to-monitor (consistent with komorebi)" \
     'alt-shift-tab' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
+check_has "aerospace: workspace 1-5 → U2722DE / LS27C31x / main" \
+    "'U2722DE', 'LS27C31x'" "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "aerospace: workspace 6-10 → S2421HN / built-in / main" \
+    "'S2421HN', 'built-in'" "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
 
 # =============================================================================
 # 10. MISE  [GREEN]
