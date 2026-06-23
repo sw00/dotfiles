@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.79.10",
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-sonnet-4-6",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "deepseek-v4-flash",
   "hideThinkingBlock": false,
   "defaultThinkingLevel": "high",
   "enabledModels": [
