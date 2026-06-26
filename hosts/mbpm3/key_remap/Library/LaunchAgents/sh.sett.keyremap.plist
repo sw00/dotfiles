@@ -6,19 +6,8 @@
     <string>sh.sett.keyremap</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/hidutil</string>
-        <string>property</string>
-        <string>--set</string>
-        <string>{"UserKeyMapping":[
-          {
-            "HIDKeyboardModifierMappingSrc": 0x700000039,
-            "HIDKeyboardModifierMappingDst": 0x7000000E0
-          },
-          {
-            "HIDKeyboardModifierMappingSrc":0x700000064,
-            "HIDKeyboardModifierMappingDst":0x700000035
-          }
-        ]}</string>
+        <string>/bin/bash</string>
+        <string>/Users/sett/Library/LaunchAgents/sh.sett.keyremap.sh</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
