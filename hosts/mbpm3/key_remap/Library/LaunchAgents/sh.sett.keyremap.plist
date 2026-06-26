@@ -17,10 +17,14 @@
           {
             "HIDKeyboardModifierMappingSrc":0x700000064,
             "HIDKeyboardModifierMappingDst":0x700000035
-          },
+          }
         ]}</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/sh.sett.keyremap.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sh.sett.keyremap.stderr.log</string>
 </dict>
 </plist>
