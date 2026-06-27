@@ -466,6 +466,29 @@ disable_rectangle_autolaunch() {
     osascript -e 'tell application "System Events" to delete every login item whose name is "Rectangle"' >/dev/null 2>&1 || true
 }
 
+ensure_macos_gpg() {
+    # gpg-agent does NOT expand ~ in pinentry-program, so gpg-agent.conf
+    # must be written with $HOME expanded at install time — same pattern as
+    # the WSL pinentry in os/wsl/up.sh.  pinentry-ide.sh is stowed (static,
+    # no $HOME in it); only the conf is generated here.
+    mkdir -p "$HOME/.gnupg"
+    chmod 700 "$HOME/.gnupg"
+    [ -L "$HOME/.gnupg/gpg-agent.conf" ] && rm -f "$HOME/.gnupg/gpg-agent.conf"
+    log "writing ~/.gnupg/gpg-agent.conf (pinentry-ide, \$HOME expanded)"
+    cat > "$HOME/.gnupg/gpg-agent.conf" << EOF
+# gpg-agent.conf — macOS  (written by bootstrap.sh; \$HOME expanded at install time)
+#
+# pinentry-ide.sh dispatches to PyCharm's IDE pinentry when invoked from
+# the JetBrains VCS tooling (PINENTRY_USER_DATA=IJ_PINENTRY*); otherwise
+# falls through to Homebrew's pinentry-mac for a normal GUI prompt.
+pinentry-program $HOME/.gnupg/pinentry-ide.sh
+default-cache-ttl 3600
+max-cache-ttl 86400
+EOF
+    chmod +x "$HOME/.gnupg/pinentry-ide.sh" 2>/dev/null || true
+    gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
+}
+
 _stow_preflight() {
     # Dry-run every stow operation against $HOME to surface conflicts before
     # any real change is made.  Plain-file conflicts (e.g. fisher-managed files
@@ -570,7 +593,7 @@ main() {
         wsl)
             # WSL: stow shell from os/linux; gnupg comes from os/wsl so the
             # VSCodium Remote pinentry wrapper (pinentry-wsl.sh) is used.
-            # Alacritty runs on Windows; awesome WM is irrelevant.
+            # Alacritty runs on Windows, so only os/linux/bash is relevant here.
             stow_dir "$DOTFILES/os/linux" bash
             # Explicit package list: os/wsl/windows/ is not a stow package.
             # gnupg: WSL-specific config pointing to pinentry-wsl.sh.
@@ -586,6 +609,7 @@ main() {
 
     if [[ "$platform" == "macos" ]]; then
         load_macos_launch_agents
+        ensure_macos_gpg
     fi
 
     if [[ "$platform" == "wsl" ]]; then

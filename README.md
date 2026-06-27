@@ -11,7 +11,7 @@ Configs are applied in three layers, from most general to most specific:
 ```
 base/           → applied on every platform
 os/
-  linux/        → native Linux desktop (Awesome WM, bin scripts, alacritty)
+  linux/        → native Linux desktop (bin scripts, alacritty)
   macos/        → macOS (Brewfiles, pinentry-mac, gpg-agent)
   wsl/          → WSL2 Linux side (gitconfig, up.sh)
     windows/    → content pushed to Windows FS (wsl.conf, VSCodium, winget list)

@@ -60,63 +60,9 @@ osc52 = "OnlyCopy"
 animation = "Linear"
 duration  = 0          # 0 = visual bell disabled; set >0 to enable
 
-# ── Colors — Alacritty built-in default (Tomorrow Night) ────────────────────
-# These match what Alacritty renders with no color config at all, making this
-# file the explicit source of truth without changing the appearance.
-[colors]
-draw_bold_text_with_bright_colors = false
-
-[colors.primary]
-background = "#1d1f21"
-foreground = "#c5c8c6"
-
-[colors.cursor]
-text   = "CellBackground"
-cursor = "CellForeground"
-
-[colors.vi_mode_cursor]
-text   = "CellBackground"
-cursor = "CellForeground"
-
-[colors.search.matches]
-foreground = "#000000"
-background = "#ffffff"
-
-[colors.search.focused_match]
-foreground = "#ffffff"
-background = "#00ff00"
-
-[colors.hints.start]
-foreground = "#1d1f21"
-background = "#e9ff5e"
-
-[colors.hints.end]
-foreground = "#e9ff5e"
-background = "#1d1f21"
-
-[colors.selection]
-text       = "CellBackground"
-background = "CellForeground"
-
-[colors.normal]
-black   = "#1d1f21"
-red     = "#cc6666"
-green   = "#b5bd68"
-yellow  = "#e6c547"
-blue    = "#81a2be"
-magenta = "#b294bb"
-cyan    = "#70c0ba"
-white   = "#747880"
-
-[colors.bright]
-black   = "#969896"
-red     = "#cc6666"
-green   = "#b5bd68"
-yellow  = "#f0c674"
-blue    = "#81a2be"
-magenta = "#b294bb"
-cyan    = "#70c0ba"
-white   = "#c5c8c6"
+# ── Colors ───────────────────────────────────────────────────────────────────
+# Inherit Alacritty's built-in default theme. Re-enable a [colors] block here
+# only when a value genuinely differs from the built-in defaults.
 
 # ── URL hints ────────────────────────────────────────────────────────────────
 # Defined per-platform/host because the open command differs:

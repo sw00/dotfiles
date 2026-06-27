@@ -142,9 +142,9 @@ stow_end
 section "Stow integrity — Linux stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" bash git nvim ssh fish tmux alacritty mise
-check_stow "os/linux: alacritty awesome bash" \
-    "$DOTFILES/os/linux" alacritty awesome bash
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
+check_stow "os/linux: alacritty bash" \
+    "$DOTFILES/os/linux" alacritty bash
 stow_end
 
 # ── macOS stack: base → os/macos → hosts/mbpm3 ───
@@ -176,6 +176,9 @@ check "os/wsl/up.sh exists" \
 
 check "os/wsl/gnupg: pinentry-wsl.sh exists" \
     test -f "$DOTFILES/os/wsl/gnupg/.gnupg/pinentry-wsl.sh"
+
+check "os/linux: awesome/ removed (dead native-Linux WM)" \
+    bash -c "! test -d '$DOTFILES/os/linux/awesome'"
 
 check "os/wsl/gnupg: pinentry-wsl.sh is executable" \
     test -x "$DOTFILES/os/wsl/gnupg/.gnupg/pinentry-wsl.sh"
@@ -505,9 +508,17 @@ check_has "bootstrap: WSL stows os/wsl gnupg (pinentry-wsl)" \
     'stow_dir.*os/wsl.*gnupg' \
     "$DOTFILES/bootstrap.sh"
 
-check_has "os/macos/gpg-agent.conf: complete config (pinentry + TTL)" \
-    'default-cache-ttl' \
-    "$DOTFILES/os/macos/gnupg/.gnupg/gpg-agent.conf"
+# os/macos/gnupg stows only pinentry-ide.sh (static, no $HOME).
+# gpg-agent.conf is written by bootstrap.sh ensure_macos_gpg() with $HOME
+# expanded — same pattern as the WSL pinentry in up.sh.
+check "os/macos/gnupg: pinentry-ide.sh exists (stowed)" \
+    test -f "$DOTFILES/os/macos/gnupg/.gnupg/pinentry-ide.sh"
+
+check "os/macos/gnupg: gpg-agent.conf NOT stow-managed (written by bootstrap)" \
+    bash -c "! test -f '$DOTFILES/os/macos/gnupg/.gnupg/gpg-agent.conf'"
+
+check_has "bootstrap: ensure_macos_gpg writes gpg-agent.conf with \$HOME pinentry-ide" \
+    'pinentry-program.*HOME.*pinentry-ide' "$DOTFILES/bootstrap.sh"
 
 check "base/gnupg removed (conflict source)" \
     bash -c "! test -d '$DOTFILES/base/gnupg'"
@@ -541,9 +552,8 @@ check_has "mise: shellcheck declared" \
 check_not "mise: experimental flag removed" \
     '^experimental' "$MISE_CFG"
 
-check_not "fish/conf.d/git.fish: no legacy omf hooks" \
-    'functions -e _git_install' \
-    "$DOTFILES/base/fish/.config/fish/conf.d/git.fish"
+# conf.d/git.fish is Fisher-managed (jhillyerd/plugin-git), not stowed;
+# the legacy omf-hook tombstone test for it is removed.
 
 # ── Tools / desktop audit ───────────────────────────────────────────────────────────
 check_not "mise: work-specific tools not in global config" \
@@ -682,8 +692,9 @@ if command -v nvim >/dev/null 2>&1; then
         _fail "nvim: $_nvim_lua_errors Lua config file(s) have syntax errors"
     fi
 
-    check_has "nvim: treesitter uses v1 API (no nvim-treesitter.configs)" \
-        'nvim-treesitter'\'').install' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+    check_has "nvim: treesitter uses v1 install() API" \
+        "require\('nvim-treesitter\.install'\)\.install" \
+        "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
 
     check_not "nvim: treesitter does not use old .configs module" \
         'nvim-treesitter%.configs' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
