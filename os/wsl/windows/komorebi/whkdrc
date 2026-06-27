@@ -38,9 +38,21 @@ alt + shift + 5     : komorebic move-to-workspace 4
 alt + shift + 6     : komorebic move-to-workspace 5
 alt + shift + 7     : komorebic move-to-workspace 6
 
-# Monitor navigation
+# Monitor navigation (cyclic — fallback when directional isn't available)
 alt + tab           : komorebic cycle-monitor next
 alt + shift + tab   : komorebic cycle-monitor previous
+
+# Monitor focus (directional, aligned with AeroSpace alt-ctrl-h/j/k/l)
+alt + ctrl + h      : komorebic cycle-monitor previous
+alt + ctrl + l      : komorebic cycle-monitor next
+alt + ctrl + j      : komorebic cycle-monitor next
+alt + ctrl + k      : komorebic cycle-monitor previous
+
+# Move window to other monitor (aligned with AeroSpace alt-shift-ctrl-h/j/k/l)
+alt + shift + ctrl + h : komorebic move-to-monitor
+alt + shift + ctrl + l : komorebic move-to-monitor
+alt + shift + ctrl + j : komorebic move-to-monitor
+alt + shift + ctrl + k : komorebic move-to-monitor
 
 # Toggle modes
 alt + f             : komorebic toggle-float

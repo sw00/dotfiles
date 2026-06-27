@@ -25,14 +25,14 @@ automatically-unhide-macos-hidden-apps = false
 # AeroSpace keeps 10 so each monitor gets a contiguous block of 5 for muscle memory).
 persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
-# Gaps — default 0; adjust if you want komorebi-like padding (inner=2, outer=3)
+# Gaps — matched to komorebi padding (inner=container_padding=2, outer=workspace_padding=3)
 [gaps]
-    inner.horizontal = 0
-    inner.vertical =   0
-    outer.left =       0
-    outer.bottom =     0
-    outer.top =        0
-    outer.right =      0
+    inner.horizontal = 2
+    inner.vertical =   2
+    outer.left =       3
+    outer.bottom =     3
+    outer.top =        3
+    outer.right =      3
 
 # ── Key bindings (mode.main) ──────────────────────────────────────────────
 # Default AeroSpace bindings + minimal additions marked [ALIGNED].
@@ -100,12 +100,14 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     # home (clamshell) : h = U2722DE (left),     l = S2421HN (right)
     # work (docked)    : k = LS27C31x (above),    j = built-in (below)
     # laptop only      : single monitor → all four are no-ops
+    # These match komorebi whkdrc bindings below.
     alt-ctrl-h = 'focus-monitor --wrap-around left'
     alt-ctrl-l = 'focus-monitor --wrap-around right'
     alt-ctrl-j = 'focus-monitor --wrap-around down'
     alt-ctrl-k = 'focus-monitor --wrap-around up'
 
     # ── Move window to monitor (same directions as focus above) ─
+    # These match komorebi whkdrc bindings below.
     alt-shift-ctrl-h = 'move-node-to-monitor --wrap-around left'
     alt-shift-ctrl-l = 'move-node-to-monitor --wrap-around right'
     alt-shift-ctrl-j = 'move-node-to-monitor --wrap-around down'

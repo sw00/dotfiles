@@ -30,13 +30,24 @@
   "monitors": [
     {
       "workspaces": [
-        { "name": "I",   "layout": "BSP" },
-        { "name": "II",  "layout": "BSP" },
-        { "name": "III", "layout": "BSP" },
-        { "name": "IV",  "layout": "BSP" },
-        { "name": "V",   "layout": "BSP" },
-        { "name": "VI",  "layout": "BSP" },
-        { "name": "VII", "layout": "BSP" }
+        { "name": "1",   "layout": "BSP" },
+        { "name": "2",   "layout": "BSP" },
+        { "name": "3",   "layout": "BSP" },
+        { "name": "4",   "layout": "BSP" },
+        { "name": "5",   "layout": "BSP" },
+        { "name": "6",   "layout": "BSP" },
+        { "name": "7",   "layout": "BSP" }
+      ]
+    },
+    {
+      "workspaces": [
+        { "name": "1",   "layout": "BSP" },
+        { "name": "2",   "layout": "BSP" },
+        { "name": "3",   "layout": "BSP" },
+        { "name": "4",   "layout": "BSP" },
+        { "name": "5",   "layout": "BSP" },
+        { "name": "6",   "layout": "BSP" },
+        { "name": "7",   "layout": "BSP" }
       ]
     }
   ]

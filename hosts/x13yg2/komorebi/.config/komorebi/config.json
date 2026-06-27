@@ -2,6 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/LGUG2Z/komorebi/v0.1.41/schema.json",
   "window_hiding_behaviour": "Cloak",
   "cross_monitor_move_behaviour": "Insert",
+  "monitor_index_preferences": {
+    "DEL41F2-4&3849a61e&0&UID4145": 0,
+    "DEL4231-4&3849a61e&0&UID24644": 1
+  },
   "default_workspace_padding": 3,
   "default_container_padding": 2,
   "border": true,
@@ -33,31 +37,63 @@
     {
       "workspaces": [
         {
-          "name": "I",
-          "layout": "BSP"
-        },
-        {
-          "name": "II",
+          "name": "1",
           "layout": "VerticalStack"
         },
         {
-          "name": "III",
+          "name": "2",
           "layout": "HorizontalStack"
         },
         {
-          "name": "IV",
-          "layout": "UltrawideVerticalStack"
-        },
-        {
-          "name": "V",
+          "name": "3",
           "layout": "Rows"
         },
         {
-          "name": "VI",
+          "name": "4",
+          "layout": "BSP"
+        },
+        {
+          "name": "5",
           "layout": "Grid"
         },
         {
-          "name": "VII",
+          "name": "6",
+          "layout": "Rows"
+        },
+        {
+          "name": "7",
+          "layout": "VerticalStack"
+        }
+      ]
+    },
+    {
+      "workspaces": [
+        {
+          "name": "1",
+          "layout": "BSP"
+        },
+        {
+          "name": "2",
+          "layout": "VerticalStack"
+        },
+        {
+          "name": "3",
+          "layout": "HorizontalStack"
+        },
+        {
+          "name": "4",
+          "layout": "UltrawideVerticalStack"
+        },
+        {
+          "name": "5",
+          "layout": "Rows"
+        },
+        {
+          "name": "6",
+          "layout": "Grid"
+        },
+        {
+          "name": "7",
           "layout": "RightMainVerticalStack"
         }
       ]
