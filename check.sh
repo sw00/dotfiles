@@ -692,9 +692,8 @@ if command -v nvim >/dev/null 2>&1; then
         _fail "nvim: $_nvim_lua_errors Lua config file(s) have syntax errors"
     fi
 
-    check_has "nvim: treesitter uses v1 install() API" \
-        "require\('nvim-treesitter\.install'\)\.install" \
-        "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+    check_has "nvim: treesitter uses v1 install() API (no nvim-treesitter.configs)" \
+        'nvim-treesitter\.install' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
 
     check_not "nvim: treesitter does not use old .configs module" \
         'nvim-treesitter%.configs' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
