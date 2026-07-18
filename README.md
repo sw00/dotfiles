@@ -191,3 +191,6 @@ Requires `stow` and `fish`. `shellcheck` (installed via mise) enables
 extended linting.
 
 CI runs on every push via `.github/workflows/check.yml`.
+
+AI coding agents: see `AGENTS.md` for design principles, layout invariants,
+and operational gotchas.

@@ -342,6 +342,13 @@ check_not \
     '^\[filter "hawser"\]' \
     "$GITCFG"
 
+# The GCM helper path contains a space; unquoted it splits at runtime
+# ('/mnt/c/Program: No such file or directory'). Must use ! + \" quoting.
+check_has \
+    'gitconfig-wsl: credential helper is shell-quoted (space in Program Files)' \
+    'helper = !\\"' \
+    "$DOTFILES/os/wsl/git/.gitconfig-wsl"
+
 # SSH config must not contain duplicate Host stanzas
 check "ssh/config.d/lan.conf: no duplicate Host entries" bash -c "
     dupes=\$(grep -hE '^Host ' '$DOTFILES/base/ssh/.ssh/config.d/lan.conf' \
