@@ -61,9 +61,12 @@ else
 fi
 
 # ── Alacritty ─────────────────────────────────────────────────────────────────
-# base.toml is shared; the host alacritty.toml imports it and adds overrides.
+# base.toml is shared; the platform config (os/wsl/alacritty) imports it and
+# adds the WSL shell + hint bindings. A host config, when present, wins over
+# the platform default (e.g. font size per display).
 ALACRITTY_WIN="$WIN_APPDATA/Alacritty"
 ALACRITTY_BASE="$DOTFILES/base/alacritty/.config/alacritty/base.toml"
+ALACRITTY_PLATFORM="$DOTFILES/os/wsl/alacritty/.config/alacritty/alacritty.toml"
 ALACRITTY_HOST="$DOTFILES/hosts/$HOST/alacritty/.config/alacritty/alacritty.toml"
 
 if [[ -f "$ALACRITTY_BASE" ]]; then
@@ -72,8 +75,12 @@ if [[ -f "$ALACRITTY_BASE" ]]; then
         log "installing Alacritty config (base + $HOST override)"
         cp -f "$ALACRITTY_BASE" "$ALACRITTY_WIN/base.toml"
         cp -f "$ALACRITTY_HOST" "$ALACRITTY_WIN/alacritty.toml"
+    elif [[ -f "$ALACRITTY_PLATFORM" ]]; then
+        log "installing Alacritty config (base + WSL platform default)"
+        cp -f "$ALACRITTY_BASE" "$ALACRITTY_WIN/base.toml"
+        cp -f "$ALACRITTY_PLATFORM" "$ALACRITTY_WIN/alacritty.toml"
     else
-        log "installing Alacritty config (base only — no host override for '$HOST')"
+        log "installing Alacritty config (base only)"
         cp -f "$ALACRITTY_BASE" "$ALACRITTY_WIN/alacritty.toml"
     fi
 fi

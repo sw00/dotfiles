@@ -3,7 +3,7 @@
   "defaultProvider": "opencode-go",
   "defaultModel": "deepseek-v4-flash",
   "hideThinkingBlock": false,
-  "defaultThinkingLevel": "high",
+  "defaultThinkingLevel": "low",
   "enabledModels": [
     "opencode-go/glm-5.1",
     "opencode-go/minimax-m3",

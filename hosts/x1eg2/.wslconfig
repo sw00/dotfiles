@@ -1,0 +1,7 @@
+[wsl2]
+memory=16GB     # 32GB physical; matches the proven hand-tuned value. Raise to
+                # 20-24GB if WSL workloads grow (leaves Windows 11 + Brave +
+                # VSCodium comfortable headroom either way).
+processors=12   # i7-9850H: 6 cores / 12 logical; WSL can use all
+                # (Windows scheduler handles it — same philosophy as x13yg2).
+swap=4GB

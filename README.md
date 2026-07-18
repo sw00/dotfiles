@@ -11,18 +11,21 @@ Configs are applied in three layers, from most general to most specific:
 ```
 base/           → applied on every platform
 os/
-  linux/        → native Linux desktop (bin scripts, alacritty)
-  macos/        → macOS (Brewfiles, pinentry-mac, gpg-agent)
-  wsl/          → WSL2 Linux side (gitconfig, up.sh)
+  linux/        → native Linux desktop (alacritty, bash, gnupg)
+  macos/        → macOS (bash, brew, gnupg)
+  wsl/          → WSL2 Linux side (git, gnupg, alacritty, up.sh)
     windows/    → content pushed to Windows FS (wsl.conf, VSCodium, winget list)
 hosts/
   mbpm3/        → MacBook Pro M3 (alacritty, Brewfile-host, key remap agents)
-  x13yg2/       → ThinkPad X13 running WSL2 (wslconfig, alacritty)
+  x13yg2/       → ThinkPad X13 Yoga Gen 2 running WSL2 (wslconfig)
+  x1eg2/        → ThinkPad X1 Extreme Gen 2, dual boot WSL2 + Pop!_OS (wslconfig)
 secrets/        → git-crypt encrypted (SSH keys, env.sh)
 ```
 
-`base/` packages: `bash`, `fish`, `git`, `gnupg`, `nvim`, `ssh`, `tmux`,
-`alacritty`, `mise`.
+`base/` packages: `alacritty`, `bash`, `fish`, `git`, `mise`, `nvim`, `pi`,
+`sesh`, `ssh`, `tmux`. (`bash` is tracked but not stowed — stock `.profile`
+boilerplate; PATH is handled by fish. `gnupg` is stowed per-OS instead —
+macOS and WSL use different pinentry wrappers.)
 
 Stow maps each package's directory tree into `~` with symlinks. For example,
 `base/nvim/.config/nvim/init.lua` → `~/.config/nvim/init.lua`.
@@ -86,7 +89,8 @@ bash bootstrap.sh
 `bootstrap.sh` on WSL additionally calls `os/wsl/up.sh`, which:
 - Installs Windows apps from `os/wsl/windows/winget.txt` via `winget`
 - Installs and registers CaskaydiaCove Nerd Font (per-user, no admin needed)
-- Copies Alacritty config (`base.toml` + host override) to `%APPDATA%\Alacritty\`
+- Copies Alacritty config (`base.toml` + host override, else `os/wsl`
+  platform default) to `%APPDATA%\Alacritty\`
 - Installs VSCodium settings and extensions
 - Copies `.wslconfig` (host-specific hardware tuning) to `%USERPROFILE%\`
 
@@ -133,12 +137,20 @@ git push
 
 ## Adding a new host
 
+Layering rule of thumb: **platform differences first, host differences last.**
+Config that differs because of the OS (shell program, open-URL command,
+pinentry) belongs in `os/<platform>/`; only genuine per-machine differences
+(display DPI, hardware tuning, monitor layouts) belong in `hosts/<hostname>/`.
+
 1. Create the host directory: `hosts/<hostname>/`
-2. Add an Alacritty override (font size, shell args):
+2. Alacritty: the platform layers (`os/linux`, `os/wsl`, `hosts/mbpm3` for
+   macOS) already provide a full config importing `base.toml`. Add a host
+   override only for display-specific tweaks (e.g. font size):
    ```
    hosts/<hostname>/alacritty/.config/alacritty/alacritty.toml
    ```
-   It must start with `import = ["~/.config/alacritty/base.toml"]`.
+   It must start with an import of `base.toml`. On WSL, `up.sh` prefers a
+   host config over the `os/wsl` platform default when copying to Windows.
 3. For WSL machines, add `.wslconfig` with memory/CPU tuning:
    ```
    hosts/<hostname>/.wslconfig
@@ -148,6 +160,15 @@ git push
    to the script needed.
 
 The hostname is derived with `hostname -s | tr '[:upper:]' '[:lower:]'`.
+
+### Dual-boot machines (e.g. x1eg2: WSL2 + Pop!_OS)
+
+Keep the same hostname on both OSes. The `os/` layer separates what differs:
+WSL stows `os/wsl/alacritty` (wsl.exe shell), native Linux stows
+`os/linux/alacritty` (tmux shell), and only Windows-side files
+(`.wslconfig`, komorebi via `up.sh`) are WSL-specific — so the same
+`hosts/<hostname>/` is safe on both sides as long as it contains no
+platform-specific stow packages. Put those in the `os/` layer instead.
 
 ## Local overrides (not tracked)
 

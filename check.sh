@@ -162,13 +162,13 @@ stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
 # os/wsl/windows/ holds content for the Windows side (pushed by up.sh, not stowed).
-# Only os/wsl/git/ is a stow package; bootstrap.sh lists it explicitly.
+# Stow packages are listed explicitly in bootstrap.sh (git, gnupg, alacritty).
 section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty
 stow_layer "$DOTFILES/os/linux" bash
-check_stow "os/wsl: git gnupg" "$DOTFILES/os/wsl" git gnupg
+check_stow "os/wsl: git gnupg alacritty" "$DOTFILES/os/wsl" git gnupg alacritty
 stow_end
 
 check "os/wsl/up.sh exists" \
@@ -189,10 +189,18 @@ check "os/wsl/windows/wsl.conf exists" \
 check_has "bootstrap: WSL calls os/wsl/up.sh" \
     'os/wsl/up.sh' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: os/wsl stow is explicit (git gnupg)" \
-    'stow_dir.*os/wsl.*git' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: os/wsl stow is explicit (git gnupg alacritty)" \
+    'stow_dir.*os/wsl.*git gnupg alacritty' "$DOTFILES/bootstrap.sh"
 
-# hosts/x13yg2: only alacritty/ should be a stow package (vscodium/ and wsl/ removed)
+# WSL host dirs hold only bare files (.wslconfig). Stow packages for the WSL
+# platform live in os/wsl (alacritty); Windows-side app configs live in
+# os/wsl/windows (komorebi, pushed by up.sh). The loop guards the
+# architecture for every WSL host; the tombstones guard past migrations.
+for wsl_host in x13yg2 x1eg2; do
+    check "hosts/$wsl_host: no stow packages (WSL platform configs live in os/wsl)" \
+        bash -c "! find '$DOTFILES/hosts/$wsl_host' -mindepth 1 -maxdepth 1 -type d | grep -q ."
+done
+
 check "hosts/x13yg2: vscodium/ not present (moved to os/wsl/windows/)" \
     bash -c "! test -d '$DOTFILES/hosts/x13yg2/vscodium'"
 
@@ -354,18 +362,27 @@ check_has \
     "$DOTFILES/hosts/mbpm3/alacritty/.config/alacritty/alacritty.toml"
 
 check_has \
-    "alacritty (wsl/x13yg2): config uses 'import' for shared base" \
+    "alacritty (wsl platform): config uses 'import' for shared base" \
     '^import' \
-    "$DOTFILES/hosts/x13yg2/alacritty/.config/alacritty/alacritty.toml"
+    "$DOTFILES/os/wsl/alacritty/.config/alacritty/alacritty.toml"
 
-check "alacritty (wsl/x13yg2): stow package exists" \
-    test -d "$DOTFILES/hosts/x13yg2/alacritty"
+check "alacritty (wsl platform): stow package exists" \
+    test -d "$DOTFILES/os/wsl/alacritty"
+
+check_has "up.sh: alacritty falls back to os/wsl platform config" \
+    'ALACRITTY_PLATFORM' "$DOTFILES/os/wsl/up.sh"
 
 check "komorebi: default config exists in os/wsl/windows" \
     test -f "$DOTFILES/os/wsl/windows/komorebi/config.json"
 
-check "komorebi (wsl/x13yg2): host config exists" \
-    test -f "$DOTFILES/hosts/x13yg2/komorebi/.config/komorebi/config.json"
+check "komorebi: default config is valid JSON" \
+    python3 -m json.tool "$DOTFILES/os/wsl/windows/komorebi/config.json"
+
+check "x13yg2: .wslconfig exists" \
+    test -f "$DOTFILES/hosts/x13yg2/.wslconfig"
+
+check "x1eg2: .wslconfig exists" \
+    test -f "$DOTFILES/hosts/x1eg2/.wslconfig"
 
 check "komorebi: default whkdrc exists in os/wsl/windows" \
     test -f "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
@@ -679,9 +696,12 @@ if command -v nvim >/dev/null 2>&1; then
     # This catches typos, wrong module names, and API breakage without
     # needing to bootstrap the full lazy.nvim plugin ecosystem.
     # A full startup test with plugins lives in the CI workflow.
+    # -u NONE skips the user init.lua (may be Nix-managed/broken on a fresh
+    # host and otherwise blocks headless startup on a "Press ENTER" prompt);
+    # qa! force-quits past the "no write since last change" error.
     _nvim_lua_errors=0
     while IFS= read -r -d '' _f; do
-        if ! nvim --headless -c "luafile $_f" -c 'qa' 2>/dev/null; then
+        if ! nvim -u NONE --headless -c "luafile $_f" -c 'qa!' 2>/dev/null; then
             _nvim_lua_errors=$((_nvim_lua_errors + 1))
         fi
     done < <(find "$DOTFILES/base/nvim/.config/nvim/lua" -name '*.lua' -print0)

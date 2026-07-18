@@ -1,11 +1,14 @@
-# base.toml — shared Alacritty configuration, imported by every host config.
+# base.toml — shared Alacritty configuration, imported by every platform and
+# host config.
 #
 # Covers everything that is the same across macOS, Linux, and Windows/WSL:
 # font family, colors, window chrome, cursor, scrollback, hints, and bindings.
 #
-# Per-host configs override only what genuinely differs:
+# Platform configs (os/<platform>/alacritty) override what the OS forces:
+#   terminal.shell     — tmux on macOS/Linux, wsl.exe on Windows
+#   hints open command — open / xdg-open / cmd.exe /c start
+# Host configs (hosts/<host>/alacritty) override only per-machine differences:
 #   font.size          — DPI / monitor varies per machine
-#   terminal.shell     — fish on macOS/Linux, wsl.exe on Windows
 #   window.decorations — full on macOS/Windows, none under a tiling WM
 #   window.option_as_alt — macOS only
 

@@ -1,6 +1,10 @@
 # NOTE: This file is the source of truth but Alacritty runs on Windows.
 # os/wsl/up.sh copies both base.toml and this file to %APPDATA%\Alacritty\.
 # The import path below is resolved by Alacritty on Windows.
+#
+# This is the canonical WSL alacritty config (platform layer). Host-specific
+# overrides (e.g. font size per display) go in hosts/<host>/alacritty/ and
+# win over this file in up.sh's resolution order.
 [general]
 import = ["base.toml"]
 

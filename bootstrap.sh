@@ -128,6 +128,11 @@ ensure_system_tools() {
     local wanted=(fish git-lfs lf tig graphviz pstree wireguard-tools gcc make unzip)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
+    else
+        # Native Linux (incl. dual-boot Pop!_OS):
+        #   alacritty — the terminal; under WSL it runs on the Windows side
+        #   xclip     — tmux copy-mode clipboard (tmux.conf Linux branch)
+        wanted+=(alacritty xclip)
     fi
 
     local missing=()
@@ -530,7 +535,7 @@ _stow_preflight() {
         linux) _sim_stow "$DOTFILES/os/linux" ;;
         wsl)
             _sim_stow "$DOTFILES/os/linux" bash
-            _sim_stow "$DOTFILES/os/wsl" git gnupg
+            _sim_stow "$DOTFILES/os/wsl" git gnupg alacritty
             ;;
     esac
 
@@ -597,7 +602,10 @@ main() {
             stow_dir "$DOTFILES/os/linux" bash
             # Explicit package list: os/wsl/windows/ is not a stow package.
             # gnupg: WSL-specific config pointing to pinentry-wsl.sh.
-            stow_dir "$DOTFILES/os/wsl" git gnupg
+            # alacritty: WSL platform variant (wsl.exe shell); up.sh copies it
+            #            to Windows. Stowing keeps the WSL-side tree complete
+            #            and matches the os/linux layout on native Linux.
+            stow_dir "$DOTFILES/os/wsl" git gnupg alacritty
             ;;
     esac
 
