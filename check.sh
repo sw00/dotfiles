@@ -231,6 +231,9 @@ check "git: .gitconfig is parseable" \
 FISH_CFG="$DOTFILES/base/fish/.config/fish/config.fish"
 if command -v fish >/dev/null 2>&1; then
     check "fish: config.fish parses" fish --no-execute "$FISH_CFG"
+    while IFS= read -r -d '' _cf; do
+        check "fish: ${_cf#"$DOTFILES/"} parses" fish --no-execute "$_cf"
+    done < <(find "$DOTFILES/base/fish" "$DOTFILES/hosts" -path '*conf.d*' -name '*.fish' -print0 2>/dev/null)
 else
     _skip "fish: config.fish parses" "fish not installed"
 fi
@@ -285,6 +288,28 @@ check_not \
     "config.fish: no asdf references (replaced by mise)" \
     'asdf' \
     "$FISH_CFG"
+
+# ssh-agent conf.d: one shared agent on a fixed socket, skipped when the
+# platform already provides one (macOS launchd).
+AGENT_CFG="$DOTFILES/base/fish/.config/fish/conf.d/ssh-agent.fish"
+
+check "fish: ssh-agent conf.d exists" \
+    test -f "$AGENT_CFG"
+
+check_has \
+    "ssh-agent.fish: skipped when platform provides an agent" \
+    'not set -q SSH_AUTH_SOCK' \
+    "$AGENT_CFG"
+
+check_has \
+    "ssh-agent.fish: fixed socket path enables cross-shell reuse" \
+    'agent\.sock' \
+    "$AGENT_CFG"
+
+check_has \
+    "ssh-agent.fish: alive-but-empty agent is adopted (probe != 2)" \
+    'probe -ne 2' \
+    "$AGENT_CFG"
 
 
 # =============================================================================
