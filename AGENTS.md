@@ -32,6 +32,14 @@ the regression suite (CI runs it on every push).
 - Hostname scheme: `<model><variant><generation>` (x13yg2, x1eg2, mbpm3).
   WSL hostname follows the Windows machine name; renaming = Rename-Computer
   on Windows + reboot, then rename the matching `hosts/` dir.
+- Package placement is mise-first: `mise registry <tool>`, else `ubi:org/repo`
+  for GitHub-release binaries. brew/apt/winget keep only bootstrap prereqs
+  (stow, git-crypt, fish, mise itself), tools with no prebuilt binaries
+  (tig, graphviz), platform integrations (pinentry, wslu, wireguard), and
+  native libs (libpq, ffmpeg).
+- Cross-platform desktop apps are paired entries in `Brewfile-base` ↔
+  `winget.txt`; check.sh's parity table enforces the mapping. Role-analogous
+  platform apps (aerospace ↔ komorebi/whkd) are NOT parity pairs.
 
 ## Workflows
 
@@ -46,6 +54,11 @@ the regression suite (CI runs it on every push).
 - Firmware/boot work: audit first (`bcdedit /enum firmware` + ESP listing +
   BitLocker status), suspend BitLocker protectors before changing boot
   entries, keep Windows Boot Manager first, verify with a re-dump.
+- One-time machine migrations (removing/renaming installed software): dated
+  `migrate_*()` functions in bootstrap.sh, every step guarded and idempotent,
+  plus tombstone checks in check.sh so removed things can't creep back.
+  Delete function + checks once all machines have migrated. Never delete
+  user data in a migration (`brew uninstall` without `--zap`).
 
 ## Gotchas (learnt the hard way)
 
@@ -63,6 +76,13 @@ the regression suite (CI runs it on every push).
 - git credential.helper values with spaces need `!\"...\"` quoting
   (`os/wsl/git/.gitconfig-wsl`); canonical remotes are SSH anyway.
 - bash `${var#...}` tolerates no spaces around the operator.
+- Deleting a stow package leaves stale symlinks in `$HOME` — stow cannot
+  unstow what no longer exists. Clean up in a `migrate_*` function
+  (see `migrate_app_trim`).
+- check.sh `check_has` patterns are line-based grep; multi-line assertions
+  need `bash -c "... grep -A1 ... | grep -q ..."` instead.
+- shellcheck runs at `-S warning`; info-level findings (e.g. SC2016 on
+  intentional `bash -c '...$1...'` script bodies) are acceptable.
 
 ## Known pending work
 
@@ -72,3 +92,6 @@ the regression suite (CI runs it on every push).
 - x1eg2: Pop!_OS dual-boot install pending — set hostname `x1eg2`; see
   README "Adding a new host → Dual-boot machines".
 - TODO.md tracks older review items; P2 "deferred" list is still open.
+- mbpm3 (when next bootstrapped): `migrate_app_trim` (2026-07) uninstalls
+  the trimmed casks and sets up colima. Once every mac has run it, delete
+  the function, its call, and the tombstone checks in check.sh.

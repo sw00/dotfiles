@@ -156,8 +156,8 @@ check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
 stow_layer "$DOTFILES/os/macos" bash brew gnupg
-check_stow "hosts/mbpm3: alacritty brew fish key_remap megasync mise aerospace" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap megasync mise aerospace
+check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
@@ -501,8 +501,23 @@ check_not "mise: asdf not referenced in fish config (replaced by mise)" \
 check_has "mise: tmux is managed by mise (not apt/brew)" \
     '^tmux ' "$MISE_CFG"
 
-check_has "bootstrap: sesh installed via ensure_sesh" \
+check_has "mise: sesh managed by mise (ubi backend, was ensure_sesh)" \
+    'ubi:joshmedeski/sesh' "$MISE_CFG"
+
+check_has "mise: lf managed by mise (ubi backend, was brew/apt)" \
+    'ubi:gokcehan/lf' "$MISE_CFG"
+
+check_has "mise: git-lfs managed by mise (was brew/apt)" \
+    'git-lfs' "$MISE_CFG"
+
+check_not "mise: pi not in default-node-packages (managed via aqua registry)" \
+    'pi-coding-agent' "$DOTFILES/base/mise/.config/mise/default-node-packages"
+
+check_not "bootstrap: no ensure_sesh (sesh managed by mise ubi)" \
     'ensure_sesh' "$DOTFILES/bootstrap.sh"
+
+check_not "bootstrap: no ensure_pi (pi managed by mise aqua)" \
+    'ensure_pi' "$DOTFILES/bootstrap.sh"
 
 check_has "mise: devops tools declared (kubectl, helm, k9s)" \
     'kubectl' "$MISE_CFG"
@@ -519,8 +534,23 @@ check_not "Brewfile-host: no stale asdf entry" \
 check_not "Brewfile-host: fzf removed (managed by mise)" \
     'brew "fzf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
-check_not "Brewfile-host: lf not duplicated from Brewfile-base" \
-    'brew "lf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+check_not "Brewfile-base: lf removed (managed by mise ubi)" \
+    'brew "lf"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "Brewfile-host: git-lfs removed (managed by mise)" \
+    'brew "git-lfs"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: d2 removed (managed by host mise)" \
+    'brew "d2"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_not "Brewfile-host: websocat removed (managed by host mise)" \
+    'brew "websocat"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+check_has "mbpm3 mise: d2 declared (was Homebrew)" \
+    'd2' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "mbpm3 mise: websocat declared (was Homebrew)" \
+    'websocat' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
 check_not "Brewfile-host: tig not duplicated from Brewfile-base" \
     'brew "tig"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
@@ -533,6 +563,14 @@ check_not "Brewfile-host: pytorch removed (not a system package)" \
 
 check "bootstrap: macOS calls ensure_homebrew_bundle" \
     grep -q 'ensure_homebrew_bundle' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: app-trim migration defined (2026-07 lean pass)" \
+    'migrate_app_trim()' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap: app-trim migration called on macOS after brew bundle" bash -c "
+    grep -A1 '^            ensure_homebrew_bundle\$' '$DOTFILES/bootstrap.sh' \
+        | grep -q 'migrate_app_trim'
+"
 
 check "os/wsl/windows/winget.txt exists" \
     test -f "$DOTFILES/os/wsl/windows/winget.txt"
@@ -575,8 +613,11 @@ check "base/gnupg removed (conflict source)" \
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: lf in ensure_system_tools" \
+check_not "bootstrap: lf not in ensure_system_tools (managed by mise ubi)" \
     'wanted=.*lf' "$DOTFILES/bootstrap.sh"
+
+check_not "bootstrap: git-lfs not in ensure_system_tools (managed by mise)" \
+    'wanted=.*git-lfs' "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: tig in ensure_system_tools" \
     'wanted=.*tig' "$DOTFILES/bootstrap.sh"
@@ -623,14 +664,17 @@ check_not "Brewfile-host: homeport tap removed" \
 check_has "Brewfile-host: monokle tracked" \
     'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
-check_has "Brewfile-host: aerospace present" \
+check_has "Brewfile-base: aerospace present (primary WM on all macs)" \
+    'cask "aerospace"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: vscodium present (core desktop app, cf. winget.txt)" \
+    'cask "vscodium"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_not "Brewfile-host: aerospace moved to Brewfile-base" \
     'aerospace' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
-check_has "bootstrap: disable_rectangle_autolaunch defined" \
-    'disable_rectangle_autolaunch()' "$DOTFILES/bootstrap.sh"
-
-check_has "bootstrap: disable_rectangle_autolaunch called on macOS" \
-    'disable_rectangle_autolaunch' "$DOTFILES/bootstrap.sh"
+check_not "Brewfile-host: vscodium moved to Brewfile-base" \
+    'cask "vscodium"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
 check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
     'stern' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
@@ -647,8 +691,7 @@ check_not "Brewfile-host: asdf removed (replaced by mise)" \
 check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migration)" \
     'existing target is not owned by stow' "$DOTFILES/bootstrap.sh"
 
-check_has "Brewfile-base: lf present (moved from host)" \
-    'brew "lf"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
 
 check_has "Brewfile-base: tig present (moved from host)" \
     'brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
@@ -697,6 +740,52 @@ check_has "winget.txt: Firefox Developer Edition present" \
 
 check_has "winget.txt: Git for Windows present (required for GCM in gitconfig-wsl)" \
     'Git.Git' "$DOTFILES/os/wsl/windows/winget.txt"
+
+# ── Base sets: packages common to every machine of a platform ────────────────
+# Set 2: bootstrap/shell group lives in Brewfile-base (every mac), not the host.
+BREW_BASE="$DOTFILES/os/macos/brew/.Brewfile-base"
+BREW_HOST="$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+# Tombstones: casks removed in the 2026-07 lean pass must not creep back in.
+_TRIMMED='cask "(gpg-suite|httpie-desktop|calibre|zotero|caffeine|mouseless'
+_TRIMMED+='|appcleaner|rectangle|libreoffice|megasync|dbeaver-community'
+_TRIMMED+='|docker-desktop)"'
+check_not "Brewfile-base: no trimmed casks (2026-07 lean pass)" \
+    "$_TRIMMED" "$BREW_BASE"
+check_not "Brewfile-host: no trimmed casks (2026-07 lean pass)" \
+    "$_TRIMMED" "$BREW_HOST"
+
+for _pkg in stow git git-crypt gnupg pinentry-mac fish; do
+    check_has "Brewfile-base: $_pkg present (every mac, not host-only)" \
+        "brew \"$_pkg\"" "$BREW_BASE"
+done
+check_not "Brewfile-host: bootstrap/shell group moved to Brewfile-base" \
+    'brew "(stow|git|git-crypt|gnupg|pinentry-mac|fish)"' "$BREW_HOST"
+
+# Set 3: system CLI common to all platforms (cf. ensure_system_tools).
+for _pkg in wireguard-tools pstree; do
+    check_has "Brewfile-base: $_pkg present (parity with ensure_system_tools)" \
+        "brew \"$_pkg\"" "$BREW_BASE"
+done
+check_not "Brewfile-host: wireguard-tools/pstree moved to Brewfile-base" \
+    'brew "(wireguard-tools|pstree)"' "$BREW_HOST"
+
+# Set 1: cross-platform desktop apps — each base macOS cask has a winget twin.
+# Platform-only apps are excluded by design: aerospace
+# (macOS), komorebi/whkd/Git.Git (Windows).
+while IFS='|' read -r _cask _wid; do
+    check "parity: $_cask (brew) ↔ $_wid (winget)" bash -c \
+        'grep -q "cask \"$1\"" "$2" && grep -qx "$3" "$4"' \
+        _ "$_cask" "$BREW_BASE" "$_wid" "$DOTFILES/os/wsl/windows/winget.txt"
+done <<'PARITY'
+alacritty|Alacritty.Alacritty
+bitwarden|Bitwarden.Bitwarden
+brave-browser|Brave.Brave
+obsidian|Obsidian.Obsidian
+vscodium|VSCodium.VSCodium
+flameshot|Flameshot.Flameshot
+firefox@developer-edition|Mozilla.Firefox.DeveloperEdition
+PARITY
 
 check_has "Brewfile-base: CaskaydiaCove font cask present" \
     'font-caskaydia-cove-nerd-font' \

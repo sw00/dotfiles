@@ -6,5 +6,5 @@
 # To install into the current Node without re-provisioning:
 #   npm install -g --ignore-scripts $(grep -v '^#' ~/.config/mise/default-node-packages | grep -v '^$')
 #
-# ── Coding agent ──────────────────────────────────────────────────────────────
-@earendil-works/pi-coding-agent  # pi.dev — terminal coding agent (https://pi.dev)
+# (intentionally empty — pi is managed by mise directly via aqua:earendil-works/pi;
+#  see config.toml. Add npm-based tools here only when mise has no backend for them.)

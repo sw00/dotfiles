@@ -25,6 +25,10 @@ awscli     = "latest"          # AWS CLI (was: asdf)
 azure      = "latest"          # resolves to pipx:azure-cli
 pdm        = "latest"          # resolves to pipx:pdm
 
+# ── Work CLI tools (moved from Homebrew — both in the aqua registry) ──────────
+d2         = "latest"          # modern diagram scripting language (aqua:terrastruct/d2)
+websocat   = "latest"          # WebSocket tool (aqua:vi/websocat)
+
 # ── AI coding assistant ───────────────────────────────────────────────────────
 # Managed via mise's pipx backend (isolated venv); was: standalone pipx install.
 "pipx:aider-chat" = "latest"

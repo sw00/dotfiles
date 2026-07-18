@@ -1,24 +1,3 @@
-# ── Bootstrap / git ───────────────────────────────────────────────────────────
-# Must exist before mise runs. stow/git-crypt bootstrap the dotfiles themselves.
-brew "stow"
-brew "git"
-brew "git-crypt"
-brew "git-lfs"
-brew "gnupg"
-brew "pinentry-mac"
-
-# ── Shell ─────────────────────────────────────────────────────────────────────
-# fish must be Homebrew-installed so it can be set as login shell via chsh.
-brew "fish"
-
-# ── macOS-specific ────────────────────────────────────────────────────────────
-# ── CLI tools not in mise/aqua ─────────────────────────────────────
-brew "d2"        # modern diagram scripting language (not in mise)
-brew "wireguard-tools"
-brew "websocat"   # WebSocket tool
-brew "pstree"     # process tree viewer
-
-
 # ── Native compiled dependencies ──────────────────────────────────────────────
 # Libraries that Python/other packages link against at the C level.
 # mise provides cross-platform binaries but not .dylib / header files.
@@ -26,46 +5,33 @@ brew "libpq"     # PostgreSQL client lib (psycopg2, asyncpg, etc.)
 brew "ffmpeg"    # Audio/video processing
 
 # ── Desktop apps ──────────────────────────────────────────────────────────────
-cask "appcleaner"
 cask "audacity"
 cask "bruno"
-cask "calibre"
-cask "dbeaver-community"
 cask "discord"
-cask "docker-desktop"
-cask "firefox@developer-edition"
 cask "freelens"
 cask "linear"
 cask "loom"
 cask "macfuse"
-cask "megasync"
 cask "mounty"
+
+# ── Containers ────────────────────────────────────────────────────────────────
+# colima replaces Docker Desktop: headless Lima VM instead of Electron + VM GUI.
+# bootstrap.sh migrate_app_trim() finishes the move: uninstalls docker-desktop,
+# links the CLI plugins into ~/.docker/cli-plugins, and starts the VM.
+# Tip: 'brew services start colima' to auto-start the VM on login.
+brew "colima"
+brew "docker"           # docker CLI client
+brew "docker-compose"   # compose plugin
+brew "docker-buildx"    # buildx plugin
 cask "pycharm"
 cask "tomighty"
 cask "vlc"
-cask "vscodium"
-cask "zotero"
 cask "jan"
 cask "notion"
-cask "gpg-suite"            # GPG key management GUI
-cask "httpie-desktop"       # REST/GraphQL API testing client
 cask "readest"              # EPUB ebook reader
 cask "signal"               # Secure messaging
-cask "libreoffice"          # Office suite
 cask "microsoft-teams"      # Work messaging
 cask "monokle"              # Kubernetes config UI
-cask "mouseless"            # Keyboard-driven mouse
-
-# ── Tiling window manager ──────────────────────────────────────────────────
-# Aerospace replaces Rectangle's manual tiling with automatic tiling
-# on macOS, matching komorebi's workflow on Windows.
-tap "nikitabobko/tap"
-cask "aerospace"
-
-# ── VSCodium extensions ─────────────────────────────────────────────────────
-# Canonical list: os/wsl/windows/vscodium/extensions.txt
-# bootstrap.sh ensure_vscodium_extensions() installs from that file on all platforms.
-
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104

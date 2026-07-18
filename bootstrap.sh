@@ -61,7 +61,6 @@ _pkg_name() {
     local cmd="$1" mgr="$2"
     case "$mgr:$cmd" in
         apt:wslview)  echo wslu ;;          # wslu provides wslview on Ubuntu
-        apt:git-lfs)  echo git-lfs ;;
         apt:gcc)      echo build-essential ;; # meta-package: gcc g++ make libc6-dev
         apt:make)     echo build-essential ;; # same meta-package; apt deduplicates
         apt:pstree)   echo psmisc ;;
@@ -114,18 +113,18 @@ ensure_linux_prereqs() {
 ensure_system_tools() {
     # Installs only what mise cannot provide:
     #   fish    — login shell; must exist before mise activates
-    #   git-lfs — git integration, not a standalone binary tool
-    #   lf, tig, graphviz, pstree — not in the aqua/mise registry;
-    #                               must come from system packages
+    #   tig, graphviz, pstree — not in the aqua/mise registry and no prebuilt
+    #                           binaries for the ubi backend; system packages only
     #   xclip / wslview — WSL platform integrations (no aqua equivalent)
     #   gcc, make — build tools for neovim plugins (telescope-fzf-native, mason)
     #               mapped to build-essential on apt, base-devel on pacman
     #   unzip   — required by mason to unpack tool archives
-    # Everything else (tmux, neovim, fzf, devops tools, ...) is in mise.
+    # Everything else (tmux, neovim, fzf, git-lfs, lf, sesh, devops tools, ...)
+    # is in mise.
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish git-lfs lf tig graphviz pstree wireguard-tools gcc make unzip)
+    local wanted=(fish tig graphviz pstree wireguard-tools gcc make unzip)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
     else
@@ -210,6 +209,58 @@ PYEOF
     log "CaskaydiaCove Nerd Font installed"
 }
 
+migrate_app_trim() {
+    # 2026-07 app-trim migration (lean core-apps pass). Uninstalls casks removed
+    # from the Brewfiles and finishes the Docker Desktop → colima move.
+    # Every step is guarded, so this is a no-op once a machine has migrated.
+    # Delete this function (and its call) once all macs have bootstrapped past it.
+    #
+    # Note: user data is intentionally NOT removed — Zotero's library, Docker
+    # Desktop's VM disk (~/Library/Containers/com.docker.docker), and app prefs
+    # stay on disk. Delete those by hand if unwanted.
+    local trimmed=(
+        gpg-suite httpie-desktop calibre zotero
+        caffeine mouseless appcleaner rectangle libreoffice
+        megasync dbeaver-community docker-desktop
+    )
+    local cask
+    for cask in "${trimmed[@]}"; do
+        if brew list --cask "$cask" >/dev/null 2>&1; then
+            log "uninstalling trimmed cask: $cask"
+            brew uninstall --cask "$cask" \
+                || warn "could not uninstall $cask — remove manually"
+        fi
+    done
+
+    # megasync: its stow package was deleted, leaving a dangling LaunchAgent
+    # symlink that stow cannot unstow. Boot out and remove it.
+    local mega_agent="$HOME/Library/LaunchAgents/mega.mac.megaupdater.plist"
+    if [[ -L "$mega_agent" ]]; then
+        log "removing stale megasync LaunchAgent"
+        launchctl bootout "gui/$(id -u)/mega.mac.megaupdater" >/dev/null 2>&1 || true
+        rm -f "$mega_agent"
+    fi
+
+    # colima (installed by Brewfile-host just now): finish the Docker Desktop
+    # replacement — CLI plugins on ~/.docker/cli-plugins and a running VM.
+    if command -v colima >/dev/null 2>&1; then
+        local plugins_dir="$HOME/.docker/cli-plugins"
+        mkdir -p "$plugins_dir"
+        local plugin src
+        for plugin in docker-compose docker-buildx; do
+            src="$(brew --prefix)/opt/$plugin/bin/$plugin"
+            if [[ -x "$src" && ! -e "$plugins_dir/$plugin" ]]; then
+                log "linking docker CLI plugin: $plugin"
+                ln -sfn "$src" "$plugins_dir/$plugin"
+            fi
+        done
+        if ! colima status >/dev/null 2>&1; then
+            log "starting colima VM (first start downloads the image — slow)"
+            colima start || warn "colima start failed — run 'colima start' manually"
+        fi
+    fi
+}
+
 ensure_vscodium_extensions() {
     # Install VSCodium extensions from the canonical list used by all platforms.
     # macOS: called after brew bundle (which installs the VSCodium cask).
@@ -268,39 +319,6 @@ ensure_tmux_plugins() {
     done
 }
 
-ensure_sesh() {
-    # sesh (joshmedeski/sesh) is not in the mise registry; install the
-    # pre-built binary from GitHub releases into ~/.local/bin.
-    # Asset naming: sesh_{Darwin,Linux}_{arm64,x86_64}.tar.gz
-    local dest="$HOME/.local/bin/sesh"
-    if [[ -x "$dest" ]]; then
-        log "sesh already installed"
-        return 0
-    fi
-    log "installing sesh (smart tmux session manager)"
-
-    local os arch
-    case "$(uname -s)" in
-        Darwin) os="Darwin" ;;
-        Linux)  os="Linux"  ;;
-        *) warn "sesh: unsupported OS — install from https://github.com/joshmedeski/sesh"; return 0 ;;
-    esac
-    case "$(uname -m)" in
-        arm64|aarch64) arch="arm64"  ;;
-        x86_64)        arch="x86_64" ;;
-        *) warn "sesh: unsupported arch $(uname -m) — install manually"; return 0 ;;
-    esac
-
-    local tmp; tmp=$(mktemp -d)
-    curl -fsSL \
-        "https://github.com/joshmedeski/sesh/releases/latest/download/sesh_${os}_${arch}.tar.gz" \
-        -o "$tmp/sesh.tar.gz"
-    tar -xzf "$tmp/sesh.tar.gz" -C "$tmp"
-    mkdir -p "$HOME/.local/bin"
-    install -m755 "$tmp/sesh" "$dest"
-    rm -rf "$tmp"
-}
-
 ensure_mise() {
     # Install mise if absent, then install all tools from .config/mise/config.toml.
     # macOS: mise is installed by ensure_homebrew_bundle (Brewfile-base) and will
@@ -321,22 +339,6 @@ ensure_mise() {
     else
         warn "no mise config found at ~/.config/mise/config.toml — skipping"
     fi
-}
-
-ensure_pi() {
-    # Install pi (https://pi.dev) as a global npm package via the mise-managed Node.
-    # mise auto-installs node.default_packages_file entries only when provisioning
-    # a *new* Node version; this function covers already-provisioned machines.
-    if command -v pi >/dev/null 2>&1; then
-        log "pi $(pi --version 2>/dev/null | head -1) already installed"
-        return 0
-    fi
-    if ! command -v npm >/dev/null 2>&1; then
-        warn "npm not found — skipping pi installation (re-run after mise installs Node)"
-        return 0
-    fi
-    log "installing pi (pi.dev terminal coding agent)"
-    npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 }
 
 stow_dir() {
@@ -444,31 +446,6 @@ print(pl.get('Label', ''))
         fi
     done
     shopt -u nullglob
-}
-
-disable_rectangle_autolaunch() {
-    # Rectangle is kept installed as a fallback manual tiling tool, but it
-    # should not start automatically on login. AeroSpace is now the primary
-    # tiling WM on macOS and starts via its own launch-on-login setting.
-    local bundle_id="com.knollsoft.Rectangle"
-
-    if ! defaults read "$bundle_id" >/dev/null 2>&1; then
-        log "Rectangle not installed or never launched — skipping autolaunch disable"
-        return 0
-    fi
-
-    if [[ "$(defaults read "$bundle_id" launchOnLogin 2>/dev/null)" == "0" ]]; then
-        log "Rectangle launch-on-login already disabled"
-    else
-        log "disabling Rectangle launch-on-login"
-        defaults write "$bundle_id" launchOnLogin -bool false
-    fi
-
-    # Also remove Rectangle from the system Login Items list, if present.
-    # Rectangle registers a helper app (RectangleLauncher.app) as a login item;
-    # setting launchOnLogin=false stops it from re-registering, but this line
-    # cleans up any existing system Login Item entry.
-    osascript -e 'tell application "System Events" to delete every login item whose name is "Rectangle"' >/dev/null 2>&1 || true
 }
 
 ensure_macos_gpg() {
@@ -633,18 +610,14 @@ main() {
             ensure_system_tools
             ensure_fisher
             ensure_mise
-            ensure_pi
-            ensure_sesh
             ensure_tmux_plugins
             ;;
         macos)
             ensure_homebrew_bundle
+            migrate_app_trim
             ensure_vscodium_extensions
-            disable_rectangle_autolaunch
             ensure_fisher
             ensure_mise
-            ensure_pi
-            ensure_sesh
             ensure_tmux_plugins
             ;;
     esac

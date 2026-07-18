@@ -43,8 +43,19 @@ Three tiers, each managed by the appropriate tool:
 **mise** (`base/mise/.config/mise/config.toml`) is the single source of truth
 for levels 2 and 3 across all platforms. See that file for the full tool list.
 
-Tools not in the [aqua registry](https://aquaproj.github.io/aqua-registry/)
-(`lf`, `tig`) are installed by the OS package manager instead.
+Tools with no prebuilt binaries and no mise backend (`tig`, `graphviz`) are
+installed by the OS package manager instead. `lf` and `sesh` use mise's ubi
+backend (prebuilt GitHub release binaries) — see `base/mise`.
+
+Placement rule: **mise first.** Before adding a CLI tool to brew/apt, check
+`mise registry <tool>`; for GitHub-release binaries without a registry entry,
+use `ubi:org/repo`. OS package managers keep only bootstrap prereqs (stow,
+git-crypt, fish, mise itself), tools with no prebuilt binaries, platform
+integrations (pinentry, wslu, wireguard), and native libs (libpq, ffmpeg).
+
+Cross-platform desktop apps are listed twice by design — cask in
+`os/macos/brew/.Brewfile-base` and winget ID in `os/wsl/windows/winget.txt`.
+check.sh asserts the parity mapping; add or remove them as pairs.
 
 ## Bootstrap
 

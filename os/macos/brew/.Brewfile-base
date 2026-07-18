@@ -7,21 +7,46 @@ brew "mas"
 # ensure_mise runs; the curl fallback in ensure_mise is then a no-op on macOS.
 brew "mise"
 
+# ── Bootstrap / git — every mac ───────────────────────────────────────────────
+# Must exist before mise runs. stow/git-crypt bootstrap the dotfiles themselves
+# (ensure_macos_prereqs also installs them directly; brew bundle is idempotent).
+# git-lfs is managed by mise (aqua:git-lfs/git-lfs) — see base mise config.
+brew "stow"
+brew "git"
+brew "git-crypt"
+brew "gnupg"
+brew "pinentry-mac"
+
+# ── Shell ─────────────────────────────────────────────────────────────────────
+# fish must be Homebrew-installed so it can be set as login shell via chsh.
+brew "fish"
+
 # ── Core desktop apps — all macs ─────────────────────────────────────────────
+# Cross-platform set: keep in sync with os/wsl/windows/winget.txt — check.sh
+# asserts the cask ↔ winget-ID parity mapping.
 cask "alacritty"        # terminal emulator
 cask "bitwarden"        # password/key vault
 cask "brave-browser"    # primary browser
 cask "obsidian"         # notes
-cask "caffeine"         # prevent sleep
-cask "rectangle"        # window management
 cask "flameshot"        # cross-platform screenshots
+cask "vscodium"         # editor — canonical extensions list: os/wsl/windows/vscodium/extensions.txt
+cask "firefox@developer-edition"  # secondary browser (parity with winget)
+
+# ── Tiling window manager ─────────────────────────────────────────────────────
+# AeroSpace is the primary WM on all macs (matches komorebi on Windows) and
+# starts via its own launch-on-login setting. Host-specific aerospace.toml
+# lives in hosts/<host>/aerospace.
+tap "nikitabobko/tap"
+cask "aerospace"
 
 # ── CLI tools not in mise/aqua ────────────────────────────────────────────────
-# These are not in the aqua/mise registry and must come from the OS package
-# manager on every platform (brew on macOS, ensure_system_tools on Linux/WSL).
-brew "lf"        # terminal file manager
-brew "tig"       # text-mode git log/diff browser
-brew "graphviz"  # graph visualization library
+# No mise registry entry and no prebuilt binaries for the ubi backend — must
+# come from the OS package manager on every platform (brew on macOS,
+# ensure_system_tools on Linux/WSL). lf moved to mise (ubi:gokcehan/lf).
+brew "tig"              # text-mode git log/diff browser
+brew "graphviz"         # graph visualization library
+brew "wireguard-tools"  # VPN (also in ensure_system_tools on Linux/WSL)
+brew "pstree"           # process tree viewer (also in ensure_system_tools)
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 # Cascadia Code patched with Nerd Font glyphs. Referenced in alacritty and
