@@ -1,7 +1,7 @@
 /**
  * Shared mutation-guard engine.
  *
- * Generic helpers for "check / change" mode extensions that gate CLI tools
+ * Generic helpers for "locked / armed" gate extensions that gate CLI tools
  * with live, hard-to-reverse side effects (cloud, orchestration, IaC, ...).
  *
  * A domain extension (e.g. infra-safety.ts) supplies CLI names + per-CLI
@@ -35,16 +35,16 @@ export interface MutationGuardConfig {
 }
 
 export interface MutationGuardHandle {
-  getMode: () => "check" | "change";
-  setMode: (mode: "check" | "change") => void;
+  getMode: () => "locked" | "armed";
+  setMode: (mode: "locked" | "armed") => void;
 }
 
 /** Registry entry exposed to other extensions (e.g. the modes extension). */
 export interface GuardRegistration {
   domain: string;
   cliNames: ReadonlySet<string>;
-  getMode: () => "check" | "change";
-  setMode: (mode: "check" | "change") => void;
+  getMode: () => "locked" | "armed";
+  setMode: (mode: "locked" | "armed") => void;
   /** Read-only-semantics check of a command against this domain's verb tables.
    *  Returns a list of issues; empty means the command is read-only-safe. */
   checkCommand: (command: string) => string[];
@@ -53,14 +53,14 @@ export interface GuardRegistration {
 const guardRegistry = new Map<string, GuardRegistration>();
 
 /** All registered domain guards. Modes extension: you may TIGHTEN guards
- *  (setMode("check")), never LOOSEN them — write gates only open via the
+ *  (setMode("locked")), never LOOSEN them — write gates only open via the
  *  domain's own commands/tools. */
 export function getGuards(): ReadonlyMap<string, GuardRegistration> {
   return guardRegistry;
 }
 
 export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfig): MutationGuardHandle {
-  let mode: "check" | "change" = "check";
+  let mode: "locked" | "armed" = "locked";
   const { domain, icon } = config;
   const Domain = domain.charAt(0).toUpperCase() + domain.slice(1);
   const modeTool = `${domain}_mode`;
@@ -69,8 +69,13 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   const toolByName = new Map<string, ToolConfig>();
   for (const tool of config.tools) for (const name of tool.names) toolByName.set(name, tool);
 
-  const setStatus = (ctx: ExtensionContext) => ctx.ui.setStatus(`${domain}-mode`, `${icon} ${mode}`);
-  const setMode = (m: "check" | "change", ctx: ExtensionContext) => {
+  const setStatus = (ctx: ExtensionContext) => {
+    // Hide the safe default (locked); only surface when armed — distinct
+    // from the session-mode indicator so the two axes can't be confused.
+    if (mode === "locked") ctx.ui.setStatus(`${domain}-mode`, undefined);
+    else ctx.ui.setStatus(`${domain}-mode`, `🔓 ${domain}`);
+  };
+  const setMode = (m: "locked" | "armed", ctx: ExtensionContext) => {
     mode = m;
     setStatus(ctx);
     ctx.ui.notify(`${icon} ${domain} → ${m}`, "info");
@@ -81,31 +86,31 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
     name: modeTool,
     label: `${Domain} Mode`,
     description:
-      `Set ${domain} safety mode for ${[...allNames].join(", ")}. `
-      + `check = read-only (mutations blocked); change = mutations allowed (user confirms). `
-      + `Call with mode "change" before modifying resources, then run the command.`,
-    promptSnippet: `${domain} safety mode (check/change) for ${[...allNames].join(", ")}`,
+      `Set ${domain} write gate for ${[...allNames].join(", ")}. `
+      + `locked = read-only (mutations blocked); armed = mutations allowed (user confirms). `
+      + `Call with mode "armed" before modifying resources, then run the command.`,
+    promptSnippet: `${domain} write gate (locked/armed) for ${[...allNames].join(", ")}`,
     promptGuidelines: [
-      `${domain} tools start in check mode; mutating/destructive commands are blocked. `
-      + `To change ${domain} resources, call ${modeTool} with mode "change" first, then run the command (the user still confirms).`,
+      `${domain} tools start locked; mutating/destructive commands are blocked. `
+      + `To change ${domain} resources, call ${modeTool} with mode "armed" first, then run the command (the user still confirms).`,
     ],
-    parameters: Type.Object({ mode: StringEnum(["check", "change"] as const) }),
+    parameters: Type.Object({ mode: StringEnum(["locked", "armed"] as const) }),
     async execute(_id, params, _sig, _upd, ctx) {
       setMode(params.mode, ctx);
       return {
-        content: [{ type: "text" as const, text: `${domain} mode: ${params.mode}` }],
+        content: [{ type: "text" as const, text: `${domain} gate: ${params.mode}` }],
         details: { mode: params.mode },
       };
     },
   });
 
-  pi.registerCommand(`${domain}-check`, {
-    description: `${Domain}: read-only mode (mutations blocked)`,
-    handler: async (_a, ctx) => setMode("check", ctx),
+  pi.registerCommand(`${domain}-lock`, {
+    description: `${Domain}: lock the write gate (read-only, mutations blocked)`,
+    handler: async (_a, ctx) => setMode("locked", ctx),
   });
-  pi.registerCommand(`${domain}-change`, {
-    description: `${Domain}: allow mutations (with confirmation)`,
-    handler: async (_a, ctx) => setMode("change", ctx),
+  pi.registerCommand(`${domain}-arm`, {
+    description: `${Domain}: arm the write gate (mutations allowed, with confirmation)`,
+    handler: async (_a, ctx) => setMode("armed", ctx),
   });
 
   /** Read-only-semantics check, reusable by other extensions via the registry. */
@@ -120,10 +125,10 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
 
       if (result.kind === "mutation") {
         issues.push(
-          `${inv.cli} ${verb}: ${result.highRisk ? "high-risk op" : "mutation"} blocked in check mode.`,
+          `${inv.cli} ${verb}: ${result.highRisk ? "high-risk op" : "mutation"} blocked: ${domain} gate is locked.`,
         );
       } else if (result.kind === "unknown") {
-        issues.push(`${inv.cli} ${verb}: unrecognised verb, blocked in check mode.`);
+        issues.push(`${inv.cli} ${verb}: unrecognised verb, blocked: ${domain} gate is locked.`);
       }
     }
     return issues;
@@ -140,14 +145,14 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   pi.on("tool_call", async (event, ctx) => {
     if (!isToolCallEventType("bash", event)) return;
 
-    if (mode === "check") {
+    if (mode === "locked") {
       const issues = checkCommand(event.input.command);
       if (issues.length) {
         return {
           block: true,
           reason:
             issues.join(" ")
-            + ` If the user intends this change, call ${modeTool}(mode="change") then retry; otherwise keep to read-only commands.`,
+            + ` If the user intends this mutation, call ${modeTool}(mode="armed") then retry; otherwise keep to read-only commands.`,
         };
       }
       return;
@@ -180,7 +185,7 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   });
 
   pi.on("session_start", (_e, ctx) => {
-    mode = "check";
+    mode = "locked";
     setStatus(ctx);
   });
 

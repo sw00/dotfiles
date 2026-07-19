@@ -55,10 +55,10 @@ unless the user manually switched during chat.
 ### infra-safety integration
 
 `infra-safety.ts` gates live-infra CLIs (aws/az/gcloud/kubectl/terraform) with
-its own independent check/change state, built on `lib/mutation-guard.ts`. The
+its own independent locked/armed write-gate state, built on `lib/mutation-guard.ts`. The
 modes extension **tightens, never loosens**: `/check` forces every registered
-domain guard to check; `/change` does *not* open the infra write gate — that
-still needs `/infra-change` + confirmation (two-key safety). In `/check`,
+domain guard to locked; `/change` does *not* open the infra write gate — that
+still needs `/infra-arm` + confirmation (two-key safety). In `/check`,
 commands touching a guarded CLI are classified by the guard's own verb tables
 (single source of truth), so `aws … describe` runs while `terminate` is blocked.
 New domains: `import { createMutationGuard }` with your own verb tables and a
@@ -81,12 +81,11 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, oracle-pro, reviewer
-    ├── prompts/                 /plan, /review
     └── extensions/
         ├── subagent/            vendored delegation tool
         ├── modes/               /chat /check /change
         ├── infra-safety.ts      infra CLI mutation guard
-        └── lib/mutation-guard.* shared check/change engine (+ node --test)
+        └── lib/mutation-guard.* shared locked/armed engine (+ node --test)
 ```
 
 ## Tests

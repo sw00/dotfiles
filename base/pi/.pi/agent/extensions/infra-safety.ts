@@ -1,15 +1,14 @@
 /**
  * Infrastructure Safety Extension
  *
- * Two modes for live-infrastructure CLIs: aws, az, gcloud, kubectl,
- * terraform/tofu.
+ * Live-infrastructure CLIs: aws, az, gcloud, kubectl, terraform/tofu.
  *
- *   check  – read-only: mutation commands are physically blocked
- *   change – write mode: mutations allowed with confirmation
+ *   locked – read-only: mutation commands are physically blocked
+ *   armed  – write gate open: mutations allowed with confirmation
  *            (high-risk operations get a stronger confirmation)
  *
- * Commands: /infra-check, /infra-change
- * Tool:     infra_mode (for LLM self-regulation)
+ * Commands: /infra-lock, /infra-arm
+ * Tool:     infra_mode (mode "locked" | "armed"; for LLM self-regulation)
  *
  * Built on the shared engine in lib/mutation-guard.ts. If you want to gate
  * other tool domains (git, databases, package managers, ...), write a new

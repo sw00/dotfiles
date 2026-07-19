@@ -4,13 +4,13 @@
  *   change (default) – full tools, Flash worker, escalation ladder active
  *   check            – read-only gate: edit/write disabled, bash restricted
  *                      to read-only commands, domain guards (infra, …)
- *                      forced to check. Pair-troubleshooting: the user is
+ *                      forced locked. Pair-troubleshooting: the user is
  *                      the escalation target, no subagent delegation.
  *   chat             – conceptual altitude: model switches to kimi-k3,
  *                      tools unrestricted, problem-space framing.
  *
  * Integration with mutation-guard domains (infra-safety.ts): modes may
- * TIGHTEN domain guards (entering check forces them to check), never
+ * TIGHTEN domain guards (entering check forces them to locked), never
  * LOOSEN them — /change does not auto-open any domain write gate. In
  * check mode, commands touching a guarded CLI (aws, kubectl, …) are
  * classified by that guard's own verb tables, so read-only infra poking
@@ -146,10 +146,19 @@ export default function (pi: ExtensionAPI) {
     else ctx.ui.setStatus("mode", `${MODE_ICON[mode]} ${mode}`);
   };
 
-  // Toolset is a pure function of mode: check drops edit/write, else full.
+  // Toolset is a pure function of mode: check drops edit/write and domain
+  // mode tools (e.g. infra_mode), since guards are force-locked and cannot
+  // be opened from within check. Otherwise all tools.
   const applyToolGate = (m: Mode) => {
     const all = pi.getAllTools().map((t) => t.name);
-    pi.setActiveTools(m === "check" ? all.filter((t) => t !== "edit" && t !== "write") : all);
+    if (m === "check") {
+      const domainModeTools = new Set(
+        [...getGuards().values()].map((g) => `${g.domain}_mode`)
+      );
+      pi.setActiveTools(all.filter((t) => t !== "edit" && t !== "write" && !domainModeTools.has(t)));
+    } else {
+      pi.setActiveTools(all);
+    }
   };
 
   async function applyMode(next: Mode, ctx: ExtensionContext, persist = true) {
@@ -179,8 +188,12 @@ export default function (pi: ExtensionAPI) {
 
     applyToolGate(next);
 
-    // tighten domain guards, never loosen them
-    if (next === "check") for (const g of getGuards().values()) g.setMode("check");
+    // tighten domain guards, never loosen them; also clear their status
+    // so an armed gate indicator doesn't survive being force-locked
+    if (next === "check") for (const g of getGuards().values()) {
+      g.setMode("locked");
+      ctx.ui.setStatus(`${g.domain}-mode`, undefined);
+    }
 
     mode = next;
     updateStatus(ctx);
@@ -235,7 +248,10 @@ export default function (pi: ExtensionAPI) {
     savedModel = restoredModel;
     applyToolGate(mode);
     if (mode === "check") {
-      for (const g of getGuards().values()) g.setMode("check");
+      for (const g of getGuards().values()) {
+        g.setMode("locked");
+        ctx.ui.setStatus(`${g.domain}-mode`, undefined);
+      }
     } else if (mode === "chat") {
       const m = ctx.modelRegistry.find(CHAT_MODEL.provider, CHAT_MODEL.id);
       if (m) await pi.setModel(m);
