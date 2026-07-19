@@ -1,24 +1,24 @@
 {
   "lastChangelogVersion": "0.80.10",
   "defaultProvider": "opencode-go",
-  "defaultModel": "kimi-k3",
-  "hideThinkingBlock": true,
-  "defaultThinkingLevel": "medium",
+  "defaultModel": "deepseek-v4-flash",
+  "hideThinkingBlock": false,
+  "defaultThinkingLevel": "high",
   "enabledModels": [
-    "opencode-go/glm-5.1",
     "opencode-go/minimax-m3",
     "opencode-go/deepseek-v4-flash",
-    "opencode-go/kimi-k2.7-code",
-    "opencode-go/mimo-v2.5",
     "anthropic/claude-sonnet-4-6",
-    "openrouter/deepseek/deepseek-v4-flash",
-    "openrouter/minimax/minimax-m3",
     "anthropic/claude-opus-4-8",
     "opencode-go/qwen3.7-plus",
-    "openrouter/google/gemini-3.5-flash"
+    "opencode-go/deepseek-v4-pro",
+    "opencode-go/kimi-k3",
+    "anthropic/claude-haiku-4-5",
+    "opencode-go/glm-5.2"
   ],
   "packages": [
-    "git:github.com/pankajudhas81/pi-claude-auth"
+    "git:github.com/pankajudhas81/pi-claude-auth",
+    "npm:@hypabolic/pi-hypa",
+    "npm:pi-web-access"
   ],
   "theme": "dark"
 }

@@ -1,0 +1,5 @@
+{
+  "provider": "exa",
+  "workflow": "auto-summary",
+  "summaryModel": "opencode-go/deepseek-v4-flash"
+}

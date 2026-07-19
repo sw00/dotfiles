@@ -22,11 +22,11 @@ import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { execFile } from "node:child_process";
-import { classify, findInvocations, hasDryRun } from "./classify";
-import type { ToolConfig } from "./classify";
+import { classify, findInvocations, hasDryRun } from "./classify.ts";
+import type { ToolConfig } from "./classify.ts";
 
-export type { ToolConfig, VerbPosition, Classification, Invocation } from "./classify";
-export { classify, findInvocations, hasDryRun, normalizeCommand } from "./classify";
+export type { ToolConfig, VerbPosition, Classification, Invocation } from "./classify.ts";
+export { classify, findInvocations, hasDryRun, normalizeCommand } from "./classify.ts";
 
 export interface MutationGuardConfig {
   domain: string; // e.g. "infra" — drives command/tool names + messages
@@ -37,6 +37,26 @@ export interface MutationGuardConfig {
 export interface MutationGuardHandle {
   getMode: () => "check" | "change";
   setMode: (mode: "check" | "change") => void;
+}
+
+/** Registry entry exposed to other extensions (e.g. the modes extension). */
+export interface GuardRegistration {
+  domain: string;
+  cliNames: ReadonlySet<string>;
+  getMode: () => "check" | "change";
+  setMode: (mode: "check" | "change") => void;
+  /** Read-only-semantics check of a command against this domain's verb tables.
+   *  Returns a list of issues; empty means the command is read-only-safe. */
+  checkCommand: (command: string) => string[];
+}
+
+const guardRegistry = new Map<string, GuardRegistration>();
+
+/** All registered domain guards. Modes extension: you may TIGHTEN guards
+ *  (setMode("check")), never LOOSEN them — write gates only open via the
+ *  domain's own commands/tools. */
+export function getGuards(): ReadonlyMap<string, GuardRegistration> {
+  return guardRegistry;
 }
 
 export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfig): MutationGuardHandle {
@@ -88,26 +108,58 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
     handler: async (_a, ctx) => setMode("change", ctx),
   });
 
-  pi.on("tool_call", async (event, ctx) => {
-    if (!isToolCallEventType("bash", event)) return;
-
+  /** Read-only-semantics check, reusable by other extensions via the registry. */
+  const checkCommand = (command: string): string[] => {
     const issues: string[] = [];
-    for (const inv of findInvocations(event.input.command, allNames)) {
+    for (const inv of findInvocations(command, allNames)) {
       const tool = toolByName.get(inv.cli)!;
       if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
 
       const result = classify(tool, inv.tokens);
       const verb = inv.tokens.slice(0, 2).join(" ") || inv.cli;
 
-      if (mode === "check") {
-        if (result.kind === "mutation") {
-          issues.push(
-            `${inv.cli} ${verb}: ${result.highRisk ? "high-risk op" : "mutation"} blocked in check mode.`,
-          );
-        } else if (result.kind === "unknown") {
-          issues.push(`${inv.cli} ${verb}: unrecognised verb, blocked in check mode.`);
-        }
-      } else if (result.kind === "mutation") {
+      if (result.kind === "mutation") {
+        issues.push(
+          `${inv.cli} ${verb}: ${result.highRisk ? "high-risk op" : "mutation"} blocked in check mode.`,
+        );
+      } else if (result.kind === "unknown") {
+        issues.push(`${inv.cli} ${verb}: unrecognised verb, blocked in check mode.`);
+      }
+    }
+    return issues;
+  };
+
+  guardRegistry.set(domain, {
+    domain,
+    cliNames: allNames,
+    getMode: () => mode,
+    setMode: (m) => void (mode = m),
+    checkCommand,
+  });
+
+  pi.on("tool_call", async (event, ctx) => {
+    if (!isToolCallEventType("bash", event)) return;
+
+    if (mode === "check") {
+      const issues = checkCommand(event.input.command);
+      if (issues.length) {
+        return {
+          block: true,
+          reason:
+            issues.join(" ")
+            + ` If the user intends this change, call ${modeTool}(mode="change") then retry; otherwise keep to read-only commands.`,
+        };
+      }
+      return;
+    }
+
+    for (const inv of findInvocations(event.input.command, allNames)) {
+      const tool = toolByName.get(inv.cli)!;
+      if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
+
+      const result = classify(tool, inv.tokens);
+
+      if (result.kind === "mutation") {
         if (!ctx.hasUI) {
           return { block: true, reason: `${Domain} mutation needs interactive confirmation, unavailable here.` };
         }
@@ -124,15 +176,6 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
         const ok = await ctx.ui.confirm(title, `${note}${inv.fullCommand.slice(0, 400)}\n\nAllow?`);
         if (!ok) return { block: true, reason: `User denied ${domain} mutation` };
       }
-    }
-
-    if (issues.length) {
-      return {
-        block: true,
-        reason:
-          issues.join(" ")
-          + ` If the user intends this change, call ${modeTool}(mode="change") then retry; otherwise keep to read-only commands.`,
-      };
     }
   });
 

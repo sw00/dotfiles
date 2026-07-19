@@ -11,7 +11,7 @@
  * change — every bug found in review should leave a case here.
  */
 
-import { classify, findInvocations, hasDryRun, type ToolConfig } from "./classify";
+import { classify, findInvocations, hasDryRun, type ToolConfig } from "./classify.ts";
 
 // ── tool configs (kept in sync with infra-safety.ts) ─────────────
 const AWS_MUTATION = new Set([
