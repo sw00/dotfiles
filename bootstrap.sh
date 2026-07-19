@@ -11,6 +11,31 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==>\033[0m %s\n' "$*" >&2; }
 err()  { printf '\033[1;31m==>\033[0m %s\n' "$*" >&2; exit 1; }
 
+# ── Sudo keepalive ─────────────────────────────────────────────────────────────
+# Prompts for sudo once (if needed) and keeps the ticket alive for the rest of
+# the script via a background sudo -v -n loop. This avoids mid-script password
+# prompts on long operations (up.sh → ensure_system_tools, etc.).
+# Call ensure_sudo at the start of any path that needs elevation.
+_SUDO_PID=""
+_cleanup_sudo() {
+    [[ -n "$_SUDO_PID" ]] && kill "$_SUDO_PID" 2>/dev/null || true
+}
+ensure_sudo() {
+    # Already running under fakeroot / container?  No sudo needed.
+    if [[ $EUID -eq 0 ]]; then return 0; fi
+    # Ticket is already valid (passwordless sudo or still cached).
+    if sudo -n true 2>/dev/null; then return 0; fi
+    trap _cleanup_sudo EXIT
+    log "sudo required — entering password (will be cached for this session)"
+    sudo -v
+    # Background loop: keep the ticket alive as long as this script runs.
+    # Runs at most once per minute; exits if the ticket can't be refreshed.
+    (
+        while sudo -v -n 2>/dev/null; do sleep 60; done
+    ) &
+    _SUDO_PID=$!
+}
+
 detect_platform() {
     case "$(uname -s)" in
         Darwin) echo macos ;;
@@ -547,7 +572,7 @@ main() {
 
     case "$platform" in
         macos)     ensure_macos_prereqs ;;
-        linux|wsl) ensure_linux_prereqs ;;
+        linux|wsl) ensure_sudo; ensure_linux_prereqs ;;
     esac
 
     # Pre-flight: dry-run all stow operations and report conflicts clearly

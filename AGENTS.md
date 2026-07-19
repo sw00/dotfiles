@@ -65,6 +65,13 @@ the regression suite (CI runs it on every push).
   plus tombstone checks in check.sh so removed things can't creep back.
   Delete function + checks once all machines have migrated. Never delete
   user data in a migration (`brew uninstall` without `--zap`).
+- Never run bootstrap.sh as root (`sudo bash bootstrap.sh`) — stow, mise, and
+  fish config would write wrong ownership. Instead, `ensure_sudo()` at the top
+  of the Linux/WSL path calls `sudo -v` once to prompt for your password, then
+  keeps the ticket alive with a background `sudo -v -n` loop (refreshed every
+  60s, reaps itself if the ticket can't be refreshed). The EXIT trap kills the
+  background loop when the script finishes. If `sudo -n true` already succeeds
+  (cached ticket or passwordless sudo), `ensure_sudo` is a no-op.
 
 ## Gotchas (learnt the hard way)
 
@@ -93,6 +100,12 @@ the regression suite (CI runs it on every push).
   registry, no ubi backend, no Windows native binary. Installed via system
   package manager on all platforms. On WSL it lives in the Linux subsystem,
   not the Windows side.
+- Sudo session expiry is a recurring bootstrap.sh hazard: WSL `up.sh` prompts
+  for sudo to write `/etc/wsl.conf`, but by the time `ensure_system_tools()`
+  runs (winget installs, font downloads, VSCodium setup can take minutes),
+  the 15-minute sudo ticket may have expired. `ensure_sudo()` at the top of
+  the Linux/WSL path prevents this by keeping the ticket alive for the full
+  duration.
 
 ## Known pending work
 
