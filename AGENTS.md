@@ -35,8 +35,14 @@ the regression suite (CI runs it on every push).
 - Package placement is mise-first: `mise registry <tool>`, else `ubi:org/repo`
   for GitHub-release binaries. brew/apt/winget keep only bootstrap prereqs
   (stow, git-crypt, fish, mise itself), tools with no prebuilt binaries
-  (tig, graphviz), platform integrations (pinentry, wslu, wireguard), and
+  (tig, graphviz, mosh), platform integrations (pinentry, wslu, wireguard), and
   native libs (libpq, ffmpeg).
+- Adding a system-package-only tool (not in mise/aqua/ubi) requires exactly
+  three touch points: (1) `Brewfile-base` for macOS brew, (2) `ensure_system_tools()`
+  `wanted` array in `bootstrap.sh` for Linux/WSL apt/dnf/pacman, (3) the parity
+  loop in `check.sh` that asserts Brewfile-base ↔ ensure_system_tools consistency.
+  Tools that don't run on Windows (mosh, native Linux/macOS-only tools) go to
+  those two places only — no winget.txt entry.
 - Cross-platform desktop apps are paired entries in `Brewfile-base` ↔
   `winget.txt`; check.sh's parity table enforces the mapping. Role-analogous
   platform apps (aerospace ↔ komorebi/whkd) are NOT parity pairs.
@@ -83,6 +89,10 @@ the regression suite (CI runs it on every push).
   need `bash -c "... grep -A1 ... | grep -q ..."` instead.
 - shellcheck runs at `-S warning`; info-level findings (e.g. SC2016 on
   intentional `bash -c '...$1...'` script bodies) are acceptable.
+- Mosh is a C++ tool with system deps (protobuf, utempter, openssl) — no mise
+  registry, no ubi backend, no Windows native binary. Installed via system
+  package manager on all platforms. On WSL it lives in the Linux subsystem,
+  not the Windows side.
 
 ## Known pending work
 

@@ -763,7 +763,7 @@ check_not "Brewfile-host: bootstrap/shell group moved to Brewfile-base" \
     'brew "(stow|git|git-crypt|gnupg|pinentry-mac|fish)"' "$BREW_HOST"
 
 # Set 3: system CLI common to all platforms (cf. ensure_system_tools).
-for _pkg in wireguard-tools pstree; do
+for _pkg in wireguard-tools pstree mosh; do
     check_has "Brewfile-base: $_pkg present (parity with ensure_system_tools)" \
         "brew \"$_pkg\"" "$BREW_BASE"
 done

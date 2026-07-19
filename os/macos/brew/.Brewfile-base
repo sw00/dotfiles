@@ -47,6 +47,7 @@ brew "tig"              # text-mode git log/diff browser
 brew "graphviz"         # graph visualization library
 brew "wireguard-tools"  # VPN (also in ensure_system_tools on Linux/WSL)
 brew "pstree"           # process tree viewer (also in ensure_system_tools)
+brew "mosh"             # mobile shell — roaming/offline SSH (also in ensure_system_tools)
 
 # ── Fonts ─────────────────────────────────────────────────────────────────────
 # Cascadia Code patched with Nerd Font glyphs. Referenced in alacritty and

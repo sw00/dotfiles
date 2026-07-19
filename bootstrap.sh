@@ -124,7 +124,7 @@ ensure_system_tools() {
     local mgr; mgr="$(_detect_pkg_mgr)"
     [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
 
-    local wanted=(fish tig graphviz pstree wireguard-tools gcc make unzip)
+    local wanted=(fish tig graphviz pstree mosh wireguard-tools gcc make unzip)
     if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
         wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
     else
