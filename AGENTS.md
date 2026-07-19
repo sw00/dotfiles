@@ -106,6 +106,30 @@ the regression suite (CI runs it on every push).
   the 15-minute sudo ticket may have expired. `ensure_sudo()` at the top of
   the Linux/WSL path prevents this by keeping the ticket alive for the full
   duration.
+- Manual stow needs absolute dirs:
+  `stow -d "$HOME/dotfiles/base" -t "$HOME" -R <pkg>`. A relative `-d base`
+  from the repo root resolves the target to the repo itself and writes broken
+  `../base/...` symlinks. `bootstrap.sh`'s `stow_dir` already passes absolute
+  paths; match it when stowing by hand.
+- pi config spans two roots under `base/pi/.pi/`: `agent/` (settings,
+  extensions, agents, prompts, `AGENTS.md`, `APPEND_SYSTEM.md`) stows to
+  `~/.pi/agent/`, and `web-search.json` (pi-web-access config) stows to
+  `~/.pi/web-search.json` — a *sibling* of `agent/`, not inside it. Web search
+  runs on Exa zero-config (no API key). See `base/pi/README.md`.
+- pi TS extensions: relative imports need explicit `.ts` extensions
+  (`./classify.ts`) so `node --experimental-strip-types --test` runs the unit
+  tests; jiti (pi's loader) accepts either form. Verify an extension parses
+  with `pi -p --no-session "Reply OK"` — load errors print at startup.
+- pi agent discovery: the `subagent` tool's `description:` frontmatter is not
+  shown to the model except on an error path; the model learns which agents
+  exist only from `APPEND_SYSTEM.md`, which is always in the system prompt.
+  Keep that file lean and keep its agent roster in sync with `agent/agents/`.
+- pi writes runtime state (selected model, `lastChangelogVersion`) back through
+  the stowed `settings.json` symlink, so a plain `pi` run can dirty
+  `base/pi/.pi/agent/settings.json` — e.g. flipping `defaultModel` to whatever
+  was last picked. Before committing pi changes, `git diff` it and
+  `git checkout` any unintended default-model/provider drift (Flash-first keeps
+  `deepseek-v4-flash`).
 
 ## Known pending work
 

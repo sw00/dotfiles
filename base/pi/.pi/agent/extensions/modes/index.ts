@@ -29,22 +29,11 @@ const CHAT_MODEL = { provider: "opencode-go", id: "kimi-k3" };
 const MODE_ORDER: Mode[] = ["change", "check", "chat"];
 const MODE_ICON: Record<Mode, string> = { change: "⚡", check: "🔍", chat: "💬" };
 
-const CHECK_PROMPT = `[CHECK MODE ACTIVE — read-only]
-You are in CHECK mode: pair-troubleshooting with the user, an expert human who is in the loop.
+const CHECK_PROMPT = `[CHECK MODE — read-only]
+Pair-troubleshooting with the user (an expert, in the loop). Understand, don't change: edit/write are off and bash is read-only. Investigate empirically — run read-only commands, form and test hypotheses against the system's real state. Report findings and discuss before proposing fixes. Do NOT delegate to subagents here; the user is your partner. For changes, ask the user to switch to /change.]`;
 
-- Understand, don't change. edit/write are disabled and bash is restricted to read-only commands.
-- Investigate empirically: run read-only commands, form hypotheses, test them against the system's actual state.
-- Report findings and hypotheses; discuss with the user BEFORE proposing fixes.
-- The user is your escalation target: do NOT delegate to subagents (oracle/oracle-pro) — reason together instead.
-- If a change is needed, ask the user to switch to /change mode.]`;
-
-const CHAT_PROMPT = `[CHAT MODE — conceptual altitude]
-You are in CHAT mode: birds-eye problem-space thinking with the user.
-
-- Stay at the level of problem statements, domain mapping, metacognition, options and trade-offs.
-- Tools are unrestricted, but do not edit files or change systems unless the user explicitly asks.
-- Prefer research (web_search, fetch_content) and discussion over action.
-- Deliverables are insight, framings, and — when asked — plans.]`;
+const CHAT_PROMPT = `[CHAT MODE — conceptual]
+Birds-eye problem-space thinking with the user: problem statements, domain mapping, trade-offs, options. Tools are unrestricted but do not change anything unless explicitly asked. Prefer research and discussion over action; deliver insight and, when asked, plans.]`;
 
 // ── read-only bash classification (check mode) ────────────────────
 
@@ -151,11 +140,16 @@ function checkBashAllowed(command: string): string | null {
 export default function (pi: ExtensionAPI) {
   let mode: Mode = "change";
   let savedModel: { provider: string; id: string } | null = null;
-  let savedTools: string[] | null = null;
 
   const updateStatus = (ctx: ExtensionContext) => {
     if (mode === "change") ctx.ui.setStatus("mode", undefined);
     else ctx.ui.setStatus("mode", `${MODE_ICON[mode]} ${mode}`);
+  };
+
+  // Toolset is a pure function of mode: check drops edit/write, else full.
+  const applyToolGate = (m: Mode) => {
+    const all = pi.getAllTools().map((t) => t.name);
+    pi.setActiveTools(m === "check" ? all.filter((t) => t !== "edit" && t !== "write") : all);
   };
 
   async function applyMode(next: Mode, ctx: ExtensionContext, persist = true) {
@@ -173,19 +167,17 @@ export default function (pi: ExtensionAPI) {
         ctx.ui.notify(`${CHAT_MODEL.provider}/${CHAT_MODEL.id} not in model registry — keeping current model`, "warning");
       }
     } else if (prev === "chat" && savedModel) {
-      const m = ctx.modelRegistry.find(savedModel.provider, savedModel.id);
-      if (m) await pi.setModel(m);
+      // Only restore if the user didn't manually switch models during chat.
+      const stillChatModel =
+        ctx.model?.provider === CHAT_MODEL.provider && ctx.model?.id === CHAT_MODEL.id;
+      if (stillChatModel) {
+        const m = ctx.modelRegistry.find(savedModel.provider, savedModel.id);
+        if (m) await pi.setModel(m);
+      }
       savedModel = null;
     }
 
-    // tool gating: check drops edit/write (snapshot to restore on exit)
-    if (next === "check" && prev !== "check") {
-      savedTools = pi.getActiveTools();
-      pi.setActiveTools(savedTools.filter((t) => t !== "edit" && t !== "write"));
-    } else if (prev === "check" && next !== "check" && savedTools) {
-      pi.setActiveTools(savedTools);
-      savedTools = null;
-    }
+    applyToolGate(next);
 
     // tighten domain guards, never loosen them
     if (next === "check") for (const g of getGuards().values()) g.setMode("check");
@@ -241,8 +233,8 @@ export default function (pi: ExtensionAPI) {
     }
     mode = restored;
     savedModel = restoredModel;
+    applyToolGate(mode);
     if (mode === "check") {
-      pi.setActiveTools(pi.getActiveTools().filter((t) => t !== "edit" && t !== "write"));
       for (const g of getGuards().values()) g.setMode("check");
     } else if (mode === "chat") {
       const m = ctx.modelRegistry.find(CHAT_MODEL.provider, CHAT_MODEL.id);
