@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.80.10",
-  "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-pro",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-4-8",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
