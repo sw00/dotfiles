@@ -10,12 +10,12 @@ return {
         -- Install parsers asynchronously so compilation never blocks startup.
         -- install() is a no-op for already-installed parsers.
         vim.defer_fn(function()
-            require('nvim-treesitter.install').ensure_installed(
+            require('nvim-treesitter').install {
                 'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc',
                 -- homelab / scripting
                 'python', 'json', 'json5', 'yaml', 'toml', 'dockerfile',
-                'hcl' -- Terraform / OpenTofu
-            )
+                'hcl', -- Terraform / OpenTofu
+            }
         end, 0)
 
         -- Highlighting is now a Neovim built-in; enable it per filetype.

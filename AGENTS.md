@@ -163,6 +163,21 @@ authentication;
   General bash (test runners, builds) stays unguarded because oracle needs
   them for diagnosis. This asymmetry is intentional: the tool gate covers
   the highest-risk domain; the agent prompt covers the rest.
+- nvim-treesitter v1.0 changed parser installation API: `ensure_installed`
+  was renamed to `install` on the top-level module (`require('nvim-treesitter').install { ... }`
+  not `require('nvim-treesitter.install').ensure_installed(...)`), and takes
+  a table `{ ... }` argument, not varargs.
+- Migrating from packer.nvim to lazy.nvim: the old `plugin/packer_compiled.lua`
+  file and `~/.local/share/nvim/site/pack/packer/` directory persist after
+  switching package managers.  The compiled loader still runs on every startup
+  and adds old plugins to the runtimepath, causing circular-dependency errors
+  (especially nvim-tree + fidget integration) that look like lazy.nvim config
+  bugs.  Both must be manually removed when switching.
+- `checkhealth vim.provider` hangs on WSL when `xsel` is installed but no X
+  server is running.  The clipboard probe (built into Neovim, runs before user
+  config) blocks indefinitely.  The system-level fix is `apt remove xsel` since
+  `wsl-clipboard.lua` provides proper clipboard via `clip.exe` / powershell.
+  The hang only affects health checks, not actual clipboard use.
 
 ## Known pending work
 
