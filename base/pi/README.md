@@ -39,16 +39,20 @@ from pi examples — re-vendor on pi upgrades if the extension API changes).
 ## Modes
 
 `agent/extensions/modes/index.ts` — `/chat`, `/check`, `/change` (or Ctrl+Alt+M
-to cycle). Mode persists across session resume; a per-mode reminder is injected
-each turn and filtered when stale.
+to cycle). These are the only slash commands; `/plan` and `/review` were removed
+as redundant (the escalation ladder handles oracle/reviewer autonomously in
+`/change` mode). Mode persists across session resume; a per-mode reminder is
+injected each turn and filtered when stale.
 
 | Mode | Tools | Model | Intent |
 |------|-------|-------|--------|
 | `change` (default) | full | worker | autonomous execution; ladder active |
-| `check` | read-only (edit/write off, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
+| `check` | read-only (edit/write off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
 | `chat` | unrestricted | kimi-k3 | conceptual altitude; no changes unless asked |
 
 Toolset is a pure function of the mode (stateless — no snapshot/restore).
+In check mode, domain mode tools (e.g. `infra_mode`) are also removed since
+every guard is force-locked and cannot be opened from within check.
 Entering `/chat` switches to kimi-k3 and restores the prior model on exit,
 unless the user manually switched during chat.
 
@@ -63,6 +67,15 @@ commands touching a guarded CLI are classified by the guard's own verb tables
 (single source of truth), so `aws … describe` runs while `terminate` is blocked.
 New domains: `import { createMutationGuard }` with your own verb tables and a
 distinct `domain` string; they auto-register into the modes integration.
+
+### Subagent safety (defense-in-depth)
+
+Subagent processes spawned by pi (`oracle`, `reviewer`, etc.) load infra-safety
+independently, default to locked, and run with `hasUI=false` — so live-infra
+mutations are physically blocked even when the agent prompt says "read-only
+inspection." General bash (test runners, builds) stays unguarded because oracle
+needs these for diagnosis; the read-only constraint for non-infra commands
+relies on the agent prompt, not a tool gate.
 
 ## Web search
 

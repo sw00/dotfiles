@@ -130,6 +130,18 @@ the regression suite (CI runs it on every push).
   was last picked. Before committing pi changes, `git diff` it and
   `git checkout` any unintended default-model/provider drift (Flash-first keeps
   `deepseek-v4-flash`).
+- pi safety model has two independent state axes: **session posture**
+  (change/check/chat via mode commands) and **domain write-gates**
+  (locked/armed per domain like infra). A guard can be armed while modes is
+  chat; modes can be change while a guard is locked. The infra write gate only
+  opens when both axes allow it — two-key safety. Never conflate the two
+  vocabularies in edits or docs.
+- Subagent processes spawned by pi (oracle, reviewer, ...) load infra-safety
+  independently, default to locked, and run without an interactive UI —
+  live-infra mutations are hard-blocked regardless of the agent prompt.
+  General bash (test runners, builds) stays unguarded because oracle needs
+  them for diagnosis. This asymmetry is intentional: the tool gate covers
+  the highest-risk domain; the agent prompt covers the rest.
 
 ## Known pending work
 
