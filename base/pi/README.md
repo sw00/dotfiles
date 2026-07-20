@@ -90,16 +90,44 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
 .pi/
 ├── web-search.json              → ~/.pi/web-search.json (pi-web-access config)
 └── agent/                       → ~/.pi/agent/
-    ├── settings.json            provider, default model, enabled model cycle
+    ├── settings.json            LAPTOP profile: provider, default model, cycle set
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, oracle-pro, reviewer
     └── extensions/
         ├── subagent/            vendored delegation tool
         ├── modes/               /chat /check /change
+        ├── model-switch.ts      /use /cycle /models + rate-limit auto-fallback
         ├── infra-safety.ts      infra CLI mutation guard
         └── lib/mutation-guard.* shared locked/armed engine (+ node --test)
 ```
+
+## Profiles: laptop vs. agentbox
+
+Everything under `agent/` except `settings.json` is the **shared core**, used
+identically on the laptop (stowed) and on the always-on Telegram agentbox
+(CT 105 in `sw00/homelab`, where the role **copies** the core into `~/.pi/agent/`).
+`settings.json` is **per-profile** — two hand-maintained files:
+
+| | Laptop (this file) | Agentbox (`homelab:ansible/roles/agentbox/files/pi-settings.json`) |
+|---|---|---|
+| default model | `opencode-go/deepseek-v4-flash` (attended) | `opencode-go/kimi-k3` (unattended) |
+| `packages` | no telegram | + `pi-telegram` |
+| `rateLimitFallbacks` | — (attended; manual switch) | OpenRouter twins (auto-fallback) |
+
+Keep the `enabledModels` roster and shared `packages` in sync between the two by
+hand (JSON can't carry a note). The agentbox profile is owned by the homelab
+repo, not here.
+
+## model-switch
+
+`agent/extensions/model-switch.ts` — `/use <q>` (fuzzy-switch any authed model),
+`/cycle` (rotate the **cycle set** = `enabledModels`), `/models` (show active +
+cycle set + fallback map). On HTTP 429/529 it consults the **fallback map**
+(`rateLimitFallbacks`, primary → OpenRouter twin) and hops to the twin if authed;
+absent map (laptop) → no-op. Fallbacks are **sticky** (pi persists `defaultModel`),
+so it switches back to the primary on `session_start`. OpenRouter mirrors live
+**only** in `rateLimitFallbacks`, never in `enabledModels`.
 
 ## Tests
 

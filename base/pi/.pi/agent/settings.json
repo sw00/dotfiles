@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.80.10",
-  "defaultProvider": "anthropic",
-  "defaultModel": "claude-opus-4-8",
+  "defaultProvider": "opencode-go",
+  "defaultModel": "deepseek-v4-pro",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
@@ -18,8 +18,7 @@
   "packages": [
     "git:github.com/pankajudhas81/pi-claude-auth",
     "npm:@hypabolic/pi-hypa",
-    "npm:pi-web-access",
-    "git:github.com/badlogic/pi-telegram"
+    "npm:pi-web-access"
   ],
   "theme": "dark"
 }

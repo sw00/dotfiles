@@ -1,22 +1,33 @@
 /**
- * model-switch — Graceful model switching & auto-fallback for the Telegram bridge.
+ * model-switch — Graceful model switching & auto-fallback.
  *
- * Config-driven: the fallback set is your `enabledModels` list in settings.json
- * (the same curated list used for Ctrl+P cycling). Nothing is hardcoded — to add
- * OpenRouter (or any provider) as a fallback, just add it to `enabledModels` and
- * configure its auth. This extension picks it up automatically.
+ * Two DECOUPLED sets (config-driven, nothing hardcoded):
+ *
+ *   1. CYCLE SET = `enabledModels` in settings.json (the curated Ctrl+P list).
+ *      Used by /cycle, /use, /models, plain-text switching. OpenRouter mirrors
+ *      must NOT appear here — they are fallback-only.
+ *
+ *   2. FALLBACK MAP = `rateLimitFallbacks` in settings.json: a map of
+ *      "provider/id" (primary) -> "provider/id" (OpenRouter twin). Consulted
+ *      ONLY on HTTP 429/529. If the key is absent/empty (e.g. the laptop
+ *      profile), auto-fallback does NOTHING — an attended user handles rate
+ *      limits manually. The agentbox profile populates this map so the
+ *      unattended Telegram bridge stays alive on a metered OpenRouter twin.
+ *
+ * STICKY caveat: pi.setModel() persists defaultModel to settings.json, so a
+ * fallback survives turns/sessions/restarts. To avoid getting stuck on the
+ * metered twin, we switch BACK to the primary on session_start whenever the
+ * current model is a fallback twin and its primary's provider is authed again.
  *
  * Manual (Telegram or TUI):
  *   /use <query>     — switch to a model by fuzzy id match (any authed model)
- *   /models          — list the fallback set + current model
- *   /cycle           — cycle to the next model in the fallback set
+ *   /models          — show active model, the cycle set, and the fallback map
+ *   /cycle           — cycle to the next model in the cycle set
  *   plain text:      "use <query>" or "switch to <query>"
  *
- * Auto:
- *   On 429 (rate-limited) or 529 (overloaded) it hops to the next model in the
- *   fallback set, preferring a DIFFERENT provider (rate limits are usually
- *   provider/account-scoped). pi's built-in agent-level retry then re-issues the
- *   failed turn with the new model, so the conversation continues transparently.
+ * NOTE (S7): ctx.ui.notify renders in the tmux TUI footer; it may NOT be
+ * mirrored to the Telegram chat by pi-telegram. If a silent metered switch is a
+ * concern, surface it as an assistant message instead. Left as notify for now.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -47,6 +58,35 @@ function readEnabledModels(cwd: string): string[] {
     }
   }
   return merged;
+}
+
+/**
+ * Read the `rateLimitFallbacks` map (primary "provider/id" -> OR twin
+ * "provider/id"). Shallow-merge global then project, project wins per key
+ * (mirrors pi's settings merge). Missing/unparseable file -> {} (no fallback).
+ */
+function readFallbackMap(cwd: string): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const p of settingsPaths(cwd)) {
+    try {
+      const json = JSON.parse(readFileSync(p, "utf8"));
+      const m = json.rateLimitFallbacks;
+      if (m && typeof m === "object" && !Array.isArray(m)) {
+        for (const [k, v] of Object.entries(m)) {
+          if (typeof v === "string") merged[k] = v;
+        }
+      }
+    } catch {
+      /* missing / unreadable — ignore */
+    }
+  }
+  return merged;
+}
+
+function parseId(s: string): MiniModel | undefined {
+  const slash = s.indexOf("/");
+  if (slash < 0) return undefined;
+  return { provider: s.slice(0, slash), id: s.slice(slash + 1) };
 }
 
 function globToRe(glob: string): RegExp {
@@ -92,8 +132,13 @@ export default function (pi: ExtensionAPI) {
     }));
   }
 
-  function fallbackSet(ctx: { modelRegistry: any; cwd: string }): MiniModel[] {
+  // The CYCLE SET (from enabledModels) — used by /cycle, /use, /models.
+  function cycleSet(ctx: { modelRegistry: any; cwd: string }): MiniModel[] {
     return resolveFallbackSet(readEnabledModels(ctx.cwd), available(ctx));
+  }
+
+  function isAuthed(m: MiniModel, ctx: { modelRegistry: any }): boolean {
+    return available(ctx).some((a) => a.provider === m.provider && a.id === m.id);
   }
 
   async function switchTo(m: MiniModel, ctx: { modelRegistry: any; ui: any }, reason = ""): Promise<boolean> {
@@ -122,7 +167,7 @@ export default function (pi: ExtensionAPI) {
       list.find((m) => m.id.toLowerCase() === q) ??
       list.find((m) => `${m.provider}/${m.id}`.toLowerCase().includes(q)) ??
       list.find((m) => m.id.toLowerCase().includes(q));
-    return match(fallbackSet(ctx)) ?? match(available(ctx));
+    return match(cycleSet(ctx)) ?? match(available(ctx));
   }
 
   // ── /use <query> ──────────────────────────────────────────────────────────
@@ -145,24 +190,37 @@ export default function (pi: ExtensionAPI) {
 
   // ── /models ─────────────────────────────────────────────────────────────
   pi.registerCommand("models", {
-    description: "List the fallback set (from enabledModels) and the active model",
+    description: "Show active model, the cycle set (enabledModels), and the fallback map",
     handler: async (_args, ctx) => {
-      const cur = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "none";
-      const set = fallbackSet(ctx);
+      const curId = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : "none";
+      const map = readFallbackMap(ctx.cwd);
+      const isTwin = Object.values(map).includes(curId);
+      const cur = `${curId}${isTwin ? "  (⚠ rate-limit fallback — metered)" : ""}`;
+
+      const set = cycleSet(ctx);
       const list = set.length
         ? set.map((m, i) => `${i + 1}. ${m.provider}/${m.id}`).join("\n")
         : "(none — enabledModels empty or unauthed)";
-      ctx.ui.notify(`Active: ${cur}\nFallback set (from enabledModels):\n${list}`, "info");
+
+      const mapKeys = Object.keys(map);
+      const mapStr = mapKeys.length
+        ? mapKeys.map((k) => `  ${k} → ${map[k]}`).join("\n")
+        : "  (none — no auto-fallback; attended profile)";
+
+      ctx.ui.notify(
+        `Active: ${cur}\n\nCycle set (enabledModels):\n${list}\n\nFallback map (rateLimitFallbacks):\n${mapStr}`,
+        "info",
+      );
     },
   });
 
   // ── /cycle ────────────────────────────────────────────────────────────────
   pi.registerCommand("cycle", {
-    description: "Cycle to the next model in the fallback set",
+    description: "Cycle to the next model in the cycle set (enabledModels)",
     handler: async (_args, ctx) => {
-      const set = fallbackSet(ctx);
+      const set = cycleSet(ctx);
       if (set.length === 0) {
-        ctx.ui.notify("Fallback set is empty — check enabledModels.", "error");
+        ctx.ui.notify("Cycle set is empty — check enabledModels.", "error");
         return;
       }
       const cur = ctx.model;
@@ -182,7 +240,12 @@ export default function (pi: ExtensionAPI) {
     return { action: "handled" };
   });
 
-  // ── Auto-fallback on rate limit / overload ─────────────────────────────────
+  // ── Auto-fallback on rate limit / overload (MAP-DRIVEN) ────────────────────
+  // Fires ONLY when `rateLimitFallbacks` maps the current model to an authed
+  // OpenRouter twin. If the map is absent/empty (laptop) this is a no-op, and
+  // the user handles rate limits manually via /use or Ctrl+P. Once on a twin
+  // (openrouter/...), that id is not a map key, so repeated 429s during pi's
+  // retry backoff are self-limiting no-ops — no cascade.
   let inProgress = false;
   let lastAt = 0;
 
@@ -195,22 +258,52 @@ export default function (pi: ExtensionAPI) {
     const cur = ctx.model;
     if (!cur) return;
 
-    const set = fallbackSet(ctx);
-    if (set.length < 2) return;
+    const map = readFallbackMap(ctx.cwd);
+    const twinId = map[`${cur.provider}/${cur.id}`];
+    if (!twinId) return; // no mapping for the current model — do nothing
 
-    // Rotate the set to start just after the current model.
-    const idx = set.findIndex((m) => m.provider === cur.provider && m.id === cur.id);
-    const rotated = idx >= 0 ? [...set.slice(idx + 1), ...set.slice(0, idx)] : set;
-
-    // Prefer a different provider (rate limits are provider/account-scoped),
-    // else take the next model in order.
-    const next =
-      rotated.find((m) => m.provider !== cur.provider) ?? rotated[0];
-    if (!next || (next.provider === cur.provider && next.id === cur.id)) return;
+    const twin = parseId(twinId);
+    if (!twin) return;
 
     inProgress = true;
     lastAt = now;
-    await switchTo(next, ctx, `Rate-limited (${event.status}) — `);
-    inProgress = false;
+    try {
+      if (isAuthed(twin, ctx)) {
+        await switchTo(twin, ctx, `Rate-limited (${event.status}) — `);
+      } else {
+        ctx.ui.notify(
+          `Rate-limited (${event.status}) but fallback ${twinId} has no usable auth — leaving model unchanged.`,
+          "error",
+        );
+      }
+    } finally {
+      inProgress = false; // never wedge the guard, even if switchTo throws
+    }
+  });
+
+  // ── Switch-back: recover from a sticky fallback on session start ───────────
+  // pi.setModel() persists defaultModel, so a prior fallback survives restarts.
+  // If the active model is a fallback TWIN and its PRIMARY is authed again,
+  // switch back so the box returns to its subscription default (e.g. kimi-k3).
+  pi.on("session_start", async (_event, ctx) => {
+    if (inProgress) return;
+    const cur = ctx.model;
+    if (!cur) return;
+    const curId = `${cur.provider}/${cur.id}`;
+    const map = readFallbackMap(ctx.cwd);
+
+    // Find the primary whose twin is the current model.
+    const primaryId = Object.keys(map).find((k) => map[k] === curId);
+    if (!primaryId) return; // not on a fallback twin — nothing to do
+
+    const primary = parseId(primaryId);
+    if (!primary || !isAuthed(primary, ctx)) return; // primary still unavailable
+
+    inProgress = true;
+    try {
+      await switchTo(primary, ctx, "Recovered from fallback — ");
+    } finally {
+      inProgress = false;
+    }
   });
 }
