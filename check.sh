@@ -445,10 +445,10 @@ check_has "aerospace: alt-h/j/k/l focus (consistent with komorebi)" \
 check_has "aerospace: alt-shift-h/j/k/l move (consistent with komorebi)" \
     'alt-shift-h = .move left.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
-check_has "aerospace: alt-1-7 workspace (consistent with komorebi)" \
+check_has "aerospace: alt-1-0 workspace (consistent with komorebi)" \
     'alt-1 = .workspace 1.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
-check_has "aerospace: alt-shift-1-7 move-to-workspace (consistent with komorebi)" \
+check_has "aerospace: alt-shift-1-0 move-to-workspace (consistent with komorebi)" \
     'alt-shift-1 = .move-node-to-workspace 1.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
 check_has "aerospace: alt-minus/equal resize (consistent with komorebi)" \
@@ -460,17 +460,63 @@ check_has "whkdrc: alt-minus resize (aligned with aerospace)" \
 check_has "whkdrc: alt-equal resize (aligned with aerospace)" \
     'komorebic resize \+50' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
 
-check_has "aerospace: alt-tab workspace-back-and-forth (consistent with komorebi)" \
-    'alt-tab' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+# alt-tab: both platforms do workspace back-and-forth
+check_has "aerospace: alt-tab = workspace-back-and-forth" \
+    'alt-tab = .workspace-back-and-forth.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
-check_has "aerospace: alt-shift-tab move-workspace-to-monitor (consistent with komorebi)" \
+check_has "whkdrc: alt-tab = focus-last-workspace (aligned with AeroSpace back-and-forth)" \
+    'focus-last-workspace' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+check_has "aerospace: alt-shift-tab move-workspace-to-monitor" \
     'alt-shift-tab' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+# Workspace 8-10 reachable on both platforms
+check_has "aerospace: alt-8 workspace 8" \
+    'alt-8 = .workspace 8.' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_has "whkdrc: alt-8 = focus-workspace 7" \
+    'alt \+ 8.*focus-workspace 7' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+# No redundant j/k monitor bindings in whkdrc (they duplicated h/l on horizontal setup)
+check_not "whkdrc: no alt-ctrl-j/k monitor bindings (removed as redundant)" \
+    'alt \+ ctrl \+ [jk].*cycle-monitor' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+# move-to-monitor is directional (not all-same-no-args)
+check_has "whkdrc: alt-shift-ctrl-h sends to monitor 0" \
+    'move-to-monitor 0' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+check_has "whkdrc: alt-shift-ctrl-l sends to monitor 1" \
+    'move-to-monitor 1' "$DOTFILES/os/wsl/windows/komorebi/whkdrc"
+
+# No duplicate layout bindings in AeroSpace
+check_not "aerospace: no duplicate alt-slash layout binding" \
+    'alt-slash' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+check_not "aerospace: no duplicate alt-comma layout binding" \
+    'alt-comma' "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
 check_has "aerospace: workspace 1-5 → U2722DE / LS27C31x / main" \
     "'U2722DE', 'LS27C31x'" "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
 
 check_has "aerospace: workspace 6-10 → S2421HN / built-in / main" \
     "'S2421HN', 'built-in'" "$DOTFILES/hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml"
+
+# Komorebi OS default: consistent BSP layout, no per-workspace layout variety
+check_not "komorebi (os/wsl): no per-workspace layout variety (all BSP)" \
+    'VerticalStack\|HorizontalStack\|Rows\|Grid\|UltrawideVerticalStack\|RightMainVerticalStack' \
+    "$DOTFILES/os/wsl/windows/komorebi/config.json"
+
+# Float rules: brave/obsidian float on Windows (kept from host config promotion; AeroSpace
+# on macOS does not have explicit float rules for these, so they tile there by default).
+check_has "komorebi (os/wsl): brave.exe in float_rules (upstream promoted from host)" \
+    'brave\.exe' "$DOTFILES/os/wsl/windows/komorebi/config.json"
+
+check_has "komorebi (os/wsl): obsidian.exe in float_rules (upstream promoted from host)" \
+    'obsidian\.exe' "$DOTFILES/os/wsl/windows/komorebi/config.json"
+
+# Flameshot casing consistent
+check_has "komorebi (os/wsl): Flameshot.exe uppercase F (correct Windows exe name)" \
+    'Flameshot\.exe' "$DOTFILES/os/wsl/windows/komorebi/config.json"
 
 
 # =============================================================================

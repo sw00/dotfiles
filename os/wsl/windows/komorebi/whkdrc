@@ -28,6 +28,9 @@ alt + 4             : komorebic focus-workspace 3
 alt + 5             : komorebic focus-workspace 4
 alt + 6             : komorebic focus-workspace 5
 alt + 7             : komorebic focus-workspace 6
+alt + 8             : komorebic focus-workspace 7
+alt + 9             : komorebic focus-workspace 8
+alt + 0             : komorebic focus-workspace 9
 
 # Move windows across workspaces
 alt + shift + 1     : komorebic move-to-workspace 0
@@ -37,22 +40,21 @@ alt + shift + 4     : komorebic move-to-workspace 3
 alt + shift + 5     : komorebic move-to-workspace 4
 alt + shift + 6     : komorebic move-to-workspace 5
 alt + shift + 7     : komorebic move-to-workspace 6
+alt + shift + 8     : komorebic move-to-workspace 7
+alt + shift + 9     : komorebic move-to-workspace 8
+alt + shift + 0     : komorebic move-to-workspace 9
 
-# Monitor navigation (cyclic — fallback when directional isn't available)
-alt + tab           : komorebic cycle-monitor next
-alt + shift + tab   : komorebic cycle-monitor previous
+# Workspace back-and-forth (aligned with AeroSpace alt-tab = workspace-back-and-forth)
+alt + tab           : komorebic focus-last-workspace
+alt + shift + tab   : komorebic cycle-monitor next
 
-# Monitor focus (directional, aligned with AeroSpace alt-ctrl-h/j/k/l)
+# Monitor focus (h/l for left/right — j/k removed, they duplicated h/l on a horizontal setup)
 alt + ctrl + h      : komorebic cycle-monitor previous
 alt + ctrl + l      : komorebic cycle-monitor next
-alt + ctrl + j      : komorebic cycle-monitor next
-alt + ctrl + k      : komorebic cycle-monitor previous
 
-# Move window to other monitor (aligned with AeroSpace alt-shift-ctrl-h/j/k/l)
-alt + shift + ctrl + h : komorebic move-to-monitor
-alt + shift + ctrl + l : komorebic move-to-monitor
-alt + shift + ctrl + j : komorebic move-to-monitor
-alt + shift + ctrl + k : komorebic move-to-monitor
+# Move window to monitor (h = primary/0, l = secondary/1)
+alt + shift + ctrl + h : komorebic move-to-monitor 0
+alt + shift + ctrl + l : komorebic move-to-monitor 1
 
 # Toggle modes
 alt + f             : komorebic toggle-float

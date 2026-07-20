@@ -21,8 +21,8 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 # Keep hidden apps unhidden
 automatically-unhide-macos-hidden-apps = false
 
-# Keep numeric workspaces alive when empty (komorebi uses persistent workspaces I–VII;
-# AeroSpace keeps 10 so each monitor gets a contiguous block of 5 for muscle memory).
+# Keep numeric workspaces alive when empty (komorebi + whkdrc also use 10 workspaces;
+# 1-5 on primary monitor, 6-10 on secondary gives a clean 5+5 split).
 persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
 # Gaps — matched to komorebi padding (inner=container_padding=2, outer=workspace_padding=3)
@@ -61,10 +61,8 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     alt-q = 'close'
 
     # ── Layout (alt-x matches komorebi cycle-layout muscle memory) ─
-    alt-x     = 'layout tiles horizontal vertical'
+    alt-x       = 'layout tiles horizontal vertical'
     alt-shift-x = 'layout accordion horizontal vertical'
-    alt-slash = 'layout tiles horizontal vertical'
-    alt-comma = 'layout accordion horizontal vertical'
 
     # ── Float / fullscreen ─
     alt-f = 'layout floating tiling'   # toggle float (stays in AeroSpace)
@@ -72,7 +70,7 @@ persistent-workspaces = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
     # komorebi alt-m = toggle-monocle (maximises within tiling, no AeroSpace equivalent).
     alt-m = 'fullscreen'
 
-    # ── Workspace navigation (numerics match komorebi alt+1-7) ─
+    # ── Workspace navigation (numerics match komorebi alt+1-0) ─
     alt-1 = 'workspace 1'
     alt-2 = 'workspace 2'
     alt-3 = 'workspace 3'
