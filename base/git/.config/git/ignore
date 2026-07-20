@@ -3,3 +3,4 @@
 # pi coding agent — local planning artifacts written by the oracle/planner
 # subagent. Ephemeral scratch; promote roadmaps/migrations into docs/ by hand.
 .pi/plans/
+**/.claude/settings.local.json

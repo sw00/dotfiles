@@ -116,6 +116,27 @@ the regression suite (CI runs it on every push).
   `~/.pi/agent/`, and `web-search.json` (pi-web-access config) stows to
   `~/.pi/web-search.json` — a *sibling* of `agent/`, not inside it. Web search
   runs on Exa zero-config (no API key). See `base/pi/README.md`.
+- Colima / Lima auto-injects an `Include /Users/<user>/.colima/ssh_config` line
+  into `~/.ssh/config` at install time. Since SSH config is stowed from `base/`,
+  this modification dirties the repo source.  The base config now includes
+  `Include ~/.colima/ssh_config` pre-emptively — tilde-expanded includes are
+  harmless when the file doesn't exist on non-colima hosts.
+- `brew bundle` for the host Brewfile can time out (600 s default) when several
+  large desktop casks must be downloaded simultaneously (colima VM image,
+  pycharm, readest, signal, ffmpeg).  Idempotent: re-running finishes the
+  rest safely.
+- Docker Desktop uninstall via `brew uninstall --cask docker-desktop` tries to
+  remove privileged helper daemons with sudo.  In a non-interactive script
+  context, the sudo prompts fail silently and the helper files remain on disk.
+  No user data is removed (--zap is never used), but a manual
+  `sudo rm -f /Library/PrivilegedHelperTools/com.docker.socket` is needed.
+- `mas`-managed casks (WhatsApp, Pixelmator) require Mac App Store
+authentication;
+  `brew bundle` will fail for these unless the MAS session is already active.
+- Pre-existing config files written by other tools (e.g. `**/.claude/settings.local.json`
+  in `~/.config/git/ignore` from Claude/Cline) create stow conflicts caught by
+  `_stow_preflight`.  Merge the content into the stowed version, remove the
+  blocking plain file, then re-stow.
 - pi TS extensions: relative imports need explicit `.ts` extensions
   (`./classify.ts`) so `node --experimental-strip-types --test` runs the unit
   tests; jiti (pi's loader) accepts either form. Verify an extension parses
@@ -151,6 +172,6 @@ the regression suite (CI runs it on every push).
 - x1eg2: Pop!_OS dual-boot install pending — set hostname `x1eg2`; see
   README "Adding a new host → Dual-boot machines".
 - TODO.md tracks older review items; P2 "deferred" list is still open.
-- mbpm3 (when next bootstrapped): `migrate_app_trim` (2026-07) uninstalls
-  the trimmed casks and sets up colima. Once every mac has run it, delete
-  the function, its call, and the tombstone checks in check.sh.
+- mbpm3: app-trim migration ran (2026-07 lean pass).  `migrate_app_trim` kept
+  for x1eg2 if/when it boots macOS; delete the function, its call, and the
+  tombstone checks in check.sh once all macs have run it.
