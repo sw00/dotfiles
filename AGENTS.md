@@ -47,6 +47,64 @@ the regression suite (CI runs it on every push).
   `winget.txt`; check.sh's parity table enforces the mapping. Role-analogous
   platform apps (aerospace ↔ komorebi/whkd) are NOT parity pairs.
 
+## Tiling window managers (AeroSpace + Komorebi)
+
+- **macOS** (mbpm3): AeroSpace — host config at
+  `hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml`.
+- **WSL/Windows** (x13yg2): Komorebi + whkd — *canonical* config at
+  `os/wsl/windows/komorebi/` (not stowed; deployed by `os/wsl/up.sh` to
+  `%USERPROFILE%\.config\`).
+
+### Workspace scheme
+
+10 workspaces per monitor (not 7). This matches the number row on a full
+keyboard and gives each monitor a contiguous block (1-5 → primary, 6-10 →
+secondary) for muscle memory across dual-monitor setups at home/work.
+
+### Keybinding parity
+
+AeroSpace and whkdrc share the same key grammar where komorebi supports it:
+
+| Action | AeroSpace | whkdrc (Komorebi) |
+|---|---|---|
+| Focus | `alt-h/j/k/l` | `alt+h/j/k/l` |
+| Move window | `alt-shift-h/j/k/l` | `alt+shift+h/j/k/l` |
+| Workspace | `alt-1...0` | `alt+1...0` (0 → workspace 9) |
+| Move to workspace | `alt-shift-1...0` | `alt+shift+1...0` |
+| Resize ±50 | `alt-minus/equal` | `alt+-/= ` |
+| Resize ±200 | `alt-shift-minus/equal` | `alt+shift+-/=` |
+| Close window | `alt-q` | `alt+q` |
+| Toggle float | `alt-f` | `alt+f` |
+| Cycle layout | `alt-x` | `alt+x` |
+| Back-and-forth | `alt-tab` | `alt+tab` |
+| Focus monitor | `alt-ctrl-h/l` | `alt+ctrl+h/l` (h=prev, l=next) |
+| Move to monitor | `alt-shift-ctrl-h/l` | `alt+shift+ctrl+h/l` (h=0, l=1) |
+
+**Known asymmetry:** Komorebi lacks directional monitor navigation (only
+cycle-monitor next/prev), so `alt+ctrl+h`=previous, `alt+ctrl+l`=next
+(not true left/right). `alt+ctrl+j/k` were removed — they silently
+duplicated h/l on a horizontal setup.
+
+**alt-m differs:** AeroSpace = native macOS fullscreen (window leaves tiling);
+Komorebi = toggle-monocle (maximised within tiling).
+
+### Layout policy
+
+All workspaces start as **BSP** (binary space partition). The OS default config
+uses BSP everywhere; custom per-workspace layouts were removed for consistency
+— use `alt-x` (cycle-layout) as the escape hatch for temporary changes.
+Float rules are kept minimal: system dialogs, Bitwarden, Mullvad VPN,
+Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
+
+### Layout evolution (June 2026)
+
+Originally the x13yg2 host override had per-workspace layout variety
+(VerticalStack, HorizontalStack, Rows, Grid, UltrawideVerticalStack,
+RightMainVerticalStack) plus monitor UUID preferences. Upstream
+`b33984d` canonicalised this into `os/wsl/windows/komorebi/config.json`
+as the OS default. A subsequent pass simplified everything to all-BSP
+and expanded from 7 to 10 workspaces for AeroSpace parity.
+
 ## Workflows
 
 - Before committing: `bash check.sh` — commit only when green, and sanity-
@@ -145,6 +203,12 @@ authentication;
   shown to the model except on an error path; the model learns which agents
   exist only from `APPEND_SYSTEM.md`, which is always in the system prompt.
   Keep that file lean and keep its agent roster in sync with `agent/agents/`.
+- Deleting a stow package from the repo leaves dangling symlinks in `$HOME`.
+  stow cannot unstow what no longer exists, and the next bootstrap run will
+  fail if the symlink target is gone. Remove dangling symlinks by hand before
+  re-stowing. This bit the komorebi host config migration: upstream deleted
+  `hosts/x13yg2/komorebi/` but the stowed `~/.config/komorebi/config.json`
+  symlink stayed until manually removed.
 - pi writes runtime state (selected model, `lastChangelogVersion`) back through
   the stowed `settings.json` symlink, so a plain `pi` run can dirty
   `base/pi/.pi/agent/settings.json` — e.g. flipping `defaultModel` to whatever
@@ -181,9 +245,11 @@ authentication;
 
 ## Known pending work
 
-- x13yg2 (when next touched): `git pull && bash bootstrap.sh` self-heals
-  the alacritty symlink to `os/wsl`; remove the dangling
-  `~/.config/komorebi/config.json` symlink by hand.
+- x13yg2 (June 2026): stale komorebi symlink
+  `~/.config/komorebi/config.json` from the deleted host override was
+  removed and replaced with the `up.sh`-deployed copy in Windows FS.
+  Next bootstrap run will catch the remaining stale alacritty symlink
+  (already self-healed in upstream `b33984d`).
 - x1eg2: Pop!_OS dual-boot install pending — set hostname `x1eg2`; see
   README "Adding a new host → Dual-boot machines".
 - TODO.md tracks older review items; P2 "deferred" list is still open.
