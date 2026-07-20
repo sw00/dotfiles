@@ -68,6 +68,11 @@ commands touching a guarded CLI are classified by the guard's own verb tables
 New domains: `import { createMutationGuard }` with your own verb tables and a
 distinct `domain` string; they auto-register into the modes integration.
 
+Known false positive: the scanner (`findInvocations`) is quote-unaware, so CLI
+names inside a `git commit -m "…"` message are parsed as invocations and
+blocked while locked — commit via `git commit -F <file>` instead. (Stripping
+quoted strings in `normalizeCommand` would be the real fix.)
+
 ### Subagent safety (defense-in-depth)
 
 Subagent processes spawned by pi (`oracle`, `reviewer`, etc.) load infra-safety

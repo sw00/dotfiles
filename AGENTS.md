@@ -96,15 +96,6 @@ uses BSP everywhere; custom per-workspace layouts were removed for consistency
 Float rules are kept minimal: system dialogs, Bitwarden, Mullvad VPN,
 Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
 
-### Layout evolution (June 2026)
-
-Originally the x13yg2 host override had per-workspace layout variety
-(VerticalStack, HorizontalStack, Rows, Grid, UltrawideVerticalStack,
-RightMainVerticalStack) plus monitor UUID preferences. Upstream
-`b33984d` canonicalised this into `os/wsl/windows/komorebi/config.json`
-as the OS default. A subsequent pass simplified everything to all-BSP
-and expanded from 7 to 10 workspaces for AeroSpace parity.
-
 ## Workflows
 
 - Before committing: `bash check.sh` — commit only when green, and sanity-
@@ -123,13 +114,15 @@ and expanded from 7 to 10 workspaces for AeroSpace parity.
   plus tombstone checks in check.sh so removed things can't creep back.
   Delete function + checks once all machines have migrated. Never delete
   user data in a migration (`brew uninstall` without `--zap`).
-- Never run bootstrap.sh as root (`sudo bash bootstrap.sh`) — stow, mise, and
-  fish config would write wrong ownership. Instead, `ensure_sudo()` at the top
-  of the Linux/WSL path calls `sudo -v` once to prompt for your password, then
-  keeps the ticket alive with a background `sudo -v -n` loop (refreshed every
-  60s, reaps itself if the ticket can't be refreshed). The EXIT trap kills the
-  background loop when the script finishes. If `sudo -n true` already succeeds
-  (cached ticket or passwordless sudo), `ensure_sudo` is a no-op.
+- bootstrap.sh sudo (Linux/WSL only; macOS never calls it): never
+  `sudo bash bootstrap.sh` — stow/mise/fish would write root-owned files.
+  `ensure_sudo()` runs `sudo -v` once, then a background `sudo -v -n` loop
+  (every 60s, killed by the EXIT trap) keeps the 15-min ticket alive so it
+  can't expire mid-run — WSL `up.sh` prompts for `/etc/wsl.conf`, then
+  winget/fonts/VSCodium can outlast it before `ensure_system_tools`. No-op if
+  `sudo -n true` already succeeds. **Non-TTY (e.g. run from pi, no cached
+  ticket): `sudo -v` aborts the whole script** — do the stow steps by hand (no
+  sudo) and leave `ensure_system_tools`/`up.sh` for a real terminal.
 
 ## Gotchas (learnt the hard way)
 
@@ -147,50 +140,43 @@ and expanded from 7 to 10 workspaces for AeroSpace parity.
 - git credential.helper values with spaces need `!\"...\"` quoting
   (`os/wsl/git/.gitconfig-wsl`); canonical remotes are SSH anyway.
 - bash `${var#...}` tolerates no spaces around the operator.
-- Deleting a stow package leaves stale symlinks in `$HOME` — stow cannot
-  unstow what no longer exists. Clean up in a `migrate_*` function
-  (see `migrate_app_trim`).
 - check.sh `check_has` patterns are line-based grep; multi-line assertions
   need `bash -c "... grep -A1 ... | grep -q ..."` instead.
 - shellcheck runs at `-S warning`; info-level findings (e.g. SC2016 on
   intentional `bash -c '...$1...'` script bodies) are acceptable.
-- Mosh is a C++ tool with system deps (protobuf, utempter, openssl) — no mise
-  registry, no ubi backend, no Windows native binary. Installed via system
-  package manager on all platforms. On WSL it lives in the Linux subsystem,
-  not the Windows side.
-- Sudo session expiry is a recurring bootstrap.sh hazard: WSL `up.sh` prompts
-  for sudo to write `/etc/wsl.conf`, but by the time `ensure_system_tools()`
-  runs (winget installs, font downloads, VSCodium setup can take minutes),
-  the 15-minute sudo ticket may have expired. `ensure_sudo()` at the top of
-  the Linux/WSL path prevents this by keeping the ticket alive for the full
-  duration.
-- Manual stow needs absolute dirs:
-  `stow -d "$HOME/dotfiles/base" -t "$HOME" -R <pkg>`. A relative `-d base`
-  from the repo root resolves the target to the repo itself and writes broken
-  `../base/...` symlinks. `bootstrap.sh`'s `stow_dir` already passes absolute
-  paths; match it when stowing by hand.
+- Mosh: C++ with system deps (protobuf, utempter, openssl), no mise/ubi/Windows
+  binary — system package manager everywhere; on WSL it's Linux-side, not Windows.
+- stow lifecycle (per-file symlinks; always `--no-folding`):
+  - Manual stow needs absolute dirs:
+    `stow --restow --no-folding -d "$HOME/dotfiles/base" -t "$HOME" <pkg>`.
+    A relative `-d base` resolves the target to the repo itself and writes
+    broken `../base/...` symlinks; `stow_dir` in bootstrap.sh passes absolute
+    paths — match it when stowing by hand.
+  - Adding a file to an already-stowed package doesn't symlink it — re-stow
+    (same command). Bit: pi couldn't load `infra-safety.ts` after
+    `lib/infra-tables.ts` was added until the pi package was re-stowed.
+  - Deleting a package leaves dangling symlinks stow can't unstow (the next
+    bootstrap fails on the missing target). Remove by hand — or in a
+    `migrate_*` function (see `migrate_app_trim`) — then re-stow. Bit: the
+    komorebi host-config migration left `~/.config/komorebi/config.json`
+    dangling after `hosts/x13yg2/komorebi/` was deleted upstream.
 - pi config spans two roots under `base/pi/.pi/`: `agent/` (settings,
   extensions, agents, prompts, `AGENTS.md`, `APPEND_SYSTEM.md`) stows to
   `~/.pi/agent/`, and `web-search.json` (pi-web-access config) stows to
   `~/.pi/web-search.json` — a *sibling* of `agent/`, not inside it. Web search
   runs on Exa zero-config (no API key). See `base/pi/README.md`.
-- Colima / Lima auto-injects an `Include /Users/<user>/.colima/ssh_config` line
-  into `~/.ssh/config` at install time. Since SSH config is stowed from `base/`,
-  this modification dirties the repo source.  The base config now includes
-  `Include ~/.colima/ssh_config` pre-emptively — tilde-expanded includes are
-  harmless when the file doesn't exist on non-colima hosts.
-- `brew bundle` for the host Brewfile can time out (600 s default) when several
-  large desktop casks must be downloaded simultaneously (colima VM image,
-  pycharm, readest, signal, ffmpeg).  Idempotent: re-running finishes the
-  rest safely.
-- Docker Desktop uninstall via `brew uninstall --cask docker-desktop` tries to
-  remove privileged helper daemons with sudo.  In a non-interactive script
-  context, the sudo prompts fail silently and the helper files remain on disk.
-  No user data is removed (--zap is never used), but a manual
+- Colima/Lima injects `Include .../.colima/ssh_config` into `~/.ssh/config` at
+  install, dirtying the stowed base config. Pre-empted: base already includes
+  `~/.colima/ssh_config` (harmless when absent on non-colima hosts).
+- `brew bundle` (host Brewfile) can hit the 600s timeout when several large
+  casks download at once (colima image, pycharm, readest, signal, ffmpeg).
+  Idempotent — just re-run.
+- Docker Desktop uninstall (`brew uninstall --cask docker-desktop`) leaves
+  privileged helpers behind: its sudo prompts fail silently in a
+  non-interactive script. No user data lost (never `--zap`), but a manual
   `sudo rm -f /Library/PrivilegedHelperTools/com.docker.socket` is needed.
-- `mas`-managed casks (WhatsApp, Pixelmator) require Mac App Store
-authentication;
-  `brew bundle` will fail for these unless the MAS session is already active.
+- `mas`-managed casks (WhatsApp, Pixelmator) need an active Mac App Store
+  session — `brew bundle` fails for them otherwise.
 - Pre-existing config files written by other tools (e.g. `**/.claude/settings.local.json`
   in `~/.config/git/ignore` from Claude/Cline) create stow conflicts caught by
   `_stow_preflight`.  Merge the content into the stowed version, remove the
@@ -203,30 +189,26 @@ authentication;
   shown to the model except on an error path; the model learns which agents
   exist only from `APPEND_SYSTEM.md`, which is always in the system prompt.
   Keep that file lean and keep its agent roster in sync with `agent/agents/`.
-- Deleting a stow package from the repo leaves dangling symlinks in `$HOME`.
-  stow cannot unstow what no longer exists, and the next bootstrap run will
-  fail if the symlink target is gone. Remove dangling symlinks by hand before
-  re-stowing. This bit the komorebi host config migration: upstream deleted
-  `hosts/x13yg2/komorebi/` but the stowed `~/.config/komorebi/config.json`
-  symlink stayed until manually removed.
 - pi writes runtime state (selected model, `lastChangelogVersion`) back through
   the stowed `settings.json` symlink, so a plain `pi` run can dirty
   `base/pi/.pi/agent/settings.json` — e.g. flipping `defaultModel` to whatever
   was last picked. Before committing pi changes, `git diff` it and
   `git checkout` any unintended default-model/provider drift (Flash-first keeps
   `deepseek-v4-flash`).
-- pi safety model has two independent state axes: **session posture**
-  (change/check/chat via mode commands) and **domain write-gates**
-  (locked/armed per domain like infra). A guard can be armed while modes is
-  chat; modes can be change while a guard is locked. The infra write gate only
-  opens when both axes allow it — two-key safety. Never conflate the two
-  vocabularies in edits or docs.
-- Subagent processes spawned by pi (oracle, reviewer, ...) load infra-safety
-  independently, default to locked, and run without an interactive UI —
-  live-infra mutations are hard-blocked regardless of the agent prompt.
-  General bash (test runners, builds) stays unguarded because oracle needs
-  them for diagnosis. This asymmetry is intentional: the tool gate covers
-  the highest-risk domain; the agent prompt covers the rest.
+- pi safety has two independent axes: session posture (change/check/chat) vs.
+  per-domain write-gate (locked/armed, e.g. infra) — two-key; the infra gate
+  opens only when both allow. Never conflate the vocabularies. Details:
+  `base/pi/README.md`.
+- Subagents (oracle, reviewer, ...) load infra-safety locked with
+  `hasUI=false` → infra mutations hard-blocked regardless of prompt; general
+  bash stays unguarded (oracle needs it for diagnosis). Details:
+  `base/pi/README.md`.
+- pi infra-safety false-positives on commit messages: its scanner
+  (`findInvocations` in `lib/classify.ts`) reads the whole bash command string
+  quote-unaware, so `git commit -m "...terraform..."` parses as a terraform
+  invocation → "unrecognised verb, blocked" while the gate is locked (every
+  context, incl. subagents). Fix: write the message to a file and
+  `git commit -F <file>` — heredocs do NOT help (the body is scanned too).
 - nvim-treesitter v1.0 changed parser installation API: `ensure_installed`
   was renamed to `install` on the top-level module (`require('nvim-treesitter').install { ... }`
   not `require('nvim-treesitter.install').ensure_installed(...)`), and takes
@@ -245,11 +227,6 @@ authentication;
 
 ## Known pending work
 
-- x13yg2 (June 2026): stale komorebi symlink
-  `~/.config/komorebi/config.json` from the deleted host override was
-  removed and replaced with the `up.sh`-deployed copy in Windows FS.
-  Next bootstrap run will catch the remaining stale alacritty symlink
-  (already self-healed in upstream `b33984d`).
 - x1eg2: Pop!_OS dual-boot install pending — set hostname `x1eg2`; see
   README "Adding a new host → Dual-boot machines".
 - TODO.md tracks older review items; P2 "deferred" list is still open.
