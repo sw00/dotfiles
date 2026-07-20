@@ -29,6 +29,7 @@ cask "bitwarden"        # password/key vault
 cask "brave-browser"    # primary browser
 cask "obsidian"         # notes
 cask "flameshot"        # cross-platform screenshots
+cask "telegram"         # messaging
 cask "vscodium"         # editor — canonical extensions list: os/wsl/windows/vscodium/extensions.txt
 cask "firefox@developer-edition"  # secondary browser (parity with winget)
 

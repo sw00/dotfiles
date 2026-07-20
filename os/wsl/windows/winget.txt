@@ -18,6 +18,7 @@ Git.Git
 Mozilla.Firefox.DeveloperEdition
 JetBrains.PyCharm.Community
 Flameshot.Flameshot
+Telegram.TelegramDesktop
 
 # ── Window manager ────────────────────────────────────────────────────────────
 LGUG2Z.komorebi

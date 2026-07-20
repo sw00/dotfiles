@@ -830,6 +830,7 @@ brave-browser|Brave.Brave
 obsidian|Obsidian.Obsidian
 vscodium|VSCodium.VSCodium
 flameshot|Flameshot.Flameshot
+telegram|Telegram.TelegramDesktop
 firefox@developer-edition|Mozilla.Firefox.DeveloperEdition
 PARITY
 

@@ -1,87 +1,21 @@
 /**
  * Regression tests for the pure classification logic in ./classify.ts,
- * exercised against the tool configs mirrored from infra-safety.ts.
+ * exercised against the shared verb tables in ./infra-tables.ts.
  *
- * ./classify.ts has zero pi dependencies, so this runs standalone with
- * plain node/tsx — no pi runtime install required:
+ * Both ./classify.ts and ./infra-tables.ts are pi-free, so this runs
+ * standalone — no pi runtime install required:
  *
- *   npx tsx base/pi/.pi/agent/extensions/lib/mutation-guard.test.ts
+ *   node --experimental-strip-types --test lib/mutation-guard.test.ts
  *
- * Keep this file in sync whenever verb tables or classify()/findInvocations()
- * change — every bug found in review should leave a case here.
+ * The tool configs are imported from ./infra-tables.ts (single source of
+ * truth, also used by infra-safety.ts) — no manual sync needed. Whenever
+ * classify()/findInvocations() change, every bug found in review should
+ * leave a case here.
  */
 
 import { classify, findInvocations, hasDryRun, type ToolConfig } from "./classify.ts";
+import { TOOLS } from "./infra-tables.ts";
 
-// ── tool configs (kept in sync with infra-safety.ts) ─────────────
-const AWS_MUTATION = new Set([
-  "create", "delete", "update", "put", "post", "patch", "add", "remove", "set", "unset", "reset",
-  "replace", "modify", "edit", "truncate", "drop", "run", "start", "stop", "restart", "reboot",
-  "terminate", "launch", "shutdown", "poweroff", "halt", "suspend", "resume", "scale", "resize",
-  "recreate", "provision", "decommission", "drain", "failover", "attach", "detach", "associate",
-  "disassociate", "mount", "unmount", "connect", "disconnect", "register", "deregister",
-  "subscribe", "unsubscribe", "bind", "unbind", "cp", "mv", "sync", "rm", "rb", "mb", "move",
-  "copy", "upload", "download", "transfer", "push", "pull", "import", "export", "backup",
-  "restore", "migrate", "purge", "flush", "empty", "clear", "grant", "revoke", "allow", "deny",
-  "assign", "unassign", "tag", "untag", "label", "annotate", "apply", "deploy", "rollback",
-  "release", "promote", "install", "uninstall", "upgrade", "downgrade", "rollout", "enable",
-  "disable", "activate", "deactivate", "invoke", "execute", "exec", "call", "run-command",
-  "trigger", "emit", "send", "publish", "commit", "merge", "login", "logout", "rotate", "format",
-  "rename", "write", "append", "prepend", "cancel", "abort", "abandon", "evict",
-]);
-const AWS_READ = new Set([
-  "describe", "list", "get", "show", "display", "status", "history", "logs", "events", "help",
-  "version", "usage", "info", "explain", "query", "whoami", "ls", "stat", "find", "search",
-  "check", "validate", "verify", "test", "inspect", "audit", "review", "diff", "plan", "simulate",
-  "estimate", "calculate", "summarize",
-]);
-const AWS: ToolConfig = {
-  names: ["aws"],
-  verbPosition: "any",
-  mutation: AWS_MUTATION,
-  read: AWS_READ,
-  highRisk: new Set(["start-session", "execute-command", "ssh"]),
-};
-const AZ: ToolConfig = { ...AWS, names: ["az"] };
-const GCLOUD: ToolConfig = { ...AWS, names: ["gcloud"] };
-
-const KUBECTL: ToolConfig = {
-  names: ["kubectl"],
-  verbPosition: "first",
-  groupPrefixes: new Set(["config", "auth", "rollout"]),
-  alwaysRead: new Set(["auth can-i"]),
-  read: new Set([
-    "get", "describe", "logs", "top", "explain", "api-resources", "api-versions", "version",
-    "cluster-info", "diff", "config view", "config current-context", "config get-contexts",
-    "rollout status", "rollout history",
-  ]),
-  mutation: new Set([
-    "create", "apply", "delete", "patch", "edit", "replace", "label", "annotate", "scale",
-    "cordon", "uncordon", "drain", "taint", "expose", "set", "autoscale", "rollout restart",
-    "rollout undo", "rollout pause", "rollout resume", "config use-context", "config set-context",
-    "config set-cluster", "config set-credentials", "config delete-context",
-    "config delete-cluster", "config delete-user", "config rename-context",
-  ]),
-  highRisk: new Set(["exec", "cp", "port-forward", "proxy", "attach", "debug"]),
-};
-
-const TERRAFORM: ToolConfig = {
-  names: ["terraform", "tofu"],
-  verbPosition: "first",
-  groupPrefixes: new Set(["state", "workspace"]),
-  read: new Set([
-    "plan", "validate", "show", "output", "fmt", "graph", "version", "providers", "get",
-    "console", "state list", "state show", "workspace list", "workspace show",
-  ]),
-  mutation: new Set([
-    "apply", "import", "taint", "untaint", "force-unlock", "init", "refresh", "login", "logout",
-    "state rm", "state mv", "state push", "state replace-provider", "workspace new",
-    "workspace delete", "workspace select",
-  ]),
-  highRisk: new Set(["destroy"]),
-};
-
-const TOOLS = [AWS, AZ, GCLOUD, KUBECTL, TERRAFORM];
 const ALL_NAMES = new Set(TOOLS.flatMap((t) => t.names));
 const BY_NAME = new Map<string, ToolConfig>();
 for (const t of TOOLS) for (const n of t.names) BY_NAME.set(n, t);

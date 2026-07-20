@@ -98,8 +98,12 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
         ├── subagent/            vendored delegation tool
         ├── modes/               /chat /check /change
         ├── model-switch.ts      /use /cycle /models + rate-limit auto-fallback
-        ├── infra-safety.ts      infra CLI mutation guard
-        └── lib/mutation-guard.* shared locked/armed engine (+ node --test)
+        ├── infra-safety.ts      infra CLI mutation guard (wires infra-tables)
+        └── lib/
+            ├── mutation-guard.*  shared locked/armed engine (+ node --test)
+            ├── classify.ts       pure verb parsing/classification (pi-free)
+            └── infra-tables.ts   aws/az/gcloud/kubectl/terraform verb tables
+                                  (pi-free; shared by infra-safety + tests)
 ```
 
 ## Profiles: laptop vs. agentbox
