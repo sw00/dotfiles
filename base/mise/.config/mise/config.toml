@@ -42,12 +42,13 @@ lnav     = "latest"
 # ── Language runtimes ─────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.
 node    = "22"
-python  = "3.12"
+python  = "3.14"
 uv = "latest"
 github-cli = "latest"
 "pipx:httpie" = "latest"
 bitwarden-secrets-manager = "latest"
 pi = "latest"
+claude = "latest"
 
 # Uncomment when needed on a project:
 # go     = "latest"
