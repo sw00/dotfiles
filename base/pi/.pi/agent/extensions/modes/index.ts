@@ -1,12 +1,12 @@
 /**
  * Modes Extension — /chat, /check, /change workflow modes.
  *
- *   change (default) – full tools, Flash worker, escalation ladder active
+ *   change (default) – full tools, Pro worker, escalation ladder active
  *   check            – read-only gate: edit/write disabled, bash restricted
  *                      to read-only commands, domain guards (infra, …)
  *                      forced locked. Pair-troubleshooting: the user is
  *                      the escalation target, no subagent delegation.
- *   chat             – conceptual altitude: model switches to kimi-k3,
+ *   chat             – conceptual altitude: model switches to kimi-k2.6,
  *                      tools unrestricted, problem-space framing.
  *
  * Integration with mutation-guard domains (infra-safety.ts): modes may
@@ -25,7 +25,7 @@ import { getGuards } from "../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 
-const CHAT_MODEL = { provider: "opencode-go", id: "kimi-k3" };
+const CHAT_MODEL = { provider: "opencode-go", id: "kimi-k2.6" };
 const MODE_ORDER: Mode[] = ["change", "check", "chat"];
 const MODE_ICON: Record<Mode, string> = { change: "⚡", check: "🔍", chat: "💬" };
 
@@ -165,7 +165,7 @@ export default function (pi: ExtensionAPI) {
     const prev = mode;
     if (next === prev) return;
 
-    // model transitions: chat → kimi-k3; leaving chat → restore previous
+    // model transitions: chat → kimi-k2.6; leaving chat → restore previous
     if (next === "chat" && prev !== "chat") {
       savedModel = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : null;
       const m = ctx.modelRegistry.find(CHAT_MODEL.provider, CHAT_MODEL.id);
@@ -203,7 +203,7 @@ export default function (pi: ExtensionAPI) {
 
   for (const m of MODE_ORDER) {
     pi.registerCommand(m, {
-      description: `Switch to ${m} mode${m === "check" ? " (read-only, pair-troubleshooting)" : m === "chat" ? " (conceptual, kimi-k3)" : " (default, full execution)"}`,
+      description: `Switch to ${m} mode${m === "check" ? " (read-only, pair-troubleshooting)" : m === "chat" ? " (conceptual, kimi-k2.6)" : " (default, full execution)"}`,
       handler: async (_args, ctx) => applyMode(m, ctx),
     });
   }

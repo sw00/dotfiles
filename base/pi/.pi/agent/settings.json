@@ -1,19 +1,16 @@
 {
-  "lastChangelogVersion": "0.80.10",
+  "lastChangelogVersion": "0.81.1",
   "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultModel": "deepseek-v4-pro",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
-    "opencode-go/minimax-m3",
-    "opencode-go/deepseek-v4-flash",
-    "anthropic/claude-sonnet-4-6",
-    "anthropic/claude-opus-4-8",
-    "opencode-go/qwen3.7-plus",
     "opencode-go/deepseek-v4-pro",
-    "opencode-go/kimi-k3",
+    "opencode-go/deepseek-v4-flash",
+    "opencode-go/glm-5.2",
     "anthropic/claude-haiku-4-5",
-    "opencode-go/glm-5.2"
+    "opencode-go/kimi-k2.6",
+    "anthropic/claude-opus-4-8"
   ],
   "packages": [
     "git:github.com/pankajudhas81/pi-claude-auth",

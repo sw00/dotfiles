@@ -193,8 +193,9 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   the stowed `settings.json` symlink, so a plain `pi` run can dirty
   `base/pi/.pi/agent/settings.json` — e.g. flipping `defaultModel` to whatever
   was last picked. Before committing pi changes, `git diff` it and
-  `git checkout` any unintended default-model/provider drift (Flash-first keeps
-  `deepseek-v4-flash`).
+  `git checkout` any unintended default-model/provider drift (default is
+  `deepseek-v4-pro`; roster is deliberately minimal — 6 models, each with a
+  distinct role).
 - pi safety has two independent axes: session posture (change/check/chat) vs.
   per-domain write-gate (locked/armed, e.g. infra) — two-key; the infra gate
   opens only when both allow. Never conflate the vocabularies. Details:
@@ -224,6 +225,21 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   config) blocks indefinitely.  The system-level fix is `apt remove xsel` since
   `wsl-clipboard.lua` provides proper clipboard via `clip.exe` / powershell.
   The hang only affects health checks, not actual clipboard use.
+  `git checkout` any unintended default-model/provider drift (default is
+  `deepseek-v4-pro`; roster is deliberately minimal — 6 models, each with a
+  distinct role).
+- pi safety model has two independent state axes: **session posture**
+  (change/check/chat via mode commands) and **domain write-gates**
+  (locked/armed per domain like infra). A guard can be armed while modes is
+  chat; modes can be change while a guard is locked. The infra write gate only
+  opens when both axes allow it — two-key safety. Never conflate the two
+  vocabularies in edits or docs.
+- Subagent processes spawned by pi (oracle, reviewer, ...) load infra-safety
+  independently, default to locked, and run without an interactive UI —
+  live-infra mutations are hard-blocked regardless of the agent prompt.
+  General bash (test runners, builds) stays unguarded because oracle needs
+  them for diagnosis. This asymmetry is intentional: the tool gate covers
+  the highest-risk domain; the agent prompt covers the rest.
 
 ## Known pending work
 

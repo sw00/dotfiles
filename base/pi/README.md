@@ -1,36 +1,36 @@
 # pi coding agent config
 
-Flash-first workflow for the [pi](https://pi.dev) coding agent: a cheap fast
-model does most of the work and escalates to stronger models only when it gets
-stuck. Three explicit modes shape each session. Stows to `~/.pi/`.
+Minimal model roster for the [pi](https://pi.dev) coding agent: each model
+has a distinct role; escalation is driven by uncertainty, not failure counters.
+Three explicit modes shape each session. Stows to `~/.pi/`.
 
-## Models per role
+## Models
 
-| Role | Model | Cost | Where |
-|------|-------|------|-------|
-| Worker (main session) | `opencode-go/deepseek-v4-flash` | subscription | `settings.json` default |
-| `oracle` (diagnose/plan) | `opencode-go/kimi-k3` | subscription | `agent/agents/oracle.md` |
-| `oracle-pro` (2nd rung) | `opencode-go/deepseek-v4-pro` | subscription | `agent/agents/oracle-pro.md` |
-| `reviewer` (diff review) | `anthropic/claude-haiku-4-5` | subscription | `agent/agents/reviewer.md` |
-| Premium escape hatch | `anthropic/claude-opus-4-8` | metered | manual Ctrl+P only |
+| Model | Role | Rationale |
+|------|-------|-----------|
+| `opencode-go/deepseek-v4-pro` | Worker (default) | Best price/performance; strong meta-cognition for self-escalation |
+| `opencode-go/glm-5.2` | Oracle | Low hallucination rate (~28%); strong at long-horizon diagnosis |
+| `anthropic/claude-haiku-4-5` | Reviewer | Outperforms larger models on code review (academic eval); also falls back for web summaries |
+| `opencode-go/deepseek-v4-flash` | Web summaries (preferred) | Cheapest, fastest; summaries are low-stakes |
+| `opencode-go/kimi-k2.6` | Chat mode | Fast and cheap for conceptual discussion; K3 is overkill (slow, expensive, locked to max reasoning) |
+| `anthropic/claude-opus-4-8` | Manual premium | Premium last resort; never invoked by agents — Ctrl+P only |
 
-Rationale: small models handle ~80% of execution; escalation rungs are all
-free (subscription) so the agent climbs them without a cost conversation.
-`oracle` (Moonshot) is a different family from the DeepSeek worker for review
-diversity; `reviewer` stays on Anthropic for the same reason. Opus is metered,
-so the agent never invokes it — the user switches to it deliberately.
+All models except Opus are subscription-included. Web summarisation falls
+through Flash → Haiku → deterministic if the preferred model is unavailable.
 
-## Escalation ladder
+## Escalation
 
-Defined in `agent/APPEND_SYSTEM.md` (always in the system prompt — keep lean):
+Defined in `agent/APPEND_SYSTEM.md` (always in the system prompt — keep lean).
+Principle-driven: escalate on **uncertainty**, not failure count. No rigid
+file-count thresholds. Explicit skip-list for self-correctable errors (typos,
+wrong paths, missing imports).
 
 ```
-Flash worker
-  ├─ stuck (error twice / root cause unclear) → oracle: diagnose
-  ├─ task >3 files / architectural           → oracle: plan → .pi/plans/<slug>.md
-  ├─ oracle failed                           → oracle-pro (auto, free)
-  ├─ both failed                             → ask user (suggest Ctrl+P to Opus)
-  └─ after non-trivial change                → reviewer → fix → re-review once
+Worker (Pro)
+  ├─ uncertain about root cause / surprised by result → oracle: diagnose
+  ├─ need plan before multi-file work                 → oracle: plan → .pi/plans/<slug>.md
+  ├─ oracle failed                                    → ask user (Ctrl+P to Opus)
+  └─ after non-trivial change                         → reviewer → fix → re-review once → oracle if stuck
 ```
 
 Subagents run in isolated pi subprocesses (vendored `agent/extensions/subagent/`,
@@ -48,12 +48,12 @@ injected each turn and filtered when stale.
 |------|-------|-------|--------|
 | `change` (default) | full | worker | autonomous execution; ladder active |
 | `check` | read-only (edit/write off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
-| `chat` | unrestricted | kimi-k3 | conceptual altitude; no changes unless asked |
+| `chat` | unrestricted | kimi-k2.6 | conceptual altitude; no changes unless asked |
 
 Toolset is a pure function of the mode (stateless — no snapshot/restore).
 In check mode, domain mode tools (e.g. `infra_mode`) are also removed since
 every guard is force-locked and cannot be opened from within check.
-Entering `/chat` switches to kimi-k3 and restores the prior model on exit,
+Entering `/chat` switches to kimi-k2.6 and restores the prior model on exit,
 unless the user manually switched during chat.
 
 ### infra-safety integration
@@ -98,7 +98,7 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
     ├── settings.json            LAPTOP profile: provider, default model, cycle set
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
-    ├── agents/                  oracle, oracle-pro, reviewer
+    ├── agents/                  oracle, reviewer
     └── extensions/
         ├── subagent/            vendored delegation tool
         ├── modes/               /chat /check /change
