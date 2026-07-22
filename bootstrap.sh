@@ -306,7 +306,7 @@ ensure_vscodium_extensions() {
     log "installing VSCodium extensions from extensions.txt"
     grep -v '^#' "$ext_file" | grep -v '^$' | while read -r ext; do
         "$codium_cmd" --install-extension "$ext" --force 2>&1 \
-            | grep -v 'already installed' || true
+            | grep -vE 'already installed|DeprecationWarning|trace-deprecation' || true
     done
 }
 

@@ -231,10 +231,18 @@ export default function (pi: ExtensionAPI) {
   });
 
   // ── plain-text switching (robust over the Telegram [telegram] prefix) ──────
+  //
+  // Guard: skip queries that are too short (< 4 chars) to avoid matching
+  // common English words like "the" (from "Use the...") that happen to
+  // fuzzy-match a model's provider/id via .includes().  Explicit /use <model>
+  // commands are NOT affected — they route through registerCommand("use",...)
+  // which calls resolveQuery directly without this length filter.
   pi.on("input", async (event, ctx) => {
     const m = event.text.trim().match(/(?:^|\s)(?:switch\s+to\s+|(?:\/)?use\s+)([a-zA-Z0-9._/-]+)\b/i);
     if (!m) return;
-    const model = resolveQuery(m[1], ctx);
+    const query = m[1];
+    if (query.length < 4) return; // too short — likely English prose, not a model name
+    const model = resolveQuery(query, ctx);
     if (!model) return; // not a known model — let it pass through to the LLM
     await switchTo(model, ctx);
     return { action: "handled" };
