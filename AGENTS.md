@@ -240,6 +240,21 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   General bash (test runners, builds) stays unguarded because oracle needs
   them for diagnosis. This asymmetry is intentional: the tool gate covers
   the highest-risk domain; the agent prompt covers the rest.
+- VSCodium `--install-extension` emits harmless `DEP0169` warnings from its
+  bundled Electron/Node (not mise/system node). Extensions install fine.
+  Filter them in bootstrap.sh alongside `"already installed"` to keep the
+  bootstrap log clean.
+- Electron apps (Discord, VSCodium) bundle their own Node.js — mise/system
+  Node is never involved in their issues. Don't chase Node versions for
+  Electron app problems.
+- Discord brew cask can install metadata without moving the `.app` to
+  `/Applications`, leaving a dangling Caskroom symlink. Fix: `brew reinstall
+  --cask discord`.
+- Discord auto-updater (Squirrel/ShipIt) caches old versions in
+  `~/Library/Application Support/discord/app-*` and conflicts with a brew
+  reinstall, producing `InconsistentInstallerState`. Fix: quit Discord,
+  remove old `app-*` dirs and updater state files (`ShipIt_request.json`,
+  `installer.db`), then relaunch. The app will auto-update itself again.
 
 ## Known pending work
 
