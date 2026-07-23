@@ -349,6 +349,55 @@ check_has \
     'helper = !\\"' \
     "$DOTFILES/os/wsl/git/.gitconfig-wsl"
 
+# Windows-side git config (os/wsl/windows/git/.gitconfig) — pushed to
+# %USERPROFILE%\.gitconfig by up.sh.  Must stay in lockstep with base for
+# the identity / signing blocks; the WSL-only and Linux-only blocks from
+# base are dropped here (asserted absent so they can't creep back).
+WIN_GITCFG="$DOTFILES/os/wsl/windows/git/.gitconfig"
+check "win-git: .gitconfig exists and is parseable" \
+    test -f "$WIN_GITCFG" && \
+    git config --file "$WIN_GITCFG" -l
+check_has \
+    'win-git: user.signingkey matches base (GPG key parity)' \
+    'signingkey = 0x69EABBAB2FFE0374' \
+    "$WIN_GITCFG"
+check_has \
+    'win-git: commit.gpgSign = true (parity with base)' \
+    'gpgSign = true' \
+    "$WIN_GITCFG"
+check_has \
+    'win-git: gpg.program is absolute (Windows has no /usr/bin on PATH)' \
+    'program = C:/Program Files/GnuPG/bin/gpg.exe' \
+    "$WIN_GITCFG"
+check_not \
+    'win-git: no WSL-only [include] path = ~/.gitconfig-wsl' \
+    '^path = ~/\.gitconfig-wsl' \
+    "$WIN_GITCFG"
+check_not \
+    'win-git: no Linux-only etckeeper includeIf' \
+    '^gitdir:/etc/' \
+    "$WIN_GITCFG"
+check_not \
+    'win-git: no delta pager (delta not installed on Windows)' \
+    '^pager = delta' \
+    "$WIN_GITCFG"
+check_not \
+    'win-git: no LFS filter (git-lfs not installed on Windows; required=true breaks clones)' \
+    '^\[filter "lfs"\]' \
+    "$WIN_GITCFG"
+check_has \
+    'up.sh: Windows .gitconfig install present' \
+    'WIN_GITCFG_SRC' \
+    "$DOTFILES/os/wsl/up.sh"
+check_has \
+    'up.sh: GPG signing subkey exported from WSL to Windows' \
+    'export-secret-subkeys' \
+    "$DOTFILES/os/wsl/up.sh"
+check_has \
+    'winget.txt: Gpg4win present (Windows-side GPG GUI for commit signing)' \
+    'GnuPG.Gpg4win' \
+    "$DOTFILES/os/wsl/windows/winget.txt"
+
 # SSH config must not contain duplicate Host stanzas
 check "ssh/config.d/lan.conf: no duplicate Host entries" bash -c "
     dupes=\$(grep -hE '^Host ' '$DOTFILES/base/ssh/.ssh/config.d/lan.conf' \

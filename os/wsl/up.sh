@@ -202,6 +202,139 @@ if [[ -f "$VSCODIUM_SRC/extensions.txt" ]]; then
     fi
 fi
 
+# ── Git on Windows ───────────────────────────────────────────────────────────
+# Push a Windows-adapted git config (os/wsl/windows/git/.gitconfig), sync SSH
+# keys+config (best-effort), and export the WSL GPG signing SUBKEY into
+# Gpg4win's keyring so Windows-side commits (Obsidian Git, PowerShell,
+# scheduled) sign with the same identity as WSL/macOS.  HTTPS auth uses Git
+# Credential Manager, already configured system-wide by Git for Windows.
+#
+# The secret-subkey export copies the encrypted stub (no passphrase needed at
+# export time; the first Windows-side commit triggers Gpg4win pinentry).
+# Gracefully skips when WSL has no signing subkey yet (fresh bootstrap before
+# keys are imported) so up.sh never aborts mid-run.  Idempotent on every run.
+WIN_GITCFG_SRC="$WINDOWS_SRC/git/.gitconfig"
+WIN_GITCFG_DST="$WIN_HOME/.gitconfig"
+
+if [[ -f "$WIN_GITCFG_SRC" ]]; then
+    log "installing Windows .gitconfig → $WIN_GITCFG_DST"
+    cp -f "$WIN_GITCFG_SRC" "$WIN_GITCFG_DST"
+else
+    warn "os/wsl/windows/git/.gitconfig missing — skipping git config install"
+fi
+
+# Gpg4win gates these steps.  Probe, don't hard-fail: up.sh is safe to run
+# before the user installs Gpg4win (it comes via winget.txt on next bootstrap,
+# or `winget install --id GnuPG.Gpg4win` by hand).
+GPG4WIN_GPG="/mnt/c/Program Files/GnuPG/bin/gpg.exe"
+GPG4WIN_GPGCONF="/mnt/c/Program Files/GnuPG/bin/gpgconf.exe"
+WIN_GNUPG_HOME="$WIN_APPDATA/gnupg"   # Gpg4win default GNUPGHOME
+SIGNKEY="0x69EABBAB2FFE0374"           # subkey that actually signs commits
+PRIMARY_FPR="7B85AE48D79E6449BF47375AB3D46D7D68981502"
+
+if [[ -x "$GPG4WIN_GPG" ]]; then
+    mkdir -p "$WIN_GNUPG_HOME"
+
+    # Only export when the Windows keyring lacks the secret subkey — keeps
+    # pinentry out of routine up.sh runs.
+    if "$GPG4WIN_GPG" --homedir "$WIN_GNUPG_HOME" \
+            --list-secret-keys "$SIGNKEY" >/dev/null 2>&1; then
+        log "Windows GPG keyring already has signing key $SIGNKEY"
+    elif ! gpg --list-secret-keys "$SIGNKEY" >/dev/null 2>&1; then
+        # Fresh bootstrap before the user has imported their key on WSL.
+        # Warn and skip — never abort up.sh (Fonts/Komorebi run after this).
+        warn "WSL keyring has no secret subkey $SIGNKEY — skipping GPG export"
+        warn "load your keys on WSL first (gpg --import from your backup), then re-run up.sh"
+    else
+        log "exporting signing subkey from WSL → Windows ($WIN_GNUPG_HOME)"
+        log "(stub is exported encrypted; first Windows commit prompts Gpg4win pinentry)"
+        PUBKEY=$(mktemp); SUBKEY=$(mktemp); TRUST=$(mktemp)
+        # Every gpg call is guarded with `|| true` — a missing pubkey or an
+        # empty ownertrust blob must not trip `set -e` and abort up.sh.
+        gpg --armor --export "$PRIMARY_FPR" > "$PUBKEY" 2>/dev/null || true
+        # Secret SUBKEY only — the primary stays off Windows (compromise
+        # isolation).  Exports the encrypted stub; no passphrase at export time.
+        gpg --armor --export-secret-subkeys "$SIGNKEY" > "$SUBKEY" 2>/dev/null || true
+        gpg --export-ownertrust > "$TRUST" 2>/dev/null || true
+        if [[ -s "$SUBKEY" ]]; then
+            # Pub first (if present) so the subkey binds to a known primary.
+            [[ -s "$PUBKEY" ]] && \
+                "$GPG4WIN_GPG" --homedir "$WIN_GNUPG_HOME" \
+                    --import "$PUBKEY" >/dev/null 2>&1 || true
+            "$GPG4WIN_GPG" --homedir "$WIN_GNUPG_HOME" \
+                --import "$SUBKEY" >/dev/null 2>&1 || true
+            [[ -s "$TRUST" ]] && \
+                "$GPG4WIN_GPG" --homedir "$WIN_GNUPG_HOME" \
+                    --import-ownertrust "$TRUST" >/dev/null 2>&1 || true
+            # Belt-and-braces: explicitly mark the primary ultimate-trust so
+            # `git log --show-signature` reports "Good signature" on Windows.
+            printf '%s:6:\n' "$PRIMARY_FPR" \
+                | "$GPG4WIN_GPG" --homedir "$WIN_GNUPG_HOME" \
+                    --import-ownertrust /dev/stdin >/dev/null 2>&1 || true
+        else
+            warn "WSL has no secret subkey $SIGNKEY to export — nothing imported"
+            warn "load your keys on WSL first (gpg --import), then re-run up.sh"
+        fi
+        rm -f "$PUBKEY" "$SUBKEY" "$TRUST"
+    fi
+
+    # Cache TTLs only.  pinentry-program is intentionally NOT set:
+    # Gpg4win's default is its GUI pinentry-qt, and a "Program Files (x86)"
+    # path truncates at the first space in gpg-agent.conf's line parser.
+    [[ -L "$WIN_GNUPG_HOME/gpg-agent.conf" ]] \
+        && rm -f "$WIN_GNUPG_HOME/gpg-agent.conf"
+    cat > "$WIN_GNUPG_HOME/gpg-agent.conf" << 'EOF'
+# gpg-agent.conf — Windows (Gpg4win).  Written by os/wsl/up.sh.
+# pinentry-program is intentionally unset: Gpg4win defaults to its GUI
+# pinentry-qt, and a "Program Files (x86)" path would truncate at the
+# first space in gpg-agent.conf's parser.
+default-cache-ttl 3600
+max-cache-ttl 86400
+EOF
+    "$GPG4WIN_GPGCONF" --homedir "$WIN_GNUPG_HOME" --reload gpg-agent \
+        >/dev/null 2>&1 || true
+else
+    warn "Gpg4win not installed at $GPG4WIN_GPG"
+    warn "install it, then re-run:  winget install --id GnuPG.Gpg4win"
+fi
+
+# ── SSH keys for Windows-side git over SSH (best-effort) ─────────────────────
+# Only required for SSH remotes from Windows; the Obsidian vault uses HTTPS via
+# Git Credential Manager (set system-wide by Git for Windows), so this is
+# optional parity.  Copies the github identity plus any resolved secrets/*_rsa
+# keys, and assembles ~/.ssh/config (+ Include'd config.d/) so the same Host
+# mappings resolve as on WSL.  ACLs are locked down so Windows OpenSSH accepts
+# the keys (Git for Windows' bundled ssh is more permissive but we tighten
+# anyway for safety).
+SSH_WIN="$WIN_HOME/.ssh"
+if [[ -r "$HOME/.ssh/id_rsa" ]]; then
+    log "syncing SSH keys+config → $SSH_WIN (best-effort)"
+    mkdir -p "$SSH_WIN"
+    cp -f "$DOTFILES/base/ssh/.ssh/config" "$SSH_WIN/config"
+    rm -rf "$SSH_WIN/config.d"
+    cp -r "$DOTFILES/base/ssh/.ssh/config.d" "$SSH_WIN/config.d"
+    # -L follows the secrets/*_rsa symlinks into dotfiles/secrets (git-crypt).
+    for k in id_rsa id_rsa.pub known_hosts \
+             dokku_rsa lan_rsa uwu_rsa x_rsa \
+             bitbucket.org_rsa heroku.com_rsa; do
+        [[ -r "$HOME/.ssh/$k" ]] && cp -fL "$HOME/.ssh/$k" "$SSH_WIN/$k"
+    done
+    PS_ACL=$(mktemp --suffix=.ps1)
+    cat > "$PS_ACL" << 'EOF'
+$ssh = "$env:USERPROFILE\.ssh"
+icacls "$ssh" /inheritance:r /grant:r "$env:USERNAME:(OI)(CI)F" /grant:r "SYSTEM:(OI)(CI)F" | Out-Null
+Get-ChildItem "$ssh" -File | ForEach-Object {
+    icacls $_.FullName /inheritance:r /grant:r "$env:USERNAME:F" | Out-Null
+}
+EOF
+    powershell.exe -NoProfile -ExecutionPolicy Bypass \
+        -File "$(wslpath -w "$PS_ACL")" >/dev/null 2>&1 \
+        || warn "SSH ACL lockdown failed — Windows OpenSSH may refuse the keys"
+    rm -f "$PS_ACL"
+else
+    warn "no ~/.ssh/id_rsa on WSL — skipping Windows SSH key sync"
+fi
+
 # ── Fonts ───────────────────────────────────────────────────────────────────────
 # Write a PowerShell script to a temp file to avoid bash/PS escaping tangles.
 # Per-user font dir (%LOCALAPPDATA%\Microsoft\Windows\Fonts) requires explicit

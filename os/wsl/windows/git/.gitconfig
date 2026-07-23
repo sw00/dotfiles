@@ -1,0 +1,58 @@
+# Windows-side git config — pushed to %USERPROFILE%\.gitconfig by os/wsl/up.sh.
+#
+# Derived from base/git/.gitconfig with the WSL/Linux-only blocks dropped:
+#   - [include]      path = ~/.gitconfig-wsl    (WSL credential helper)
+#   - [includeIf "gitdir:/etc/"]                (etckeeper, Linux-only)
+#   - [diff]/[difftool]/dt alias                (needs nvimdiff)
+#   - [core]        pager = delta               (delta not installed on Windows)
+#   - [interactive] diffFilter                  (consequence of no delta)
+#   - [filter "lfs"]                            (git-lfs not installed on Windows;
+#                                                required=true would break every clone)
+#   - [credential] helper = cache ...           (Git for Windows sets
+#                                                credential.helper=manager system-wide)
+#
+# Keep in lockstep with base/git/.gitconfig for: user, signing, branch/push
+# defaults, autocrlf/eol, merge.conflictStyle, colors.  check.sh asserts the
+# signing key, gpg-sign flag, and gpg.program path.
+#
+# GPG commit signing uses Gpg4win's gpg (installed via winget.txt) via the
+# absolute gpg.program path — Windows has no PATH entry for /usr/bin, so an
+# unqualified "gpg" would not be found by git.exe spawned from cmd/PowerShell/
+# Obsidian.  Keys are imported from the WSL keyring by up.sh into
+# %APPDATA%\gnupg (Gpg4win's default home).
+
+[user]
+	email = exec@sett.sh
+	name = Sett Wai
+	signingkey = 0x69EABBAB2FFE0374
+
+[commit]
+	gpgSign = true
+
+[init]
+	defaultBranch = main
+
+[color]
+	diff = auto
+	status = auto
+	branch = auto
+[color "status"]
+	changed = "yellow "
+	untracked = "dim "
+
+[push]
+	default = current
+
+[core]
+	autocrlf = input
+	eol = lf
+	safecrlf = warn
+
+[merge]
+	conflictStyle = zdiff3
+
+# Absolute path keeps Windows from falling back to a gpg it can't find when
+# git.exe is spawned headless (Obsidian Git, PowerShell, scheduler).  Forward
+# slashes are valid in git config values and avoid backslash escaping.
+[gpg]
+	program = C:/Program Files/GnuPG/bin/gpg.exe

@@ -15,6 +15,11 @@ VSCodium.VSCodium
 # Git for Windows — provides git-credential-manager.exe referenced in
 # os/wsl/git/.gitconfig-wsl for Windows Credential Manager integration.
 Git.Git
+# Gpg4win — Windows-side GnuPG + GUI pinentry (pinentry-qt) for commit
+# signing.  Windows-only analog of the gnupg system package on mac/Linux;
+# no Brewfile-base parity pair (see AGENTS.md: system-pkg-only tools).
+# os/wsl/up.sh imports the WSL signing subkey into %APPDATA%\gnupg.
+GnuPG.Gpg4win
 Mozilla.Firefox.DeveloperEdition
 JetBrains.PyCharm.Community
 Flameshot.Flameshot
