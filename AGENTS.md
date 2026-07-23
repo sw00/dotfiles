@@ -141,7 +141,33 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   (`os/wsl/git/.gitconfig-wsl`); canonical remotes are SSH anyway.
 - bash `${var#...}` tolerates no spaces around the operator.
 - check.sh `check_has` patterns are line-based grep; multi-line assertions
-  need `bash -c "... grep -A1 ... | grep -q ..."` instead.
+  need `bash -c "... grep -A1 ... | grep -q ..."` instead. `check_not`
+  patterns must be `^-anchored` when the target file has a header comment
+  that names the banned thing (an un-anchored `path = ~/\.gitconfig-wsl`
+  matches the comment listing it, not just a real config line).
+- Windows-side `git.exe` spawned from WSL cannot read message files in
+  WSL `/tmp` (separate filesystem) — `git commit -F /tmp/msg.txt` fails
+  `could not read log file`. Write to a Windows path instead:
+  `/mnt/c/Users/<u>/AppData/Local/Temp/msg.txt` (= `%TEMP%`).
+- Gpg4win installs to `C:\Program Files\GnuPG\bin\` — NOT
+  `Program Files (x86)`. The 32-bit path is empty; hard-coding it
+  (as the first draft of `os/wsl/windows/git/.gitconfig` did) breaks
+  `gpg.program` for every Windows-side commit.
+- `gpg --export-secret-subkeys` copies the ENCRYPTED stub — no
+  passphrase/pinentry at export time. The passphrase prompt fires on
+  the receiving keyring's first signing USE (Gpg4win GUI pinentry-qt).
+  So WSL→Windows key sync in `up.sh` runs headless; only the user's
+  first `git commit` after import pops a dialog. This is the opposite
+  of the natural assumption that exporting a secret needs the passphrase.
+- `gpg-agent.conf`'s `pinentry-program` line parser truncates at the
+  first space, so a `Program Files (x86)` path there is silently broken.
+  Leave `pinentry-program` unset in the Windows `gpg-agent.conf` —
+  Gpg4win defaults to its GUI `pinentry-qt`. (`up.sh` writes only TTLs.)
+- Gpg4win's `--list-secret-keys` shows a `[keyboxd]` keyring (not the
+  classic `pubring.kbx`); that's normal, the keys import there fine.
+- `gh repo delete` needs the `delete_repo` scope; a plain `GITHUB_TOKEN`
+  returns `HTTP 403: Must have admin rights`. Either delete via the web
+  UI or `gh auth refresh -h github.com -s delete_repo` first.
 - shellcheck runs at `-S warning`; info-level findings (e.g. SC2016 on
   intentional `bash -c '...$1...'` script bodies) are acceptable.
 - Mosh: C++ with system deps (protobuf, utempter, openssl), no mise/ubi/Windows
