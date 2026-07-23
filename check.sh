@@ -855,7 +855,36 @@ check_has "alacritty base.toml: font family is CaskaydiaCove Nerd Font Mono" \
 
 
 # =============================================================================
-# 11. NEOVIM SMOKE TEST
+# 11. PI SHARED-CORE BOUNDARY
+# =============================================================================
+section "Pi shared-core boundary (no deployment-specific leakage)"
+
+# The shared core under base/pi/.pi/agent/ is copied verbatim onto every
+# deployment (laptop stow, agentbox copy). It must stay generic: no knowledge
+# of the Telegram bridge, the agentbox appliance, or any host-specific overlay.
+# Those concerns live in their host repos (e.g. sw00/homelab owns tg-status /
+# confirmation-gate / pi-settings.json). This guard prevents regressions like
+# the [telegram] prefix that once leaked into model-switch.ts.
+check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)" \
+    bash -c "! grep -rEq 'telegram|agentbox|tg-status|tg-session|confirmation-gate|cf-gateway|pi-telegram' \
+        '$DOTFILES/base/pi/.pi/agent/extensions' \
+        '$DOTFILES/base/pi/.pi/agent/agents' \
+        '$DOTFILES/base/pi/.pi/agent/APPEND_SYSTEM.md' \
+        '$DOTFILES/base/pi/.pi/agent/AGENTS.md' \
+        '$DOTFILES/base/pi/.pi/agent/settings.json'"
+
+# Regression guard for the "use <model>" false-positive bug: the plain-text
+# input handler must be ^-anchored (start-of-input only), never the old
+# (?:^|\s) mid-sentence form. The [telegram] prefix is already blocked by
+# the leakage check above.
+check_has "pi: model-switch plain-text regex ^-anchored (start-of-input only)" \
+    '\^\(\?:switch' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
+check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive source)" \
+    '\(\?:\^\|\\s\)' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
+
+
+# =============================================================================
+# 12. NEOVIM SMOKE TEST
 # =============================================================================
 section "Neovim smoke test"
 

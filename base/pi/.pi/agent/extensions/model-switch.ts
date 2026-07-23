@@ -9,25 +9,31 @@
  *
  *   2. FALLBACK MAP = `rateLimitFallbacks` in settings.json: a map of
  *      "provider/id" (primary) -> "provider/id" (OpenRouter twin). Consulted
- *      ONLY on HTTP 429/529. If the key is absent/empty (e.g. the laptop
- *      profile), auto-fallback does NOTHING — an attended user handles rate
- *      limits manually. The agentbox profile populates this map so the
- *      unattended Telegram bridge stays alive on a metered OpenRouter twin.
+ *      ONLY on HTTP 429/529. If the key is absent/empty (e.g. an attended
+ *      profile), auto-fallback does NOTHING — the user handles rate limits
+ *      manually. An unattended deployment populates this map so it stays
+ *      alive on a metered OpenRouter twin when its subscription provider
+ *      rate-limits. This map is per-profile config, owned by each host's
+ *      settings.json — never hardcoded here.
  *
  * STICKY caveat: pi.setModel() persists defaultModel to settings.json, so a
  * fallback survives turns/sessions/restarts. To avoid getting stuck on the
  * metered twin, we switch BACK to the primary on session_start whenever the
  * current model is a fallback twin and its primary's provider is authed again.
  *
- * Manual (Telegram or TUI):
+ * Manual (TUI):
  *   /use <query>     — switch to a model by fuzzy id match (any authed model)
  *   /models          — show active model, the cycle set, and the fallback map
  *   /cycle           — cycle to the next model in the cycle set
- *   plain text:      "use <query>" or "switch to <query>"
+ *   plain text:      "use <query>" or "switch to <query>" (start-of-input only)
  *
- * NOTE (S7): ctx.ui.notify renders in the tmux TUI footer; it may NOT be
- * mirrored to the Telegram chat by pi-telegram. If a silent metered switch is a
- * concern, surface it as an assistant message instead. Left as notify for now.
+ * NOTE: this extension is host-agnostic and has NO knowledge of any specific
+ * bridge or appliance. Source-specific input prefixes (e.g. a chat-bridge tag)
+ * must be stripped by a host-owned extension before they reach the plain-text
+ * handler below; the regex is ^-anchored precisely so it does NOT match such
+ * prefixed input. ctx.ui.notify renders in the tmux TUI footer and may not be
+ * surfaced on non-TUI frontends; if silent model changes are a concern on a
+ * given deployment, surface them from that deployment's own extension.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -230,21 +236,38 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // ── plain-text switching (robust over the Telegram [telegram] prefix) ──────
+  // ── plain-text switching ──────────────────────────────────────────────────
+  //
+  // Matches only at the START of input (^ anchor) to avoid false positives on
+  // natural language like "Should I use kimi-k2.6?".  Source-specific prefixes
+  // (e.g. a chat-bridge tag) must be stripped by a host-owned extension
+  // before they reach this handler; this regex intentionally has no knowledge
+  // of any such prefix.
   //
   // Guard: skip queries that are too short (< 4 chars) to avoid matching
   // common English words like "the" (from "Use the...") that happen to
   // fuzzy-match a model's provider/id via .includes().  Explicit /use <model>
   // commands are NOT affected — they route through registerCommand("use",...)
   // which calls resolveQuery directly without this length filter.
+  //
+  // When trailing text follows the switch command, it is passed through to the
+  // LLM instead of being swallowed; standalone "use <model>" is consumed.
   pi.on("input", async (event, ctx) => {
-    const m = event.text.trim().match(/(?:^|\s)(?:switch\s+to\s+|(?:\/)?use\s+)([a-zA-Z0-9._/-]+)\b/i);
+    const m = event.text.trim().match(
+      /^(?:switch\s+to\s+|(?:\/)?use\s+)([a-zA-Z0-9._/-]+)\b\s*(.*)/is,
+    );
     if (!m) return;
     const query = m[1];
     if (query.length < 4) return; // too short — likely English prose, not a model name
     const model = resolveQuery(query, ctx);
     if (!model) return; // not a known model — let it pass through to the LLM
     await switchTo(model, ctx);
+    const rest = m[2].trim();
+    if (rest) {
+      // User combined switch + query in one message: forward the query.
+      return { action: "transform", text: rest };
+    }
+    // Standalone switch — consume the input, no LLM reply needed.
     return { action: "handled" };
   });
 

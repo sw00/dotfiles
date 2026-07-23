@@ -255,6 +255,29 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   reinstall, producing `InconsistentInstallerState`. Fix: quit Discord,
   remove old `app-*` dirs and updater state files (`ShipIt_request.json`,
   `installer.db`), then relaunch. The app will auto-update itself again.
+- **pi shared-core vs. deployment boundary**: `base/pi/.pi/agent/` is the
+  **shared core** — copied verbatim onto every deployment (laptop stow;
+  agentbox copy-on-deploy in `sw00/homelab`). It MUST stay host-agnostic:
+  no `telegram`, `agentbox`, `tg-*`, `pi-telegram`, `[telegram]`, or any
+  appliance-specific token. Those concerns live only in the homelab's overlay
+  files (`files/pi-settings.json`, `files/tg-status.ts`,
+  `files/confirmation-gate.ts`, `files/cf-gateway.js`). `check.sh` has a guard
+  that fails the suite if any of those tokens leak into the shared core, plus
+  a regression guard that `model-switch.ts`'s plain-text regex stays
+  `^`-anchored (the `(?:^|\s)` mid-sentence form once made "use kimi-k2.6" in
+  any prompt silently switch the model AND swallow the whole prompt via
+  `{action:"handled"}` — the prompt never reached the LLM). The fix: ^-anchor
+  + forward trailing text as `{action:"transform"}`. Over Telegram the
+  `[telegram]` prefix is stripped by `tg-status` (homelab-owned), which also
+  owns `/use`+`use` beyond the bridge since `model-switch` is now bridge-agnostic.
+  The agentbox's `pi-settings.json` and overlay extensions are owned by the
+  homelab repo, NOT tracked here; a stale "Profiles: laptop vs. agentbox"
+  table was removed from `base/pi/README.md` for this reason.
+- pi `setModel()` persists `defaultModel` through the stowed `settings.json`
+  symlink, so a plain `pi` run dirties `base/pi/.pi/agent/settings.json` with
+  whichever model was last picked (e.g. flipped to `glm-5.2`/`deepseek-v4-flash`
+  mid-session). Before committing pi changes: `git diff` it and `git checkout`
+  any unintended default-model drift (default is `deepseek-v4-pro`).
 
 ## Known pending work
 

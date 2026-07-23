@@ -111,22 +111,16 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
                                   (pi-free; shared by infra-safety + tests)
 ```
 
-## Profiles: laptop vs. agentbox
+## Shared core vs. profile
 
-Everything under `agent/` except `settings.json` is the **shared core**, used
-identically on the laptop (stowed) and on the always-on Telegram agentbox
-(CT 105 in `sw00/homelab`, where the role **copies** the core into `~/.pi/agent/`).
-`settings.json` is **per-profile** — two hand-maintained files:
-
-| | Laptop (this file) | Agentbox (`homelab:ansible/roles/agentbox/files/pi-settings.json`) |
-|---|---|---|
-| default model | `opencode-go/deepseek-v4-flash` (attended) | `opencode-go/kimi-k3` (unattended) |
-| `packages` | no telegram | + `pi-telegram` |
-| `rateLimitFallbacks` | — (attended; manual switch) | OpenRouter twins (auto-fallback) |
-
-Keep the `enabledModels` roster and shared `packages` in sync between the two by
-hand (JSON can't carry a note). The agentbox profile is owned by the homelab
-repo, not here.
+Everything under `agent/` except `settings.json` is the **shared core**:
+generic, host-agnostic, no knowledge of any particular deployment (no Telegram
+bridge, no appliance defaults). The laptop profile is the `settings.json` in
+this repo. Other deployments (e.g. an always-on agentbox) own their own
+`settings.json` and any host-specific overlay extensions **in their host
+repos** — they are NOT tracked here, and the shared core must stay free of
+references to them (no `[telegram]`, no `agentbox`, no appliance model
+defaults). `check.sh` enforces this.
 
 ## model-switch
 
