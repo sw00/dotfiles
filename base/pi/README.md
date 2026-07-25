@@ -84,10 +84,47 @@ relies on the agent prompt, not a tool gate.
 
 ## Web search
 
-Exa zero-config MCP (no API key). Config at `~/.pi/web-search.json`
-(`base/pi/.pi/web-search.json`) — provider `exa`, `auto-summary` workflow (no
-browser curator), summaries drafted by Flash. Query-hygiene rule in
-`agent/AGENTS.md`.
+**Brave Search** via `pi-web-access`. Config at `~/.pi/web-search.json`
+(`base/pi/.pi/web-search.json`) — provider `brave`, `auto-summary` workflow (no
+browser curator), summaries drafted by Flash. Key resolved from
+`BRAVE_SEARCH_API_KEY` (or `BRAVE_API_KEY`). Brave is SOC 2 Type II attested
+with explicit Zero Data Retention — stronger posture than the prior Exa
+integration. Query-hygiene rule in `agent/AGENTS.md`.
+
+## ZDR posture
+
+| Provider | Model(s) | Training? | Retention |
+|---|---|---|---|
+| Brave Search API | — | No | Zero (SOC 2 Type II) |
+| OpenCode Go (Zen) | `deepseek-v4-pro`, `deepseek-v4-flash`, `glm-5.2`, `kimi-k2.6` | No | Zero (paid tier) |
+| Anthropic (Console) | `claude-haiku-4-5`, `claude-opus-4-8` | No | Zero (API/Pro) |
+| OpenRouter | varies by upstream | Configurable | Depends on upstream |
+
+**Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.
+`deepseek-v4-flash-free`) explicitly permit training. The summary model here
+is the paid `deepseek-v4-flash` (no suffix) — safe. A `check.sh` guard should
+prevent a free variant from creeping into `summaryModel`.
+
+**OpenRouter:** ZDR is opt-in via OR's privacy settings, and upstream provider
+data policies vary. The `models.json` registration below sets
+`openRouterRouting.data_collection: "deny"` for every OR model, but you should
+also lock the global OR privacy dashboard (ZDR-only routing + disable model
+training) before relying on OR for sensitive contexts.
+
+## Observability
+
+**pi:** `@tmustier/pi-usage-extension` (installed via `settings.json` packages)
+provides a `/usage` command with a full TUI dashboard: braille line-chart
+explorer (cost/tokens/messages over time, per-provider/per-model), sortable
+table with export to CSV, and automated insights (cache-miss alarms, project
+mix, burn trend, upfront tax warnings). Uses **real USD cost** from API
+responses — when you're on subscriptions the marginal cost is £0; the dashboard
+quantifies your subscription value and flags when metered fallback spend is
+non-zero. Entirely local (reads `~/.pi/agent/sessions/` JSONL), no external
+service, no ZDR compromise.
+
+**Jan:** Native per-conversation usage display. A unified cross-tool tracker
+is deferred — see TODO.md.
 
 ## File map
 
@@ -96,6 +133,7 @@ browser curator), summaries drafted by Flash. Query-hygiene rule in
 ├── web-search.json              → ~/.pi/web-search.json (pi-web-access config)
 └── agent/                       → ~/.pi/agent/
     ├── settings.json            LAPTOP profile: provider, default model, cycle set
+    ├── models.json              OpenRouter provider registration (shared core; env-var key)
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, reviewer
@@ -126,11 +164,23 @@ defaults). `check.sh` enforces this.
 
 `agent/extensions/model-switch.ts` — `/use <q>` (fuzzy-switch any authed model),
 `/cycle` (rotate the **cycle set** = `enabledModels`), `/models` (show active +
-cycle set + fallback map). On HTTP 429/529 it consults the **fallback map**
-(`rateLimitFallbacks`, primary → OpenRouter twin) and hops to the twin if authed;
-absent map (laptop) → no-op. Fallbacks are **sticky** (pi persists `defaultModel`),
-so it switches back to the primary on `session_start`. OpenRouter mirrors live
-**only** in `rateLimitFallbacks`, never in `enabledModels`.
+cycle set + fallback map).
+
+### Auto-fallback (map-driven)
+
+On HTTP 429/529, the extension consults `rateLimitFallbacks` (primary →
+OpenRouter twin) and hops if authed. **The laptop `settings.json` now includes
+`rateLimitFallbacks` for all 6 primary models** — when a subscription
+rate-limits, pi automatically switches to the OpenRouter twin, then recovers
+to the primary on next session start.
+
+OpenRouter models are registered in `models.json` so they appear in `/models` and
+can be reached manually via `/use`, but they are **excluded from** `enabledModels`.
+
+### Recovery
+
+Fallbacks are **sticky** (pi persists `defaultModel`). The extension switches
+back to the primary on `session_start` when it is authed again.
 
 ## Tests
 

@@ -59,6 +59,51 @@ These are sound but riskier; left for a follow-up PR.
   neotest or remove.
 - [P2] git-crypt: reduce the URL-hint regex copy-paste across alacritty
   configs to a shared imported file; add a check.sh parity test.
+- [P2] Bitwarden Secrets Manager (BWS) for provider key provisioning.
+  Current state: `BWS_ACCESS_TOKEN` is already in `secrets/env.sh`
+  (git-crypt), but provider keys (`BRAVE_SEARCH_API_KEY`,
+  `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`) still
+  live in that same file directly.
+
+  Why: BWS gives per-host/project key partitioning without turning
+  `secrets/` into a matrix of host-specific env files. Laptops share
+  a global keyset; the agentbox (unattended, Telegram-bridged, lower
+  trust) can pull a separate machine-scoped set with OpenRouter spend
+  caps. Provider key rotation becomes a BWS dashboard edit instead of
+  a git-crypt re-key + re-commit. `check.sh` and bootstrap stay simple
+  because they only need to verify `BWS_ACCESS_TOKEN`.
+
+  Path: add a `bws` CLI tool via mise (registry or aqua), add a
+  fish `conf.d/bws-secrets.fish` that pulls keys at shell startup
+  (`bws secret get <name> --output env`), keep `BWS_ACCESS_TOKEN`
+  as the sole git-crypt secret.
+
+  Risk: offline shell startup loses keys unless we cache or accept
+  missing. Agentbox is the primary beneficiary; laptops can stay on
+  direct keys if the offline risk matters.
+
+  **Sub-item: rotate secrets during migration.** The existing keys in
+  `secrets/env.sh` were exposed in a prior agent session (tool output).
+  Schedule rotation of `OPENROUTER_API_KEY`, `BRAVE_SEARCH_API_KEY`, and
+  `ANTHROPIC_API_KEY` as part of the BWS cutover — do not migrate the
+  current values.
+- [P2] **OpenRouter ZDR lockdown.** The OR dashboard has per-request and
+  global ZDR settings (ZDR-only routing + disable model training). Before
+  relying on OR for sensitive work contexts, configure these. This is a
+  one-time web-UI action, not a code change, but it gates the fallback
+  mechanism's privacy guarantee.
+- [P2] **`check.sh` guard: summary model must not be free-tier.** OpenCode
+  Go's free models (suffixed `-free`) train on data. Add a check that
+  `base/pi/.pi/web-search.json` → `summaryModel` does not match `*-free`
+  (and ideally does not contain any free-tier model from a known list).
+  Also guard `settings.json` `enabledModels` for the same.
+- [P2] **Jan LLM-provider unification.** We unified web search (Brave MCP),
+  but Jan still routes LLM queries through its own provider stack. If Jan
+  is to become a first-class member of the unified AI stack, its LLM
+  endpoint should point to the same primary providers (or through a shared
+  gateway). Evaluate whether Jan's "Custom Endpoint" supports OpenCode Go
+  directly, or whether it too should route through OpenRouter (with ZDR)
+  for consistency with pi's fallback model.
 
 ## Out of scope (keep)
 
