@@ -4,7 +4,7 @@
  * Two DECOUPLED sets (config-driven, nothing hardcoded):
  *
  *   1. CYCLE SET = `enabledModels` in settings.json (the curated Ctrl+P list).
- *      Used by /cycle, /use, /models, plain-text switching. OpenRouter mirrors
+ *      Used by /cycle, /use, /models. OpenRouter mirrors
  *      must NOT appear here — they are fallback-only.
  *
  *   2. FALLBACK MAP = `rateLimitFallbacks` in settings.json: a map of
@@ -25,15 +25,11 @@
  *   /use <query>     — switch to a model by fuzzy id match (any authed model)
  *   /models          — show active model, the cycle set, and the fallback map
  *   /cycle           — cycle to the next model in the cycle set
- *   plain text:      "use <query>" or "switch to <query>" (start-of-input only)
  *
  * NOTE: this extension is host-agnostic and has NO knowledge of any specific
- * bridge or appliance. Source-specific input prefixes (e.g. a chat-bridge tag)
- * must be stripped by a host-owned extension before they reach the plain-text
- * handler below; the regex is ^-anchored precisely so it does NOT match such
- * prefixed input. ctx.ui.notify renders in the tmux TUI footer and may not be
- * surfaced on non-TUI frontends; if silent model changes are a concern on a
- * given deployment, surface them from that deployment's own extension.
+ * bridge or appliance. ctx.ui.notify renders in the tmux TUI footer and may
+ * not be surfaced on non-TUI frontends; if silent model changes are a concern
+ * on a given deployment, surface them from that deployment's own extension.
  */
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -236,40 +232,6 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // ── plain-text switching ──────────────────────────────────────────────────
-  //
-  // Matches only at the START of input (^ anchor) to avoid false positives on
-  // natural language like "Should I use kimi-k2.6?".  Source-specific prefixes
-  // (e.g. a chat-bridge tag) must be stripped by a host-owned extension
-  // before they reach this handler; this regex intentionally has no knowledge
-  // of any such prefix.
-  //
-  // Guard: skip queries that are too short (< 4 chars) to avoid matching
-  // common English words like "the" (from "Use the...") that happen to
-  // fuzzy-match a model's provider/id via .includes().  Explicit /use <model>
-  // commands are NOT affected — they route through registerCommand("use",...)
-  // which calls resolveQuery directly without this length filter.
-  //
-  // When trailing text follows the switch command, it is passed through to the
-  // LLM instead of being swallowed; standalone "use <model>" is consumed.
-  pi.on("input", async (event, ctx) => {
-    const m = event.text.trim().match(
-      /^(?:switch\s+to\s+|(?:\/)?use\s+)([a-zA-Z0-9._/-]+)\b\s*(.*)/is,
-    );
-    if (!m) return;
-    const query = m[1];
-    if (query.length < 4) return; // too short — likely English prose, not a model name
-    const model = resolveQuery(query, ctx);
-    if (!model) return; // not a known model — let it pass through to the LLM
-    await switchTo(model, ctx);
-    const rest = m[2].trim();
-    if (rest) {
-      // User combined switch + query in one message: forward the query.
-      return { action: "transform", text: rest };
-    }
-    // Standalone switch — consume the input, no LLM reply needed.
-    return { action: "handled" };
-  });
 
   // ── Auto-fallback on rate limit / overload (MAP-DRIVEN) ────────────────────
   // Fires ONLY when `rateLimitFallbacks` maps the current model to an authed
