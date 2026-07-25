@@ -922,12 +922,10 @@ check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)
         '$DOTFILES/base/pi/.pi/agent/AGENTS.md' \
         '$DOTFILES/base/pi/.pi/agent/settings.json'"
 
-# Regression guard for the "use <model>" false-positive bug: the plain-text
-# input handler must be ^-anchored (start-of-input only), never the old
-# (?:^|\s) mid-sentence form. The [telegram] prefix is already blocked by
-# the leakage check above.
-check_has "pi: model-switch plain-text regex ^-anchored (start-of-input only)" \
-    '\^\(\?:switch' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
+# Regression guard for the "use <model>" false-positive bug.  Plain-text
+# input switching was removed entirely in 3ebbb2e (Telegram bridge now strips
+# the [telegram] prefix and pi handles /use as a slash command).  The only
+# guard we still need: the old (?:^|\s) mid-sentence form must never reappear.
 check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive source)" \
     '\(\?:\^\|\\s\)' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
 
