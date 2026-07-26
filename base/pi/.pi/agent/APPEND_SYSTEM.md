@@ -28,8 +28,8 @@ stop and escalate.
 structurally risky operations (ZFS, secrets, deploy), or any task where a wrong
 first step costs >5 min to undo — suggest running oracle first. Phrase as a
 quick question, not overhead: "This touches 3 files — want oracle to plan it
-first?" For reasoning-heavy research or analysis tasks, suggest switching to
-deeepseek-v4-pro or glm-5.2 for better depth.
+first?" For reasoning-heavy research or analysis tasks, suggest switching to a
+stronger reasoning model.
 
 ## When not to escalate
 
