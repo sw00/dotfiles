@@ -84,11 +84,10 @@ These are sound but riskier; left for a follow-up PR.
   missing. Agentbox is the primary beneficiary; laptops can stay on
   direct keys if the offline risk matters.
 
-  **Sub-item: rotate secrets during migration.** The existing keys in
-  `secrets/env.sh` were exposed in a prior agent session (tool output).
-  Schedule rotation of `OPENROUTER_API_KEY`, `BRAVE_SEARCH_API_KEY`, and
-  `ANTHROPIC_API_KEY` as part of the BWS cutover — do not migrate the
-  current values.
+  **Sub-item: rotate secrets during migration.** DONE (rotated out of band).
+  The existing keys in `secrets/env.sh` were exposed in a prior agent session
+  (tool output). `OPENROUTER_API_KEY`, `BRAVE_SEARCH_API_KEY`, and
+  `ANTHROPIC_API_KEY` have been rotated. BWS migration remains future work.
 - [P2] **OpenRouter ZDR lockdown.** The OR dashboard has per-request and
   global ZDR settings (ZDR-only routing + disable model training). Before
   relying on OR for sensitive work contexts, configure these. This is a

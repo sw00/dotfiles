@@ -7,7 +7,8 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/sett/Library/LaunchAgents/sh.sett.keyremap.sh</string>
+        <string>-c</string>
+        <string>exec "$HOME/Library/LaunchAgents/sh.sett.keyremap.sh"</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
