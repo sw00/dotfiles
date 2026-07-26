@@ -2,6 +2,12 @@
 # Bootstrap dotfiles across macOS, WSL2, and Linux.
 # Idempotent: safe to re-run. Installs prerequisites if missing,
 # then symlinks configs via GNU stow.
+#
+# Phases:
+#   1. Privileged gate — all interactive steps frontloaded (fail fast)
+#   2. Non-interactive — zero prompts, zero sudo
+#   3. Windows-side setup (WSL only)
+#   4. Final report
 
 set -euo pipefail
 
@@ -57,35 +63,48 @@ normalize_hostname() {
     printf '%s' "$h" | tr '[:upper:]' '[:lower:]'
 }
 
-ensure_macos_prereqs() {
-    if ! xcode-select -p >/dev/null 2>&1; then
-        log "installing Xcode Command Line Tools (interactive prompt)"
-        xcode-select --install || true
-        warn "rerun bootstrap.sh once CLT install completes"
-        exit 0
+# ── git-crypt key resolution ──────────────────────────────────────────────────
+# Priority: DOTFILES_KEY env > $1 positional > TTY read > empty (abort).
+# Returns the key path on stdout, or empty string if none found.
+_resolve_gitcrypt_key() {
+    # 1. DOTFILES_KEY environment variable
+    if [[ -n "${DOTFILES_KEY:-}" ]] && [[ -f "$DOTFILES_KEY" ]]; then
+        echo "$DOTFILES_KEY"
+        return 0
     fi
-    if ! command -v brew >/dev/null 2>&1; then
-        log "installing Homebrew"
-        NONINTERACTIVE=1 /bin/bash -c \
-            "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        if   [[ -x /opt/homebrew/bin/brew ]]; then eval "$(/opt/homebrew/bin/brew shellenv)"
-        elif [[ -x /usr/local/bin/brew    ]]; then eval "$(/usr/local/bin/brew shellenv)"
+
+    # 2. First positional argument
+    if [[ -n "${1:-}" ]] && [[ -f "$1" ]]; then
+        echo "$1"
+        return 0
+    fi
+
+    # 3. TTY interactive prompt
+    if [[ -t 0 ]]; then
+        printf 'git-crypt key path: ' >&2
+        IFS= read -r _key </dev/tty
+        if [[ -n "$_key" ]] && [[ -f "$_key" ]]; then
+            echo "$_key"
+            return 0
         fi
     fi
-    for pkg in stow git-crypt; do
-        if ! command -v "$pkg" >/dev/null 2>&1; then
-            log "brew install $pkg"
-            brew install "$pkg"
-        fi
-    done
+
+    # 4. No key found
+    return 1
 }
+
+# ── System package installation ───────────────────────────────────────────────
+# Installs all system-level prerequisites in one batch per platform.
+# macOS: brew + stow + git-crypt + fish  (non-interactive; no sudo)
+# Linux/WSL: one apt/dnf/pacman transaction — stow, git-crypt, fish,
+#   plus all tools that mise cannot provide (tig, graphviz, pstree, mosh,
+#   wireguard-tools, gcc, make, unzip, xclip, ± pinentry-gtk2, ± alacritty).
 
 # Mapping from command name → package name where they differ per manager.
 # Key is the command; value is the installable package name.
 _pkg_name() {
     local cmd="$1" mgr="$2"
     case "$mgr:$cmd" in
-        apt:wslview)  echo wslu ;;          # wslu provides wslview on Ubuntu
         apt:gcc)      echo build-essential ;; # meta-package: gcc g++ make libc6-dev
         apt:make)     echo build-essential ;; # same meta-package; apt deduplicates
         apt:pstree)   echo psmisc ;;
@@ -120,54 +139,89 @@ _detect_pkg_mgr() {
     fi
 }
 
-ensure_linux_prereqs() {
-    local mgr; mgr="$(_detect_pkg_mgr)"
-    [[ -n "$mgr" ]] || err "no known package manager found"
+_install_system_packages() {
+    local platform="$1"
 
-    local missing=()
-    for cmd in stow git-crypt; do
-        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-    done
+    case "$platform" in
+        macos)
+            if ! command -v brew >/dev/null 2>&1; then
+                log "installing Homebrew"
+                NONINTERACTIVE=1 /bin/bash -c \
+                    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+                if   [[ -x /opt/homebrew/bin/brew ]]; then eval "$(/opt/homebrew/bin/brew shellenv)"
+                elif [[ -x /usr/local/bin/brew    ]]; then eval "$(/usr/local/bin/brew shellenv)"
+                fi
+            fi
+            local pkg
+            for pkg in stow git-crypt fish; do
+                if ! command -v "$pkg" >/dev/null 2>&1; then
+                    log "brew install $pkg"
+                    brew install "$pkg"
+                fi
+            done
+            ;;
+        linux|wsl)
+            local mgr; mgr="$(_detect_pkg_mgr)"
+            [[ -n "$mgr" ]] || err "no known package manager found"
 
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        log "installing prerequisites via $mgr: ${missing[*]}"
-        _install_pkgs "$mgr" "${missing[@]}"
-    fi
+            local wanted=(stow git-crypt fish tig graphviz pstree mosh wireguard-tools gcc make unzip xclip)
+            if [[ "$platform" == "wsl" ]]; then
+                wanted+=(pinentry-gtk2)   # gtk pinentry for WSLg; xclip for tmux clipboard
+            else
+                wanted+=(alacritty)       # native Linux terminal (WSL runs alacritty on Windows)
+            fi
+
+            local missing=()
+            for cmd in "${wanted[@]}"; do
+                command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
+            done
+
+            if [[ ${#missing[@]} -eq 0 ]]; then
+                log "system packages already installed"
+                return 0
+            fi
+
+            log "installing system packages via $mgr: ${missing[*]}"
+            _install_pkgs "$mgr" "${missing[@]}"
+            ;;
+        *) err "unsupported platform: $platform" ;;
+    esac
 }
 
-ensure_system_tools() {
-    # Installs only what mise cannot provide:
-    #   fish    — login shell; must exist before mise activates
-    #   tig, graphviz, pstree — not in the aqua/mise registry and no prebuilt
-    #                           binaries for the ubi backend; system packages only
-    #   xclip / wslview — WSL platform integrations (no aqua equivalent)
-    #   gcc, make — build tools for neovim plugins (telescope-fzf-native, mason)
-    #               mapped to build-essential on apt, base-devel on pacman
-    #   unzip   — required by mason to unpack tool archives
-    # Everything else (tmux, neovim, fzf, git-lfs, lf, sesh, devops tools, ...)
-    # is in mise.
-    local mgr; mgr="$(_detect_pkg_mgr)"
-    [[ -n "$mgr" ]] || { warn "no package manager — skipping system tool installation"; return 0; }
+# ── WSL privileged helpers ────────────────────────────────────────────────────
 
-    local wanted=(fish tig graphviz pstree mosh wireguard-tools gcc make unzip)
-    if [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
-        wanted+=(wslview xclip pinentry-gtk2)  # wslview from wslu; gtk pinentry for WSLg
-    else
-        # Native Linux (incl. dual-boot Pop!_OS):
-        #   alacritty — the terminal; under WSL it runs on the Windows side
-        #   xclip     — tmux copy-mode clipboard (tmux.conf Linux branch)
-        wanted+=(alacritty xclip)
-    fi
-
-    local missing=()
-    for cmd in "${wanted[@]}"; do
-        command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-    done
-    [[ ${#missing[@]} -eq 0 ]] && { log "system tools already installed"; return 0; }
-
-    log "installing system tools via $mgr: ${missing[*]}"
-    _install_pkgs "$mgr" "${missing[@]}"
+_ensure_wsl_conf() {
+    local src="$DOTFILES/os/wsl/windows/wsl.conf"
+    [[ -f "$src" ]] || { warn "wsl.conf not found at $src — skipping"; return 0; }
+    log "installing /etc/wsl.conf"
+    sudo cp -f "$src" /etc/wsl.conf
 }
+
+_ensure_wsl_gpg() {
+    # gpg-agent does NOT expand ~ in pinentry-program; the path must be absolute.
+    # Write gpg-agent.conf with $HOME expanded at install time — same pattern as
+    # ensure_macos_gpg.  Moved here from os/wsl/up.sh so the privileged phase
+    # owns all gpg-agent config.
+    mkdir -p "$HOME/.gnupg"
+    chmod 700 "$HOME/.gnupg"
+    [ -L "$HOME/.gnupg/gpg-agent.conf" ] && rm -f "$HOME/.gnupg/gpg-agent.conf"
+    log "writing ~/.gnupg/gpg-agent.conf (pinentry-wsl, \$HOME expanded)"
+    cat > "$HOME/.gnupg/gpg-agent.conf" << EOF
+# gpg-agent.conf — WSL2  (written by bootstrap.sh; \$HOME expanded at install time)
+#
+# pinentry-wsl.sh dispatches to the right pinentry for each context:
+#   - VSCodium Remote WSL server (no TTY)  -> pinentry-gtk-2 via WSLg
+#   - Alacritty / interactive terminal     -> pinentry-gtk-2 via WSLg
+#   - Fallback (no display)                -> pinentry-curses / pinentry-tty
+pinentry-program $HOME/.gnupg/pinentry-wsl.sh
+default-cache-ttl 3600
+max-cache-ttl 86400
+EOF
+    chmod +x "$HOME/.gnupg/pinentry-wsl.sh" 2>/dev/null || true
+    gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
+}
+
+# ── Non-interactive helpers ───────────────────────────────────────────────────
 
 ensure_fisher() {
     # Install Fisher and plugins. Runs once; fish_plugins file is the manifest.
@@ -476,7 +530,7 @@ print(pl.get('Label', ''))
 ensure_macos_gpg() {
     # gpg-agent does NOT expand ~ in pinentry-program, so gpg-agent.conf
     # must be written with $HOME expanded at install time — same pattern as
-    # the WSL pinentry in os/wsl/up.sh.  pinentry-ide.sh is stowed (static,
+    # the WSL pinentry in _ensure_wsl_gpg.  pinentry-ide.sh is stowed (static,
     # no $HOME in it); only the conf is generated here.
     mkdir -p "$HOME/.gnupg"
     chmod 700 "$HOME/.gnupg"
@@ -526,11 +580,9 @@ _stow_preflight() {
         fi
     }
 
-    if _repo_is_locked; then
-        _sim_stow "$DOTFILES/base" git nvim fish pi tmux alacritty mise
-    else
-        _sim_stow "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise
-    fi
+    # Phase 1a guarantees git-crypt is unlocked (or we aborted), so ssh is
+    # always safe to preflight here.
+    _sim_stow "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh
 
     case "$platform" in
         macos) _sim_stow "$DOTFILES/os/macos" ;;
@@ -562,6 +614,10 @@ with open(sys.argv[1], 'rb') as f:
 " "$sentinel" 2>/dev/null
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MAIN
+# ═══════════════════════════════════════════════════════════════════════════════
+
 main() {
     [[ -d "$DOTFILES" ]] || err "dotfiles not at $DOTFILES (override with DOTFILES=...)"
 
@@ -570,26 +626,64 @@ main() {
     host="$(normalize_hostname)"
     log "platform=$platform host=$host"
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # PHASE 1: PRIVILEGED GATE — all interactive steps frontloaded (fail fast)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # 1a. git-crypt unlock
+    if _repo_is_locked; then
+        local key
+        if key="$(_resolve_gitcrypt_key "$@")" && [[ -n "$key" ]]; then
+            log "unlocking git-crypt with key: $key"
+            git-crypt unlock "$key" || err "git-crypt unlock failed"
+            if _repo_is_locked; then
+                err "git-crypt still locked after unlock attempt — wrong key?"
+            fi
+            log "git-crypt unlocked"
+        else
+            err "git-crypt is locked and no key provided.\n\n  Provide the key via one of:\n    DOTFILES_KEY=/path/to/key ./bootstrap.sh\n    ./bootstrap.sh /path/to/key\n    (interactive) enter path at the prompt\n\n  See README for git-crypt setup instructions."
+        fi
+    fi
+
+    # 1b. Platform-specific privileged phase
     case "$platform" in
-        macos)     ensure_macos_prereqs ;;
-        linux|wsl) ensure_sudo; ensure_linux_prereqs ;;
+        macos)
+            # macOS: Xcode CLT is the only interactive blocker (GUI dialog).
+            # Everything else (brew, stow, git-crypt) is non-interactive.
+            if ! xcode-select -p >/dev/null 2>&1; then
+                log "Xcode Command Line Tools required — starting install (GUI dialog)"
+                xcode-select --install || true
+                err "Rerun bootstrap.sh after Xcode Command Line Tools installation completes."
+            fi
+            # Brew + stow + git-crypt are non-interactive; install them now.
+            _install_system_packages "$platform"
+            ;;
+        linux|wsl)
+            # One sudo prompt gates all privileged work.
+            ensure_sudo
+            # Single batched install: stow, git-crypt, fish, and all system tools
+            # that mise cannot provide.
+            _install_system_packages "$platform"
+            # WSL: install /etc/wsl.conf (moved here from up.sh so up.sh runs
+            # root-free, and so wsl.conf is in place before the rest of bootstrap).
+            if [[ "$platform" == "wsl" ]]; then
+                _ensure_wsl_conf
+            fi
+            ;;
     esac
 
-    # Pre-flight: dry-run all stow operations and report conflicts clearly
-    # rather than aborting mid-run with a cryptic stow error.
+    # ═══════════════════════════════════════════════════════════════════════
+    # PHASE 2: NON-INTERACTIVE — zero sudo, zero prompts
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # 2a. Pre-flight stow conflict check
     _stow_preflight
 
-    # gnupg and ssh configs include encrypted files (.ssh/config.d/*, secrets/).
-    # Stowing them while git-crypt is locked installs encrypted blobs as configs.
-    if _repo_is_locked; then
-        warn "git-crypt is locked — skipping ssh stow"
-        warn "run 'git-crypt unlock' then re-run bootstrap.sh to complete setup"
-        log "stowing base configs (secrets excluded)"
-        stow_dir "$DOTFILES/base" git nvim fish pi tmux alacritty mise
-    else
-        log "stowing base configs"
-        stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise
-    fi
+    # 2b. Stow configs
+    # git-crypt was unlocked in phase 1a (or we aborted), so ssh is always
+    # safe to stow here.
+    log "stowing base configs"
+    stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh
 
     # gnupg is stowed per-OS, not from base: macOS uses pinentry-ide,
     # Linux/WSL use pinentry-tty. Both sources target the same file
@@ -617,22 +711,24 @@ main() {
         warn "no host-specific configs for '$host' (expected $DOTFILES/hosts/$host)"
     fi
 
+    # 2c. Per-platform post-stow setup
     if [[ "$platform" == "macos" ]]; then
         load_macos_launch_agents
         ensure_macos_gpg
     fi
 
+    # WSL: write gpg-agent.conf with $HOME expanded (moved out of up.sh so
+    # the privileged gate owns all gpg-agent config).
     if [[ "$platform" == "wsl" ]]; then
-        log "running Windows-side setup"
-        bash "$DOTFILES/os/wsl/up.sh"
+        _ensure_wsl_gpg
     fi
+    # Linux native: gpg-agent.conf is stowed statically from os/linux/gnupg
+    # (pinentry-tty path is absolute: /usr/bin/pinentry-tty).
 
-    # Install tools after configs are stowed so first-launch config is ready.
-    # System tools (apt/brew) first, then mise for CLI tools and runtimes.
-    # Font: macOS → Brewfile cask; WSL → up.sh; Linux → ensure_nerd_font.
+    # 2d. Install tools after configs are stowed so first-launch config is ready.
+    # System tools were already installed in phase 1b.
     case "$platform" in
         linux|wsl)
-            ensure_system_tools
             ensure_fisher
             ensure_mise
             ensure_tmux_plugins
@@ -651,10 +747,27 @@ main() {
         ensure_nerd_font
     fi
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # PHASE 3: WINDOWS-SIDE SETUP — WSL only, root-free
+    # ═══════════════════════════════════════════════════════════════════════
+    if [[ "$platform" == "wsl" ]]; then
+        log "running Windows-side setup (up.sh)"
+        bash "$DOTFILES/os/wsl/up.sh"
+    fi
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # PHASE 4: FINAL REPORT
+    # ═══════════════════════════════════════════════════════════════════════
     log "bootstrap complete"
     log "next steps:"
     log "  1. Start a new shell (or: exec fish) to pick up Fish config"
-
+    if [[ "$platform" == "wsl" ]]; then
+        log "  2. Check the winget report above — install failures are listed"
+        log "  3. Import GPG/SSH keys if not yet on this machine"
+    fi
+    if [[ "$platform" == "linux" ]]; then
+        log "  2. Import GPG/SSH keys if not yet on this machine"
+    fi
 }
 
 main "$@"

@@ -13,6 +13,8 @@ WINDOWS_SRC="$DOTFILES/os/wsl/windows"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==>\033[0m %s\n' "$*" >&2; }
+_c()   { [[ -t 1 ]] && printf '%b' "$1" || true; }
+GRN='\033[0;32m'; YLW='\033[0;33m'; RED='\033[0;31m'; RST='\033[0m'
 
 # ── Require Windows interop ───────────────────────────────────────────────────
 if ! command -v cmd.exe >/dev/null 2>&1; then
@@ -30,20 +32,54 @@ WIN_LOCALAPPDATA=$(wslpath "$(cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr 
 WINGET_LIST="$WINDOWS_SRC/winget.txt"
 if [[ -f "$WINGET_LIST" ]] && command -v winget.exe >/dev/null 2>&1; then
     log "installing Windows apps via winget"
-    grep -v '^#' "$WINGET_LIST" | grep -v '^$' | while read -r pkg_id; do
-        winget.exe install --id "$pkg_id" \
+
+    # Probe for --disable-interactivity (added in winget 1.8+).
+    # Falls back gracefully on older winget versions.
+    local winget_extra_flags=""
+    if winget.exe --version >/dev/null 2>&1; then
+        local winget_ver
+        winget_ver=$(winget.exe --version 2>/dev/null | tr -d '\r')
+        local major minor
+        IFS='.' read -r major minor _ <<< "${winget_ver#v}"
+        if [[ "${major:-0}" -gt 1 ]] || [[ "${major:-0}" -eq 1 && "${minor:-0}" -ge 8 ]]; then
+            winget_extra_flags="--disable-interactivity"
+        fi
+    fi
+
+    local installed=() failed=() notfound=()
+    while IFS= read -r pkg_id; do
+        [[ -z "$pkg_id" || "$pkg_id" =~ ^# ]] && continue
+        local rc=0
+        local out
+        out=$(winget.exe install --id "$pkg_id" \
             --accept-source-agreements --accept-package-agreements \
-            --silent 2>&1 | grep -Ev 'already installed|No applicable|found an existing' \
-            || true
+            $winget_extra_flags 2>&1) || rc=$?
+        if [[ $rc -eq 0 ]]; then
+            installed+=("$pkg_id")
+        elif echo "$out" | grep -qi 'already installed'; then
+            installed+=("$pkg_id")
+        elif echo "$out" | grep -qiE 'no applicable|not found|no package found'; then
+            notfound+=("$pkg_id")
+        else
+            failed+=("$pkg_id")
+        fi
+    done < <(grep -v '^#' "$WINGET_LIST" | grep -v '^$')
+
+    # Summary report
+    local count_ok=${#installed[@]} count_fail=${#failed[@]} count_nf=${#notfound[@]}
+    log "winget: $count_ok installed, $count_fail failed, $count_nf not found"
+    local pkg
+    for pkg in "${installed[@]}"; do
+        printf '  %b✓%b %s\n' "$(_c "$GRN")" "$(_c "$RST")" "$pkg"
+    done
+    for pkg in "${failed[@]}"; do
+        printf '  %b⚠%b %s (install failed)\n' "$(_c "$YLW")" "$(_c "$RST")" "$pkg"
+    done
+    for pkg in "${notfound[@]}"; do
+        printf '  %b✗%b %s (not found in winget)\n' "$(_c "$RED")" "$(_c "$RST")" "$pkg"
     done
 else
     warn "winget.exe not found or winget.txt missing — skipping Windows app installation"
-fi
-
-# ── /etc/wsl.conf ─────────────────────────────────────────────────────────────
-if [[ -f "$WINDOWS_SRC/wsl.conf" ]]; then
-    log "installing /etc/wsl.conf"
-    sudo cp -f "$WINDOWS_SRC/wsl.conf" /etc/wsl.conf
 fi
 
 # ── .wslconfig (host-specific hardware tuning) ────────────────────────────────
@@ -377,37 +413,5 @@ log "installing CaskaydiaCove Nerd Font on Windows"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w "$PS_FONT")" 2>&1 || \
     warn "font installation failed — install manually from https://www.nerdfonts.com/font-downloads"
 rm -f "$PS_FONT"
-
-# ── GPG agent ────────────────────────────────────────────────────────────────
-# gpg-agent does NOT expand ~ in pinentry-program; the path must be absolute.
-# Write gpg-agent.conf here with $HOME expanded at install time — same pattern
-# used for VSCodium settings.json / __WIN_LOCALAPPDATA__ substitution.
-log "configuring GPG pinentry for VSCodium Remote WSL"
-
-mkdir -p ~/.gnupg
-chmod 700 ~/.gnupg
-
-# Remove any stale stow symlink before writing the real file.
-[ -L ~/.gnupg/gpg-agent.conf ] && rm -f ~/.gnupg/gpg-agent.conf
-
-cat > ~/.gnupg/gpg-agent.conf << EOF
-# gpg-agent.conf — WSL2  (written by up.sh; \$HOME expanded at install time)
-#
-# pinentry-wsl.sh dispatches to the right pinentry for each context:
-#   - VSCodium Remote WSL server (no TTY)  -> pinentry-gtk-2 via WSLg
-#   - Alacritty / interactive terminal     -> pinentry-gtk-2 via WSLg
-#   - Fallback (no display)                -> pinentry-curses / pinentry-tty
-pinentry-program $HOME/.gnupg/pinentry-wsl.sh
-default-cache-ttl 3600
-max-cache-ttl 86400
-EOF
-
-# Ensure the wrapper is executable (stow creates a symlink; defend against
-# any git-clone or filesystem edge-case that strips the executable bit).
-chmod +x ~/.gnupg/pinentry-wsl.sh 2>/dev/null || true
-
-# Reload gpg-agent so it picks up the new pinentry-program immediately.
-# Safe to call even when no agent is running (exits 0 in that case).
-gpg-connect-agent reloadagent /bye >/dev/null 2>&1 || true
 
 log "Windows-side setup complete"

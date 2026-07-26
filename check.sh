@@ -134,15 +134,15 @@ stow_begin
 # the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
 # base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
 # are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
-check_stow "base: git nvim ssh fish tmux alacritty mise" \
-    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
+check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh" \
+    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
 stow_end
 
 # ── Linux stack: base → os/linux ───
 section "Stow integrity — Linux stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
 check_stow "os/linux: alacritty bash" \
     "$DOTFILES/os/linux" alacritty bash
 stow_end
@@ -151,7 +151,7 @@ stow_end
 section "Stow integrity — macOS stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" git nvim ssh fish tmux
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux pi sesh
 check_stow "os/macos: bash brew gnupg" \
     "$DOTFILES/os/macos" bash brew gnupg
 
@@ -166,7 +166,7 @@ stow_end
 section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
-stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty
+stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
 stow_layer "$DOTFILES/os/linux" bash
 check_stow "os/wsl: git gnupg alacritty" "$DOTFILES/os/wsl" git gnupg alacritty
 stow_end
@@ -667,6 +667,22 @@ check "bootstrap: app-trim migration called on macOS after brew bundle" bash -c 
         | grep -q 'migrate_app_trim'
 "
 
+# ── Post-refactor invariants ──────────────────────────────────────────────────
+check_not "up.sh: contains no sudo (wsl.conf moved to bootstrap privileged gate)" \
+    '\bsudo\b' "$DOTFILES/os/wsl/up.sh"
+
+check_not "up.sh: WSL gpg-agent.conf write moved to bootstrap (_ensure_wsl_gpg)" \
+    'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
+
+check_has "up.sh: winget summary report present (✓ installed / ⚠ failed / ✗ not found)" \
+    'installed,.*failed,.*not found' "$DOTFILES/os/wsl/up.sh"
+
+check_has "bootstrap: privileged gate does git-crypt unlock before stow" \
+    'git-crypt unlock' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: _repo_is_locked guard at phase 1a gate" \
+    '_repo_is_locked' "$DOTFILES/bootstrap.sh"
+
 check "os/wsl/windows/winget.txt exists" \
     test -f "$DOTFILES/os/wsl/windows/winget.txt"
 
@@ -676,7 +692,7 @@ check_has "winget.txt: Alacritty entry present" \
 check_has "winget.txt: VSCodium entry present" \
     'VSCodium.VSCodium' "$DOTFILES/os/wsl/windows/winget.txt"
 
-check_not "bootstrap: tmux not in ensure_system_tools (managed by mise)" \
+check_not "bootstrap: tmux not in _install_system_packages (managed by mise)" \
     'wanted.*tmux\|tmux.*wanted' "$DOTFILES/bootstrap.sh"
 
 check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)" \
@@ -708,28 +724,40 @@ check "base/gnupg removed (conflict source)" \
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
 
-check_not "bootstrap: lf not in ensure_system_tools (managed by mise ubi)" \
+check_not "bootstrap: lf not in _install_system_packages (managed by mise ubi)" \
     'wanted=.*lf' "$DOTFILES/bootstrap.sh"
 
-check_not "bootstrap: git-lfs not in ensure_system_tools (managed by mise)" \
+check_not "bootstrap: git-lfs not in _install_system_packages (managed by mise)" \
     'wanted=.*git-lfs' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: tig in ensure_system_tools" \
+check_has "bootstrap: tig in _install_system_packages (merged prereqs + system tools)" \
     'wanted=.*tig' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: pinentry-gtk2 in WSL system tools" \
+check_has "bootstrap: pinentry-gtk2 in WSL system packages" \
     'pinentry-gtk2' "$DOTFILES/bootstrap.sh"
 
-check_has "up.sh: gpg-agent reload present" \
-    'gpg-connect-agent reloadagent' "$DOTFILES/os/wsl/up.sh"
+check_has "bootstrap: _install_system_packages merges prereqs + system tools" \
+    '_install_system_packages' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: _resolve_gitcrypt_key (env > arg > TTY resolution)" \
+    '_resolve_gitcrypt_key' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: _ensure_wsl_conf (privileged gate, moved from up.sh)" \
+    '_ensure_wsl_conf' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: _ensure_wsl_gpg reloads gpg-agent (moved from up.sh)" \
+    'gpg-connect-agent reloadagent' "$DOTFILES/bootstrap.sh"
 
 # gpg-agent does not expand ~ in pinentry-program, so up.sh must write
 # gpg-agent.conf with $HOME expanded — not stow-managed.
 check "os/wsl/gnupg: gpg-agent.conf NOT stow-managed (written by up.sh)" \
     bash -c "! test -f '$DOTFILES/os/wsl/gnupg/.gnupg/gpg-agent.conf'"
 
-check_has "up.sh: gpg-agent.conf written with absolute pinentry-wsl path" \
-    'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
+check_has "bootstrap: _ensure_wsl_gpg writes gpg-agent.conf (moved from up.sh)" \
+    'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: _ensure_wsl_gpg defined" \
+    '_ensure_wsl_gpg' "$DOTFILES/bootstrap.sh"
 
 check_has "mise: shellcheck declared" \
     'shellcheck' "$MISE_CFG"
