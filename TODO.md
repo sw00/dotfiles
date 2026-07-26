@@ -1,3 +1,5 @@
+<!-- Capture tier: TODO.md (analysis done, knock-off). See AGENTS.md §capture-tiers. -->
+
 # TODO — dotfiles lean-up
 
 Findings from a full review on 2026-06-26. The repo is well-architected

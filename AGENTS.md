@@ -124,6 +124,11 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   ticket): `sudo -v` aborts the whole script** — do the stow steps by hand (no
   sudo) and leave `ensure_system_tools`/`up.sh` for a real terminal.
 
+## Capture tiers
+
+Tier by how much analysis remains before the item is actionable:
+`.pi/plans/` (host-local session scratch, gitignored, never commit) < `TODO.md` (analysis done, knock-off) < `ROADMAP.md` (needs deeper scoping). Record at the lowest tier that fits; escalate only when an item outgrows its tier.
+
 ## Gotchas (learnt the hard way)
 
 - Headless nvim checks: always `nvim -u NONE --headless ... -c 'qa!'` — the
@@ -288,14 +293,9 @@ Windows Terminal, Flameshot, and (on Windows only) Brave + Obsidian.
   appliance-specific token. Those concerns live only in the homelab's overlay
   files (`files/pi-settings.json`, `files/tg-status.ts`,
   `files/confirmation-gate.ts`, `files/cf-gateway.js`). `check.sh` has a guard
-  that fails the suite if any of those tokens leak into the shared core, plus
-  a regression guard that `model-switch.ts`'s plain-text regex stays
-  `^`-anchored (the `(?:^|\s)` mid-sentence form once made "use kimi-k2.6" in
-  any prompt silently switch the model AND swallow the whole prompt via
-  `{action:"handled"}` — the prompt never reached the LLM). The fix: ^-anchor
-  + forward trailing text as `{action:"transform"}`. Over Telegram the
-  `[telegram]` prefix is stripped by `tg-status` (homelab-owned), which also
-  owns `/use`+`use` beyond the bridge since `model-switch` is now bridge-agnostic.
+  that fails the suite if any of those tokens leak into the shared core. Over
+  Telegram the `[telegram]` prefix is stripped by `tg-status` (homelab-owned);
+  `model-switch` is bridge-agnostic.
   The agentbox's `pi-settings.json` and overlay extensions are owned by the
   homelab repo, NOT tracked here; a stale "Profiles: laptop vs. agentbox"
   table was removed from `base/pi/README.md` for this reason.
