@@ -984,17 +984,24 @@ if command -v nvim >/dev/null 2>&1; then
         _fail "nvim: $_nvim_lua_errors Lua config file(s) have syntax errors"
     fi
 
-    check_has "nvim: treesitter uses v1 install() API (no nvim-treesitter.configs)" \
-        'nvim-treesitter.*install' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
-
-    check_not "nvim: treesitter does not use old .configs module" \
-        'nvim-treesitter%.configs' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
-
-    check_has "nvim: treesitter install() is deferred (non-blocking)" \
-        'defer_fn' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
-
-    check_has "nvim: treesitter highlighting uses vim.treesitter.start" \
-        'vim.treesitter.start' "$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+    _TS="$DOTFILES/base/nvim/.config/nvim/lua/plugins/treesitter.lua"
+    # Assert against CODE only: strip `--` line comments first, so an
+    # explanatory comment can't make a grep guard pass vacuously (the old
+    # `defer_fn` guard once went green off the phrase "no vim.defer_fn" in a
+    # comment after the real defer_fn was removed; the `nvim-treesitter%.configs`
+    # guard was also blind — `%` is a Lua escape, but grep -E is ERE where `%`
+    # is literal, so it could never match the real `nvim-treesitter.configs`).
+    # v1.0 installs parsers via `setup { ensure_install = {...} }` (singular);
+    # deferral is internal. ERE escapes: `\.` for a literal dot, `\b` word
+    # boundary (`ensure_install\b` must NOT match the old `ensure_installed`).
+    check "nvim: treesitter uses v1.0 ensure_install API" \
+        bash -c "sed 's/--.*\$//' '$_TS' | grep -qE 'ensure_install\b'"
+    check "nvim: treesitter does not use old ensure_installed key" \
+        bash -c "! sed 's/--.*\$//' '$_TS' | grep -qE 'ensure_installed'"
+    check "nvim: treesitter does not use old .configs module" \
+        bash -c "! sed 's/--.*\$//' '$_TS' | grep -qE 'nvim-treesitter\.configs'"
+    check "nvim: treesitter highlighting uses vim.treesitter.start" \
+        bash -c "sed 's/--.*\$//' '$_TS' | grep -qE 'vim\.treesitter\.start'"
 else
     _skip "nvim: config loads without errors" "nvim not installed"
 fi
