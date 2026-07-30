@@ -1,5 +1,6 @@
 {
   "provider": "brave",
+  "braveApiKey": "$BRAVE_SEARCH_API_KEY",
   "workflow": "auto-summary",
   "summaryModel": "opencode-go/deepseek-v4-flash"
 }
