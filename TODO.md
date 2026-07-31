@@ -53,7 +53,7 @@ These are sound but riskier; left for a follow-up PR.
 - [P2] Stale check.sh tombstones (~250 lines of `check_not` guard removed
   packages that can't recur). Strip forward-looking invariants only.
 - [P2] Simplify secrets loading in `config.fish` to native `set -gx`
-  lines in `secrets/env.fish` (drops the ~15-line bash parser).
+  lines in `secrets/env.fish` (drops the ~15-line bash parser). — DONE.
 - [P2] Consolidate the four `ip_addresses`/`wifi_status` scripts into a
   single `~/bin/tmux-status` that dispatches on `uname`/WSL.
 - [P2] Remove `base/git/.gitconfig-etckeeper` if etckeeper is unused.
@@ -62,7 +62,7 @@ These are sound but riskier; left for a follow-up PR.
 - [P2] git-crypt: reduce the URL-hint regex copy-paste across alacritty
   configs to a shared imported file; add a check.sh parity test.
 - [P2] Bitwarden Secrets Manager (BWS) for provider key provisioning.
-  Current state: `BWS_ACCESS_TOKEN` is already in `secrets/env.sh`
+  Current state: `BWS_ACCESS_TOKEN` is already in `secrets/env.fish`
   (git-crypt), but provider keys (`BRAVE_SEARCH_API_KEY`,
   `OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`) still
   live in that same file directly.
@@ -85,7 +85,7 @@ These are sound but riskier; left for a follow-up PR.
   direct keys if the offline risk matters.
 
   **Sub-item: rotate secrets during migration.** DONE (rotated out of band).
-  The existing keys in `secrets/env.sh` were exposed in a prior agent session
+  The existing keys in `secrets/env.fish` were exposed in a prior agent session
   (tool output). `OPENROUTER_API_KEY`, `BRAVE_SEARCH_API_KEY`, and
   `ANTHROPIC_API_KEY` have been rotated. BWS migration remains future work.
 - [P2] **OpenRouter ZDR lockdown.** The OR dashboard has per-request and

@@ -143,8 +143,8 @@ section "Stow integrity — Linux stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
-check_stow "os/linux: alacritty bash" \
-    "$DOTFILES/os/linux" alacritty bash
+check_stow "os/linux: alacritty" \
+    "$DOTFILES/os/linux" alacritty
 stow_end
 
 # ── macOS stack: base → os/macos → hosts/mbpm3 ───
@@ -152,10 +152,10 @@ section "Stow integrity — macOS stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" git nvim ssh fish tmux pi sesh
-check_stow "os/macos: bash brew gnupg" \
-    "$DOTFILES/os/macos" bash brew gnupg
+check_stow "os/macos: brew gnupg" \
+    "$DOTFILES/os/macos" brew gnupg
 
-stow_layer "$DOTFILES/os/macos" bash brew gnupg
+stow_layer "$DOTFILES/os/macos" brew gnupg
 check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace" \
     "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace
 stow_end
@@ -167,7 +167,6 @@ section "Stow integrity — WSL stack  [GREEN]"
 
 stow_begin
 stow_layer "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
-stow_layer "$DOTFILES/os/linux" bash
 check_stow "os/wsl: git gnupg alacritty" "$DOTFILES/os/wsl" git gnupg alacritty
 stow_end
 
@@ -194,18 +193,11 @@ check_has "bootstrap: os/wsl stow is explicit (git gnupg alacritty)" \
 
 # WSL host dirs hold only bare files (.wslconfig). Stow packages for the WSL
 # platform live in os/wsl (alacritty); Windows-side app configs live in
-# os/wsl/windows (komorebi, pushed by up.sh). The loop guards the
-# architecture for every WSL host; the tombstones guard past migrations.
+# os/wsl/windows (komorebi, pushed by up.sh).
 for wsl_host in x13yg2 x1eg2; do
     check "hosts/$wsl_host: no stow packages (WSL platform configs live in os/wsl)" \
         bash -c "! find '$DOTFILES/hosts/$wsl_host' -mindepth 1 -maxdepth 1 -type d | grep -q ."
 done
-
-check "hosts/x13yg2: vscodium/ not present (moved to os/wsl/windows/)" \
-    bash -c "! test -d '$DOTFILES/hosts/x13yg2/vscodium'"
-
-check "hosts/x13yg2: wsl/ not present (script moved to os/wsl/up.sh)" \
-    bash -c "! test -d '$DOTFILES/hosts/x13yg2/wsl'"
 
 
 # =============================================================================
@@ -258,12 +250,6 @@ else
     _skip "hosts/$HOST/ exists for current machine ($HOST)" "CI environment"
 fi
 
-# extras/ should not hold host-specific wslconfig files (they belong in hosts/)
-check "extras/wslconfig.* moved to hosts/" bash -c "
-    ! find '$DOTFILES/extras' -maxdepth 1 -name 'wslconfig.*' | grep -q .
-"
-
-
 # =============================================================================
 # 5. FISH CONFIG
 # =============================================================================
@@ -282,11 +268,6 @@ check_not \
 check_has \
     "config.fish: mise activate is present" \
     'mise activate' \
-    "$FISH_CFG"
-
-check_not \
-    "config.fish: no asdf references (replaced by mise)" \
-    'asdf' \
     "$FISH_CFG"
 
 # ssh-agent conf.d: one shared agent on a fixed socket, skipped when the
@@ -329,18 +310,6 @@ check_has \
 # 7. GIT CONFIG
 # =============================================================================
 section "Git config  [GREEN]"
-
-GITCFG="$DOTFILES/base/git/.gitconfig"
-
-check_not \
-    'gitconfig: no stale [filter "media"] block (pre-lfs tool)' \
-    '^\[filter "media"\]' \
-    "$GITCFG"
-
-check_not \
-    'gitconfig: no stale [filter "hawser"] block (pre-lfs tool)' \
-    '^\[filter "hawser"\]' \
-    "$GITCFG"
 
 # The GCM helper path contains a space; unquoted it splits at runtime
 # ('/mnt/c/Program: No such file or directory'). Must use ! + \" quoting.
@@ -411,15 +380,7 @@ check "ssh/config.d/lan.conf: no duplicate Host entries" bash -c "
 # =============================================================================
 section "Neovim  [GREEN]"
 
-check "nvim: packer.snapshot does not exist (migrated to lazy.nvim)" \
-    bash -c "! test -f '$DOTFILES/base/nvim/.config/nvim/packer.snapshot'"
-
 LSPCFG="$DOTFILES/base/nvim/.config/nvim/lua/plugins/lspconfig.lua"
-
-check_not \
-    "nvim: neodev.nvim not referenced (replaced by lazydev.nvim)" \
-    'neodev' \
-    "$LSPCFG"
 
 check_has \
     "nvim: lazydev.nvim is referenced in lspconfig" \
@@ -590,29 +551,17 @@ check_has "mise: node runtime is declared" \
 check_has "mise: python runtime is declared" \
     'python' "$MISE_CFG"
 
-check_not "mise: asdf not referenced in fish config (replaced by mise)" \
-    'asdf' "$FISH_CFG"
-
 check_has "mise: tmux is managed by mise (not apt/brew)" \
     '^tmux ' "$MISE_CFG"
 
-check_has "mise: sesh managed by mise (ubi backend, was ensure_sesh)" \
+check_has "mise: sesh managed by mise (ubi backend)" \
     'ubi:joshmedeski/sesh' "$MISE_CFG"
 
-check_has "mise: lf managed by mise (ubi backend, was brew/apt)" \
+check_has "mise: lf managed by mise (ubi backend)" \
     'ubi:gokcehan/lf' "$MISE_CFG"
 
-check_has "mise: git-lfs managed by mise (was brew/apt)" \
+check_has "mise: git-lfs managed by mise" \
     'git-lfs' "$MISE_CFG"
-
-check_not "mise: pi not in default-node-packages (managed via aqua registry)" \
-    'pi-coding-agent' "$DOTFILES/base/mise/.config/mise/default-node-packages"
-
-check_not "bootstrap: no ensure_sesh (sesh managed by mise ubi)" \
-    'ensure_sesh' "$DOTFILES/bootstrap.sh"
-
-check_not "bootstrap: no ensure_pi (pi managed by mise aqua)" \
-    'ensure_pi' "$DOTFILES/bootstrap.sh"
 
 check_has "mise: devops tools declared (kubectl, helm, k9s)" \
     'kubectl' "$MISE_CFG"
@@ -620,41 +569,11 @@ check_has "mise: devops tools declared (kubectl, helm, k9s)" \
 check_has "mise: mise itself in macOS Brewfile-base (Homebrew install beats curl on macOS)" \
     'brew "mise"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
-check_not "mise: neovim not in macOS Brewfile-base (managed by mise)" \
-    'brew "neovim"' "$DOTFILES/os/macos/brew/.Brewfile-base"
-
-check_not "Brewfile-host: no stale asdf entry" \
-    'brew "asdf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: fzf removed (managed by mise)" \
-    'brew "fzf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-base: lf removed (managed by mise ubi)" \
-    'brew "lf"' "$DOTFILES/os/macos/brew/.Brewfile-base"
-
-check_not "Brewfile-host: git-lfs removed (managed by mise)" \
-    'brew "git-lfs"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: d2 removed (managed by host mise)" \
-    'brew "d2"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: websocat removed (managed by host mise)" \
-    'brew "websocat"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
 check_has "mbpm3 mise: d2 declared (was Homebrew)" \
     'd2' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
 check_has "mbpm3 mise: websocat declared (was Homebrew)" \
     'websocat' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
-
-check_not "Brewfile-host: tig not duplicated from Brewfile-base" \
-    'brew "tig"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: numpy removed (not a system package)" \
-    'brew "numpy"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: pytorch removed (not a system package)" \
-    'brew "pytorch"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
 check "bootstrap: macOS calls ensure_homebrew_bundle" \
     grep -q 'ensure_homebrew_bundle' "$DOTFILES/bootstrap.sh"
@@ -668,12 +587,6 @@ check "bootstrap: app-trim migration called on macOS after brew bundle" bash -c 
 "
 
 # ── Post-refactor invariants ──────────────────────────────────────────────────
-check_not "up.sh: contains no sudo (wsl.conf moved to bootstrap privileged gate)" \
-    '\bsudo\b' "$DOTFILES/os/wsl/up.sh"
-
-check_not "up.sh: WSL gpg-agent.conf write moved to bootstrap (_ensure_wsl_gpg)" \
-    'pinentry-program.*HOME.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
-
 check_has "up.sh: winget summary report present (✓ installed / ⚠ failed / ✗ not found)" \
     'installed,.*failed,.*not found' "$DOTFILES/os/wsl/up.sh"
 
@@ -691,16 +604,6 @@ check_has "winget.txt: Alacritty entry present" \
 
 check_has "winget.txt: VSCodium entry present" \
     'VSCodium.VSCodium' "$DOTFILES/os/wsl/windows/winget.txt"
-
-check_not "bootstrap: tmux not in _install_system_packages (managed by mise)" \
-    'wanted.*tmux\|tmux.*wanted' "$DOTFILES/bootstrap.sh"
-
-check_not "fish/config.fish: psh abbr not present (WSL-only, lives in wsl.fish)" \
-    'abbr.*psh' "$FISH_CFG"
-
-check_not "bootstrap: gnupg not in base stow (stowed per-OS to avoid conflict)" \
-    'stow_dir.*base.*gnupg' \
-    "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: WSL stows os/wsl gnupg (pinentry-wsl)" \
     'stow_dir.*os/wsl.*gnupg' \
@@ -723,12 +626,6 @@ check "base/gnupg removed (conflict source)" \
 
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
-
-check_not "bootstrap: lf not in _install_system_packages (managed by mise ubi)" \
-    'wanted=.*lf' "$DOTFILES/bootstrap.sh"
-
-check_not "bootstrap: git-lfs not in _install_system_packages (managed by mise)" \
-    'wanted=.*git-lfs' "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: tig in _install_system_packages (merged prereqs + system tools)" \
     'wanted=.*tig' "$DOTFILES/bootstrap.sh"
@@ -762,12 +659,6 @@ check_has "bootstrap: _ensure_wsl_gpg defined" \
 check_has "mise: shellcheck declared" \
     'shellcheck' "$MISE_CFG"
 
-check_not "mise: experimental flag removed" \
-    '^experimental' "$MISE_CFG"
-
-# conf.d/git.fish is Fisher-managed (jhillyerd/plugin-git), not stowed;
-# the legacy omf-hook tombstone test for it is removed.
-
 # ── Tools / desktop audit ───────────────────────────────────────────────────────────
 check_not "mise: work-specific tools not in global config" \
     'kubeseal\|kustomize\|argocd\|opentofu\|^helm' "$MISE_CFG"
@@ -778,12 +669,6 @@ check "hosts/mbpm3: work mise tools declared" \
 check_has "hosts/mbpm3: mise work tools include helm" \
     'helm' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
-check_not "Brewfile-base: homeport tap removed" \
-    'homeport' "$DOTFILES/os/macos/brew/.Brewfile-base"
-
-check_not "Brewfile-host: homeport tap removed" \
-    'homeport' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
 check_has "Brewfile-host: monokle tracked" \
     'monokle' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
@@ -793,12 +678,6 @@ check_has "Brewfile-base: aerospace present (primary WM on all macs)" \
 check_has "Brewfile-base: vscodium present (core desktop app, cf. winget.txt)" \
     'cask "vscodium"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
-check_not "Brewfile-host: aerospace moved to Brewfile-base" \
-    'aerospace' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "Brewfile-host: vscodium moved to Brewfile-base" \
-    'cask "vscodium"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
 check_has "hosts/mbpm3: stern in work mise tools (was asdf)" \
     'stern' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
@@ -807,9 +686,6 @@ check_has "hosts/mbpm3: k3d in work mise tools (was asdf)" \
 
 check_has "hosts/mbpm3: awscli in work mise tools (was asdf)" \
     'awscli' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
-
-check_not "Brewfile-host: asdf removed (replaced by mise)" \
-    'brew "asdf"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
 
 check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migration)" \
     'existing target is not owned by stow' "$DOTFILES/bootstrap.sh"
@@ -827,12 +703,6 @@ check_has "Brewfile-base: obsidian present" \
 
 check_has "Brewfile-base: flameshot present" \
     'flameshot' "$DOTFILES/os/macos/brew/.Brewfile-base"
-
-check_not "Brewfile-host: flameshot removed (moved to base)" \
-    'flameshot' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-check_not "fish/config.fish: flyl removed (host-specific, in hosts/mbpm3)" \
-    'flyl' "$DOTFILES/base/fish/.config/fish/config.fish"
 
 check_has "hosts/mbpm3: work.fish conf.d exists" \
     'flyl' "$DOTFILES/hosts/mbpm3/fish/.config/fish/conf.d/work.fish"
@@ -865,33 +735,18 @@ check_has "winget.txt: Git for Windows present (required for GCM in gitconfig-ws
     'Git.Git' "$DOTFILES/os/wsl/windows/winget.txt"
 
 # ── Base sets: packages common to every machine of a platform ────────────────
-# Set 2: bootstrap/shell group lives in Brewfile-base (every mac), not the host.
 BREW_BASE="$DOTFILES/os/macos/brew/.Brewfile-base"
-BREW_HOST="$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
-
-# Tombstones: casks removed in the 2026-07 lean pass must not creep back in.
-_TRIMMED='cask "(gpg-suite|httpie-desktop|calibre|zotero|caffeine|mouseless'
-_TRIMMED+='|appcleaner|rectangle|libreoffice|megasync|dbeaver-community'
-_TRIMMED+='|docker-desktop)"'
-check_not "Brewfile-base: no trimmed casks (2026-07 lean pass)" \
-    "$_TRIMMED" "$BREW_BASE"
-check_not "Brewfile-host: no trimmed casks (2026-07 lean pass)" \
-    "$_TRIMMED" "$BREW_HOST"
 
 for _pkg in stow git git-crypt gnupg pinentry-mac fish; do
     check_has "Brewfile-base: $_pkg present (every mac, not host-only)" \
         "brew \"$_pkg\"" "$BREW_BASE"
 done
-check_not "Brewfile-host: bootstrap/shell group moved to Brewfile-base" \
-    'brew "(stow|git|git-crypt|gnupg|pinentry-mac|fish)"' "$BREW_HOST"
 
 # Set 3: system CLI common to all platforms (cf. ensure_system_tools).
 for _pkg in wireguard-tools pstree mosh; do
     check_has "Brewfile-base: $_pkg present (parity with ensure_system_tools)" \
         "brew \"$_pkg\"" "$BREW_BASE"
 done
-check_not "Brewfile-host: wireguard-tools/pstree moved to Brewfile-base" \
-    'brew "(wireguard-tools|pstree)"' "$BREW_HOST"
 
 # Set 1: cross-platform desktop apps — each base macOS cask has a winget twin.
 # Platform-only apps are excluded by design: aerospace

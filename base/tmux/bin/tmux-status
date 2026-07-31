@@ -1,0 +1,113 @@
+#!/bin/bash
+# Consolidated tmux status script. Dispatches on uname/WSL to report
+# WiFi status and IP addresses on a single line.
+set -euo pipefail
+
+wifi_status() {
+    case "$(uname -s)" in
+        Darwin)
+            local wifi_info ssid current_section signal_noise_line rssi noise tx_rate
+            wifi_info=$(system_profiler SPAirPortDataType 2>/dev/null)
+            ssid=$(echo "$wifi_info" | sed -n '/Current Network Information:/,/PHY Mode:/p' | head -2 | tail -1 | sed 's/^ *//' | sed 's/:$//')
+            if [ -z "$ssid" ]; then
+                echo "Not connected"
+                return
+            fi
+
+            current_section=$(echo "$wifi_info" | sed -n "/Current Network Information:/,/Other Local Wi-Fi Networks:/p")
+            signal_noise_line=$(echo "$current_section" | grep "Signal / Noise")
+            rssi=""
+            noise=""
+            tx_rate=$(echo "$current_section" | grep "Transmit Rate" | awk '{print $NF}')
+
+            if [ -n "$signal_noise_line" ]; then
+                rssi=$(echo "$signal_noise_line" | grep -o -- "-[0-9]\+" | head -1)
+                noise=$(echo "$signal_noise_line" | grep -o -- "-[0-9]\+" | tail -1)
+            fi
+
+            local quality
+            if [ -n "$rssi" ] && [ -n "$noise" ]; then
+                local rssi_num noise_num snr
+                rssi_num=${rssi#-}
+                noise_num=${noise#-}
+                snr=$((noise_num - rssi_num))
+                if [ "$snr" -gt 40 ]; then quality=100
+                elif [ "$snr" -lt 0 ]; then quality=0
+                else quality=$((snr * 100 / 40))
+                fi
+            elif [ -n "$rssi" ]; then
+                local rssi_num
+                rssi_num=${rssi#-}
+                if [ "$rssi_num" -lt 50 ]; then quality=100
+                elif [ "$rssi_num" -gt 100 ]; then quality=0
+                else quality=$((100 - (rssi_num - 50) * 2))
+                fi
+            else
+                quality="N/A"
+            fi
+
+            echo "\"$ssid\" D:${tx_rate:-N/A}Mbps Q:${quality:-N/A}% S:${rssi:-N/A}dBm"
+            ;;
+        Linux)
+            if grep -qEi '(microsoft|wsl)' /proc/version 2>/dev/null; then
+                # WSL: query Windows WiFi via netsh through PowerShell.
+                pwsh.exe -Command "(netsh wlan show interfaces) -Match '([^B]SSID|Signal|Receive|Transmit)'" \
+                    | tr -s '\r\n' ';' \
+                    | sed -rn 's#.*:\s(.*);.*:\s(.*);.*:\s(.*);.*:\s(.*);#"\1" D:\2 U:\3 S:\4#p'
+            else
+                # Native Linux.
+                if command -v iwconfig >/dev/null 2>&1; then
+                    local info essid rate quality signal
+                    info=$(iwconfig 2>&1)
+                    essid=$(echo "$info" | grep -Eo 'ESSID:"[^"]+"' | cut -d'"' -f2)
+                    rate=$(echo "$info" | grep -Eo 'Bit Rate=[0-9.]+ [^ ]+' | cut -d'=' -f2 | cut -d' ' -f1)
+                    quality=$(echo "$info" | grep -Eo 'Link Quality=[0-9]+/[0-9]+' | cut -d'=' -f2)
+                    signal=$(echo "$info" | grep -Eo 'Signal level=[-0-9]+ dBm' | grep -Eo '[-0-9]+')
+                    [ -n "$essid" ] && echo "\"$essid\" D:$rate Q:$quality S:$signal dBm" || echo "Not connected"
+                elif command -v nmcli >/dev/null 2>&1; then
+                    local con
+                    con=$(nmcli -t -f ACTIVE,SSID,SIGNAL,RATE dev wifi | grep '^yes')
+                    [ -n "$con" ] && echo "\"$(echo "$con" | cut -d':' -f2)\" D:$(echo "$con" | cut -d':' -f4 | sed 's/ Mbit\/s//')Mbps Q:$(echo "$con" | cut -d':' -f3)% S:N/A" || echo "Not connected"
+                elif command -v iw >/dev/null 2>&1; then
+                    local interface info ssid
+                    interface=$(iw dev | grep Interface | awk '{print $2}' | head -1)
+                    [ -n "$interface" ] && info=$(iw dev "$interface" link) || info=""
+                    [ -n "$info" ] && ssid=$(echo "$info" | grep SSID | awk '{print $2}') || ssid=""
+                    [ -n "$ssid" ] && echo "\"$ssid\" D:$(echo "$info" | grep "tx bitrate" | awk '{print $3}')Mbps S:$(echo "$info" | grep signal | awk '{print $2}') Q:N/A" || echo "Not connected"
+                else
+                    echo "No wireless tools found"
+                fi
+            fi
+            ;;
+        *)
+            echo "Unknown platform"
+            ;;
+    esac
+}
+
+ip_addresses() {
+    case "$(uname -s)" in
+        Darwin)
+            ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1
+            ;;
+        Linux)
+            if grep -qEi '(microsoft|wsl)' /proc/version 2>/dev/null; then
+                local HOST WSL_VM
+                HOST=$(powershell.exe -Command "(ipconfig.exe) -Match 'IPv4'" | tr -s '\n\r' '\n' | awk '!/172(\.[0-9]+){3}/{ print $NF }')
+                WSL_VM=$(ip a | awk '/inet.*([0-9]+\.)/{ print $2 }' | tail -1)
+                echo "[$HOST] [$WSL_VM]"
+            else
+                ip address | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | grep -vE '127|172'
+            fi
+            ;;
+        *)
+            echo "Unknown platform"
+            ;;
+    esac
+}
+
+main() {
+    echo "$(wifi_status) | $(ip_addresses)"
+}
+
+main "$@"

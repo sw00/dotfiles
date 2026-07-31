@@ -1,17 +1,11 @@
 # ── Environment ───────────────────────────────────────────────────────────────
 set -gx EDITOR nvim
 
-# Source secrets env file (bash export KEY=VALUE syntax).
-# Guards: file must exist and not be a git-crypt encrypted blob.
-set -l _secrets ~/dotfiles/secrets/env.sh
+# Source secrets env file (native fish syntax).
+set -l _secrets ~/dotfiles/secrets/env.fish
 if test -f $_secrets
     and not string match -q (string sub -l 9 (cat $_secrets 2>/dev/null)) "\x00GITCRYPT"
-    grep -E '^export [A-Za-z_][A-Za-z0-9_]*=' $_secrets 2>/dev/null \
-        | string replace 'export ' '' \
-        | while read -l _line
-            set -l _kv (string split -m1 '=' -- $_line)
-            test (count $_kv) -ge 2; and set -gx $_kv[1] $_kv[2]
-        end
+    source $_secrets
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────

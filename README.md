@@ -19,7 +19,7 @@ hosts/
   mbpm3/        → MacBook Pro M3 (alacritty, Brewfile-host, key remap agents)
   x13yg2/       → ThinkPad X13 Yoga Gen 2 running WSL2 (wslconfig)
   x1eg2/        → ThinkPad X1 Extreme Gen 2, dual boot WSL2 + Pop!_OS (wslconfig)
-secrets/        → git-crypt encrypted (SSH keys, env.sh)
+secrets/        → git-crypt encrypted (SSH keys, env.fish)
 ```
 
 `base/` packages: `alacritty`, `bash`, `fish`, `git`, `mise`, `nvim`, `pi`,
@@ -128,7 +128,7 @@ The following are encrypted at rest and only readable after `git-crypt unlock`:
 
 | Path | Contents |
 |---|---|
-| `secrets/env.sh` | API tokens, sourced by `config.fish` at shell startup |
+| `secrets/env.fish` | API tokens, sourced by `config.fish` at shell startup |
 | `secrets/ssh/` | Private SSH keys |
 | `base/ssh/.ssh/config.d/` | SSH host configs referencing the private keys |
 

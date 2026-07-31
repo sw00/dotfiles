@@ -1,2 +1,0 @@
-#!/bin/bash
-ifconfig | awk '/inet.*([0-9]+\.)/{ print "[" $2 "] " }' | tail -1

@@ -600,7 +600,6 @@ _stow_preflight() {
         macos) _sim_stow "$DOTFILES/os/macos" ;;
         linux) _sim_stow "$DOTFILES/os/linux" ;;
         wsl)
-            _sim_stow "$DOTFILES/os/linux" bash
             _sim_stow "$DOTFILES/os/wsl" git gnupg alacritty
             ;;
     esac
@@ -617,7 +616,7 @@ _stow_preflight() {
 _repo_is_locked() {
     # Detect whether git-crypt has not yet been unlocked on this clone.
     # Encrypted blobs start with a 10-byte magic header: \x00GITCRYPT\x00
-    local sentinel="$DOTFILES/secrets/env.sh"
+    local sentinel="$DOTFILES/secrets/env.fish"
     [[ -f "$sentinel" ]] || return 1  # no secrets file — assume unlocked
     python3 -c "
 import sys
@@ -704,10 +703,6 @@ main() {
         macos) stow_dir "$DOTFILES/os/macos" ;;
         linux) stow_dir "$DOTFILES/os/linux" ;;
         wsl)
-            # WSL: stow shell from os/linux; gnupg comes from os/wsl so the
-            # VSCodium Remote pinentry wrapper (pinentry-wsl.sh) is used.
-            # Alacritty runs on Windows, so only os/linux/bash is relevant here.
-            stow_dir "$DOTFILES/os/linux" bash
             # Explicit package list: os/wsl/windows/ is not a stow package.
             # gnupg: WSL-specific config pointing to pinentry-wsl.sh.
             # alacritty: WSL platform variant (wsl.exe shell); up.sh copies it
