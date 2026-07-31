@@ -502,11 +502,15 @@ load_macos_launch_agents() {
     shopt -s nullglob
     local plist
     for plist in "$HOME/Library/LaunchAgents/"*.plist; do
-        # Skip Homebrew-managed launch agents (e.g., homebrew.mxcl.colima).
-        # These are installed and controlled by `brew services`; reloading
-        # them here can fail if the service is mid-start or if the binary
-        # path is not yet ready. The user manages their own agents via stow.
-        if [[ "$(basename "$plist")" == homebrew.*.plist ]]; then
+        # Only reload agents owned by this dotfiles repo. Homebrew-managed
+        # agents (e.g., homebrew.mxcl.colima) and other third-party plists
+        # are installed and controlled by their own tooling; bootstrapping
+        # them here can fail if the service is mid-start or exits quickly,
+        # which aborts the whole bootstrap.
+        local resolved
+        resolved=$(realpath "$plist" 2>/dev/null) || resolved=""
+        if [[ -z "$resolved" ]] || [[ "$resolved" != "$DOTFILES"/* ]]; then
+            log "skipping launch agent not owned by dotfiles: $(basename "$plist")"
             continue
         fi
 
