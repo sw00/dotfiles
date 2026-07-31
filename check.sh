@@ -963,6 +963,32 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 check "pi: mutation-guard tests pass" \
     bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
 
+# Free-tier model guard: OpenCode Go's free models are suffixed with -free and
+# train on data. The shared-core Pi config must not route prompts or web-search
+# summaries through them.
+check "pi: no free-tier (-free) models in shared-core config" \
+    bash -c "python3 -c \"
+import json, sys
+
+def bail_free(models, where):
+    for m in models:
+        if type(m) is str and m.endswith('-free'):
+            sys.stderr.write('free-tier model in %s: %s\\n' % (where, m))
+            sys.exit(1)
+
+with open('$DOTFILES/base/pi/.pi/web-search.json') as f:
+    ws = json.load(f)
+bail_free([ws.get('summaryModel', '')], 'web-search.json:summaryModel')
+
+with open('$DOTFILES/base/pi/.pi/agent/settings.json') as f:
+    s = json.load(f)
+bail_free([s.get('defaultModel', '')], 'settings.json:defaultModel')
+bail_free(s.get('enabledModels', []), 'settings.json:enabledModels')
+rl = s.get('rateLimitFallbacks', {})
+bail_free(list(rl.keys()), 'settings.json:rateLimitFallbacks keys')
+bail_free(list(rl.values()), 'settings.json:rateLimitFallbacks values')
+\""
+
 
 # =============================================================================
 # 12. NEOVIM SMOKE TEST
