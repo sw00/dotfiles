@@ -502,6 +502,14 @@ load_macos_launch_agents() {
     shopt -s nullglob
     local plist
     for plist in "$HOME/Library/LaunchAgents/"*.plist; do
+        # Skip Homebrew-managed launch agents (e.g., homebrew.mxcl.colima).
+        # These are installed and controlled by `brew services`; reloading
+        # them here can fail if the service is mid-start or if the binary
+        # path is not yet ready. The user manages their own agents via stow.
+        if [[ "$(basename "$plist")" == homebrew.*.plist ]]; then
+            continue
+        fi
+
         # Extract the service label from the plist so we can check if it is
         # already loaded before stopping and restarting it.
         local label
@@ -518,10 +526,10 @@ print(pl.get('Label', ''))
         if launchctl print "gui/$uid/$label" >/dev/null 2>&1; then
             log "reloading launch agent: $label"
             launchctl bootout "gui/$uid/$label" >/dev/null 2>&1 || true
-            launchctl bootstrap "gui/$uid" "$plist"
+            launchctl bootstrap "gui/$uid" "$plist" || warn "launchctl bootstrap failed for $label"
         else
             log "loading launch agent: $label"
-            launchctl bootstrap "gui/$uid" "$plist"
+            launchctl bootstrap "gui/$uid" "$plist" || warn "launchctl bootstrap failed for $label"
         fi
     done
     shopt -u nullglob
