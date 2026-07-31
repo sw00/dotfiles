@@ -93,11 +93,11 @@ These are sound but riskier; left for a follow-up PR.
   relying on OR for sensitive work contexts, configure these. This is a
   one-time web-UI action, not a code change, but it gates the fallback
   mechanism's privacy guarantee.
-- [P2] **`check.sh` guard: summary model must not be free-tier.** OpenCode
+- [x] [P2] **`check.sh` guard: summary model must not be free-tier.** OpenCode
   Go's free models (suffixed `-free`) train on data. Add a check that
   `base/pi/.pi/web-search.json` → `summaryModel` does not match `*-free`
   (and ideally does not contain any free-tier model from a known list).
-  Also guard `settings.json` `enabledModels` for the same.
+  Also guard `settings.json` `enabledModels` for the same. — DONE in `fa7083c`.
 - [P2] **Jan LLM-provider unification.** We unified web search (Brave MCP),
   but Jan still routes LLM queries through its own provider stack. If Jan
   is to become a first-class member of the unified AI stack, its LLM
