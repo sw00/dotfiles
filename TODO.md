@@ -88,23 +88,23 @@ These are sound but riskier; left for a follow-up PR.
   The existing keys in `secrets/env.fish` were exposed in a prior agent session
   (tool output). `OPENROUTER_API_KEY`, `BRAVE_SEARCH_API_KEY`, and
   `ANTHROPIC_API_KEY` have been rotated. BWS migration remains future work.
-- [P2] **OpenRouter ZDR lockdown.** The OR dashboard has per-request and
+- [x] [P2] **OpenRouter ZDR lockdown.** The OR dashboard has per-request and
   global ZDR settings (ZDR-only routing + disable model training). Before
   relying on OR for sensitive work contexts, configure these. This is a
   one-time web-UI action, not a code change, but it gates the fallback
-  mechanism's privacy guarantee.
+  mechanism's privacy guarantee. — DONE.
 - [x] [P2] **`check.sh` guard: summary model must not be free-tier.** OpenCode
   Go's free models (suffixed `-free`) train on data. Add a check that
   `base/pi/.pi/web-search.json` → `summaryModel` does not match `*-free`
   (and ideally does not contain any free-tier model from a known list).
   Also guard `settings.json` `enabledModels` for the same. — DONE in `fa7083c`.
-- [P2] **Jan LLM-provider unification.** We unified web search (Brave MCP),
+- [x] [P2] **Jan LLM-provider unification.** We unified web search (Brave MCP),
   but Jan still routes LLM queries through its own provider stack. If Jan
   is to become a first-class member of the unified AI stack, its LLM
   endpoint should point to the same primary providers (or through a shared
   gateway). Evaluate whether Jan's "Custom Endpoint" supports OpenCode Go
   directly, or whether it too should route through OpenRouter (with ZDR)
-  for consistency with pi's fallback model.
+  for consistency with pi's fallback model. — DONE.
 
 ## Out of scope (keep)
 
