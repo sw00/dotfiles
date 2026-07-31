@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-pro",
+  "defaultProvider": "opencode",
+  "defaultModel": "kimi-k2.7-code",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
@@ -10,6 +10,7 @@
     "opencode-go/glm-5.2",
     "anthropic/claude-haiku-4-5",
     "opencode-go/kimi-k2.6",
+    "opencode/kimi-k2.7-code",
     "anthropic/claude-opus-4-8"
   ],
   "rateLimitFallbacks": {
