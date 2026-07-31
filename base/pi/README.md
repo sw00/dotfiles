@@ -102,14 +102,14 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.
 `deepseek-v4-flash-free`) explicitly permit training. The summary model here
-is the paid `deepseek-v4-flash` (no suffix) — safe. A `check.sh` guard should
-prevent a free variant from creeping into `summaryModel`.
+is the paid `deepseek-v4-flash` (no suffix) — safe. `check.sh` enforces that
+`summaryModel` and all model entries in `settings.json` are free of `-free`
+variants.
 
 **OpenRouter:** ZDR is opt-in via OR's privacy settings, and upstream provider
 data policies vary. The `models.json` registration below sets
-`openRouterRouting.data_collection: "deny"` for every OR model, but you should
-also lock the global OR privacy dashboard (ZDR-only routing + disable model
-training) before relying on OR for sensitive contexts.
+`openRouterRouting.data_collection: "deny"` for every OR model. The OpenRouter
+dashboard is configured for ZDR-only routing with model training disabled.
 
 ## Observability
 
@@ -125,6 +125,20 @@ service, no ZDR compromise.
 
 **Jan:** Native per-conversation usage display. A unified cross-tool tracker
 is deferred — see TODO.md.
+
+## Hypa integration
+
+This config uses `@hypabolic/pi-hypa` in **replace mode** (`~/.hypa-pi/config.json`:
+`{"mode": "replace"}`). The native `bash`, `read`, `grep`, `find`, and `ls` tools
+are disabled; the model is expected to use the Hypa equivalents (`hypa_shell`,
+`hypa_read`, `hypa_grep`, `hypa_find`, `hypa_ls`). This is enforced by the tool
+preference note in `APPEND_SYSTEM.md`.
+
+Because commands arrive through `hypa_shell` rather than the native `bash` tool,
+the safety stack (`infra-safety.ts` and the `/check` mode shell gate) intercepts
+`hypa_shell` directly and classifies the raw command. No wrapper-unwrapping is
+needed in replace mode. `lib/mutation-guard.test.ts` is exercised by `check.sh` to
+prevent regressions.
 
 ## File map
 

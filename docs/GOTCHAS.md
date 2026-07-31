@@ -34,6 +34,11 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 ## pi
 
 - pi config spans two roots under `base/pi/.pi/`: `agent/` (settings, extensions, agents, prompts) stows to `~/.pi/agent/`, and `web-search.json` stows to `~/.pi/web-search.json` — a sibling, not inside it.
+- `pi-hypa` replace mode disables the native `bash`/`read`/`grep`/`find`/`ls` tools.
+  Safety extensions (`infra-safety`, `/check` mode) intercept `hypa_shell` directly
+  and classify the raw command; no wrapper-unwrapping is needed.
+- `pi-web-access` is not redundant — Pi core has no native `web_search`,
+  `fetch_content`, `source_check`, or `get_search_content` tools.
 - pi writes runtime state (selected model, `lastChangelogVersion`) back through the stowed `settings.json` symlink. Before committing pi changes: `git diff` and `git checkout` any unintended default-model drift (default is `deepseek-v4-pro`).
 - pi safety has two independent axes: session posture (change/check/chat) vs. per-domain write-gate (locked/armed). Never conflate. See `base/pi/README.md`.
 - Subagents load infra-safety locked with `hasUI=false` → infra mutations hard-blocked. General bash stays unguarded (oracle needs it). Intentional asymmetry.
@@ -44,6 +49,10 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 
 ## macOS
 
+- `bootstrap.sh` must not reload Homebrew-managed launch agents (`homebrew.mxcl.*`).
+  `load_macos_launch_agents()` only reloads plists that are symlinks into the
+  dotfiles repo (`$DOTFILES`). Homebrew agents are skipped to avoid transient
+  `launchctl bootstrap` failures (e.g. colima mid-start) aborting the whole run.
 - Colima/Lima injects `Include .../.colima/ssh_config` into `~/.ssh/config`. Pre-empted: base already includes `~/.colima/ssh_config` (harmless when absent).
 - `brew bundle` (host Brewfile) can hit 600s timeout when several large casks download. Idempotent — just re-run.
 - Docker Desktop uninstall leaves privileged helpers behind. Manual `sudo rm -f /Library/PrivilegedHelperTools/com.docker.socket`.
