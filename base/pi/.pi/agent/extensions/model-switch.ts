@@ -236,24 +236,49 @@ export default function (pi: ExtensionAPI) {
   // ── Auto-fallback on rate limit / overload (MAP-DRIVEN) ────────────────────
   // Fires ONLY when `rateLimitFallbacks` maps the current model to an authed
   // OpenRouter twin. If the map is absent/empty (laptop) this is a no-op, and
-  // the user handles rate limits manually via /use or Ctrl+P. Once on a twin
-  // (openrouter/...), that id is not a map key, so repeated 429s during pi's
-  // retry backoff are self-limiting no-ops — no cascade.
+  // the user handles rate limits manually via /use or Ctrl+P.
+  // Guard: a fallback twin must not itself be a key in the map — that would
+  // create a cascade. The throttle + inProgress gate is shared with switch-back.
   let inProgress = false;
   let lastAt = 0;
 
   pi.on("after_provider_response", async (event, ctx) => {
-    if (event.status !== 429 && event.status !== 529) return;
     if (inProgress) return;
     const now = Date.now();
-    if (now - lastAt < 2000) return; // throttle: max 1 fallback / 2s
+    if (now - lastAt < 2000) return; // throttle: max 1 switch / 2s
 
     const cur = ctx.model;
     if (!cur) return;
-
+    const curId = `${cur.provider}/${cur.id}`;
     const map = readFallbackMap(ctx.cwd);
-    const twinId = map[`${cur.provider}/${cur.id}`];
+
+    // T3: opportunistically switch BACK to the primary on a successful response
+    // when we are currently on a fallback twin. Self-limiting: once back on the
+    // primary, that id is a map key, not a value, so this branch no-ops.
+    if (event.status >= 200 && event.status < 300) {
+      const primaryId = Object.keys(map).find((k) => map[k] === curId);
+      if (!primaryId) return; // not on a fallback twin
+
+      const primary = parseId(primaryId);
+      if (!primary || !isAuthed(primary, ctx)) return;
+
+      inProgress = true;
+      lastAt = now;
+      try {
+        await switchTo(primary, ctx, "Primary recovered — ");
+      } finally {
+        inProgress = false;
+      }
+      return;
+    }
+
+    if (event.status !== 429 && event.status !== 529) return;
+
+    const twinId = map[curId];
     if (!twinId) return; // no mapping for the current model — do nothing
+
+    // T1: prevent twin-of-twin cascade
+    if (map[twinId]) return;
 
     const twin = parseId(twinId);
     if (!twin) return;
