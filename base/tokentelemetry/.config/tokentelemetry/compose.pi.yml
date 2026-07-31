@@ -28,7 +28,7 @@ services:
       - ${TT_DATA_DIR:-$HOME/.local/share/tokentelemetry}:/tt-data
       # Agent log directories (read-only) — uncomment any you use.
       - ${HOME}/.pi:/root/.pi:ro
-      # - ${HOME}/.claude:/root/.claude:ro
+      - ${HOME}/.claude:/root/.claude:ro
       # - ${HOME}/.codex:/root/.codex:ro
       # - ${HOME}/.gemini:/root/.gemini:ro
       # - ${HOME}/.copilot:/root/.copilot:ro

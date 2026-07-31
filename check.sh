@@ -918,9 +918,11 @@ if [[ -d "$DOTFILES/base/tokentelemetry" ]]; then
     check_has "tt: frontend binds to 127.0.0.1 only" \
         '127\.0\.0\.1:\$\{TT_FRONTEND_PORT' "$_TT_COMPOSE"
 
-    # Pi sessions mount
+    # Pi + Claude Code sessions mount
     check_has "tt: ~/.pi mounted read-only" \
         'HOME}/.pi:/root/.pi:ro' "$_TT_COMPOSE"
+    check_has "tt: ~/.claude mounted read-only" \
+        'HOME}/.claude:/root/.claude:ro' "$_TT_COMPOSE"
 
     # Data bind-mount (not named volume)
     check_has "tt: data dir bind-mounted on host" \
