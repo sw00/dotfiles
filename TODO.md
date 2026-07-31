@@ -50,12 +50,12 @@ suite). Changes below remove accumulated weight and fix a few real bugs.
 
 These are sound but riskier; left for a follow-up PR.
 
-- [P2] Stale check.sh tombstones (~250 lines of `check_not` guard removed
-  packages that can't recur). Strip forward-looking invariants only.
-- [P2] Simplify secrets loading in `config.fish` to native `set -gx`
-  lines in `secrets/env.fish` (drops the ~15-line bash parser). — DONE.
-- [P2] Consolidate the four `ip_addresses`/`wifi_status` scripts into a
-  single `~/bin/tmux-status` that dispatches on `uname`/WSL.
+- [x] [P2] Stale check.sh tombstones (~250 lines of `check_not` guard removed
+  packages that can't recur). Strip forward-looking invariants only. — DONE in a7c953c.
+- [x] [P2] Simplify secrets loading in `config.fish` to native `set -gx`
+  lines in `secrets/env.fish` (drops the ~15-line bash parser). — DONE in a7c953c.
+- [x] [P2] Consolidate the four `ip_addresses`/`wifi_status` scripts into a
+  single `~/bin/tmux-status` that dispatches on `uname`/WSL. — DONE in a7c953c.
 - [P2] Remove `base/git/.gitconfig-etckeeper` if etckeeper is unused.
 - [P2] nvim: drop unmaintained `venv-selector.nvim`; migrate vim-test →
   neotest or remove.
