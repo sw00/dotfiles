@@ -15,6 +15,7 @@
 
 import { classify, findInvocations, hasDryRun, type ToolConfig } from "./classify.ts";
 import { TOOLS } from "./infra-tables.ts";
+import { unwrapHypaCommand } from "./hypa-unwrap.ts";
 
 const ALL_NAMES = new Set(TOOLS.flatMap((t) => t.names));
 const BY_NAME = new Map<string, ToolConfig>();
@@ -34,6 +35,10 @@ function classifyCommand(cmd: string): Verdict {
     if (r.kind === "unknown") verdict = "BLOCK(unknown)";
   }
   return verdict;
+}
+
+function classifyHypaCommand(cmd: string): Verdict {
+  return classifyCommand(unwrapHypaCommand(cmd, ALL_NAMES));
 }
 
 // ── cases ──────────────────────────────────────────────────────
@@ -106,12 +111,33 @@ const cases: Array<[string, string]> = [
   // verb-shape filter avoids false positives from flag values
   ["aws ssm get-parameter --name /app/config/run", "allow"],
   ["aws ec2 describe-instances --filters Name=tag:delete,Values=x", "allow"],
+
+];
+
+// pi-hypa wrapped commands — classification must see the inner command
+const hypaCases: Array<[string, string]> = [
+  ['hypa -c "aws s3 ls s3://bucket"', "allow"],
+  ['hypa -c "aws ec2 terminate-instances --instance-ids i-123"', "BLOCK(mutation)"],
+  ['hypa -c "aws s3 rb s3://bucket"', "BLOCK(mutation)"],
+  ["hypa -c 'kubectl get pods'", "allow"],
+  ["hypa -c 'kubectl delete pod foo'", "BLOCK(mutation)"],
+  ["hypa -c 'terraform apply'", "BLOCK(mutation)"],
+  ["hypa -c 'terraform destroy'", "BLOCK(high-risk)"],
+  ["hypa kubectl get pods", "allow"],
+  ["hypa kubectl delete pod foo", "BLOCK(mutation)"],
+  ["hypa -c 'echo hi > file'", "not-cloud"], // read-only bash gate in modes handles this
 ];
 
 let pass = 0;
 let fail = 0;
 for (const [cmd, expected] of cases) {
   const got = classifyCommand(cmd);
+  const ok = got === expected || got.includes(expected);
+  console.log(`${ok ? "✓" : "✗"}  ${got.padEnd(18)} | ${cmd.replace(/\n/g, " ⏎ ")}`);
+  ok ? pass++ : fail++;
+}
+for (const [cmd, expected] of hypaCases) {
+  const got = classifyHypaCommand(cmd);
   const ok = got === expected || got.includes(expected);
   console.log(`${ok ? "✓" : "✗"}  ${got.padEnd(18)} | ${cmd.replace(/\n/g, " ⏎ ")}`);
   ok ? pass++ : fail++;

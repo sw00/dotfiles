@@ -24,9 +24,11 @@ import { Type } from "typebox";
 import { execFile } from "node:child_process";
 import { classify, findInvocations, hasDryRun } from "./classify.ts";
 import type { ToolConfig } from "./classify.ts";
+import { unwrapHypaCommand } from "./hypa-unwrap.ts";
 
 export type { ToolConfig, VerbPosition, Classification, Invocation } from "./classify.ts";
 export { classify, findInvocations, hasDryRun, normalizeCommand } from "./classify.ts";
+export { unwrapHypaCommand } from "./hypa-unwrap.ts";
 
 export interface MutationGuardConfig {
   domain: string; // e.g. "infra" — drives command/tool names + messages
@@ -57,6 +59,14 @@ const guardRegistry = new Map<string, GuardRegistration>();
  *  domain's own commands/tools. */
 export function getGuards(): ReadonlyMap<string, GuardRegistration> {
   return guardRegistry;
+}
+
+/** Unwrap a hypa-wrapped command using the union of all registered guard CLI names.
+ *  Returns the original command if no hypa wrapper is recognised. */
+export function unwrapCommandForGuards(command: string): string {
+  const allNames = new Set<string>();
+  for (const g of guardRegistry.values()) for (const n of g.cliNames) allNames.add(n);
+  return unwrapHypaCommand(command, allNames);
 }
 
 export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfig): MutationGuardHandle {
@@ -116,7 +126,7 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   /** Read-only-semantics check, reusable by other extensions via the registry. */
   const checkCommand = (command: string): string[] => {
     const issues: string[] = [];
-    for (const inv of findInvocations(command, allNames)) {
+    for (const inv of findInvocations(unwrapCommandForGuards(command), allNames)) {
       const tool = toolByName.get(inv.cli)!;
       if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
 
@@ -143,10 +153,12 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (!isToolCallEventType("bash", event)) return;
+    if (!isToolCallEventType("bash", event) && !isToolCallEventType("hypa_shell", event)) return;
+
+    const command = unwrapCommandForGuards(event.input.command);
 
     if (mode === "locked") {
-      const issues = checkCommand(event.input.command);
+      const issues = checkCommand(command);
       if (issues.length) {
         return {
           block: true,
@@ -158,7 +170,7 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
       return;
     }
 
-    for (const inv of findInvocations(event.input.command, allNames)) {
+    for (const inv of findInvocations(command, allNames)) {
       const tool = toolByName.get(inv.cli)!;
       if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
 

@@ -21,7 +21,7 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { getGuards } from "../lib/mutation-guard.ts";
+import { getGuards, unwrapCommandForGuards } from "../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 
@@ -218,8 +218,10 @@ export default function (pi: ExtensionAPI) {
 
   // read-only bash gate (check mode only)
   pi.on("tool_call", async (event) => {
-    if (mode !== "check" || !isToolCallEventType("bash", event)) return;
-    const reason = checkBashAllowed(event.input.command);
+    if (mode !== "check") return;
+    if (!isToolCallEventType("bash", event) && !isToolCallEventType("hypa_shell", event)) return;
+    const command = unwrapCommandForGuards(event.input.command);
+    const reason = checkBashAllowed(command);
     if (reason) return { block: true, reason };
   });
 
