@@ -37,9 +37,7 @@ if [[ -f "$WINGET_LIST" ]] && command -v winget.exe >/dev/null 2>&1; then
     # Falls back gracefully on older winget versions.
     winget_extra_flags=""
     if winget.exe --version >/dev/null 2>&1; then
-        winget_ver
         winget_ver=$(winget.exe --version 2>/dev/null | tr -d '\r')
-        major minor
         IFS='.' read -r major minor _ <<< "${winget_ver#v}"
         if [[ "${major:-0}" -gt 1 ]] || [[ "${major:-0}" -eq 1 && "${minor:-0}" -ge 8 ]]; then
             winget_extra_flags="--disable-interactivity"
@@ -50,7 +48,6 @@ if [[ -f "$WINGET_LIST" ]] && command -v winget.exe >/dev/null 2>&1; then
     while IFS= read -r pkg_id; do
         [[ -z "$pkg_id" || "$pkg_id" =~ ^# ]] && continue
         rc=0
-        out
         out=$(winget.exe install --id "$pkg_id" \
             --accept-source-agreements --accept-package-agreements \
             $winget_extra_flags 2>&1) || rc=$?
@@ -68,7 +65,6 @@ if [[ -f "$WINGET_LIST" ]] && command -v winget.exe >/dev/null 2>&1; then
     # Summary report
     count_ok=${#installed[@]} count_fail=${#failed[@]} count_nf=${#notfound[@]}
     log "winget: $count_ok installed, $count_fail failed, $count_nf not found"
-    pkg
     for pkg in "${installed[@]}"; do
         printf '  %b✓%b %s\n' "$(_c "$GRN")" "$(_c "$RST")" "$pkg"
     done

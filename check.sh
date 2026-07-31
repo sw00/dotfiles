@@ -590,6 +590,23 @@ check "bootstrap: app-trim migration called on macOS after brew bundle" bash -c 
 check_has "up.sh: winget summary report present (✓ installed / ⚠ failed / ✗ not found)" \
     'installed,.*failed,.*not found' "$DOTFILES/os/wsl/up.sh"
 
+# Tombstone: 31cf793 stripped `local` from up.sh's top-level declarations but
+# left the bare declaration lines (winget_ver, major minor, out, pkg) behind.
+# bash executes those as commands and `set -e` aborts up.sh mid-run; shellcheck
+# does not flag bare words (they look like command invocations), so guard
+# explicitly: any line of bare identifier(s) in up.sh must be a shell keyword.
+# awk skips heredoc bodies so embedded content (e.g. python's `import sys`,
+# `EOF`/`PYEOF` terminators) can't false-positive.
+check "up.sh: no bare-word leftovers (stripped-local tombstone)" bash -c "
+    awk '
+        /<<[[:space:]]+.(EOF|PYEOF)./ { in_hd=1; next }
+        in_hd && /^(EOF|PYEOF)[[:space:]]*$/ { in_hd=0; next }
+        !in_hd && /^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*([[:space:]]+[A-Za-z_][A-Za-z0-9_]*)*[[:space:]]*$/ { print NR\": \"\$0 }
+    ' '$DOTFILES/os/wsl/up.sh' \
+    | grep -vE ':[[:space:]]*(fi|done|else|do|then|esac|in|;;|break|continue|return|exit)[[:space:]]*$' \
+    | grep -q . && exit 1 || exit 0
+"
+
 check_has "bootstrap: privileged gate does git-crypt unlock before stow" \
     'git-crypt unlock' "$DOTFILES/bootstrap.sh"
 
