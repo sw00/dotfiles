@@ -17,7 +17,9 @@ program = "wsl.exe"
 args    = ["~", "tmux", "new-session", "-As", "0"]
 
 [font]
-size = 12.0
+# Windows renders CaskaydiaCove larger than Linux/macOS at the same size; 10.0
+# matches the effective 12.0 on other platforms and avoids reaching for Ctrl+-.
+size = 10.0
 
 [window]
 decorations = "full"
