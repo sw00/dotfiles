@@ -957,6 +957,12 @@ check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)
 check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive source)" \
     '\(\?:\^\|\\s\)' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
 
+# Regression guard for the guard layer itself. The unit tests verify that
+# infra-safety + /check mode correctly classify mutations vs. reads when the
+# shell arrives through the native tool (mutation-guard is now hypa-only).
+check "pi: mutation-guard tests pass" \
+    bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
+
 
 # =============================================================================
 # 12. NEOVIM SMOKE TEST
