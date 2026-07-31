@@ -1,3 +1,18 @@
+# Tool preference
+
+Shell and file-inspection tools are provided by Hypa. The native `bash`,
+`read`, `grep`, `find`, and `ls` tools are disabled in this configuration.
+Always use the Hypa equivalents:
+
+- `hypa_shell` for shell commands
+- `hypa_read` for reading files
+- `hypa_grep` for searching file contents
+- `hypa_find` for finding files
+- `hypa_ls` for listing directories
+
+These tools are gated by the same safety rules (read-only /check mode and
+infra-safety locks) as the native tools they replace.
+
 # Delegation & escalation
 
 Subagents run in isolated context (the `subagent` tool). They see nothing of

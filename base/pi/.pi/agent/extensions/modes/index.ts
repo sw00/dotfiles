@@ -21,7 +21,7 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { getGuards, unwrapCommandForGuards } from "../lib/mutation-guard.ts";
+import { getGuards } from "../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 
@@ -30,12 +30,12 @@ const MODE_ORDER: Mode[] = ["change", "check", "chat"];
 const MODE_ICON: Record<Mode, string> = { change: "⚡", check: "🔍", chat: "💬" };
 
 const CHECK_PROMPT = `[CHECK MODE — read-only]
-Pair-troubleshooting with the user (an expert, in the loop). Understand, don't change: edit/write are off and bash is read-only. Investigate empirically — run read-only commands, form and test hypotheses against the system's real state. Report findings and discuss before proposing fixes. Do NOT delegate to subagents here; the user is your partner. For changes, ask the user to switch to /change.]`;
+Pair-troubleshooting with the user (an expert, in the loop). Understand, don't change: edit/write are off and shell commands are read-only. Investigate empirically — run read-only commands, form and test hypotheses against the system's real state. Report findings and discuss before proposing fixes. Do NOT delegate to subagents here; the user is your partner. For changes, ask the user to switch to /change.]`;
 
 const CHAT_PROMPT = `[CHAT MODE — conceptual]
 Birds-eye problem-space thinking with the user: problem statements, domain mapping, trade-offs, options. Tools are unrestricted but do not change anything unless explicitly asked. Prefer research and discussion over action; deliver insight and, when asked, plans.]`;
 
-// ── read-only bash classification (check mode) ────────────────────
+// ── read-only shell classification (check mode) ───────────────────
 
 const SIMPLE_READ = new Set([
   // file inspection & search
@@ -216,11 +216,12 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // read-only bash gate (check mode only)
+  // read-only shell gate (check mode only): pi-hypa replace mode disables
+  // the native bash tool; all shell commands arrive as hypa_shell.
   pi.on("tool_call", async (event) => {
     if (mode !== "check") return;
-    if (!isToolCallEventType("bash", event) && !isToolCallEventType("hypa_shell", event)) return;
-    const command = unwrapCommandForGuards(event.input.command);
+    if (!isToolCallEventType("hypa_shell", event)) return;
+    const command = event.input.command;
     const reason = checkBashAllowed(command);
     if (reason) return { block: true, reason };
   });
