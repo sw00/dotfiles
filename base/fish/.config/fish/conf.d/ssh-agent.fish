@@ -37,6 +37,8 @@ end
 
 # ── Start a fresh ssh-agent ──────────────────────────────────────────────────
 # Use -a to write the socket path directly, bypassing the need to eval
-# ssh-agent's stdout.
+# ssh-agent's stdout. Disown it so fish does not warn about an active job
+# when the shell exits.
 ssh-agent -a "$AUTH_SOCK" -D &>/dev/null &
+disown
 set -gx SSH_AUTH_SOCK "$AUTH_SOCK"

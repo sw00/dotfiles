@@ -303,6 +303,11 @@ check_has \
     'probe -ne 2' \
     "$AGENT_CFG"
 
+check_has \
+    "ssh-agent.fish: started agent is disowned so fish does not warn on exit" \
+    'disown' \
+    "$AGENT_CFG"
+
 
 # =============================================================================
 # 6. TMUX CONFIG
@@ -856,6 +861,16 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # shell arrives through the native tool (mutation-guard is now hypa-only).
 check "pi: mutation-guard tests pass" \
     bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
+
+# edit-guardian appends a whitespace-/Unicode-escaped diagnostic when a built-in
+# edit fails to match (blank-line count, leading indent, unfolded non-ASCII).
+# The pure core lives in lib/ so it is testable and never auto-loaded as an
+# extension (root-level *.ts would be); assert the tests + the load split hold.
+check "pi: edit-guardian diagnostic tests pass" \
+    bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/edit-diagnostic.test.ts"
+
+check "pi: edit-guardian test lives in lib/ (never auto-loaded as an extension)" \
+    bash -c "! ls '$DOTFILES/base/pi/.pi/agent/extensions'/*.test.ts >/dev/null 2>&1"
 
 # Free-tier model guard: OpenCode Go's free models are suffixed with -free and
 # train on data. The shared-core Pi config must not route prompts or web-search
