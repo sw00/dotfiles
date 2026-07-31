@@ -16,12 +16,17 @@ decorations    = "full"
 option_as_alt  = "OnlyLeft"  # left Option → Alt in terminal
 
 # ── Keyboard bindings ────────────────────────────────────────────────────────
-# option_as_alt above consumes left-Option before Alacritty's built-in
-# ToggleSimpleFullscreen binding fires.  Re-declare it explicitly so
-# Alt+Enter still maximises the window.
+# Alt+Enter → CSI-u for pi (follow-up queueing).  macOS Alacritty otherwise
+# sends plain Return when option_as_alt is active, so pi can't see the chord.
+[[keyboard.bindings]]
+key   = "Return"
+mods  = "Alt"
+chars = "\u001b[13;3u"
+
+# Alt+Shift+Enter → fullscreen.  Moved from Alt+Enter to free that chord for pi.
 [[keyboard.bindings]]
 key    = "Return"
-mods   = "Alt"
+mods   = "Alt | Shift"
 action = "ToggleSimpleFullscreen"
 
 [[hints.enabled]]
@@ -37,4 +42,7 @@ mods = "Control|Shift"
 
 [hints.enabled.mouse]
 enabled = true
-mods    = "None"
+# Shift+Click to open URLs.  Shift bypasses tmux mouse-tracking so the
+# click reaches Alacritty instead of being swallowed for pane selection.
+# Plain clicks (no Shift) always belong to tmux.
+mods    = "Shift"

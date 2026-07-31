@@ -67,6 +67,15 @@ duration  = 0          # 0 = visual bell disabled; set >0 to enable
 # Inherit Alacritty's built-in default theme. Re-enable a [colors] block here
 # only when a value genuinely differs from the built-in defaults.
 
+# ── Keyboard bindings ───────────────────────────────────────────────────────
+# Shift+Enter → distinct CSI-u sequence so tmux and pi can tell it apart
+# from plain Enter (which submits).  Without this, Alacritty sends \r for
+# both, and pi's "shift+enter → newline" default can't fire.
+[[keyboard.bindings]]
+key  = "Return"
+mods = "Shift"
+chars = "\u001b[13;2u"
+
 # ── URL hints ────────────────────────────────────────────────────────────────
 # Defined per-platform/host because the open command differs:
 #   macOS:        open

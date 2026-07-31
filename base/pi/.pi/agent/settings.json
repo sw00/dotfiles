@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.83.0",
-  "defaultProvider": "opencode",
-  "defaultModel": "kimi-k2.7-code",
+  "defaultProvider": "google",
+  "defaultModel": "gemini-3.6-flash",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
