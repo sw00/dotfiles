@@ -205,15 +205,26 @@ done
 # =============================================================================
 section "Config parsability  [GREEN]"
 
-# tmux: start a server against the config in an isolated socket, then kill it
-check "tmux: config parses without errors" bash -c "
-    tmux -L dotfiles_check \
-         -f '$DOTFILES/base/tmux/.config/tmux/tmux.conf' \
-         start-server 2>/dev/null
-    rc=\$?
-    tmux -L dotfiles_check kill-server 2>/dev/null || true
-    exit \$rc
-"
+# tmux: start a server against the config in an isolated socket, then kill it.
+# Parse with both the PATH tmux and (when present) the system tmux — WSL's apt
+# tmux 3.4 predates extended-keys-format, so the config must stay valid there.
+# Cleanup uses the same binary that started the server (client/server protocol
+# versions must match, or kill-server silently fails and strands the socket).
+for _tm in tmux /usr/bin/tmux; do
+    if command -v "$_tm" >/dev/null 2>&1; then
+        _label="$_tm"
+        [ "$_tm" = tmux ] && _label="tmux (PATH)"
+        check "tmux: config parses without errors [$_label]" bash -c "
+            '$_tm' -L dotfiles_check \
+                 -f '$DOTFILES/base/tmux/.config/tmux/tmux.conf' \
+                 start-server 2>/dev/null
+            rc=\$?
+            '$_tm' -L dotfiles_check kill-server 2>/dev/null || true
+            exit \$rc
+        "
+    fi
+done
+unset _tm _label
 
 # git: 'config -l' exits 128 on malformed files
 check "git: .gitconfig is parseable" \
@@ -303,6 +314,17 @@ TMUX_CFG="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
 check_has \
     "tmux: clipboard has platform guard (if-shell Darwin)" \
     'if-shell.*Darwin' \
+    "$TMUX_CFG"
+
+# Tombstone: extended-keys-format only exists in tmux >= 3.5 (WSL's apt tmux
+# 3.4 predates it). It was removed in 5f629b2 ("fix(tmux): invalid option") and
+# re-added bare in cff3f3a — twice bitten. The set must stay gated behind the
+# option-table probe: no bare set, probe present.
+check_not "tmux: extended-keys-format NOT set bare (must be version-gated)" \
+    '^set -g extended-keys-format' \
+    "$TMUX_CFG"
+check_has "tmux: extended-keys-format gated behind option probe (>= 3.5)" \
+    'show-options -s extended-keys-format' \
     "$TMUX_CFG"
 
 
