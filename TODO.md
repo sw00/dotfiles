@@ -113,3 +113,11 @@ These are sound but riskier; left for a follow-up PR.
 - tmux config, aerospace/komorebi parity, mise tiering, and the
   check.sh stow-integrity harness are the strong core. Keep.
 - README is good.
+
+## Homelab-inherited model-switch gaps
+
+Moved from `~/src/homelab/TODO.md` — these are dotfiles shared-core fixes that affect both profiles.
+
+- [ ] [P2] **model-switch twin-of-twin cascade guard.** Add `if (map[twinId]) return` before the hop in `base/pi/.pi/agent/extensions/model-switch.ts` so a 429 on a fallback twin does not cascade to another fallback. Verify against `base/pi/.pi/agent/settings.json` `rateLimitFallbacks`.
+- [ ] [P2] **modes↔model-switch chat-mode restore.** When the chat model 429s mid-`/chat`, auto-fallback to the openrouter twin causes `modes/index.ts` exit-chat restore to be skipped (`stillChatModel` false). Narrow the skip in `base/pi/.pi/agent/extensions/modes/index.ts` (or rely on the switch-back item below).
+- [ ] [P2] **model-switch opportunistic switch-back on 2xx.** Today primary recovery only happens at `session_start`. Add a 2xx `after_provider_response` path in `base/pi/.pi/agent/extensions/model-switch.ts` that switches back from a fallback twin when the primary recovers, using the existing `inProgress` + 2s throttle gate. Verify on any host: force a 429, let primary recover, confirm the next 2xx returns to primary and `defaultModel` unsticks.
