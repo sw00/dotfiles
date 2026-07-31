@@ -5,6 +5,7 @@
 # Ignored:  everything fisher owns (functions/, completions/, conf.d/plugin-*)
 
 functions/
+!functions/tt.fish
 completions/
 conf.d/*
 !conf.d/wsl.fish

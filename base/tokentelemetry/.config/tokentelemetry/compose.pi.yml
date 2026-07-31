@@ -1,0 +1,58 @@
+# TokenTelemetry — container compose for dotfiles.
+#
+# Managed by: base/tokentelemetry stow package
+# Control:     tt up / tt down / tt logs / tt ps
+# Dashboard:   http://localhost:${TT_FRONTEND_PORT:-13000}
+#
+# Uses pre-built GHCR images (pinned by digest in env.tt).
+# Binds to 127.0.0.1 only — no LAN/tailnet exposure.
+# Agent log dirs are read-only mounts; data dir is a bind-mount on the host.
+#
+# Dependencies: docker (colima on macOS, native on Linux/WSL)
+
+name: tokentelemetry
+
+services:
+  backend:
+    image: ${TT_BACKEND_IMAGE}
+    pull_policy: never
+    ports:
+      - "127.0.0.1:${TT_BACKEND_PORT:-18000}:8000"
+    environment:
+      - TT_HOST=0.0.0.0
+      - TT_API_PORT=8000
+      - TOKENTELEMETRY_DATA_DIR=/tt-data
+      - TOKENTELEMETRY_HOME=/tt-data
+      - TZ=${TZ:-}
+    volumes:
+      - ${TT_DATA_DIR:-$HOME/.local/share/tokentelemetry}:/tt-data
+      # Agent log directories (read-only) — uncomment any you use.
+      - ${HOME}/.pi:/root/.pi:ro
+      # - ${HOME}/.claude:/root/.claude:ro
+      # - ${HOME}/.codex:/root/.codex:ro
+      # - ${HOME}/.gemini:/root/.gemini:ro
+      # - ${HOME}/.copilot:/root/.copilot:ro
+      # - ${HOME}/.cursor:/root/.cursor:ro
+      # - ${HOME}/.grok:/root/.grok:ro
+      # - ${HOME}/.qwen:/root/.qwen:ro
+      # - ${HOME}/.vibe:/root/.vibe:ro
+      # - ${HOME}/.local/share/opencode:/root/.local/share/opencode:ro
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import socket; s=socket.socket(); s.settimeout(3); s.connect(('localhost', 8000)); s.close()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    image: ${TT_FRONTEND_IMAGE}
+    pull_policy: never
+    ports:
+      - "127.0.0.1:${TT_FRONTEND_PORT:-13000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_PORT=${TT_BACKEND_PORT:-18000}
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped

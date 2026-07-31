@@ -594,7 +594,7 @@ _stow_preflight() {
 
     # Phase 1a guarantees git-crypt is unlocked (or we aborted), so ssh is
     # always safe to preflight here.
-    _sim_stow "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh
+    _sim_stow "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh tokentelemetry
 
     case "$platform" in
         macos) _sim_stow "$DOTFILES/os/macos" ;;
@@ -694,7 +694,7 @@ main() {
     # git-crypt was unlocked in phase 1a (or we aborted), so ssh is always
     # safe to stow here.
     log "stowing base configs"
-    stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh
+    stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh tokentelemetry
 
     # gnupg is stowed per-OS, not from base: macOS uses pinentry-ide,
     # Linux/WSL use pinentry-tty. Both sources target the same file

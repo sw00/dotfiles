@@ -134,7 +134,7 @@ stow_begin
 # the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
 # base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
 # are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
-check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh" \
+check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry" \
     "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
 stow_end
 
@@ -892,6 +892,63 @@ if command -v nvim >/dev/null 2>&1; then
 else
     _skip "nvim: config loads without errors" "nvim not installed"
 fi
+# =============================================================================
+# 13. TOKENTELEMETRY
+# =============================================================================
+if [[ -d "$DOTFILES/base/tokentelemetry" ]]; then
+    section "TokenTelemetry  [GREEN]"
+
+    _TT_COMPOSE="$DOTFILES/base/tokentelemetry/.config/tokentelemetry/compose.pi.yml"
+    _TT_ENV="$DOTFILES/base/tokentelemetry/.config/tokentelemetry/env.tt"
+
+    check "tt: compose file exists" test -f "$_TT_COMPOSE"
+    check "tt: env file exists" test -f "$_TT_ENV"
+    check "tt: README.md exists" test -f "$DOTFILES/base/tokentelemetry/README.md"
+    check "tt: UPSTREAM.md exists" test -f "$DOTFILES/base/tokentelemetry/UPSTREAM.md"
+
+    # Image digests must be pinned with @sha256: in env.tt
+    check_has "tt: backend image pinned with @sha256:" \
+        'TT_BACKEND_IMAGE=.*@sha256:[0-9a-f]{64}' "$_TT_ENV"
+    check_has "tt: frontend image pinned with @sha256:" \
+        'TT_FRONTEND_IMAGE=.*@sha256:[0-9a-f]{64}' "$_TT_ENV"
+
+    # Loopback-only port binding
+    check_has "tt: backend binds to 127.0.0.1 only" \
+        '127\.0\.0\.1:\$\{TT_BACKEND_PORT' "$_TT_COMPOSE"
+    check_has "tt: frontend binds to 127.0.0.1 only" \
+        '127\.0\.0\.1:\$\{TT_FRONTEND_PORT' "$_TT_COMPOSE"
+
+    # Pi sessions mount
+    check_has "tt: ~/.pi mounted read-only" \
+        'HOME}/.pi:/root/.pi:ro' "$_TT_COMPOSE"
+
+    # Data bind-mount (not named volume)
+    check_has "tt: data dir bind-mounted on host" \
+        'local/share/tokentelemetry' "$_TT_COMPOSE"
+
+    # No build: blocks — must use pre-built images
+    check_not "tt: no build blocks (uses pre-built images)" \
+        '^\s+build:' "$_TT_COMPOSE"
+
+    # Compose file must parse cleanly (skip if docker unavailable)
+    if command -v docker >/dev/null 2>&1; then
+        check "tt: compose file parses" \
+            docker compose -f "$_TT_COMPOSE" --env-file "$_TT_ENV" config -q
+    else
+        _skip "tt: compose file parses" "docker not installed"
+    fi
+
+    # fish tt function
+    _TT_FISH="$DOTFILES/base/fish/.config/fish/functions/tt.fish"
+    if [[ -f "$_TT_FISH" ]]; then
+        check "tt: tt.fish exists in base/fish" test -f "$_TT_FISH"
+        if command -v fish >/dev/null 2>&1; then
+            check "tt: tt.fish parses (fish -n)" \
+                fish -n "$_TT_FISH"
+        fi
+    fi
+fi
+
 
 
 # =============================================================================
