@@ -4,8 +4,10 @@ set -gx EDITOR nvim
 # Source secrets env file (native fish syntax).
 set -l _secrets ~/dotfiles/secrets/env.fish
 if test -f $_secrets
-    and not string match -q (string sub -l 9 (cat $_secrets 2>/dev/null)) "\x00GITCRYPT"
-    source $_secrets
+    set -l first_line (head -n 1 $_secrets 2>/dev/null)
+    if string match -q "set*" $first_line
+        source $_secrets
+    end
 end
 
 # ── PATH ──────────────────────────────────────────────────────────────────────

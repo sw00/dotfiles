@@ -1,7 +1,7 @@
 {
   "lastChangelogVersion": "0.83.0",
   "defaultProvider": "opencode-go",
-  "defaultModel": "deepseek-v4-flash",
+  "defaultModel": "kimi-k2.6",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
