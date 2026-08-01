@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Tmux popup launcher: select a TUI from an fzf menu.
+# Runs inside `tmux display-popup -E`; the chosen tool replaces this process
+# so the popup closes when the tool exits.
+set -euo pipefail
+
+declare -A TOOLS=(
+    [lazygit]="lazygit"
+    [tig]="tig"
+    [k9s]="k9s"
+    [lf]="lf"
+    [btop]="btop"
+    [lnav]="lnav"
+    [fish]="fish"
+)
+
+available_tools() {
+    for key in "${!TOOLS[@]}"; do
+        local cmd="${TOOLS[$key]}"
+        if command -v "$cmd" >/dev/null 2>&1; then
+            printf '%s\n' "$key"
+        fi
+    done | sort
+}
+
+exec_tool() {
+    local name="$1"
+    local cwd="${2:-$HOME}"
+    local cmd="${TOOLS[$name]:-}"
+    if [[ -z "$cmd" ]]; then
+        echo "tmux-launch: unknown tool: $name" >&2
+        exit 1
+    fi
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "tmux-launch: $cmd not installed" >&2
+        exit 1
+    fi
+    cd "$cwd"
+    exec "$cmd"
+}
+
+main() {
+    local cwd="$HOME"
+    if [[ -n "${TMUX_POPUP_CWD:-}" ]]; then
+        cwd="$TMUX_POPUP_CWD"
+    elif [[ -n "${TMUX:-}" ]]; then
+        cwd=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null || echo "$HOME")
+    fi
+
+    if [[ "${1:-}" == "tool" ]]; then
+        [[ -z "${2:-}" ]] && { echo "usage: tmux-launch tool NAME" >&2; exit 1; }
+        exec_tool "$2" "$cwd"
+    fi
+
+    local choice
+    choice=$(available_tools | fzf --prompt 'tool> ' --reverse --no-preview) || true
+    [[ -z "${choice:-}" ]] && exit 0
+    exec_tool "$choice" "$cwd"
+}
+
+main "$@"
