@@ -50,6 +50,7 @@ bitwarden-secrets-manager = "latest"
 pi = "latest"
 claude = "latest"
 "npm:tokscale" = "latest"
+btop = "latest"
 
 # Uncomment when needed on a project:
 # go     = "latest"
