@@ -12,3 +12,14 @@ sort_order = ["tmux", "config", "zoxide"]
 [[wildcard]]
 pattern = "~/src/*"
 startup_command = "nvim"
+
+# Curated projects outside ~/src/. These appear in `sesh list -c` and are
+# pinned at the top of the C-f picker (see tmux.conf), before ~/src repos.
+[[session]]
+name = "dotfiles"
+path = "~/dotfiles"
+startup_command = "nvim"
+
+[[session]]
+name = "scratch"
+path = "~/tmp/scratch"
