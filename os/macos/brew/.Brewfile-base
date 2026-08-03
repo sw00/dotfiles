@@ -46,6 +46,7 @@ cask "aerospace"
 # ensure_system_tools on Linux/WSL). lf moved to mise (ubi:gokcehan/lf).
 brew "tig"              # text-mode git log/diff browser
 brew "graphviz"         # graph visualization library
+brew "btop"             # system monitor — aqua/github releases ship linux builds only; macOS has no prebuilt binary, so brew (Linux/WSL uses mise aqua)
 brew "wireguard-tools"  # VPN (also in ensure_system_tools on Linux/WSL)
 brew "pstree"           # process tree viewer (also in ensure_system_tools)
 brew "mosh"             # mobile shell — roaming/offline SSH (also in ensure_system_tools)

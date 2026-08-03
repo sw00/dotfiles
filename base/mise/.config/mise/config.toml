@@ -50,7 +50,12 @@ bitwarden-secrets-manager = "latest"
 pi = "latest"
 claude = "latest"
 "npm:tokscale" = "latest"
-btop = "latest"
+# btop: aqua ships linux builds only; macOS has no prebuilt binary for any mise
+# backend, so it comes from brew instead (os/macos/brew/.Brewfile-base). The
+# os restriction makes mise skip it on macOS rather than fail on aqua.
+[tools.btop]
+version = "latest"
+os = ["linux"]
 
 # Uncomment when needed on a project:
 # go     = "latest"
