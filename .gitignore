@@ -7,3 +7,5 @@ vim/.netrwhist
 
 # Fish runtime state (machine-specific, managed by fish itself)
 **/fish/fish_variables
+# pi session captures (transient, machine-local)
+pi-session-*.html

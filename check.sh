@@ -705,7 +705,7 @@ check_has "mise: shellcheck declared" \
 
 # ── Tools / desktop audit ───────────────────────────────────────────────────────────
 check_not "mise: work-specific tools not in global config" \
-    'kubeseal\|kustomize\|argocd\|opentofu\|^helm' "$MISE_CFG"
+    'kubeseal\|kustomize\|argocd\|opentofu\|^helm\|crane' "$MISE_CFG"
 
 check "hosts/mbpm3: work mise tools declared" \
     test -f "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
@@ -730,6 +730,9 @@ check_has "hosts/mbpm3: k3d in work mise tools (was asdf)" \
 
 check_has "hosts/mbpm3: awscli in work mise tools (was asdf)" \
     'awscli' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_has "hosts/mbpm3: crane in work mise tools" \
+    'crane' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
 check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migration)" \
     'existing target is not owned by stow' "$DOTFILES/bootstrap.sh"

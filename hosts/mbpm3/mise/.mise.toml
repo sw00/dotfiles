@@ -16,6 +16,7 @@
 [tools]
 helm       = "latest"
 kubeseal   = "latest"
+crane      = "latest"          # container registry ops (aqua:google/go-containerregistry)
 kustomize  = "latest"
 argocd     = "latest"
 opentofu   = "latest"

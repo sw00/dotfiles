@@ -37,7 +37,7 @@ kubectx  = "latest"
 kubens   = "latest"
 lnav     = "latest"
 # Deployment/infra tools are work-laptop specific:
-# see hosts/mbpm3/mise/.mise.toml for helm, kubeseal, kustomize, argocd, opentofu
+# see hosts/mbpm3/mise/.mise.toml for helm, kubeseal, crane, kustomize, argocd, opentofu
 
 # ── Language runtimes ─────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.
