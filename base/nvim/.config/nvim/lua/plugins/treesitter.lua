@@ -9,6 +9,37 @@ return {
         -- submodule. Declare parsers via `ensure_install` (singular — NOT
         -- the old `ensure_installed`); config.setup runs the install
         -- asynchronously, so no vim.defer_fn / manual .install() needed.
+        -- Compatibility shim: nvim-treesitter v1.0 removed/restructured
+        -- modules that telescope.nvim previewers still depend on.
+        --
+        -- 1. nvim-treesitter.configs → renamed to nvim-treesitter.config
+        --    (no is_enabled / get_module). Provide a stub.
+        local configs_stub = {
+            is_enabled = function()
+                return true
+            end,
+            get_module = function(_)
+                return { additional_vim_regex_highlighting = false }
+            end,
+        }
+        package.loaded['nvim-treesitter.configs'] = configs_stub
+
+        -- 2. nvim-treesitter.parsers → now a static parser-data table.
+        --    Add the missing functions telescope expects.
+        local ok, parsers = pcall(require, 'nvim-treesitter.parsers')
+        if ok then
+            if not parsers.ft_to_lang then
+                parsers.ft_to_lang = function(ft)
+                    return ft
+                end
+            end
+            if not parsers.get_parser then
+                parsers.get_parser = function(bufnr, lang)
+                    return vim.treesitter.get_parser(bufnr, lang)
+                end
+            end
+        end
+
         require('nvim-treesitter').setup {
             ensure_install = {
                 'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc',
