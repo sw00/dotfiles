@@ -123,6 +123,20 @@ else
     _skip "shellcheck (all scripts)" "shellcheck not installed"
 fi
 
+# Node --experimental-strip-types needs a build compiled with TypeScript
+# support (always present on v23+; absent on many v22 builds). Probe with a
+# trivial .ts load rather than a version string, so the guard tracks the
+# actual capability.
+_CAN_STRIP_TS=0
+if command -v node >/dev/null 2>&1; then
+    _ts_probe_dir=$(mktemp -d)
+    printf 'const _x: number = 1\n' > "$_ts_probe_dir/probe.ts"
+    if node --experimental-strip-types "$_ts_probe_dir/probe.ts" >/dev/null 2>&1; then
+        _CAN_STRIP_TS=1
+    fi
+    rm -rf "$_ts_probe_dir"
+fi
+
 
 # =============================================================================
 # 2. STOW INTEGRITY  [GREEN]
@@ -617,6 +631,16 @@ check "bootstrap: app-trim migration called on macOS after brew bundle" bash -c 
 check_has "up.sh: winget summary report present (✓ installed / ⚠ failed / ✗ not found)" \
     'installed,.*failed,.*not found' "$DOTFILES/os/wsl/up.sh"
 
+# Reverse guards for the privileged-gate refactor (cf09392): bootstrap now owns
+# wsl.conf and the WSL gpg-agent.conf in _ensure_wsl_conf / _ensure_wsl_gpg;
+# up.sh must stay root-free. These are NOT migration tombstones — they prevent
+# future edits from slipping sudo or a privileged gpg-agent write back into
+# up.sh. (Stripped once by a7c953c's "strip tombstones" pass; restored.)
+check_not "up.sh: contains no sudo (wsl.conf moved to bootstrap privileged gate)" \
+    '\bsudo\b' "$DOTFILES/os/wsl/up.sh"
+check_not "up.sh: no WSL gpg-agent.conf pinentry-wsl write (moved to bootstrap _ensure_wsl_gpg)" \
+    'pinentry-program.*pinentry-wsl' "$DOTFILES/os/wsl/up.sh"
+
 # Tombstone: 31cf793 stripped `local` from up.sh's top-level declarations but
 # left the bare declaration lines (winget_ver, major minor, out, pkg) behind.
 # bash executes those as commands and `set -e` aborts up.sh mid-run; shellcheck
@@ -862,15 +886,25 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # Regression guard for the guard layer itself. The unit tests verify that
 # infra-safety + /check mode correctly classify mutations vs. reads when the
 # shell arrives through the native tool (mutation-guard is now hypa-only).
-check "pi: mutation-guard tests pass" \
-    bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
+if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
+    check "pi: mutation-guard tests pass" \
+        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
+else
+    _skip "pi: mutation-guard tests pass" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+fi
 
 # edit-guardian appends a whitespace-/Unicode-escaped diagnostic when a built-in
 # edit fails to match (blank-line count, leading indent, unfolded non-ASCII).
 # The pure core lives in lib/ so it is testable and never auto-loaded as an
 # extension (root-level *.ts would be); assert the tests + the load split hold.
-check "pi: edit-guardian diagnostic tests pass" \
-    bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/edit-diagnostic.test.ts"
+if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
+    check "pi: edit-guardian diagnostic tests pass" \
+        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/edit-diagnostic.test.ts"
+else
+    _skip "pi: edit-guardian diagnostic tests pass" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+fi
 
 check "pi: edit-guardian test lives in lib/ (never auto-loaded as an extension)" \
     bash -c "! ls '$DOTFILES/base/pi/.pi/agent/extensions'/*.test.ts >/dev/null 2>&1"
@@ -989,12 +1023,15 @@ if [[ -d "$DOTFILES/base/tokentelemetry" ]]; then
     check_not "tt: no build blocks (uses pre-built images)" \
         '^\s+build:' "$_TT_COMPOSE"
 
-    # Compose file must parse cleanly (skip if docker unavailable)
-    if command -v docker >/dev/null 2>&1; then
+    # Compose file must parse cleanly (skip if docker / compose plugin
+    # not callable — Docker Desktop's WSL shim makes `command -v docker`
+    # succeed even when WSL integration is off for this distro).
+    # `docker compose config -q` is purely client-side; daemon-up is NOT required.
+    if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
         check "tt: compose file parses" \
             docker compose -f "$_TT_COMPOSE" --env-file "$_TT_ENV" config -q
     else
-        _skip "tt: compose file parses" "docker not installed"
+        _skip "tt: compose file parses" "docker / compose plugin not callable in this env"
     fi
 
     # fish tt function

@@ -72,3 +72,6 @@ alias vim nvim
 if functions -q _fzf_search_directory
     bind \ct _fzf_search_directory
 end
+
+# Pi
+fish_add_path "$HOME/.local/bin"

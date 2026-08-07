@@ -79,8 +79,9 @@ Key config paths:
   `sudo bash bootstrap.sh` — stow/mise/fish would write root-owned files.
   `ensure_sudo()` runs `sudo -v` once, then a background `sudo -v -n` loop
   (every 60s, killed by the EXIT trap) keeps the 15-min ticket alive so it
-  can't expire mid-run — WSL `up.sh` prompts for `/etc/wsl.conf`, then
-  winget/fonts/VSCodium can outlast it before `ensure_system_tools`. No-op if
+  can't expire mid-run — bootstrap's privileged phase (`_ensure_wsl_conf`)
+  installs `/etc/wsl.conf` while the ticket is alive, then up.sh's
+  winget/fonts/VSCodium can outlast it. No-op if
   `sudo -n true` already succeeds. **Non-TTY (e.g. run from pi, no cached
   ticket): `sudo -v` aborts the whole script** — do the stow steps by hand (no
   sudo) and leave `ensure_system_tools`/`up.sh` for a real terminal.
