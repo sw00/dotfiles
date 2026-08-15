@@ -2,5 +2,8 @@
   "provider": "brave",
   "braveApiKey": "$BRAVE_SEARCH_API_KEY",
   "workflow": "auto-summary",
-  "summaryModel": "opencode-go/deepseek-v4-flash"
+  "summaryModel": "opencode-go/deepseek-v4-flash",
+  "firecrawlBaseUrl": "http://192.168.88.104:8181",
+  "firecrawlApiVersion": "v2",
+  "firecrawlApiKey": "$SHIM_TOKEN"
 }
