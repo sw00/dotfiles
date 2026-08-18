@@ -25,8 +25,12 @@ return {
                     path_display = { 'truncate' },
                     layout_config = { prompt_position = 'top' },
                     sorting_strategy = 'ascending',
-                    -- Treesitter-based preview highlighting is now properly supported
-                    -- on telescope's master branch with nvim-treesitter v1.0.
+                    preview = {
+                        -- Telescope's previewer still relies on the old
+                        -- nvim-treesitter.configs API, which is gone in v1.0.
+                        -- Fall back to regex highlighting in previews.
+                        treesitter = { enable = false },
+                    },
                 },
                 pickers = {
                     find_files = {

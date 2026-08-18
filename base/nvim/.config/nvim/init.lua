@@ -35,6 +35,11 @@ vim.opt.rtp:prepend(lazypath)
 
 -- add plugins
 require('lazy').setup({ import = 'plugins' }, {
+    performance = {
+        -- Keep nvim-treesitter's parser install dir (~/.local/share/nvim/site)
+        -- on runtimepath; lazy's default reset drops it.
+        rtp = { reset = false },
+    },
     ui = {
 
         icons = vim.g.have_nerd_font and {} or {
