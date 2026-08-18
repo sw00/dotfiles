@@ -75,7 +75,11 @@ return {
             { '<F3>',  '<cmd>NvimTreeFindFileToggle<cr>', desc = 'NvimTree FindFile' },
         },
         opts = {
-            view = { width = 35 },
+            view = {
+                width = 35,
+                number = false,
+                relativenumber = false,
+            },
             renderer = {
                 group_empty = true, -- collapse single-child dirs
                 icons = {

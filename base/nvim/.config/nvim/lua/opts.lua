@@ -11,6 +11,13 @@ opt.relativenumber = true -- show relative line numbers
 
 -- Switch to absolute line numbers in insert mode (best of both worlds)
 local function update_relativenumber()
+    -- Sidebar/UI buffers opt out via a buffer-local flag (set by the FileType
+    -- autocmd below). Bail before touching the option so we don't clobber their
+    -- opt_local values: :set writes both the global default and the current
+    -- window's local value.
+    if vim.b.no_relativenumber then
+        return
+    end
     if vim.fn.mode():match('^[iR]') then
         vim.opt.relativenumber = false
     else
@@ -27,6 +34,23 @@ vim.api.nvim_create_autocmd({ 'BufEnter', 'FocusGained' }, {
     callback = function()
         -- defer so mode() reflects the current state
         vim.defer_fn(update_relativenumber, 10)
+    end,
+})
+
+-- Filetypes that should never show line numbers (sidebars, floating UI, terminals).
+-- Each gets a buffer-local opt-out flag the toggler above respects, plus the
+-- actual opt_local values so they're correct even before any BufEnter fires.
+vim.api.nvim_create_autocmd('FileType', {
+    group = vim.api.nvim_create_augroup('NoRelativeNumber', { clear = true }),
+    pattern = {
+        'NvimTree', 'Outline',                  -- sidebars
+        'TelescopePrompt', 'DressingInput',     -- floating inputs
+        'toggleterm', 'Trouble',                -- terminals / diagnostics panel
+    },
+    callback = function()
+        vim.b.no_relativenumber = true
+        vim.opt_local.number = false
+        vim.opt_local.relativenumber = false
     end,
 })
 

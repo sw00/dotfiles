@@ -9,6 +9,12 @@ return {
         'rafamadriz/friendly-snippets',
     },
     opts = {
+        enabled = function()
+            -- Keep autocomplete out of file managers and UI input prompts
+            -- (e.g. nvim-tree rename/delete dialogs handled by dressing.nvim).
+            return not vim.list_contains({ 'NvimTree', 'DressingInput' }, vim.bo.filetype)
+        end,
+
         keymap = {
             preset   = 'default', -- C-n/C-p navigation, C-space show, C-e hide, C-y accept
             ['<CR>']    = { 'accept', 'fallback' },
