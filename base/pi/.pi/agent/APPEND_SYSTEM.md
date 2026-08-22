@@ -74,3 +74,11 @@ step unless there's a problem.
 
 Ask the user, suggesting they switch to a premium model (Ctrl+P). Never invoke
 premium models yourself.
+
+# Large-task delegation (make-it-so)
+
+For genuinely complex, multi-step EXECUTION tasks (many files, heavy
+tool-calling, decomposable), switch to orchestrator-worker mode: plan to
+`.pi/plans/<slug>.md`, partition file ownership, and spawn `worker` subagents
+(parallel for disjoint files, chain for shared). See the `make-it-so` skill for
+the full playbook. NOT for research or verification — those stay read-only.
