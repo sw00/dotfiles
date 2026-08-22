@@ -60,6 +60,12 @@ require('lazy').setup({ import = 'plugins' }, {
     },
 })
 
+-- Vim regex syntax as a universal fallback: treesitter's highlighter only
+-- attaches when the filetype's parser *and* its highlight query both load
+-- cleanly (see treesitter.lua). For everything else, runtime/syntax/<ft>.vim
+-- colours the buffer. Treesitter captures still win where both are active.
+vim.cmd 'syntax on'
+
 -- Load WSL clipboard integration on Windows Subsystem for Linux
 if os.getenv 'WSL_DISTRO_NAME' ~= nil then
     require 'wsl-clipboard'

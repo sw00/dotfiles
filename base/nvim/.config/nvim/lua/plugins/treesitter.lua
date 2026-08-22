@@ -28,10 +28,16 @@ return {
 
         require('nvim-treesitter').setup {
             ensure_install = {
-                'bash', 'c', 'html', 'lua', 'markdown', 'vim', 'vimdoc',
+                -- NOTE: c, lua, markdown, vim, vimdoc are NOT listed here.
+                -- Neovim 0.12 bundles built-in parsers for them (lib/nvim/parser)
+                -- whose grammars match the bundled runtime highlight queries.
+                -- Installing nvim-treesitter's vendored copies shadows the
+                -- built-ins with older grammars that mismatch those queries
+                -- (e.g. lua's `operator:` field), so vim.treesitter.start throws
+                -- and highlighting silently never attaches.
                 -- homelab / scripting
-                'python', 'json', 'json5', 'yaml', 'toml', 'dockerfile',
-                'hcl', -- Terraform / OpenTofu
+                'bash', 'html', 'python', 'json', 'json5', 'yaml', 'toml',
+                'dockerfile', 'hcl', -- Terraform / OpenTofu
             },
         }
 
