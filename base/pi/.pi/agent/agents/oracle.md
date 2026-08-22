@@ -45,3 +45,17 @@ How to confirm the change works (tests to run, commands, expected output).
 Anything to watch out for.
 
 Plans must be concrete enough for a worker with no prior context to execute verbatim.
+
+## If briefed about a LOOP or REPEATED FAILURE
+
+Loops almost always come from a wrong assumption, not insufficient effort. Do
+NOT just produce another fix — that sends the worker back into the same wrong
+model.
+
+1. **False assumption** — name the wrong model the worker is operating under.
+2. **Discriminating test** — one check that confirms or refutes that assumption.
+3. **Fix** — only then, and only if the assumption is confirmed.
+
+If the task is mis-scoped or needs information you can't obtain read-only,
+output `STOP` and tell the worker what to ask the user or which model to switch
+to. Producing a plausible-but-wrong plan is worse than stopping.

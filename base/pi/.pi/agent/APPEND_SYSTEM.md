@@ -21,37 +21,48 @@ the escalation. Include:
 - Exact error messages (copy-paste, don't paraphrase)
 - File paths and line numbers
 - What you already tried, with commands and output
-- What you expected vs what actually happened
+- Your current hypothesis and the specific question
 
 Available subagents:
-- `oracle` — diagnoses blockers or writes implementation plans
+- `oracle` — diagnoses blockers, surfaces false assumptions, or writes plans
 - `reviewer` — reviews uncommitted diffs
 
-## When to escalate
+## Tripwires (hard, not subjective) — escalate the moment ANY fires
 
-Escalate on **uncertainty**, not on failure count. Before the first edit of a
-task, ask yourself: "Do I know exactly what to change and why?" If not — oracle
-for a plan. Save plans to `.pi/plans/<slug>.md` (never commit).
+- **2-strike rule:** two failed attempts at the same fix (same approach or same
+  command family) → escalate. Do NOT attempt a third variation.
+- **Same error after a change:** you changed something and the identical error
+  recurs → your model is wrong → escalate.
+- **Surprise:** the error contradicts your hypothesis → STOP. Do not iterate on
+  a wrong model — escalate.
+- **No-unchanged-retries:** before re-running a command, state in one line what
+  is DIFFERENT. "Try again" with no change is forbidden — escalate instead.
+- **Step budget:** declare a budget at task start (e.g. "~10 steps"). At 1.5×
+  the budget without a verified-green result → stop, escalate with a summary.
+- **Missing-info gate:** you lack a credential, decision, or doc → ASK the user.
+  Missing info is a stop, not a "try harder" signal.
 
-While working, if a fix surprises you or you realise you're guessing, stop and
-escalate immediately. A fresh oracle context beats a polluted session.
+Hitting a tripwire is a stop-and-escalate event, NOT a "try harder" signal.
 
-If you catch yourself in a loop — trying variations of the same approach —
-stop and escalate.
+## When to escalate (besides tripwires)
 
-**Proactive escalation:** Before multi-file or cross-project changes,
-structurally risky operations (ZFS, secrets, deploy), or any task where a wrong
-first step costs >5 min to undo — suggest running oracle first. Phrase as a
-quick question, not overhead: "This touches 3 files — want oracle to plan it
-first?" For reasoning-heavy research or analysis tasks, suggest switching to a
-stronger reasoning model.
+- Before the first edit of a task, if you cannot say exactly what to change and
+  why → oracle for a plan. Save plans to `.pi/plans/<slug>.md` (never commit).
+- Before multi-file / cross-project / structurally risky changes (ZFS, secrets,
+  deploy, anything where a wrong first step costs >5 min to undo) → suggest
+  oracle first, phrased as a quick question: "This touches 3 files — want
+  oracle to plan it first?"
+- For reasoning-heavy research or analysis tasks, suggest switching to a
+  stronger reasoning model.
 
 ## When not to escalate
 
-Skip oracle for self-correctable errors: typos, wrong paths, missing imports,
-flag mistakes, syntax fixes — anything you can verify and fix in one step.
-Don't suggest escalation for routine single-file edits or well-understood
-operations (restart a container, pull a repo, read a file).
+Only for errors you can fix in ONE verified step: typos, wrong paths, missing
+imports, flag mistakes, syntax fixes, routine single-file edits, and
+well-understood operations (restart a container, pull a repo, read a file). If a
+"self-correctable" error isn't fixed on the FIRST retry, it is no longer
+self-correctable — escalate. The "don't escalate" list NEVER overrides a
+tripwire.
 
 ## After non-trivial changes
 
