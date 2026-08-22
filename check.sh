@@ -933,6 +933,24 @@ bail_free(s.get('enabledModels', []), 'settings.json:enabledModels')
 rl = s.get('rateLimitFallbacks', {})
 bail_free(list(rl.keys()), 'settings.json:rateLimitFallbacks keys')
 bail_free(list(rl.values()), 'settings.json:rateLimitFallbacks values')
+
+# Fallback trigger statuses must stay within the capacity/limit allowlist —
+# a stray 400/401/500 would misroute normal errors onto the metered twin.
+allowed_statuses = {402, 403, 429, 503, 529}
+fps = s.get('rateLimitFallbackStatuses')
+if fps is not None:
+    if not isinstance(fps, list) or not fps:
+        sys.stderr.write('rateLimitFallbackStatuses must be a non-empty list\\n')
+        sys.exit(1)
+    for n in fps:
+        if not (isinstance(n, int) and n in allowed_statuses):
+            sys.stderr.write('settings.json:rateLimitFallbackStatuses illegal entry: %r\\n' % (n,))
+            sys.exit(1)
+
+cd = s.get('rateLimitFallbackRecoveryCooldownSec')
+if cd is not None and not (isinstance(cd, int) and cd > 0):
+    sys.stderr.write('settings.json:rateLimitFallbackRecoveryCooldownSec must be a positive int\\n')
+    sys.exit(1)
 \""
 
 

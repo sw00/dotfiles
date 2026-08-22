@@ -182,19 +182,41 @@ cycle set + fallback map).
 
 ### Auto-fallback (map-driven)
 
-On HTTP 429/529, the extension consults `rateLimitFallbacks` (primary →
-OpenRouter twin) and hops if authed. **The laptop `settings.json` now includes
-`rateLimitFallbacks` for all 6 primary models** — when a subscription
-rate-limits, pi automatically switches to the OpenRouter twin, then recovers
-to the primary on next session start.
+On any status in `rateLimitFallbackStatuses` (default `[429, 529, 503, 402]` —
+rate limit, Anthropic overloaded, DeepSeek/OpenAI/OpenRouter capacity 503,
+OpenAI insufficient-quota 402), the extension consults `rateLimitFallbacks`
+(primary → OpenRouter twin) and hops if authed. **The laptop `settings.json`
+now includes `rateLimitFallbacks` for all 8 primary models** — when a
+subscription rate-limits or a provider is capacity-bound, pi automatically
+switches to the OpenRouter twin. The hop sets a recovery cooldown
+(`rateLimitFallbackRecoveryCooldownSec`, default 120s) floored by the
+response's `retry-after` when present.
 
 OpenRouter models are registered in `models.json` so they appear in `/models` and
 can be reached manually via `/use`, but they are **excluded from** `enabledModels`.
 
+Note: some map entries are tier-adjacent rather than exact mirrors
+(`glm-5.2 → openrouter/z-ai/glm-5`, `claude-opus-4-8 →
+openrouter/anthropic/claude-opus-4`) — a hop is a deliberate capability
+change, not a perfect substitute. Trigger set is config-driven and validated
+by `check.sh`; 403 is opt-in only (permission/region 403s are not fixed by a
+same-gateway twin).
+
 ### Recovery
 
-Fallbacks are **sticky** (pi persists `defaultModel`). The extension switches
-back to the primary on `session_start` when it is authed again.
+Fallbacks are **sticky** (pi persists `defaultModel`), so two recovery paths:
+
+1. `session_start` — if the persisted model is a fallback twin and its primary
+   is authed again, switch back. Skipped when the user explicitly picked the
+   twin this session via `/use`/Ctrl+P (tracked through the `model_select`
+   event). A twin persisted from a *previous* run (hop or `/use`) is still
+   recovered — cross-restart `/use` choice is not preserved.
+2. Gated 2xx recovery — after an in-process hop, once the cooldown has
+   elapsed and the twin was not user-chosen, a successful response switches
+   back to the primary. The cooldown prevents mid-turn yanks back to a
+   still-rate-limited primary (thrash) and misreading stream errors that
+   arrive as a committed 200. The two directions have independent 2s
+   throttles, so a recovery can never suppress the next fallback.
 
 ## Tests
 
