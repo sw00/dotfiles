@@ -1,6 +1,6 @@
 ---
 name: make-it-so
-description: Orchestrator-worker flow for large, multi-step EXECUTION tasks that require making changes across many files with heavy tool-calling. Use when a task is genuinely complex and decomposable — NOT for research or verification (those stay read-only). Force with "make it so: <task>" or /skill:make-it-so.
+description: 'Orchestrator-worker flow for large, multi-step EXECUTION tasks that require making changes across many files with heavy tool-calling. Use when a task is genuinely complex and decomposable — NOT for research or verification (those stay read-only). Force with "make it so: <task>" or /skill:make-it-so.'
 disable-model-invocation: false
 ---
 
