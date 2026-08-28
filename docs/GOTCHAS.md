@@ -67,6 +67,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` patterns must be `^-anchored`.
 - Mosh needs system packages (protobuf, utempter, openssl) — no mise/ubi binary.
 - Linux/WSL has no system ssh-agent: `base/fish/.../conf.d/ssh-agent.fish` runs a shared agent on `~/.ssh/agent.sock`. Extend that file, don't add another.
+- ssh always forwards LANG/LC_*: macOS/Ubuntu ship `SendEnv LANG LC_*` in `/etc/ssh/ssh_config`, and ssh reads the USER config first then APPENDS the systemwide file's patterns — `SendEnv -LANG` in `~/.ssh/config` runs too early and can't remove them (verified: `ssh -G` still shows `sendenv LANG LC_*`). Bare `SendEnv` is a fatal parse error. Fix: `conf.d/ssh-locale.fish` wraps ssh with `-F ~/.ssh/config`, which makes ssh ignore the systemwide file entirely (`Include` directives inside the user config still work). Caveat: scp/sftp/git exec the ssh binary directly and bypass the wrapper.
 - shellcheck runs at `-S warning`; info-level findings are acceptable.
 - `gh repo delete` needs the `delete_repo` scope. `gh auth refresh -h github.com -s delete_repo` first.
 - VSCodium `--install-extension` emits harmless `DEP0169` warnings. Extensions install fine.
