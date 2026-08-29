@@ -9,7 +9,7 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 | Model | Role | Rationale |
 |------|-------|-----------|
 | `opencode-go/deepseek-v4-pro` | Worker (default) | Best price/performance; strong meta-cognition for self-escalation |
-| `opencode-go/glm-5.2` | Oracle | Low hallucination rate (~28%); strong at long-horizon diagnosis |
+| `z-ai/glm-5.3-flash` | Oracle | 1M context, near-Claude-Opus coding claims; 3–5× cheaper than prior slot |
 | `anthropic/claude-haiku-4-5` | Reviewer | Outperforms larger models on code review (academic eval); also falls back for web summaries |
 | `opencode-go/deepseek-v4-flash` | Web summaries (preferred) | Cheapest, fastest; summaries are low-stakes |
 | `opencode-go/kimi-k2.6` | Chat mode | Fast and cheap for conceptual discussion; K3 is overkill (slow, expensive, locked to max reasoning) |
@@ -96,7 +96,7 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
-| OpenCode Go (Zen) | `deepseek-v4-pro`, `deepseek-v4-flash`, `glm-5.2`, `kimi-k2.6` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4-pro`, `deepseek-v4-flash`, `kimi-k2.6` | No | Zero (paid tier) |
 | Anthropic (Console) | `claude-haiku-4-5`, `claude-opus-4-8` | No | Zero (API/Pro) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
@@ -196,7 +196,7 @@ OpenRouter models are registered in `models.json` so they appear in `/models` an
 can be reached manually via `/use`, but they are **excluded from** `enabledModels`.
 
 Note: some map entries are tier-adjacent rather than exact mirrors
-(`glm-5.2 → openrouter/z-ai/glm-5`, `claude-opus-4-8 →
+(`z-ai/glm-5.3-flash → openrouter/z-ai/glm-5.3-flash`, `claude-opus-4-8 →
 openrouter/anthropic/claude-opus-4`) — a hop is a deliberate capability
 change, not a perfect substitute. Trigger set is config-driven and validated
 by `check.sh`; 403 is opt-in only (permission/region 403s are not fixed by a
