@@ -6,20 +6,6 @@
       "api": "openai-completions",
       "models": [
         {
-          "id": "deepseek/deepseek-v4-pro",
-          "name": "DeepSeek V4 Pro (OR)",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 1000000,
-          "maxTokens": 8192,
-          "cost": { "input": 0.43, "output": 0.87, "cacheRead": 0, "cacheWrite": 0 },
-          "compat": {
-            "thinkingFormat": "openrouter",
-            "sessionAffinityFormat": "openrouter",
-            "openRouterRouting": { "data_collection": "deny" }
-          }
-        },
-        {
           "id": "deepseek/deepseek-v4-flash",
           "name": "DeepSeek V4 Flash (OR)",
           "reasoning": false,
