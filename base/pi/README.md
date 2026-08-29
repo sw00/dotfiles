@@ -10,7 +10,7 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 |------|-------|-----------|
 | `opencode-go/deepseek-v4-pro` | Worker (default) | Best price/performance; strong meta-cognition for self-escalation |
 | `z-ai/glm-5.3-flash` | Oracle | 1M context, near-Claude-Opus coding claims; 3–5× cheaper than prior slot |
-| `anthropic/claude-haiku-4-5` | Reviewer | Outperforms larger models on code review (academic eval); also falls back for web summaries |
+| `z-ai/glm-4.7-flash` | Reviewer | Lightweight review of plans and diffs; cheap, fast, good enough for gating |
 | `opencode-go/deepseek-v4-flash` | Web summaries (preferred) | Cheapest, fastest; summaries are low-stakes |
 | `opencode-go/kimi-k2.6` | Chat mode | Fast and cheap for conceptual discussion; K3 is overkill (slow, expensive, locked to max reasoning) |
 | `anthropic/claude-opus-4-8` | Manual premium | Premium last resort; never invoked by agents — Ctrl+P only |
