@@ -61,3 +61,8 @@ Consolidated summary: what changed, verification status, any open blockers.
 - The expensive model is bounded to your planning/aggregation turns; the bulk
   token volume runs in cheap workers. That's the point — don't do the bulk
   yourself.
+- Safe-change (APPEND_SYSTEM) applies at the orchestrator→user boundary: a
+  worker blocker that's a *reversible* decision → decide pragmatically and
+  batch the question for the user; don't reflexively stop or escalate to
+  `oracle`. Irreversible/credential/doc blockers still stop. Workers report
+  blockers up — they don't make unbriefed changes.
