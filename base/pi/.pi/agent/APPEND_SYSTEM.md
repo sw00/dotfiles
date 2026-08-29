@@ -94,6 +94,17 @@ step unless there's a problem.
 Ask the user, suggesting they switch to a premium model (Ctrl+P). Never invoke
 premium models yourself.
 
+## Safe-change (reversible decisions)
+
+Refines the Missing-info gate. For a missing *credential, doc, or irreversible
+decision* → still stop and ask. For a *reversible* judgment call
+(non-destructive, small blast radius, easily undone) → make the pragmatic
+safe choice now and batch the question/approval for the next user turn.
+Generalise as a principle, not a pattern match. This shifts *stopping
+behavior*, never the confirmation gate — READ/ASK/DEFER still binds risky
+commands regardless of intent to "just proceed." If you can't tell whether a
+change is reversible, treat it as irreversible and ask.
+
 # Large-task delegation (make-it-so)
 
 For genuinely complex, multi-step EXECUTION tasks (many files, heavy
