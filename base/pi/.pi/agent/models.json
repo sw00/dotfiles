@@ -33,20 +33,6 @@
           }
         },
         {
-          "id": "z-ai/glm-5",
-          "name": "GLM 5 (OR)",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 1000000,
-          "maxTokens": 8192,
-          "cost": { "input": 1.40, "output": 4.40, "cacheRead": 0, "cacheWrite": 0 },
-          "compat": {
-            "thinkingFormat": "openrouter",
-            "sessionAffinityFormat": "openrouter",
-            "openRouterRouting": { "data_collection": "deny" }
-          }
-        },
-        {
           "id": "moonshotai/kimi-k2.6",
           "name": "Kimi K2.6 (OR)",
           "reasoning": true,
@@ -69,34 +55,6 @@
           "maxTokens": 8192,
           "cost": { "input": 0.8, "output": 4, "cacheRead": 0.1, "cacheWrite": 1 },
           "compat": {
-            "sessionAffinityFormat": "openrouter",
-            "openRouterRouting": { "data_collection": "deny" }
-          }
-        },
-        {
-          "id": "anthropic/claude-sonnet-4",
-          "name": "Claude Sonnet 4 (OR)",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 200000,
-          "maxTokens": 8192,
-          "cost": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
-          "compat": {
-            "thinkingFormat": "openrouter",
-            "sessionAffinityFormat": "openrouter",
-            "openRouterRouting": { "data_collection": "deny" }
-          }
-        },
-        {
-          "id": "anthropic/claude-opus-4",
-          "name": "Claude Opus 4 (OR)",
-          "reasoning": true,
-          "input": ["text", "image"],
-          "contextWindow": 200000,
-          "maxTokens": 16384,
-          "cost": { "input": 15, "output": 75, "cacheRead": 1.5, "cacheWrite": 18.75 },
-          "compat": {
-            "thinkingFormat": "openrouter",
             "sessionAffinityFormat": "openrouter",
             "openRouterRouting": { "data_collection": "deny" }
           }
