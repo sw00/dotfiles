@@ -40,7 +40,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   and classify the raw command; no wrapper-unwrapping is needed.
 - `pi-web-access` is not redundant — Pi core has no native `web_search`,
   `fetch_content`, `source_check`, or `get_search_content` tools.
-- pi writes runtime state (selected model, `lastChangelogVersion`) back through the stowed `settings.json` symlink. Before committing pi changes: `git diff` and `git checkout` any unintended default-model drift (default is `deepseek-v4-pro`).
+- pi writes runtime state (selected model, `lastChangelogVersion`) back through the stowed `settings.json` symlink. Before committing pi changes: inspect `git diff` and revert any unintended default-model drift rather than assuming a particular default.
 - pi safety has two independent axes: session posture (change/check/chat) vs. per-domain write-gate (locked/armed). Never conflate. See `base/pi/README.md`.
 - Subagents load infra-safety locked with `hasUI=false` → infra mutations hard-blocked. General bash stays unguarded (oracle needs it). Intentional asymmetry.
 - pi infra-safety false-positives on commit messages: `git commit -m "...terraform..."` parses as a terraform invocation → blocked. Fix: `git commit -F <file>`.

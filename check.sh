@@ -876,6 +876,13 @@ check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)
         '$DOTFILES/base/pi/.pi/agent/AGENTS.md' \
         '$DOTFILES/base/pi/.pi/agent/settings.json'"
 
+# Public documentation must remain deployment-blind. Host-specific details
+# belong in the deployment repository, not this general-purpose public repo.
+check "pi docs: no homelab/agentbox/Telegram deployment references" \
+    bash -c "! grep -rEi 'homelab|agentbox|telegram|tg-session|tg-status|pi-telegram|ninimon' \
+        '$DOTFILES/README.md' '$DOTFILES/AGENTS.md' '$DOTFILES/TODO.md' \
+        '$DOTFILES/docs' '$DOTFILES/base/pi' >/dev/null 2>&1"
+
 # Regression guard for the "use <model>" false-positive bug.  Plain-text
 # input switching was removed entirely in 3ebbb2e (Telegram bridge now strips
 # the [telegram] prefix and pi handles /use as a slash command).  The only
