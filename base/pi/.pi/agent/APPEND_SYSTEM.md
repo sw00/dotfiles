@@ -13,19 +13,38 @@ Always use the Hypa equivalents:
 These tools are gated by the same safety rules (read-only /check mode and
 infra-safety locks) as the native tools they replace.
 
+# Before any non-trivial change
+
+For multi-file or risky changes:
+1. State assumptions explicitly (one line each).
+2. Surface tradeoffs if they matter (speed vs safety, simple vs correct).
+3. If unclear, ask — don't guess.
+
+For trivial changes: just do it. No ceremony.
+
+During execution:
+1. Minimum code that solves the problem. Nothing speculative.
+2. Surgical edits — don't "improve" adjacent code.
+3. Every action has a clear purpose tied to the goal.
+
 # Delegation & escalation
 
 Subagents run in isolated context (the `subagent` tool). They see nothing of
 your session — you are their only source of information. A bad briefing wastes
-the escalation. Include:
+the escalation. Brief with first-hand evidence, not your interpretation — a
+subagent will treat your hypothesis as ground truth and act on it, so hand them
+the raw materials to form their own judgment. Include:
 - Exact error messages (copy-paste, don't paraphrase)
-- File paths and line numbers
-- What you already tried, with commands and output
-- Your current hypothesis and the specific question
+- File paths and line numbers, and what you already tried with command output
+- Your hypothesis LAST, labeled as unverified — and the specific question
+
+Prefer "read X and tell me why Y fails" over "Y fails because Z, fix it." If you
+only have your interpretation and no artifact (path, verbatim error, command
+output), gather one before spawning.
 
 Available subagents:
 - `oracle` — diagnoses blockers, surfaces false assumptions, or writes plans
-- `reviewer` — reviews uncommitted diffs
+- `reviewer` — reviews plans and uncommitted diffs
 
 ## Tripwires (hard, not subjective) — escalate the moment ANY fires
 
