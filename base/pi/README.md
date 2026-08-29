@@ -8,15 +8,20 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 
 | Model | Role | Rationale |
 |------|-------|-----------|
-| `opencode-go/deepseek-v4-pro` | Worker (default) | Best price/performance; strong meta-cognition for self-escalation |
-| `opencode-go/glm-5.2` | Oracle | Low hallucination rate (~28%); strong at long-horizon diagnosis |
-| `anthropic/claude-haiku-4-5` | Reviewer | Outperforms larger models on code review (academic eval); also falls back for web summaries |
-| `opencode-go/deepseek-v4-flash` | Web summaries (preferred) | Cheapest, fastest; summaries are low-stakes |
-| `opencode-go/kimi-k2.6` | Chat mode | Fast and cheap for conceptual discussion; K3 is overkill (slow, expensive, locked to max reasoning) |
-| `anthropic/claude-opus-4-8` | Manual premium | Premium last resort; never invoked by agents — Ctrl+P only |
+| `opencode-go/deepseek-v4-flash` | Daily driver / worker (default) | Fast, economical Go-quota use and a strong fit for routine coding work |
+| `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
+| `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
+| `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
+| `anthropic/claude-sonnet-4-6` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement |
+| `anthropic/claude-opus-4-8` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
+| `opencode-go/kimi-k2.7-code` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
+| `opencode-go/kimi-k2.6` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
+| `anthropic/claude-haiku-4-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
 
-All models except Opus are subscription-included. Web summarisation falls
-through Flash → Haiku → deterministic if the preferred model is unavailable.
+OpenRouter PAYG models, including Kimi K3, remain manual-only and are not part
+of the curated cycle. Experimental `*-exp` models are also excluded from the
+normal roster. Web summarisation uses the daily-driver model unless explicitly
+changed.
 
 ## Escalation
 
@@ -96,8 +101,8 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
-| OpenCode Go (Zen) | `deepseek-v4-pro`, `deepseek-v4-flash`, `glm-5.2`, `kimi-k2.6` | No | Zero (paid tier) |
-| Anthropic (Console) | `claude-haiku-4-5`, `claude-opus-4-8` | No | Zero (API/Pro) |
+| OpenCode Go (Zen) | `deepseek-v4-flash`, `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna`, `kimi-k2.6`, `kimi-k2.7-code` | No | Zero (paid tier) |
+| Anthropic (Console) | `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-8` | No | Zero (API/Pro) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.
@@ -166,13 +171,11 @@ prevent regressions.
 ## Shared core vs. profile
 
 Everything under `agent/` except `settings.json` is the **shared core**:
-generic, host-agnostic, no knowledge of any particular deployment (no Telegram
-bridge, no appliance defaults). The laptop profile is the `settings.json` in
-this repo. Other deployments (e.g. an always-on agentbox) own their own
-`settings.json` and any host-specific overlay extensions **in their host
-repos** — they are NOT tracked here, and the shared core must stay free of
-references to them (no `[telegram]`, no `agentbox`, no appliance model
-defaults). `check.sh` enforces this.
+generic, host-agnostic, and free of deployment-specific defaults. The laptop
+profile is the `settings.json` in this repo. Other deployments own their own
+`settings.json` and any host-specific overlay extensions in their deployment
+repositories — they are NOT tracked here, and the shared core must stay free of
+references to them. `check.sh` enforces this.
 
 ## model-switch
 
@@ -182,25 +185,18 @@ cycle set + fallback map).
 
 ### Auto-fallback (map-driven)
 
-On any status in `rateLimitFallbackStatuses` (default `[429, 529, 503, 402]` —
-rate limit, Anthropic overloaded, DeepSeek/OpenAI/OpenRouter capacity 503,
-OpenAI insufficient-quota 402), the extension consults `rateLimitFallbacks`
-(primary → OpenRouter twin) and hops if authed. **The laptop `settings.json`
-now includes `rateLimitFallbacks` for all 8 primary models** — when a
-subscription rate-limits or a provider is capacity-bound, pi automatically
-switches to the OpenRouter twin. The hop sets a recovery cooldown
-(`rateLimitFallbackRecoveryCooldownSec`, default 120s) floored by the
-response's `retry-after` when present.
+On any status in `rateLimitFallbackStatuses` (laptop explicitly uses
+`[429, 529, 503]`), the extension consults `rateLimitFallbacks`
+(primary → OpenRouter twin) and hops if authed. The laptop intentionally has an
+empty fallback map: subscription quota exhaustion or provider trouble must be
+visible rather than silently converting Claude Pro/OpenCode Go usage into
+OpenRouter PAYG spend. Select an OpenRouter model manually when desired.
 
 OpenRouter models are registered in `models.json` so they appear in `/models` and
 can be reached manually via `/use`, but they are **excluded from** `enabledModels`.
 
-Note: some map entries are tier-adjacent rather than exact mirrors
-(`glm-5.2 → openrouter/z-ai/glm-5`, `claude-opus-4-8 →
-openrouter/anthropic/claude-opus-4`) — a hop is a deliberate capability
-change, not a perfect substitute. Trigger set is config-driven and validated
-by `check.sh`; 403 is opt-in only (permission/region 403s are not fixed by a
-same-gateway twin).
+Trigger set is config-driven and validated by `check.sh`; 403 is opt-in only
+(permission/region 403s are not fixed by a same-gateway twin).
 
 ### Recovery
 

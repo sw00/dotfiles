@@ -68,12 +68,12 @@ These are sound but riskier; left for a follow-up PR.
   live in that same file directly.
 
   Why: BWS gives per-host/project key partitioning without turning
-  `secrets/` into a matrix of host-specific env files. Laptops share
-  a global keyset; the agentbox (unattended, Telegram-bridged, lower
-  trust) can pull a separate machine-scoped set with OpenRouter spend
-  caps. Provider key rotation becomes a BWS dashboard edit instead of
-  a git-crypt re-key + re-commit. `check.sh` and bootstrap stay simple
-  because they only need to verify `BWS_ACCESS_TOKEN`.
+  `secrets/` into a matrix of host-specific env files. Interactive machines
+  can share a global keyset while unattended or lower-trust deployments pull
+  separate machine-scoped sets with spend caps. Provider key rotation becomes
+  a BWS dashboard edit instead of a git-crypt re-key + re-commit. `check.sh`
+  and bootstrap stay simple because they only need to verify
+  `BWS_ACCESS_TOKEN`.
 
   Path: add a `bws` CLI tool via mise (registry or aqua), add a
   fish `conf.d/bws-secrets.fish` that pulls keys at shell startup
@@ -81,8 +81,7 @@ These are sound but riskier; left for a follow-up PR.
   as the sole git-crypt secret.
 
   Risk: offline shell startup loses keys unless we cache or accept
-  missing. Agentbox is the primary beneficiary; laptops can stay on
-  direct keys if the offline risk matters.
+  missing. Machines can remain on direct keys if the offline risk matters.
 
   **Sub-item: rotate secrets during migration.** DONE (rotated out of band).
   The existing keys in `secrets/env.fish` were exposed in a prior agent session
@@ -114,9 +113,9 @@ These are sound but riskier; left for a follow-up PR.
   check.sh stow-integrity harness are the strong core. Keep.
 - README is good.
 
-## Homelab-inherited model-switch gaps
+## Inherited model-switch gaps
 
-Moved from `~/src/homelab/TODO.md` — these are dotfiles shared-core fixes that affect both profiles.
+These are shared-core fixes that affect multiple deployment profiles.
 
 - [x] [P2] **model-switch twin-of-twin cascade guard.** Done: `if (map[twinId]) return;` (T1) guards the hop in `base/pi/.pi/agent/extensions/model-switch.ts`; the shared-core `settings.json` `rateLimitFallbacks` has no twin-as-key, verified by `check.sh`.
 - [ ] [P2] **modes↔model-switch chat-mode restore.** Mitigated but open. The cooldown + independent throttles prevent mid-turn switch-*back* thrash, but a 429 on the chat model (`opencode-go/kimi-k2.6`, which IS a map key) mid-`/chat` still hops to `openrouter/moonshotai/kimi-k2.6`, so `modes/index.ts` `stillChatModel` is still false and the exit-chat restore is skipped. Narrow the `stillChatModel` check in `base/pi/.pi/agent/extensions/modes/index.ts` to also accept the chat model's fallback twin (compare against the `rateLimitFallbacks` map).

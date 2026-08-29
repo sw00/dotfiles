@@ -20,7 +20,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 
 ## git-crypt / GPG
 
-- git-crypt GPG subkey may expire. Fallback: `git-crypt unlock ~/homelab-git-crypt-key`.
+- git-crypt GPG subkey may expire. Use the repository's symmetric key backup as the documented fallback.
 - `gpg --export-secret-subkeys` copies the ENCRYPTED stub — no passphrase prompt at export time. The prompt fires on first signing USE on the receiving machine.
 - `gpg-agent.conf`'s `pinentry-program` line parser truncates at the first space. Leave it unset on Windows (Gpg4win defaults to its GUI pinentry-qt).
 - Gpg4win installs to `C:\Program Files\GnuPG\bin\`, NOT `Program Files (x86)`.
@@ -46,7 +46,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - pi infra-safety false-positives on commit messages: `git commit -m "...terraform..."` parses as a terraform invocation → blocked. Fix: `git commit -F <file>`.
 - pi agent discovery: the `subagent` tool's `description:` frontmatter is not shown to the model except on an error path. The model learns agents from `APPEND_SYSTEM.md` only.
 - pi TS extensions: relative imports need explicit `.ts` extensions (`./classify.ts`) for node --experimental-strip-types.
-- **Shared core must be host-agnostic.** `base/pi/.pi/agent/` is copied verbatim to every deployment. No `telegram`, `agentbox`, `tg-*`, `pi-telegram`, `[telegram]`. Those live in homelab overlay files. `check.sh` enforces this.
+- **Shared core must be host-agnostic.** `base/pi/.pi/agent/` is copied verbatim to every deployment. Host-specific bridge packages, commands, and overlays belong in the deployment repository, not the shared core. `check.sh` enforces this.
 
 ## macOS
 

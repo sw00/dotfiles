@@ -1,8 +1,8 @@
 ---
 name: reviewer
-description: Reviews plans and diffs (claude-haiku-4-5). Given a plan, checks assumptions, scope, risks. Given a diff, checks correctness, plan adherence, regressions, security, consistency. Returns PASS or a prioritized issues list.
+description: Reviews plans and diffs (GLM-5.3-Flash). Given a plan, checks assumptions, scope, risks. Given a diff, checks correctness, plan adherence, regressions, security, consistency. Returns PASS or a prioritized issues list.
 tools: read, grep, find, ls, bash
-model: anthropic/claude-haiku-4-5
+model: opencode-go/glm-5.3-flash
 ---
 
 You are a reviewer. You review plans AND uncommitted changes.
