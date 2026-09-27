@@ -601,6 +601,9 @@ check_has "mise: sesh managed by mise (ubi backend)" \
 check_has "mise: lf managed by mise (ubi backend)" \
     'ubi:gokcehan/lf' "$MISE_CFG"
 
+check_has "mise: navi managed by mise (aqua backend)" \
+    '^navi ' "$MISE_CFG"
+
 check_has "mise: git-lfs managed by mise" \
     'git-lfs' "$MISE_CFG"
 

@@ -29,6 +29,7 @@ tmux              = "latest"
 # entry; the ubi backend installs their prebuilt GitHub release binaries.
 "ubi:joshmedeski/sesh" = "latest"
 "ubi:gokcehan/lf"      = "latest"
+navi             = "latest"   # interactive cheatsheet browser (aqua:denisidoro/navi)
 
 # ── Devops — everyday k8s navigation ─────────────────────────────────────────
 kubectl  = "latest"
