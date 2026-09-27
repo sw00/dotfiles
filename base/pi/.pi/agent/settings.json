@@ -1,11 +1,11 @@
 {
-  "lastChangelogVersion": "0.84.4",
+  "lastChangelogVersion": "0.87.1",
   "defaultProvider": "opencode-go",
-  "defaultModel": "opencode-go/deepseek-v4-flash",
+  "defaultModel": "opencode-go/deepseek-v4.1-flash",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
-    "opencode-go/deepseek-v4-flash",
+    "opencode-go/deepseek-v4.1-flash",
     "opencode-go/glm-5.3",
     "opencode-go/glm-5.3-flash",
     "opencode-go/gpt-5.6-luna",
