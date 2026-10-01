@@ -161,6 +161,7 @@ prevent regressions.
         ├── modes/               /chat /check /change
         ├── model-switch.ts      /use /cycle /models + rate-limit auto-fallback
         ├── infra-safety.ts      infra CLI mutation guard (wires infra-tables)
+        ├── no-powershell.ts     prunes the win32-only `powershell` builtin on non-Windows hosts
         └── lib/
             ├── mutation-guard.*  shared locked/armed engine (+ node --test)
             ├── classify.ts       pure verb parsing/classification (pi-free)

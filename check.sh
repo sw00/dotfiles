@@ -916,6 +916,21 @@ else
         "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
 fi
 
+# pi registers the `powershell` builtin on every platform but it refuses to run
+# off Windows, and its presence in the active set makes the system-prompt builder
+# emit a "Use PowerShell for file operations..." guideline. The no-powershell
+# extension prunes it per-turn on non-win32 hosts (modes' tool gate re-adds it).
+check_has "pi: no-powershell extension gates on process.platform (win32 exempt)" \
+    'process\.platform' "$DOTFILES/base/pi/.pi/agent/extensions/no-powershell.ts"
+
+if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
+    check "pi: no-powershell platform-tools tests pass" \
+        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/platform-tools.test.ts"
+else
+    _skip "pi: no-powershell platform-tools tests pass" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+fi
+
 check "pi: edit-guardian test lives in lib/ (never auto-loaded as an extension)" \
     bash -c "! ls '$DOTFILES/base/pi/.pi/agent/extensions'/*.test.ts >/dev/null 2>&1"
 
