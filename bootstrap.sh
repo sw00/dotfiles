@@ -214,7 +214,7 @@ _ensure_wsl_gpg() {
 #   - Alacritty / interactive terminal     -> pinentry-gtk-2 via WSLg
 #   - Fallback (no display)                -> pinentry-curses / pinentry-tty
 pinentry-program $HOME/.gnupg/pinentry-wsl.sh
-default-cache-ttl 3600
+default-cache-ttl 28800
 max-cache-ttl 86400
 EOF
     chmod +x "$HOME/.gnupg/pinentry-wsl.sh" 2>/dev/null || true
@@ -555,7 +555,7 @@ ensure_macos_gpg() {
 # the JetBrains VCS tooling (PINENTRY_USER_DATA=IJ_PINENTRY*); otherwise
 # falls through to Homebrew's pinentry-mac for a normal GUI prompt.
 pinentry-program $HOME/.gnupg/pinentry-ide.sh
-default-cache-ttl 3600
+default-cache-ttl 28800
 max-cache-ttl 86400
 EOF
     chmod +x "$HOME/.gnupg/pinentry-ide.sh" 2>/dev/null || true

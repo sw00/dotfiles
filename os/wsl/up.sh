@@ -320,7 +320,7 @@ if [[ -x "$GPG4WIN_GPG" ]]; then
 # pinentry-program is intentionally unset: Gpg4win defaults to its GUI
 # pinentry-qt, and a "Program Files (x86)" path would truncate at the
 # first space in gpg-agent.conf's parser.
-default-cache-ttl 3600
+default-cache-ttl 28800
 max-cache-ttl 86400
 EOF
     "$GPG4WIN_GPGCONF" --homedir "$WIN_GNUPG_HOME" --reload gpg-agent \
