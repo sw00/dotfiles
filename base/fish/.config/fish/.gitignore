@@ -2,11 +2,13 @@
 # Run `fisher update` (or bootstrap.sh) to reinstall plugins after cloning.
 #
 # Tracked:  config.fish, fish_plugins, fish_variables, conf.d/ssh-agent.fish,
-#           conf.d/ssh-locale.fish, conf.d/wsl.fish
+#           conf.d/ssh-locale.fish, conf.d/wsl.fish, functions/tt.fish,
+#           functions/pi-prune-sessions.fish
 # Ignored:  everything fisher owns (functions/, completions/, conf.d/plugin-*)
 
-functions/
+functions/*
 !functions/tt.fish
+!functions/pi-prune-sessions.fish
 completions/
 conf.d/*
 !conf.d/wsl.fish

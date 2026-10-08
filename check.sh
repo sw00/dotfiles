@@ -1091,6 +1091,23 @@ fi
 
 
 # =============================================================================
+# ── pi session retention ─────────────────────────────────────────────────────
+# Session transcripts are disposable runtime state, but the age gate is
+# load-bearing: an edit that dropped -mtime would turn this into "delete every
+# session". pi has no retention setting of its own.
+section "Pi session retention"
+
+_PI_PRUNE="$DOTFILES/base/fish/.config/fish/functions/pi-prune-sessions.fish"
+check "pi-prune-sessions: function exists in base/fish" test -f "$_PI_PRUNE"
+if command -v fish >/dev/null 2>&1; then
+    check "pi-prune-sessions: parses (fish -n)" \
+        fish -n "$_PI_PRUNE"
+fi
+check_has "pi-prune-sessions: keeps the -mtime age gate" \
+    '[[:space:]]-mtime' "$_PI_PRUNE"
+check "pi-prune-sessions: every -delete is guarded (-mtime or -empty)" \
+    bash -c "! grep -- '-delete' '$_PI_PRUNE' | grep -qvE -- '-mtime|-empty'"
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
