@@ -60,9 +60,10 @@ a request carrying pi's harness system prompt is treated as a third-party app:
 Verified — a minimal `--system-prompt` succeeds where pi's normal prompt 400s.
 pi-claude-auth concealed this by pinning Claude Code's version "for billing
 header computation" (impersonation); the bridge is the supported route, because
-it drops pi's preamble and refuses the doc-pair prompt shape. Everything Claude
-goes through `claude-bridge/*`, and `auth.json` holds no `anthropic` entry, so
-nothing can silently bill extra usage. Do not reintroduce `pi-claude-auth`
+it does not forward pi's system prompt verbatim — pi's structured parts are
+re-projected into Claude Code's own preset. Everything Claude goes through
+`claude-bridge/*`, and no `anthropic` entry is kept in `auth.json`, so nothing
+can silently bill extra usage. Do not reintroduce `pi-claude-auth`
 either: it copied Claude Code's Keychain credential into `auth.json` and
 re-synced it every five minutes, so both sides rotated **one** refresh token.
 

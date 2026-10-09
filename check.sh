@@ -984,8 +984,9 @@ if cd is not None and not (isinstance(cd, int) and cd > 0):
 # pi-claude-auth → pi-claude-bridge migration. pi-claude-auth copied Claude
 # Code's Keychain credential into pi's anthropic auth.json slot and re-synced it
 # every 5 minutes, so pi and the claude CLI rotated the same refresh token.
-# Route B: the bridge serves the premium roster (inheriting Claude Code's own
-# auth) and pi's native `/login` owns the direct Anthropic provider.
+# Route B: the bridge serves the premium roster, inheriting Claude Code's own
+# auth. pi's native `/login` route is third-party-repriced and keeps no
+# credential (docs/GOTCHAS.md), so nothing here may pin `anthropic/*`.
 check_not "pi settings: pi-claude-auth package removed (migrated to claude-bridge)" \
     'pi-claude-auth' "$DOTFILES/base/pi/.pi/agent/settings.json"
 
@@ -1020,6 +1021,11 @@ check_not "pi settings: kimi removed from the cycle set" \
 # normal session does — a direct pin 400s on every chat turn.
 check_has "pi modes: /chat pins the bridge model" \
     'provider: "claude-bridge", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+
+# ...and the negative: a second, direct pin added alongside the bridge one would
+# otherwise slip through the check above.
+check_not "pi modes: no direct anthropic model pin" \
+    'provider: "anthropic"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
 
 check_not "pi modes: /chat no longer pins a kimi model" \
     'kimi' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
