@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "0.87.1",
+  "lastChangelogVersion": "1.1.0",
   "defaultProvider": "opencode-go",
   "defaultModel": "opencode-go/deepseek-v4.1-flash",
   "hideThinkingBlock": true,
@@ -11,9 +11,9 @@
     "opencode-go/gpt-5.6-luna",
     "opencode-go/kimi-k2.7-code",
     "opencode-go/kimi-k2.6",
-    "anthropic/claude-haiku-4-5",
-    "anthropic/claude-sonnet-4-6",
-    "anthropic/claude-opus-4-8"
+    "claude-bridge/claude-haiku-5-5",
+    "claude-bridge/claude-sonnet-5-5",
+    "claude-bridge/claude-opus-5-5"
   ],
   "rateLimitFallbacks": {},
   "rateLimitFallbackStatuses": [
@@ -23,7 +23,7 @@
   ],
   "rateLimitFallbackRecoveryCooldownSec": 120,
   "packages": [
-    "git:github.com/pankajudhas81/pi-claude-auth",
+    "npm:pi-claude-bridge",
     "npm:@hypabolic/pi-hypa",
     "npm:pi-web-access",
     "npm:@tmustier/pi-usage-extension"

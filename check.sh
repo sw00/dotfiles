@@ -981,6 +981,34 @@ if cd is not None and not (isinstance(cd, int) and cd > 0):
 
 # =============================================================================
 # 12. NEOVIM SMOKE TEST
+# pi-claude-auth → pi-claude-bridge migration. pi-claude-auth copied Claude
+# Code's Keychain credential into pi's anthropic auth.json slot and re-synced it
+# every 5 minutes, so pi and the claude CLI rotated the same refresh token.
+# Route B: the bridge serves the premium roster (inheriting Claude Code's own
+# auth) and pi's native `/login` owns the direct Anthropic provider.
+check_not "pi settings: pi-claude-auth package removed (migrated to claude-bridge)" \
+    'pi-claude-auth' "$DOTFILES/base/pi/.pi/agent/settings.json"
+
+check_has "pi settings: claude-bridge declared as a package" \
+    'npm:pi-claude-bridge' "$DOTFILES/base/pi/.pi/agent/settings.json"
+
+check_has "pi settings: premium roster routes through claude-bridge" \
+    'claude-bridge/claude-opus-5-5' "$DOTFILES/base/pi/.pi/agent/settings.json"
+
+# pi-claude-bridge records `startupNoticeShown` in claude-bridge.json the first
+# time it shows its settings notice — writing through the stowed symlink and
+# dirtying this repo. Declaring plan + askClaude.enabled up front means the
+# notice never fires. Guard both keys, not either.
+check "pi: claude-bridge.json suppresses the first-run notice write-back" \
+    bash -c "grep -qE '\"plan\"' '$DOTFILES/base/pi/.pi/agent/claude-bridge.json' && \
+             grep -qE '\"enabled\"' '$DOTFILES/base/pi/.pi/agent/claude-bridge.json'"
+
+# /check's tool gate is a denylist, so a write-capable tool registered by a
+# package stays active unless named. AskClaude accepts `mode: \"full\"`
+# (read+write+bash) — a second write path in read-only mode.
+check_has "pi: /check mode hides the write-capable AskClaude tool" \
+    '\"edit\", \"write\", \"AskClaude\"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+
 # =============================================================================
 section "Neovim smoke test"
 

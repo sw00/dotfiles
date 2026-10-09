@@ -1,0 +1,10 @@
+{
+  "askClaude": {
+    "enabled": true,
+    "allowFullMode": false
+  },
+  "provider": {
+    "plan": "pro",
+    "strictMcpConfig": true
+  }
+}

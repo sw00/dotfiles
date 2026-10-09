@@ -146,16 +146,21 @@ export default function (pi: ExtensionAPI) {
     else ctx.ui.setStatus("mode", `${MODE_ICON[mode]} ${mode}`);
   };
 
-  // Toolset is a pure function of mode: check drops edit/write and domain
-  // mode tools (e.g. infra_mode), since guards are force-locked and cannot
-  // be opened from within check. Otherwise all tools.
+  // Toolset is a pure function of mode: check drops edit/write, domain mode
+  // tools (e.g. infra_mode), and package-registered write-capable tools.
+  // Guards are force-locked and cannot be opened from within check.
+  // `AskClaude` (pi-claude-bridge) is a denylist entry because it accepts
+  // `mode: "full"` (read+write+bash) — a second write path that would
+  // otherwise stay active in read-only mode. Renaming the tool via
+  // `askClaude.name` slips past this; `allowFullMode: false` is the backstop.
+  const CHECK_HIDDEN_TOOLS = new Set(["edit", "write", "AskClaude"]);
   const applyToolGate = (m: Mode) => {
     const all = pi.getAllTools().map((t) => t.name);
     if (m === "check") {
       const domainModeTools = new Set(
         [...getGuards().values()].map((g) => `${g.domain}_mode`)
       );
-      pi.setActiveTools(all.filter((t) => t !== "edit" && t !== "write" && !domainModeTools.has(t)));
+      pi.setActiveTools(all.filter((t) => !CHECK_HIDDEN_TOOLS.has(t) && !domainModeTools.has(t)));
     } else {
       pi.setActiveTools(all);
     }

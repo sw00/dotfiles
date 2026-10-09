@@ -12,16 +12,56 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
 | `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
-| `anthropic/claude-sonnet-4-6` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement |
-| `anthropic/claude-opus-4-8` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
+| `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement |
+| `claude-bridge/claude-opus-5-5` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
 | `opencode-go/kimi-k2.7-code` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
 | `opencode-go/kimi-k2.6` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
-| `anthropic/claude-haiku-4-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
+| `claude-bridge/claude-haiku-5-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
 
 OpenRouter PAYG models, including Kimi K3, remain manual-only and are not part
 of the curated cycle. Experimental `*-exp` models are also excluded from the
 normal roster. Web summarisation uses the daily-driver model unless explicitly
 changed.
+
+## Claude Code bridge
+
+Premium turns run through `npm:pi-claude-bridge`: it drives the installed
+Claude Code over the Agent SDK and registers its models as `claude-bridge/*`,
+so the subscription is consumed the way Claude Code consumes it. It needs an
+authenticated `claude` binary (the Agent SDK ships its own copy of Claude Code;
+`provider.pathToClaudeCodeExecutable` overrides it), not a pi credential.
+Config: `agent/claude-bridge.json`
+(stowed — see the write-back note below).
+
+- `provider.plan` — `"pro"` (default); `"max"` unlocks Opus 4.6's 1M window.
+- `provider.strictMcpConfig: true` — blocks `~/.claude.json` / `.mcp.json` MCP
+  servers inside bridge turns.
+- `askClaude.enabled: true` + `allowFullMode: false` — the opt-in delegation
+  tool, read-only by default, for when another provider gets stuck. `/check`
+  also hides it (it can otherwise be given `mode: "full"`).
+
+Both `provider.plan` and `askClaude.enabled` are set explicitly on purpose: the
+bridge's one-time "settings live here" notice only fires when one is unset, and
+recording it would write `startupNoticeShown` through the stowed symlink and
+dirty this repo.
+
+Context windows follow what the bridge has *measured*, not what pi-ai declares:
+Opus 5.5 and Sonnet 5.5 are served at 1M through the `[1m]` suffix, Haiku 5.5 at
+200K. `provider.longContextExtraUsage` opts into the metered 1M paths (only
+Opus 4.6 and Sonnet 4.6 are gated on this plan). Bridge
+models are registered at `cost: 0`, so `/usage` counts their tokens but reports
+no USD for them — read that quota from Claude Code instead.
+
+Upstream notes an Anthropic Agent-SDK billing change that was announced and
+then unannounced; a metered turn would show up as non-zero spend.
+
+The direct Anthropic provider remains available: `/login` →
+*Anthropic (Claude Pro/Max)* runs pi's own PKCE login and stores pi's **own
+grant** — an independent refresh token (the OAuth *client id* is the same one
+Claude Code uses), which is why the two coexist. It is deliberately outside
+`enabledModels` — reach it with `/use`. Do not reintroduce `pi-claude-auth`: it
+copied Claude Code's Keychain credential into `auth.json` and re-synced it every
+five minutes, so both sides rotated **one** refresh token.
 
 ## Escalation
 
@@ -102,7 +142,7 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
 | OpenCode Go (Zen) | `deepseek-v4-flash`, `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna`, `kimi-k2.6`, `kimi-k2.7-code` | No | Zero (paid tier) |
-| Anthropic (Console) | `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-8` | No | Zero (API/Pro) |
+| Anthropic (Claude Pro/Max via Claude Code bridge) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.
@@ -126,7 +166,9 @@ mix, burn trend, upfront tax warnings). Uses **real USD cost** from API
 responses — when you're on subscriptions the marginal cost is £0; the dashboard
 quantifies your subscription value and flags when metered fallback spend is
 non-zero. Entirely local (reads `~/.pi/agent/sessions/` JSONL), no external
-service, no ZDR compromise.
+service, no ZDR compromise. Exception: `claude-bridge/*` turns are registered
+at `cost: 0`, so they appear with tokens and no USD — read their quota from
+Claude Code, not this dashboard.
 
 **Jan:** Native per-conversation usage display. A unified cross-tool tracker
 is deferred — see TODO.md.
@@ -153,6 +195,7 @@ prevent regressions.
 └── agent/                       → ~/.pi/agent/
     ├── settings.json            LAPTOP profile: provider, default model, cycle set
     ├── models.json              OpenRouter provider registration (shared core; env-var key)
+    ├── claude-bridge.json       Claude Code bridge provider + AskClaude config
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, reviewer

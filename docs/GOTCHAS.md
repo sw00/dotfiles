@@ -47,6 +47,9 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - pi agent discovery: the `subagent` tool's `description:` frontmatter is not shown to the model except on an error path. The model learns agents from `APPEND_SYSTEM.md` only.
 - pi TS extensions: relative imports need explicit `.ts` extensions (`./classify.ts`) for node --experimental-strip-types.
 - **Shared core must be host-agnostic.** `base/pi/.pi/agent/` is copied verbatim to every deployment. Host-specific bridge packages, commands, and overlays belong in the deployment repository, not the shared core. `check.sh` enforces this.
+- **Never reintroduce `pi-claude-auth`.** It copied Claude Code's Keychain credential into pi's `auth.json` and re-synced every 5 minutes, so pi and the `claude` CLI held the *same* refresh token — one rotation invalidates the other. `/login` → *Anthropic (Claude Pro/Max)* mints pi its **own grant** — same OAuth client id as Claude Code, but a separate PKCE login with its own refresh token — and coexists with Claude Code safely; `pi-claude-bridge` inherits Claude Code's own auth. Credentials pi owns must never be a hand-me-down from another tool's store.
+- **`/check`'s tool gate is a denylist**, not an allowlist (`modes/index.ts`: `all.filter(...)`). Every write-capable tool registered by a package stays active in read-only mode unless its name is listed in `CHECK_HIDDEN_TOOLS`. `AskClaude` is listed because it accepts `mode: "full"`; a renamed tool via `askClaude.name` would slip past it (config `allowFullMode: false` is the backstop). New write-capable tools need adding there.
+- **A stowed config file that the extension writes to dirties the repo.** `pi-claude-bridge` records `startupNoticeShown` in `claude-bridge.json` when it shows its first-run notice; the dotfile sets `provider.plan` and `askClaude.enabled` so the notice never fires. Check `git status` after any pi extension upgrade.
 
 ## macOS
 
@@ -64,7 +67,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 ## General
 
 - bash `${var#...}` tolerates no spaces around the operator.
-- `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` patterns must be `^-anchored`.
+- `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` is a plain `grep -qE` against the file, so its pattern must be `^-anchored` (or otherwise tight) whenever the file can contain prose that legitimately mentions the thing — a loose substring turns a passing repo into a false failure. Structured files (JSON) are safe unanchored.
 - Mosh needs system packages (protobuf, utempter, openssl) — no mise/ubi binary.
 - Linux/WSL has no system ssh-agent: `base/fish/.../conf.d/ssh-agent.fish` runs a shared agent on `~/.ssh/agent.sock`. Extend that file, don't add another.
 - ssh always forwards LANG/LC_*: macOS/Ubuntu ship `SendEnv LANG LC_*` in `/etc/ssh/ssh_config`, and ssh reads the USER config first then APPENDS the systemwide file's patterns — `SendEnv -LANG` in `~/.ssh/config` runs too early and can't remove them (verified: `ssh -G` still shows `sendenv LANG LC_*`). Bare `SendEnv` is a fatal parse error. Fix: `conf.d/ssh-locale.fish` wraps ssh with `-F ~/.ssh/config`, which makes ssh ignore the systemwide file entirely (`Include` directives inside the user config still work). Caveat: scp/sftp/git exec the ssh binary directly and bypass the wrapper.
