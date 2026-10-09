@@ -61,12 +61,21 @@ Readings:
   plans) — no ceremony regression, and the slim did not lose "just fix it".
 - **risky holds**: 4-5 of 5 runs asked rather than guessing, with fewer attempts
   after (3 vs 6 shells). The missing-information rule survived the rewrite.
-- **loop got worse** (23 vs 15 shells, 3 vs 4 runs stopping). Both sides are above
-  the <=2-attempt signature, so this scenario was never passing; the slim moved it
-  the wrong way, which is the failure the merged tripwire was predicted to cause.
-  Response: "Same error after a change" was restored as a standalone stopping
-  rule (the budget forced an equal-size trim elsewhere). **Re-run this scenario
-  before trusting the loop numbers** — 10 turns.
+- **loop is worse on the slim side, and restoring the tripwire did not fix it.**
+  Two independent samples per side (n=5 each): shells 15 and 11 pre-slim vs 23 and
+  29 post — a consistent ~2x, i.e. 2.6/run vs 5.2/run across 10 runs per side; runs
+  that stopped to ask, 9/10 vs 7/10. Both sides are above the <=2-attempt
+  signature, so this scenario never passed. The pre-registered response (restore
+  "same error after a change" as a standalone rule) was taken and moved nothing,
+  which points instead at the emphatic line the rewrite dropped: *"Hitting a
+  tripwire is a stop-and-escalate event, NOT a 'try harder' signal."*
+  **This is an open decision, not a resolved one.** Options: restore that sentence
+  (12 words, needs an equal trim under the budget) and re-measure with more runs;
+  revert the stopping-rules section to the pre-slim wording; or accept the
+  regression. n=5 on one flash model cannot resolve an effect of this size — the
+  pre-slim samples alone varied 15 -> 11 shells between runs. Note also that the
+  commit message for the tripwire restore over-claims: it presents a single
+  sample as the reason, before the second sample contradicted it.
 - No subagent was spawned in any of the 30 runs, so the ceremony regression this
   set exists to catch is absent at this sample. n=5 on one model is a signal, not
   proof.
