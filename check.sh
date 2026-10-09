@@ -872,7 +872,7 @@ section "Pi shared-core boundary (no deployment-specific leakage)"
 # confirmation-gate / pi-settings.json). This guard prevents regressions like
 # the [telegram] prefix that once leaked into model-switch.ts.
 check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)" \
-    bash -c "! grep -rEq 'telegram|agentbox|tg-status|tg-session|confirmation-gate|cf-gateway|pi-telegram' \
+    bash -c "! grep -rEq 'telegram|agentbox|tg-status|tg-session|confirmation-gate|cf-gateway|pi-telegram|ELEVATE|READ/ASK/DEFER' \
         '$DOTFILES/base/pi/.pi/agent/extensions' \
         '$DOTFILES/base/pi/.pi/agent/agents' \
         '$DOTFILES/base/pi/.pi/agent/APPEND_SYSTEM.md' \
@@ -1075,6 +1075,14 @@ if missing:
     sys.exit(1)
 \""
 
+# Agents must request the hypa tools, not the builtins they replace: pi-hypa's
+# replace filter drops a builtin only when its hypa twin is in the SAME tool
+# list, so an agent asking for `bash` gets native bash — which the infra
+# write-gate and the /check classifier never see (both hook hypa_shell).
+_native_agent_tools=$(grep -REn '^tools:.*(^|[^_a-z])(bash|read|grep|find|ls)([^_a-z]|$)' \
+    "$DOTFILES"/base/pi/.pi/agent/agents/ 2>/dev/null || true)
+check "pi: agents request the hypa tools, not the replaced builtins" \
+    test -z "$_native_agent_tools"
 # =============================================================================
 section "Neovim smoke test"
 

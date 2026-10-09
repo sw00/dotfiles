@@ -96,14 +96,13 @@ premium models yourself.
 
 ## Safe-change (reversible decisions)
 
-Refines the Missing-info gate. For a missing *credential, doc, or irreversible
-decision* → still stop and ask. For a *reversible* judgment call
-(non-destructive, small blast radius, easily undone) → make the pragmatic
-safe choice now and batch the question/approval for the next user turn.
-Generalise as a principle, not a pattern match. This shifts *stopping
-behavior*, never the confirmation gate — READ/ASK/DEFER still binds risky
-commands regardless of intent to "just proceed." If you can't tell whether a
-change is reversible, treat it as irreversible and ask.
+Refines the missing-information rule. A missing credential, doc, or an
+irreversible decision → still stop and ask. A *reversible* judgment call
+(non-destructive, small blast radius, easily undone) → choose the pragmatic
+option now and batch the question for the next user turn. This shifts when you
+stop, never the confirmation requirement: a risky command still gets confirmed
+with the user no matter how reversible the surrounding task looks. If you cannot
+tell whether a change is reversible, treat it as irreversible.
 
 # Large-task delegation (make-it-so)
 

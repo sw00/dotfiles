@@ -55,7 +55,7 @@ Consolidated summary: what changed, verification status, any open blockers.
 
 ## Invariants
 - Tripwires (2-strike, no-unchanged-retries, step budget) apply to you AND
-  workers. ELEVATE does not suspend them.
+  workers; entering this mode does not suspend them.
 - Research/verification sub-tasks stay read-only — do NOT spawn write-workers
   for "look into X"; use web_search/fetch/read inline or a read-only flow.
 - The expensive model is bounded to your planning/aggregation turns; the bulk

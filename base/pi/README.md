@@ -126,11 +126,14 @@ quoted strings in `normalizeCommand` would be the real fix.)
 ### Subagent safety (defense-in-depth)
 
 Subagent processes spawned by pi (`oracle`, `reviewer`, etc.) load infra-safety
-independently, default to locked, and run with `hasUI=false` — so live-infra
-mutations are physically blocked even when the agent prompt says "read-only
-inspection." General bash (test runners, builds) stays unguarded because oracle
-needs these for diagnosis; the read-only constraint for non-infra commands
-relies on the agent prompt, not a tool gate.
+independently, default to locked, and run with `hasUI=false`. The guards hook
+`hypa_shell` **only**, and pi-hypa's replace filter drops a builtin only when
+its hypa twin is in the *same* active tool list — so this holds only because
+`agents/*.md` request the hypa tools. An agent that asked for `bash` would get
+native bash, which no guard sees; `check.sh` asserts the agents never do.
+General shell (test runners, builds) stays unguarded because oracle needs it for
+diagnosis; the read-only constraint for non-infra commands relies on the agent
+prompt, not a tool gate.
 
 ## Web search
 
@@ -189,8 +192,10 @@ preference note in `APPEND_SYSTEM.md`.
 Because commands arrive through `hypa_shell` rather than the native `bash` tool,
 the safety stack (`infra-safety.ts` and the `/check` mode shell gate) intercepts
 `hypa_shell` directly and classifies the raw command. No wrapper-unwrapping is
-needed in replace mode. `lib/mutation-guard.test.ts` is exercised by `check.sh` to
-prevent regressions.
+needed in replace mode. This holds in the subagent processes too, but only
+because their `tools:` lists name the hypa tools (`agents/*.md`) — requesting
+`bash` there would restore an unguarded native shell. `lib/mutation-guard.test.ts`
+is exercised by `check.sh` to prevent regressions.
 
 ## File map
 
