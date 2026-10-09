@@ -44,7 +44,8 @@ under `.pi/plans/` in the scratch dir.
 ## Baseline (2026-10-09, deepseek-v4.1-flash, 5 runs per scenario per side)
 
 Totals; divide by 5 for per-run. "before" pins the pre-slim APPEND_SYSTEM (817
-words) via `--append-system-prompt`; "after" is the branch prompt (489).
+words) via `--append-system-prompt`; "after" is the branch prompt as it stood
+then (489 — now 498, after the emphasis line was restored).
 
 | Scenario | Side | subagents | shells | edits | plans | runs that asked | 
 |---|---|---|---|---|---|---|
@@ -61,21 +62,21 @@ Readings:
   plans) — no ceremony regression, and the slim did not lose "just fix it".
 - **risky holds**: 4-5 of 5 runs asked rather than guessing, with fewer attempts
   after (3 vs 6 shells). The missing-information rule survived the rewrite.
-- **loop is worse on the slim side, and restoring the tripwire did not fix it.**
-  Two independent samples per side (n=5 each): shells 15 and 11 pre-slim vs 23 and
-  29 post — a consistent ~2x, i.e. 2.6/run vs 5.2/run across 10 runs per side; runs
-  that stopped to ask, 9/10 vs 7/10. Both sides are above the <=2-attempt
-  signature, so this scenario never passed. The pre-registered response (restore
-  "same error after a change" as a standalone rule) was taken and moved nothing,
-  which points instead at the emphatic line the rewrite dropped: *"Hitting a
-  tripwire is a stop-and-escalate event, NOT a 'try harder' signal."*
-  **This is an open decision, not a resolved one.** Options: restore that sentence
-  (12 words, needs an equal trim under the budget) and re-measure with more runs;
-  revert the stopping-rules section to the pre-slim wording; or accept the
-  regression. n=5 on one flash model cannot resolve an effect of this size — the
-  pre-slim samples alone varied 15 -> 11 shells between runs. Note also that the
-  commit message for the tripwire restore over-claims: it presents a single
-  sample as the reason, before the second sample contradicted it.
+- **loop: on a larger sample the slim version wins, and the earlier alarm was
+  noise.** Three n=5 samples (pre 15 / 11 shells, post 23 / 29, post-restore 29)
+  suggested the slim side attempted more and drove two tuning attempts. At **n=10
+  per side** the picture inverts: pre-slim 67 shells over 10 runs (6.7/run;
+  per-run 1 1 1 2 2 4 4 5 10 **37**; median 3) vs slim+emphasis 15 (1.5/run;
+  1 1 1 1 1 2 2 2 2 2; median 1.5 — no run above the 2-attempt signature).
+  Both sides do stop (9/10 vs 7/10 end with a question mark), but the slim side
+  stopped *within* the signature in 10/10 runs.
+  Lessons, recorded rather than glossed: (a) a heavy tail makes the mean
+  meaningless at small n — read the per-run distribution and the median, never
+  the mean; (b) the "restore the tripwire" reaction was based on underpowered
+  samples (restoring it is still defensible, and the restored emphasis line now
+  measures 10/10 runs within the signature); (c) the `asks` counter is a weak
+  proxy — a run can stop and report without a question mark; the attempt count is
+  the better signal.
 - No subagent was spawned in any of the 30 runs, so the ceremony regression this
   set exists to catch is absent at this sample. n=5 on one model is a signal, not
   proof.
