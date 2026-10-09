@@ -1084,6 +1084,15 @@ _native_agent_tools=$(grep -REn '^tools:.*(^|[^_a-z])(bash|read|grep|find|ls)([^
 check "pi: agents request the hypa tools, not the replaced builtins" \
     test -z "$_native_agent_tools"
 
+# pi does not validate --tools: it filters the list against what is registered,
+# so a typo (`hypa_grp`) silently leaves that agent without the tool.
+_bad_agent_tools=$(grep -hE '^tools:' "$DOTFILES"/base/pi/.pi/agent/agents/*.md \
+    | tr ',' '\n' | sed -E 's/^tools:[[:space:]]*//' | tr -d ' ' \
+    | grep -v '^$' | grep -vE '^(hypa_read|hypa_grep|hypa_find|hypa_ls|hypa_shell|edit|write)$' \
+    | sort -u || true)
+check "pi: agent tools: lists use only known tool names" \
+    test -z "$_bad_agent_tools"
+
 # APPEND_SYSTEM.md rides on every request. It survived two "lean pass" commits
 # and regrew to 817 words through incident-driven additions: omission without a
 # budget is a phase, not a policy. Any future bump must name the incident behind

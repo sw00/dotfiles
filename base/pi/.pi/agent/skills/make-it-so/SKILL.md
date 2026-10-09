@@ -61,5 +61,7 @@ Consolidated summary: what changed, verification status, any open blockers.
 - The expensive model is bounded to your planning/aggregation turns; the bulk
   token volume runs in cheap workers. That's the point — don't do the bulk
   yourself.
-- Safe-change applies at the orchestrator→user boundary; workers report blockers
-  up rather than making unbriefed changes.
+- Safe-change applies at the orchestrator→user boundary: a worker blocker that is
+  a *reversible* decision → decide and batch the question for the user, don't
+  reflexively escalate to `oracle`; irreversible/credential/doc blockers stop.
+  Workers report blockers up rather than making unbriefed changes.

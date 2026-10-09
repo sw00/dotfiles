@@ -186,8 +186,9 @@ is deferred — see TODO.md.
 This config uses `@hypabolic/pi-hypa` in **replace mode** (`~/.hypa-pi/config.json`:
 `{"mode": "replace"}`). The native `bash`, `read`, `grep`, `find`, and `ls` tools
 are disabled; the model is expected to use the Hypa equivalents (`hypa_shell`,
-`hypa_read`, `hypa_grep`, `hypa_find`, `hypa_ls`). This is enforced by the tool
-preference note in `APPEND_SYSTEM.md`.
+`hypa_read`, `hypa_grep`, `hypa_find`, `hypa_ls`). Enforced by replace mode plus
+the agents' `tools:` lists; `APPEND_SYSTEM.md` no longer restates it (the tool
+descriptions and pi-hypa's `promptGuidelines` carry the mapping).
 
 Because commands arrive through `hypa_shell` rather than the native `bash` tool,
 the safety stack (`infra-safety.ts` and the `/check` mode shell gate) intercepts
