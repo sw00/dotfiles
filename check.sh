@@ -1083,6 +1083,14 @@ _native_agent_tools=$(grep -REn '^tools:.*(^|[^_a-z])(bash|read|grep|find|ls)([^
     "$DOTFILES"/base/pi/.pi/agent/agents/ 2>/dev/null || true)
 check "pi: agents request the hypa tools, not the replaced builtins" \
     test -z "$_native_agent_tools"
+
+# APPEND_SYSTEM.md rides on every request. It survived two "lean pass" commits
+# and regrew to 817 words through incident-driven additions: omission without a
+# budget is a phase, not a policy. Any future bump must name the incident behind
+# it (see .pi/plans/prompt-slimming.md — host-local, never committed).
+_append_words=$(wc -w < "$DOTFILES/base/pi/.pi/agent/APPEND_SYSTEM.md" | tr -d ' ')
+check "pi: APPEND_SYSTEM.md within its word budget ($_append_words/500)" \
+    test "$_append_words" -le 500
 # =============================================================================
 section "Neovim smoke test"
 
