@@ -1026,6 +1026,25 @@ check_not "pi modes: /chat no longer pins a kimi model" \
 check_not "pi models: orphaned kimi OpenRouter twin removed" \
     'kimi' "$DOTFILES/base/pi/.pi/agent/models.json"
 
+# The roster table calls one model the daily driver, the README says web
+# summarisation follows it, and the worker subagent is that same role. All three
+# pins must name ONE id — the deepseek-v4-flash / v4.1-flash split survived
+# unnoticed for exactly as long as nothing compared them.
+check "pi: daily driver is one id (settings, worker agent, web-search summary)" \
+    bash -c "python3 -c \"
+import json, sys
+d = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.json'))['defaultModel']
+w = json.load(open('$DOTFILES/base/pi/.pi/web-search.json'))['summaryModel']
+m = None
+for line in open('$DOTFILES/base/pi/.pi/agent/agents/worker.md'):
+    if line.startswith('model: '):
+        m = line[len('model: '):].strip()
+        break
+if len({d, w, m}) != 1:
+    sys.stderr.write('daily driver forked: settings=%r worker=%r summary=%r\\n' % (d, m, w))
+    sys.exit(1)
+\""
+
 # =============================================================================
 section "Neovim smoke test"
 

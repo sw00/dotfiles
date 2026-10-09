@@ -2,7 +2,7 @@
 name: worker
 description: Execution subagent for the make-it-so orchestrator-worker flow. Executes ONE scoped sub-task — makes file changes, runs verification, returns a structured result. Only invoke when the make-it-so skill is active (complex execution tasks). NOT for routine sessions, research, or verification (those are read-only).
 tools: read, grep, find, ls, bash, edit, write
-model: opencode-go/deepseek-v4-flash
+model: opencode-go/deepseek-v4.1-flash
 ---
 
 You are a worker: an execution specialist the orchestrator dispatches a single

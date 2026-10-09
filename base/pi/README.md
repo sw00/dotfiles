@@ -8,7 +8,7 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 
 | Model | Role | Rationale |
 |------|-------|-----------|
-| `opencode-go/deepseek-v4-flash` | Daily driver / worker (default) | Fast, economical Go-quota use and a strong fit for routine coding work |
+| `opencode-go/deepseek-v4.1-flash` | Daily driver / worker (default) | Fast, economical Go-quota use and a strong fit for routine coding work; the only one of the two DeepSeek Flashes that takes images |
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
 | `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
@@ -140,15 +140,15 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
-| OpenCode Go (Zen) | `deepseek-v4.1-flash` + `deepseek-v4-flash` (worker subagent, web-search summaries), `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna` | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` (bridge) + direct API for `/chat` | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
-**Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.
-`deepseek-v4-flash-free`) explicitly permit training. The summary model here
-is the paid `deepseek-v4-flash` (no suffix) — safe. `check.sh` enforces that
+**Caveat:** OpenCode Go's **free** tier models (suffixed `-free`) explicitly
+permit training. None are in the catalog today, and `check.sh` enforces that
 `summaryModel` and all model entries in `settings.json` are free of `-free`
-variants.
+variants. The summary model here is the paid `deepseek-v4.1-flash` (no suffix)
+— safe.
 
 **OpenRouter:** ZDR is opt-in via OR's privacy settings, and upstream provider
 data policies vary. The `models.json` registration below sets
