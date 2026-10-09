@@ -1015,8 +1015,11 @@ check_has "pi: /check mode hides the write-capable AskClaude tool" \
 check_not "pi settings: kimi removed from the cycle set" \
     'kimi' "$DOTFILES/base/pi/.pi/agent/settings.json"
 
-check_has "pi modes: /chat pins the direct anthropic model (not the bridge)" \
-    'provider: "anthropic", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+# /chat must ride the bridge. pi's native OAuth direct route is third-party
+# repriced whenever the request carries pi's harness system prompt, which every
+# normal session does — a direct pin 400s on every chat turn.
+check_has "pi modes: /chat pins the bridge model" \
+    'provider: "claude-bridge", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
 
 check_not "pi modes: /chat no longer pins a kimi model" \
     'kimi' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"

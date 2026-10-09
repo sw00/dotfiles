@@ -7,7 +7,7 @@
  *                      forced locked. Pair-troubleshooting: the user is
  *                      the escalation target, no subagent delegation.
  *   chat             – conceptual altitude: model switches to
- *                      anthropic/claude-sonnet-5-5 (direct, not the bridge),
+ *                      claude-bridge/claude-sonnet-5-5,
  *                      tools unrestricted, problem-space framing.
  *
  * Integration with mutation-guard domains (infra-safety.ts): modes may
@@ -26,7 +26,7 @@ import { getGuards } from "../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 
-const CHAT_MODEL = { provider: "anthropic", id: "claude-sonnet-5-5" };
+const CHAT_MODEL = { provider: "claude-bridge", id: "claude-sonnet-5-5" };
 const MODE_ORDER: Mode[] = ["change", "check", "chat"];
 const MODE_ICON: Record<Mode, string> = { change: "⚡", check: "🔍", chat: "💬" };
 
@@ -171,8 +171,8 @@ export default function (pi: ExtensionAPI) {
     const prev = mode;
     if (next === prev) return;
 
-    // model transitions: chat → anthropic/claude-sonnet-5-5; leaving chat →
-    // restore previous
+    // model transitions: chat → claude-bridge/claude-sonnet-5-5; leaving chat
+    // → restore previous
     if (next === "chat" && prev !== "chat") {
       savedModel = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : null;
       const m = ctx.modelRegistry.find(CHAT_MODEL.provider, CHAT_MODEL.id);
@@ -210,7 +210,7 @@ export default function (pi: ExtensionAPI) {
 
   for (const m of MODE_ORDER) {
     pi.registerCommand(m, {
-      description: `Switch to ${m} mode${m === "check" ? " (read-only, pair-troubleshooting)" : m === "chat" ? " (conceptual, claude-sonnet-5-5)" : " (default, full execution)"}`,
+      description: `Switch to ${m} mode${m === "check" ? " (read-only, pair-troubleshooting)" : m === "chat" ? " (conceptual, claude-sonnet-5-5 via bridge)" : " (default, full execution)"}`,
       handler: async (_args, ctx) => applyMode(m, ctx),
     });
   }

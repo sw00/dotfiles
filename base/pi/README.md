@@ -12,7 +12,7 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
 | `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
-| `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model, reached through the direct provider |
+| `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model |
 | `claude-bridge/claude-opus-5-5` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
 | `claude-bridge/claude-haiku-5-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
 
@@ -53,13 +53,18 @@ no USD for them — read that quota from Claude Code instead.
 Upstream notes an Anthropic Agent-SDK billing change that was announced and
 then unannounced; a metered turn would show up as non-zero spend.
 
-The direct Anthropic provider remains available: `/login` →
-*Anthropic (Claude Pro/Max)* runs pi's own PKCE login and stores pi's **own
-grant** — an independent refresh token (the OAuth *client id* is the same one
-Claude Code uses), which is why the two coexist. It is deliberately outside
-`enabledModels` — reach it with `/use`. Do not reintroduce `pi-claude-auth`: it
-copied Claude Code's Keychain credential into `auth.json` and re-synced it every
-five minutes, so both sides rotated **one** refresh token.
+There is deliberately **no** direct Anthropic credential here. pi's native
+`/login` → *Anthropic (Claude Pro/Max)* does mint a real subscription grant, but
+a request carrying pi's harness system prompt is treated as a third-party app:
+`400 … "Third-party apps now draw from your extra usage, not your plan limits"`.
+Verified — a minimal `--system-prompt` succeeds where pi's normal prompt 400s.
+pi-claude-auth concealed this by pinning Claude Code's version "for billing
+header computation" (impersonation); the bridge is the supported route, because
+it drops pi's preamble and refuses the doc-pair prompt shape. Everything Claude
+goes through `claude-bridge/*`, and `auth.json` holds no `anthropic` entry, so
+nothing can silently bill extra usage. Do not reintroduce `pi-claude-auth`
+either: it copied Claude Code's Keychain credential into `auth.json` and
+re-synced it every five minutes, so both sides rotated **one** refresh token.
 
 ## Escalation
 
@@ -91,13 +96,13 @@ injected each turn and filtered when stale.
 |------|-------|-------|--------|
 | `change` (default) | full | worker | autonomous execution; ladder active |
 | `check` | read-only (edit/write off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
-| `chat` | unrestricted | `anthropic/claude-sonnet-5-5` | conceptual altitude; no changes unless asked |
+| `chat` | unrestricted | `claude-bridge/claude-sonnet-5-5` | conceptual altitude; no changes unless asked |
 
 Toolset is a pure function of the mode (stateless — no snapshot/restore).
 In check mode, domain mode tools (e.g. `infra_mode`) are also removed since
 every guard is force-locked and cannot be opened from within check.
-Entering `/chat` switches to `anthropic/claude-sonnet-5-5` — the **direct**
-provider, not the bridge — and restores the prior model on exit,
+Entering `/chat` switches to `claude-bridge/claude-sonnet-5-5` and restores the
+prior model on exit,
 unless the user manually switched during chat.
 
 ### infra-safety integration
@@ -141,7 +146,7 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
 | OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna` | No | Zero (paid tier) |
-| Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` (bridge) + direct API for `/chat` | No | Zero (subscription terms) |
+| Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`) explicitly
