@@ -148,13 +148,15 @@ export default function (pi: ExtensionAPI) {
   };
 
   // Toolset is a pure function of mode: check drops edit/write, domain mode
-  // tools (e.g. infra_mode), and package-registered write-capable tools.
-  // Guards are force-locked and cannot be opened from within check.
-  // `AskClaude` (pi-claude-bridge) is a denylist entry because it accepts
-  // `mode: "full"` (read+write+bash) — a second write path that would
-  // otherwise stay active in read-only mode. Renaming the tool via
-  // `askClaude.name` slips past this; `allowFullMode: false` is the backstop.
-  const CHECK_HIDDEN_TOOLS = new Set(["edit", "write", "AskClaude"]);
+  // tools (e.g. infra_mode), and anything that can write *indirectly*. Guards
+  // are force-locked and cannot be opened from within check.
+  // Two denylist entries exist because they hand write access to another
+  // process: `subagent` can spawn the write-capable `worker` (delegation is a
+  // second write path no matter how the worker's shell is named, and check
+  // mode's own prompt already says not to delegate), and `AskClaude` accepts
+  // `mode: "full"`. Renaming AskClaude via `askClaude.name` still slips past
+  // this; `allowFullMode: false` is the backstop.
+  const CHECK_HIDDEN_TOOLS = new Set(["edit", "write", "AskClaude", "subagent"]);
   const applyToolGate = (m: Mode) => {
     const all = pi.getAllTools().map((t) => t.name);
     if (m === "check") {

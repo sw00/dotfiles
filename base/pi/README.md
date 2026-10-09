@@ -96,7 +96,7 @@ injected each turn and filtered when stale.
 | Mode | Tools | Model | Intent |
 |------|-------|-------|--------|
 | `change` (default) | full | worker | autonomous execution; ladder active |
-| `check` | read-only (edit/write off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
+| `check` | read-only (edit/write/subagent off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
 | `chat` | unrestricted | `claude-bridge/claude-sonnet-5-5` | conceptual altitude; no changes unless asked |
 
 Toolset is a pure function of the mode (stateless — no snapshot/restore).

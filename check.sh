@@ -1004,11 +1004,11 @@ check "pi: claude-bridge.json suppresses the first-run notice write-back" \
     bash -c "grep -qE '\"plan\"' '$DOTFILES/base/pi/.pi/agent/claude-bridge.json' && \
              grep -qE '\"enabled\"' '$DOTFILES/base/pi/.pi/agent/claude-bridge.json'"
 
-# /check's tool gate is a denylist, so a write-capable tool registered by a
-# package stays active unless named. AskClaude accepts `mode: \"full\"`
-# (read+write+bash) — a second write path in read-only mode.
-check_has "pi: /check mode hides the write-capable AskClaude tool" \
-    '\"edit\", \"write\", \"AskClaude\"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+# The /check tool gate is a denylist, so anything that can write indirectly
+# stays active unless named: AskClaude can be handed full mode, and subagent
+# can spawn the write-capable worker.
+check_has "pi: /check mode hides indirect write paths (AskClaude, subagent)" \
+    '"edit", "write", "AskClaude", "subagent"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
 
 # kimi left the roster (2 cycle entries) and /chat's model pin. One of the two
 # entries (`opencode-go/kimi-k2.6`) no longer existed, so every pi start warned
