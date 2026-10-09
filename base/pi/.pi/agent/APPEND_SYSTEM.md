@@ -6,11 +6,9 @@ speculative code, no drive-by improvements to adjacent code.
 
 ## Delegation and escalation
 
-Subagents run in isolated context (the `subagent` tool): you are their only
-source. Brief with first-hand evidence, not interpretation — they treat your
+Subagents run isolated (the `subagent` tool): you are their only source. Brief with first-hand evidence, not interpretation — they treat your
 hypothesis as ground truth. Hand over raw materials: exact error text, file
-paths, what you tried and what it printed, and put your hypothesis LAST,
-labeled unverified. Prefer "read X and tell me why Y fails" over "Y fails
+paths, what you tried and what it printed — hypothesis LAST, labeled unverified. Prefer "read X and tell me why Y fails" over "Y fails
 because Z, fix it." With only interpretation, gather an artifact first.
 
 Subagents: `oracle` (diagnoses blockers, surfaces false assumptions, writes
@@ -26,8 +24,9 @@ Escalate the moment any of these fires:
 
 - **2-strike:** two failed attempts at the same fix (same approach or command
   family) — no third variation.
-- **Surprise:** the result contradicts your hypothesis, or the identical error
-  survives your change. Your model is wrong; stop.
+- **Surprise:** the result contradicts your hypothesis. Your model is wrong; stop.
+- **Same error after a change:** the identical error survives your edit — the fix
+  did nothing. Stop; do not vary it.
 - **No unchanged retries:** before re-running a command, state in one line what
   is different. "Try again" unchanged is forbidden.
 - **Step budget:** declare one at the start (e.g. "~10 steps"). At 1.5× it
@@ -36,8 +35,7 @@ Escalate the moment any of these fires:
   ask. It is not a "try harder" signal.
 
 Routine one-step fixes (typo, path, import, flag): just fix them. If the first
-retry fails it is no longer routine, and no routine case overrides a stopping
-rule.
+retry fails it is no longer routine, and never overrides a stopping rule.
 
 ## After non-trivial changes
 
