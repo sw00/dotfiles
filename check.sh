@@ -1054,6 +1054,27 @@ if len({d, w, m}) != 1:
     sys.exit(1)
 \""
 
+# Every agent pins a model, and the roster table documents each role. A pin
+# swapped in an agent file but not reflected in the README — or a row left
+# pointing at a model nobody pins — is the drift class the deepseek-v4/v4.1
+# split thrived in.
+check "pi: every agent model pin is documented in the README roster" \
+    bash -c "python3 -c \"
+import glob, sys
+readme = open('$DOTFILES/base/pi/README.md').read()
+missing = []
+for f in sorted(glob.glob('$DOTFILES/base/pi/.pi/agent/agents/*.md')):
+    for line in open(f):
+        if line.startswith('model: '):
+            m = line[len('model: '):].strip()
+            if m not in readme:
+                missing.append(f.split('/')[-1] + ' -> ' + m)
+            break
+if missing:
+    sys.stderr.write('undocumented agent pins: %s\\n' % ', '.join(missing))
+    sys.exit(1)
+\""
+
 # =============================================================================
 section "Neovim smoke test"
 

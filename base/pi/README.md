@@ -10,11 +10,11 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 |------|-------|-----------|
 | `opencode-go/deepseek-v4.1-flash` | Daily driver / worker (default) | Fast, economical Go-quota use and a strong fit for routine coding work; the only one of the two DeepSeek Flashes that takes images |
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
-| `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
+| `opencode-go/claude-haiku-5-5` | Reviewer | Fast, subscription-backed review path; won the Haiku-vs-GLM-Flash trial |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
 | `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model |
 | `claude-bridge/claude-opus-5-5` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
-| `claude-bridge/claude-haiku-5-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
+| `claude-bridge/claude-haiku-5-5` | Manual premium Haiku | Premium-route alternative to the reviewer's Go-quota Haiku; the trial this row was created for concluded in Haiku's favour |
 
 OpenRouter PAYG models remain manual-only and are not part of the curated
 cycle. Experimental `*-exp` models are also excluded from the
@@ -146,7 +146,7 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
-| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3` (oracle), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
