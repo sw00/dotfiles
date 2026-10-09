@@ -12,14 +12,12 @@ Three explicit modes shape each session. Stows to `~/.pi/`.
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
 | `opencode-go/glm-5.3-flash` | Reviewer | Fast, subscription-backed review path |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
-| `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement |
+| `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model, reached through the direct provider |
 | `claude-bridge/claude-opus-5-5` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
-| `opencode-go/kimi-k2.7-code` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
-| `opencode-go/kimi-k2.6` | Manual coding alternative | Meaningful historical usage; retain as an alternative |
 | `claude-bridge/claude-haiku-5-5` | Manual reviewer comparison | Retained for the Haiku-vs-GLM-Flash empirical trial |
 
-OpenRouter PAYG models, including Kimi K3, remain manual-only and are not part
-of the curated cycle. Experimental `*-exp` models are also excluded from the
+OpenRouter PAYG models remain manual-only and are not part of the curated
+cycle. Experimental `*-exp` models are also excluded from the
 normal roster. Web summarisation uses the daily-driver model unless explicitly
 changed.
 
@@ -93,12 +91,13 @@ injected each turn and filtered when stale.
 |------|-------|-------|--------|
 | `change` (default) | full | worker | autonomous execution; ladder active |
 | `check` | read-only (edit/write off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
-| `chat` | unrestricted | kimi-k2.6 | conceptual altitude; no changes unless asked |
+| `chat` | unrestricted | `anthropic/claude-sonnet-5-5` | conceptual altitude; no changes unless asked |
 
 Toolset is a pure function of the mode (stateless — no snapshot/restore).
 In check mode, domain mode tools (e.g. `infra_mode`) are also removed since
 every guard is force-locked and cannot be opened from within check.
-Entering `/chat` switches to kimi-k2.6 and restores the prior model on exit,
+Entering `/chat` switches to `anthropic/claude-sonnet-5-5` — the **direct**
+provider, not the bridge — and restores the prior model on exit,
 unless the user manually switched during chat.
 
 ### infra-safety integration
@@ -141,8 +140,8 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
-| OpenCode Go (Zen) | `deepseek-v4-flash`, `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna`, `kimi-k2.6`, `kimi-k2.7-code` | No | Zero (paid tier) |
-| Anthropic (Claude Pro/Max via Claude Code bridge) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` | No | Zero (subscription terms) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` + `deepseek-v4-flash` (worker subagent, web-search summaries), `glm-5.3`, `glm-5.3-flash`, `gpt-5.6-luna` | No | Zero (paid tier) |
+| Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` (bridge) + direct API for `/chat` | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`, e.g.

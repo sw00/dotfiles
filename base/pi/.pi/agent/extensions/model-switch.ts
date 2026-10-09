@@ -161,9 +161,9 @@ function globToRe(glob: string): RegExp {
 }
 
 /**
- * Resolve `enabledModels` patterns (e.g. "anthropic/claude-*", "openrouter/*",
- * "kimi-k3") against the set of currently-authed models, preserving order and
- * de-duplicating. Falls back to all available models if the list is empty.
+ * Resolve `enabledModels` patterns (e.g. "claude-bridge/*", "opencode-go/glm-*",
+ * "gpt-5.6-luna") against the set of currently-authed models, preserving order
+ * and de-duplicating. Falls back to all available models if the list is empty.
  */
 function resolveFallbackSet(entries: string[], available: MiniModel[]): MiniModel[] {
   if (entries.length === 0) return available;

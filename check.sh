@@ -1009,6 +1009,23 @@ check "pi: claude-bridge.json suppresses the first-run notice write-back" \
 check_has "pi: /check mode hides the write-capable AskClaude tool" \
     '\"edit\", \"write\", \"AskClaude\"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
 
+# kimi left the roster (2 cycle entries) and /chat's model pin. One of the two
+# entries (`opencode-go/kimi-k2.6`) no longer existed, so every pi start warned
+# "No models match pattern". Tombstone both so they cannot creep back.
+check_not "pi settings: kimi removed from the cycle set" \
+    'kimi' "$DOTFILES/base/pi/.pi/agent/settings.json"
+
+check_has "pi modes: /chat pins the direct anthropic model (not the bridge)" \
+    'provider: "anthropic", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+
+check_not "pi modes: /chat no longer pins a kimi model" \
+    'kimi' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+
+# The OpenRouter kimi twin existed to mirror the roster's kimi entry; with the
+# primary gone it was an orphan hanging off nothing.
+check_not "pi models: orphaned kimi OpenRouter twin removed" \
+    'kimi' "$DOTFILES/base/pi/.pi/agent/models.json"
+
 # =============================================================================
 section "Neovim smoke test"
 
