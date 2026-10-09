@@ -276,3 +276,10 @@ cd base/pi/.pi/agent/extensions
 node --experimental-strip-types --test lib/mutation-guard.test.ts
 pi -p --no-session "Reply OK"   # smoke: extensions parse and load
 ```
+
+Prompt text (`APPEND_SYSTEM.md`, the global `AGENTS.md`, the subagent contracts)
+has no unit test. `pi-smoke.sh` runs three behavioural scenarios and counts tool
+calls; `docs/PROMPT-EVAL.md` holds the pass signatures, the measured baseline, the
+method caveats, and the 500-word budget `check.sh` enforces on
+`APPEND_SYSTEM.md`. Run it on both sides of a prompt change — it costs
+`runs x 3` real model turns per side.

@@ -14,9 +14,22 @@ removed — full implementation history lives in git. Shared-core behavior
   `stillChatModel` check in `base/pi/.pi/agent/extensions/modes/index.ts` to
   also accept the chat model's fallback twin (compare against the
   `rateLimitFallbacks` map); verify via `./check.sh`.
+  Trigger check (2026-10-09): the hop is map-driven — `model-switch.ts:388-389`
+  returns early when `rateLimitFallbacks` has no entry for the current model, and
+  the handler's own comment (322-325) says an empty map makes auto-fallback a
+  no-op. So it cannot fire on a profile whose map is empty (the one shipped here);
+  it is reachable wherever the map is populated, which is the shared-core case
+  that matters. Still worth fixing, deprioritizable for an attended profile.
 
 ## Deferred — judgment, not blocked
 
+- [ ] **Prompt-slim watch (due ~2 weeks after c321cfb).** The always-on prompt was
+  distilled (`APPEND_SYSTEM.md` 817 → 498 words, global `AGENTS.md` 201 → 138) and
+  is now held by a 500-word budget in `check.sh`. `docs/PROMPT-EVAL.md` lists the
+  signatures to re-check in ordinary sessions: a third attempt at one fix, an
+  `oracle` brief carrying interpretation but no verbatim artifact, a `reviewer`
+  spawn on a doc-only diff. The n=10 baseline favours the slim text; this is the
+  check that it holds in real use.
 - [ ] **etckeeper config cleanup.** `base/git/.gitconfig-etckeeper` (disables
   GPG signing for `/etc` commits) is only useful on a native Linux host; none
   exists under `hosts/` today (mbpm3 = macOS, x13yg2/x1eg2 = WSL). Remove it
