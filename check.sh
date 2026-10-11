@@ -699,8 +699,10 @@ check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
 
 # Tombstone: tig was removed in favour of fugitive/lazygit. Keep it out.
+# The pattern matches both the wanted=(...) initialiser and a wanted+=(tig)
+# append, which is how the per-platform branch adds packages.
 check_not "tig: removed from bootstrap wanted (tombstone)" \
-    'wanted=.*tig' "$DOTFILES/bootstrap.sh"
+    'wanted\+?=.*tig' "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: pinentry-gtk2 in WSL system packages" \
     'pinentry-gtk2' "$DOTFILES/bootstrap.sh"
@@ -1243,6 +1245,9 @@ if command -v fish >/dev/null 2>&1; then
 fi
 check_has "pwt: pins an explicit pi session id" \
     '\-\-session-id' "$_PWT"
+# worktree remove deletes IGNORED files without complaint, so pwt must refuse.
+check_has "pwt: refuses removal while ignored files are present" \
+    'porcelain --ignored' "$_PWT"
 # The fish .gitignore is an allowlist: functions/* is ignored unless negated, so
 # a new own-file silently drops out of the repo without this.
 check_has "pwt: not gitignored (fish allowlist negation present)" \
@@ -1259,10 +1264,12 @@ if command -v fish >/dev/null 2>&1; then
     check "pi-prune: scheduler parses (fish -n)" \
         fish -n "$_PI_PRUNE_SCHED"
 fi
-check_has "pi-prune: refresh gate is 24h (86400s)" \
-    '86400' "$_PI_PRUNE_SCHED"
+check_has "pi-prune: daily gate (find -mmin +1440)" \
+    'mmin \+1440' "$_PI_PRUNE_SCHED"
 check_has "pi-prune: gate uses a bare mkdir lock" \
     'mkdir "\$_dir/lock"' "$_PI_PRUNE_SCHED"
+check_has "pi-prune: reaps a stale lock left by a killed shell" \
+    'mmin \+10' "$_PI_PRUNE_SCHED"
 check_has "pi-prune: not gitignored (fish allowlist negation present)" \
     '^!conf\.d/pi-prune\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 

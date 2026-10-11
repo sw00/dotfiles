@@ -1,4 +1,4 @@
-# pi-prune — prune pi session transcripts at most once a day, in the background.
+# pi-prune — prune pi session transcripts at most once a day.
 #
 # pi writes every tool result into ~/.pi/agent/sessions/<project>/*.jsonl, so a
 # credential that a command printed stays on disk indefinitely. Each worktree
@@ -8,26 +8,33 @@
 #
 # Interactive shells only: non-interactive shells (VSCodium server, scripts)
 # have no business pruning. The bare mkdir is an atomic lock, so two shells
-# starting at once race on the lock rather than both running the prune. WSL is
-# skipped because process spawn there is the documented slow path and the prune
-# is never urgent.
+# starting at once race on the lock rather than both pruning. A lock older than
+# 10 minutes is debris from a killed shell and is reaped — without that, a single
+# SIGKILL would shut the gate permanently and silently.
+#
+# The prune runs in the foreground: it is a find/du/delete over a local
+# directory, so paying it once a day on a shell that is starting anyway is
+# cheaper than the bookkeeping needed to background it and release the lock.
 status --is-interactive; or return
-if string match -qi '*microsoft*' (uname -r 2>/dev/null)
-    return
-end
 
 set -l _dir "$HOME/.cache/pi-prune"
 command mkdir -p "$_dir"
 set -l _stamp "$_dir/last"
+
+if test -d "$_dir/lock"
+    command find "$_dir/lock" -maxdepth 0 -mmin +10 -exec rmdir {} + 2>/dev/null
+end
+
 if command mkdir "$_dir/lock" 2>/dev/null
-    # No stamp yet → treat as maximally old so the first interactive shell primes it.
-    set -l _age 999999
-    if test -f "$_stamp"
-        set _age (math (date +%s) - (path mtime -- "$_stamp"))
+    # Portable age gate: `find -mmin` behaves the same on BSD and GNU, and needs
+    # neither `path mtime` (fish >= 3.5) nor date arithmetic.
+    set -l _stale (command find "$_stamp" -maxdepth 0 -mmin +1440 2>/dev/null)
+    if not test -f "$_stamp"; or test (count $_stale) -gt 0
+        # Only a successful prune is recorded: a failure must be retried on the
+        # next shell rather than masked for a day.
+        if pi-prune-sessions 30 >/dev/null 2>&1
+            touch "$_stamp"
+        end
     end
-    if test $_age -gt 86400
-        pi-prune-sessions 30 >/dev/null 2>&1
-        touch "$_stamp"
-    end
-    command rmdir "$_dir/lock"
+    command rmdir "$_dir/lock" 2>/dev/null
 end
