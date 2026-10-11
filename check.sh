@@ -1253,25 +1253,18 @@ check_has "pwt: refuses removal while ignored files are present" \
 check_has "pwt: not gitignored (fish allowlist negation present)" \
     '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 
-# ── pi session prune schedule ────────────────────────────────────────────────
-# A manual prune does not happen, so the conf.d guard runs it at most once a day;
-# the bare mkdir makes that atomic when several shells start at once.
-section "pi session prune schedule"
+# ── pi session prune policy ──────────────────────────────────────────────────
+# Sessions are KEPT, not scheduled away: the transcripts are the only source for
+# session review and for the /usage dashboard, which reads this directory.
+# pi-prune-sessions therefore stays a manual tool, and the tombstone below keeps
+# an automatic scheduler from creeping back (one existed briefly on 2026-10-11).
+section "pi session prune policy"
 
 _PI_PRUNE_SCHED="$DOTFILES/base/fish/.config/fish/conf.d/pi-prune.fish"
-check "pi-prune: conf.d scheduler exists" test -f "$_PI_PRUNE_SCHED"
-if command -v fish >/dev/null 2>&1; then
-    check "pi-prune: scheduler parses (fish -n)" \
-        fish -n "$_PI_PRUNE_SCHED"
-fi
-check_has "pi-prune: daily gate (find -mmin +1440)" \
-    'mmin \+1440' "$_PI_PRUNE_SCHED"
-check_has "pi-prune: gate uses a bare mkdir lock" \
-    'mkdir "\$_dir/lock"' "$_PI_PRUNE_SCHED"
-check_has "pi-prune: reaps a stale lock left by a killed shell" \
-    'mmin \+10' "$_PI_PRUNE_SCHED"
-check_has "pi-prune: not gitignored (fish allowlist negation present)" \
-    '^!conf\.d/pi-prune\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+check "pi-prune: no conf.d auto-prune (sessions are kept, not deleted)" \
+    test ! -e "$_PI_PRUNE_SCHED"
+check_has "pi-prune-sessions: documents that it is manual-only" \
+    'MANUAL ONLY' "$_PI_PRUNE"
 
 # SUMMARY
 # =============================================================================

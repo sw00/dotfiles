@@ -1,10 +1,14 @@
 # pi-prune-sessions — delete pi session transcripts older than N days.
 #
 # Why: pi writes every tool result into ~/.pi/agent/sessions/<project>/*.jsonl,
-# so any command that prints a credential leaves it on disk indefinitely. Treat
-# sessions as disposable runtime state rather than history. pi itself has no
-# retention setting (only sessionDir / PI_CODING_AGENT_SESSION_DIR), so pruning
-# has to happen out here.
+# so any command that prints a credential leaves it on disk indefinitely. pi
+# itself has no retention setting (only sessionDir / PI_CODING_AGENT_SESSION_DIR),
+# so trimming has to happen out here.
+#
+# MANUAL ONLY — never schedule this. The transcripts are the only source for
+# session review and for the /usage dashboard (which reads this directory), so
+# deleting them must stay an explicit, deliberate act. A conf.d scheduler was
+# added and removed on 2026-10-11; check.sh now tombstones its absence.
 #
 # Usage: pi-prune-sessions [days]      # default 30
 function pi-prune-sessions --description 'Prune pi session transcripts older than N days'
