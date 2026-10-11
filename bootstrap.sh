@@ -126,7 +126,6 @@ _install_pkgs() {
         apt)    sudo apt-get update -qq && sudo apt-get install -y "${pkg_names[@]}" ;;
         dnf)    sudo dnf install -y "${pkg_names[@]}" ;;
         pacman) sudo pacman -S --noconfirm "${pkg_names[@]}" ;;
-        nix)    nix-env -iA "${pkg_names[@]/#/nixpkgs.}" ;;
     esac
 }
 
@@ -134,7 +133,6 @@ _detect_pkg_mgr() {
     if   command -v apt-get >/dev/null 2>&1; then echo apt
     elif command -v dnf     >/dev/null 2>&1; then echo dnf
     elif command -v pacman  >/dev/null 2>&1; then echo pacman
-    elif command -v nix-env >/dev/null 2>&1; then echo nix
     else echo ""
     fi
 }

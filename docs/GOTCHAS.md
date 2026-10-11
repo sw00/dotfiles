@@ -4,7 +4,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 
 ## Neovim
 
-- Headless nvim checks: always `nvim -u NONE --headless ... -c 'qa!'` — the user's init.lua may be broken/Nix-managed and block on a prompt; plain `qa` hangs on modified buffers.
+- Headless nvim checks: always `nvim -u NONE --headless ... -c 'qa!'` — the user's init.lua may be broken and block on a prompt; plain `qa` hangs on modified buffers.
 - nvim-treesitter v1.0 (`branch = main`, entrypoint `lua/nvim-treesitter/init.lua`): the top-level module exposes ONLY `setup()` and `indentexpr()`. Use `require('nvim-treesitter').setup { ensure_install = { ... } }` — note `ensure_install` (singular, no `ed`). `config.setup` runs the install asynchronously. The old `highlight = { enable = true }` module is gone; use `vim.treesitter.start` in a FileType autocmd instead. Gotcha: the working tree can lag lazy-lock.json after an update — HEAD on the old master lineage while the lockfile pins v1.0 main. Fix: `:Lazy restore`.
 - nvim-treesitter v1.0 removed the `nvim-treesitter.configs` module and `ft_to_lang`/`get_parser` from `nvim-treesitter.parsers`. telescope.nvim previewers rely on all three. Fix: a compatibility shim in `treesitter.lua`'s `config()` that injects a `package.loaded['nvim-treesitter.configs']` stub and patches `parsers` with fallback implementations. Must run before telescope loads (treesitter `lazy = false` ensures this).
 - Migrating from packer.nvim to lazy.nvim: the old `plugin/packer_compiled.lua` file and `~/.local/share/nvim/site/pack/packer/` directory persist after switching package managers. The compiled loader still runs on every startup and adds old plugins to the runtimepath, causing circular-dependency errors.
@@ -16,7 +16,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - Adding a file to an already-stowed package doesn't symlink it — re-stow (same command).
 - Deleting a package leaves dangling symlinks stow can't unstow. Remove by hand first, then re-stow.
 - Pre-existing config files from other tools (e.g. `**/.claude/settings.local.json`) create stow conflicts. Merge, remove blocking file, re-stow.
-- stow prints "BUG in find_stowed_path" for symlinks it can't own (Nix store, /mnt/c). Known noise; bootstrap.sh filters it.
+- stow prints "BUG in find_stowed_path" for symlinks it can't own (e.g. WSL's /mnt/c cross-filesystem links). Known noise; bootstrap.sh filters it.
 
 ## git-crypt / GPG
 

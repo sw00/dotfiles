@@ -102,7 +102,6 @@ section "Shell script syntax  [GREEN]"
 mapfile -t ALL_SCRIPTS < <(
     find "$DOTFILES" \
         -not -path '*/.git/*' \
-        -not -path '*/nix/*' \
         -not -path '*/tmux/plugins/*' \
         -not -path '*/secrets/*' \
         \( -name '*.sh' -o -name '*.bash' \) \
@@ -1143,8 +1142,8 @@ if command -v nvim >/dev/null 2>&1; then
     # This catches typos, wrong module names, and API breakage without
     # needing to bootstrap the full lazy.nvim plugin ecosystem.
     # A full startup test with plugins lives in the CI workflow.
-    # -u NONE skips the user init.lua (may be Nix-managed/broken on a fresh
-    # host and otherwise blocks headless startup on a "Press ENTER" prompt);
+    # -u NONE skips the user init.lua (may be broken on a fresh host and
+    # otherwise blocks headless startup on a "Press ENTER" prompt);
     # qa! force-quits past the "no write since last change" error.
     _nvim_lua_errors=0
     while IFS= read -r -d '' _f; do
