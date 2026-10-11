@@ -35,7 +35,7 @@ the regression suite (CI runs it on every push).
 - Package placement is mise-first: `mise registry <tool>`, else `ubi:org/repo`
   for GitHub-release binaries. brew/apt/winget keep only bootstrap prereqs
   (stow, git-crypt, fish, mise itself), tools with no prebuilt binaries
-  (tig, graphviz, mosh), platform integrations (pinentry, wslu, wireguard), and
+  (graphviz, mosh), platform integrations (pinentry, wslu, wireguard), and
   native libs (libpq, ffmpeg).
 - Adding a system-package-only tool (not in mise/aqua/ubi) requires exactly
   three touch points: (1) `Brewfile-base` for macOS brew, (2) `ensure_system_tools()`

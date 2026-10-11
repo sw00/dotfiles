@@ -698,7 +698,8 @@ check "base/gnupg removed (conflict source)" \
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: tig in _install_system_packages (merged prereqs + system tools)" \
+# Tombstone: tig was removed in favour of fugitive/lazygit. Keep it out.
+check_not "tig: removed from bootstrap wanted (tombstone)" \
     'wanted=.*tig' "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: pinentry-gtk2 in WSL system packages" \
@@ -766,8 +767,8 @@ check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migrati
 
 
 
-check_has "Brewfile-base: tig present (moved from host)" \
-    'brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+check_not "tig: removed from Brewfile-base (tombstone)" \
+    '^brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
 check_has "Brewfile-base: graphviz present (moved from host)" \
     'brew "graphviz"' "$DOTFILES/os/macos/brew/.Brewfile-base"
