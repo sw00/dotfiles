@@ -698,10 +698,10 @@ check "base/gnupg removed (conflict source)" \
 check_has "bootstrap: git-crypt lock guard present" \
     '_repo_is_locked' "$DOTFILES/bootstrap.sh"
 
-# Tombstone: tig was removed in favour of fugitive/lazygit. Keep it out.
-# The pattern matches both the wanted=(...) initialiser and a wanted+=(tig)
-# append, which is how the per-platform branch adds packages.
-check_not "tig: removed from bootstrap wanted (tombstone)" \
+# tig is kept as a fallback git-history browser, so this asserts presence, not
+# absence. The pattern matches both the wanted=(...) initialiser and a
+# wanted+=(tig) append, which is how the per-platform branch adds packages.
+check_has "bootstrap: tig in _install_system_packages (merged prereqs + system tools)" \
     'wanted\+?=.*tig' "$DOTFILES/bootstrap.sh"
 
 check_has "bootstrap: pinentry-gtk2 in WSL system packages" \
@@ -769,8 +769,8 @@ check_has "bootstrap: stow_dir handles unowned dir symlinks (asdf→mise migrati
 
 
 
-check_not "tig: removed from Brewfile-base (tombstone)" \
-    '^brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+check_has "Brewfile-base: tig present (moved from host)" \
+    'brew "tig"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
 check_has "Brewfile-base: graphviz present (moved from host)" \
     'brew "graphviz"' "$DOTFILES/os/macos/brew/.Brewfile-base"

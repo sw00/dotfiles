@@ -43,7 +43,7 @@ Three tiers, each managed by the appropriate tool:
 **mise** (`base/mise/.config/mise/config.toml`) is the single source of truth
 for levels 2 and 3 across all platforms. See that file for the full tool list.
 
-Tools with no prebuilt binaries and no mise backend (`graphviz`) are
+Tools with no prebuilt binaries and no mise backend (`tig`, `graphviz`) are
 installed by the OS package manager instead. `lf` and `sesh` use mise's ubi
 backend (prebuilt GitHub release binaries) — see `base/mise`.
 

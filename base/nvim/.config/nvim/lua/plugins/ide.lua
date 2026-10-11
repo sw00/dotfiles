@@ -26,10 +26,6 @@ return {
     {
         'tpope/vim-fugitive',
         dependencies = { 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' },
-        -- On-command loading: the tmux C-\ popup runs `nvim -c Git`, which must
-        -- resolve before any keypress, and `:Git` from the command line is
-        -- expected anyway. Keys alone left the command unavailable at startup.
-        cmd = { 'Git', 'Gvdiffsplit' },
         keys = {
             { '<c-g>', '<cmd>Git<CR>', desc = 'Fugitive summary' },
             { '<leader>gs', '<cmd>Git<CR>', desc = '[G]it [S]tatus' },

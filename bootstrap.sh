@@ -97,7 +97,7 @@ _resolve_gitcrypt_key() {
 # Installs all system-level prerequisites in one batch per platform.
 # macOS: brew + stow + git-crypt + fish  (non-interactive; no sudo)
 # Linux/WSL: one apt/dnf/pacman transaction — stow, git-crypt, fish,
-#   plus all tools that mise cannot provide (graphviz, pstree, mosh,
+#   plus all tools that mise cannot provide (tig, graphviz, pstree, mosh,
 #   wireguard-tools, gcc, make, unzip, xclip, ± pinentry-gtk2, ± alacritty).
 
 # Mapping from command name → package name where they differ per manager.
@@ -164,7 +164,7 @@ _install_system_packages() {
             local mgr; mgr="$(_detect_pkg_mgr)"
             [[ -n "$mgr" ]] || err "no known package manager found"
 
-            local wanted=(stow git-crypt fish graphviz pstree mosh wireguard-tools gcc make unzip xclip)
+            local wanted=(stow git-crypt fish tig graphviz pstree mosh wireguard-tools gcc make unzip xclip)
             if [[ "$platform" == "wsl" ]]; then
                 wanted+=(pinentry-gtk2)   # gtk pinentry for WSLg; xclip for tmux clipboard
             else
