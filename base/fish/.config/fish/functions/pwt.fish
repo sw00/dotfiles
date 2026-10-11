@@ -67,7 +67,13 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             set -l wt "$root/__worktrees/$slug"
             if not test -d "$wt"
                 if test -n "$base"
-                    command git -C "$root" worktree add "$wt" "$base"; or return 1
+                    # -b is required, not cosmetic: without it git refuses when
+                    # <base> is already checked out in another worktree — which is
+                    # the common case (your main branch) — and where it does
+                    # succeed it leaves a DETACHED head, so the branch that
+                    # `pwt rm` deletes never exists. With -b both forms produce a
+                    # branch named after the slug, differing only in their base.
+                    command git -C "$root" worktree add -b "$slug" "$wt" "$base"; or return 1
                 else
                     command git -C "$root" worktree add "$wt"; or return 1
                 end
