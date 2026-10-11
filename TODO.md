@@ -48,6 +48,20 @@ removed — full implementation history lives in git. Shared-core behavior
   keys if that risk matters. Direct keys were rotated out-of-band after a prior
   exposure; migration not started — needs an owner decision on the offline
   trade-off.
+- [ ] **workmux trial — deferred (2026-10-11).** Higher-order pi session/agent
+  management: git worktrees + tmux windows with per-agent status, prompt injection,
+  merge/cleanup lifecycle, and a dashboard. Deferred because the acute bottleneck was
+  solved without a new tool — `pi --session-id` gives per-workstream session handles
+  and the `pwt` fish function covers parallel mutating work — so the only remaining
+  gap is agent *status* inside tmux (pi emits working/blocked/done over OSC 7501, which
+  tmux does not forward). Revisit only if manual bookkeeping costs >10 min/week, or if
+  >=3 parallel mutating agents per repo become routine. If revisited:
+  `mise use -g github:raine/workmux` (prebuilt binary — no rust toolchain, no
+  Brewfile/check.sh parity work), mbpm3 first, window mode, and it must displace
+  tmux-window-name plus its `libtmux` Python dependency to be net-negative surface. It
+  must also be kept from writing through the stowed `settings.json` symlink (see
+  docs/GOTCHAS.md §pi). Rejected outright: herdr, which replaces tmux rather than
+  consolidating it.
 
 ## Out of scope (deliberate non-goals)
 

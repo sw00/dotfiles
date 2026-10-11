@@ -276,6 +276,38 @@ else
 fi
 
 # =============================================================================
+# ── dangling stow links ──────────────────────────────────────────────────────
+# stow cannot unstow a symlink whose target was deleted from its package, so a
+# removed dotfile strands a dangling link in $HOME — and a dangling plugin
+# symlink breaks lazy.nvim on every nvim start. bootstrap prunes these; this
+# asserts the machine is clean. Machine-only: CI has no stowed $HOME.
+section "Dangling stow links"
+
+if [[ -n "${CI:-}" ]]; then
+    _skip "no dangling symlinks into the repo" "CI environment"
+else
+    _dangling=0
+    for _root in "$HOME/.config" "$HOME/bin" "$HOME/.local/bin" "$HOME/.ssh"; do
+        [[ -d "$_root" ]] || continue
+        while IFS= read -r _l; do
+            # Portable dangling test: macOS find has no -xtype (and with stderr
+            # discarded it silently matches nothing, i.e. a false negative).
+            [[ -L "$_l" && ! -e "$_l" ]] || continue
+            _t="$(readlink "$_l")" || continue
+            _dir="$(cd "$(dirname "$_l")" 2>/dev/null && cd "$(dirname "$_t")" 2>/dev/null && pwd)" || continue
+            if [[ "$_dir" == "$DOTFILES"/* ]]; then
+                _dangling=$((_dangling + 1))
+                printf '      %s -> %s\n' "${_l#"$HOME"/}" "$_t"
+            fi
+        done < <(find "$_root" -type l 2>/dev/null)
+    done
+    if [[ $_dangling -eq 0 ]]; then
+        _ok "no dangling symlinks into the repo"
+    else
+        _fail "no dangling symlinks into the repo ($_dangling found — bootstrap prunes these)"
+    fi
+fi
+
 # 5. FISH CONFIG
 # =============================================================================
 section "Fish config  [GREEN]"

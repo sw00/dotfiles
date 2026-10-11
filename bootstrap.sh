@@ -420,6 +420,42 @@ ensure_mise() {
     fi
 }
 
+_prune_dangling_stow_links() {
+    # stow cannot unstow a symlink whose target no longer exists (the file was
+    # deleted from its package), and --restow leaves it in place. So deleting a
+    # dotfile strands a dangling link in $HOME, which can break whatever reads
+    # it — a dangling plugin symlink breaks lazy.nvim on every nvim start.
+    # A symlink whose missing target sits inside $DOTFILES is stale by
+    # definition, so removing it is safe and idempotent; the restow that follows
+    # recreates live links.
+    local roots=("$HOME/.config" "$HOME/bin" "$HOME/.local/bin" "$HOME/.ssh")
+    local root l t dir removed=0
+    for root in "${roots[@]}"; do
+        [[ -d "$root" ]] || continue
+        while IFS= read -r l; do
+            # Portable dangling test. `find -xtype l` would be the natural way,
+            # but macOS find does not implement -xtype ("unknown primary"), and
+            # with stderr discarded that silently matches nothing.
+            [[ -L "$l" && ! -e "$l" ]] || continue
+            t="$(readlink "$l")" || continue
+            # The link's own directory and the target's parent both still exist
+            # (only the final component is gone), so resolve the parent and test
+            # whether it lives inside the repo. readlink -f yields nothing for a
+            # dangling link on some platforms, so it cannot be used here.
+            dir="$(cd "$(dirname "$l")" 2>/dev/null && cd "$(dirname "$t")" 2>/dev/null && pwd)" || continue
+            case "$dir" in
+                "$DOTFILES"/*)
+                    warn "removing dangling stow link: ~/${l#"$HOME"/}  (→ $t)"
+                    rm -f "$l"
+                    removed=$((removed + 1))
+                    ;;
+            esac
+        done < <(find "$root" -type l 2>/dev/null)
+    done
+    [[ $removed -gt 0 ]] && log "pruned $removed dangling stow link(s)"
+    return 0
+}
+
 stow_dir() {
     # stow_dir <package-parent-dir> [explicit packages...]
     # Auto-discovers top-level packages if none given. No-ops if dir missing.
@@ -689,6 +725,10 @@ main() {
 
     # 2a. Pre-flight stow conflict check
     _stow_preflight
+
+    # 2a-bis. Clear dangling links left by dotfiles deleted since the last run
+    # (stow cannot unstow them), so the restow below can recreate live links.
+    _prune_dangling_stow_links
 
     # 2b. Stow configs
     # git-crypt was unlocked in phase 1a (or we aborted), so ssh is always
