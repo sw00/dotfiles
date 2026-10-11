@@ -17,8 +17,7 @@ return {
                 -- <leader>q intentionally omitted: already mapped for diagnostic setloclist
                 { '<leader>r', group = '[R]ename' },
                 { '<leader>s', group = '[S]ave' },
-                { '<leader>t', group = '[T]est / [T]oggle' },
-                { '<leader>v', group = '[V]irtualEnv' },
+                { '<leader>t', group = '[T]oggle' },
                 { '<leader>w', group = '[W]orkspace' },
                 { '<leader>x', group = '[X] Trouble' },
             }
@@ -155,20 +154,6 @@ return {
             end, { desc = 'Trouble: LSP references' })
         end,
     },
-    {
-        'vim-test/vim-test',
-        keys = {
-            { '<leader>tt', '<cmd>TestNearest<cr>', desc = 'vim-test: [T]est [T]his' },
-            { '<leader>tf', '<cmd>TestFile<cr>', desc = '[T]est [F]ile' },
-            { '<leader>ta', '<cmd>TestSuite<cr>', desc = '[T]est [S]uite' },
-            { '<leader>tl', '<cmd>TestLast<cr>', desc = '[T]est [L]ast' },
-            { '<leader>tg', '<cmd>TestVisit<cr>', desc = '[T]est [G]o to last run test' },
-        },
-        config = function()
-            vim.cmd [[ let test#strategy='toggleterm' ]]
-        end,
-    },
-    -- neotest: add here with adapters when vim-test is retired, e.g.:
-    -- { 'nvim-neotest/neotest', dependencies = { 'nvim-neotest/neotest-python' },
-    --   opts = { adapters = { require('neotest-python') } } }
+    -- No test-runner plugin: tests run from the agent (pi) or a :term/toggleterm
+    -- pane, so vim-test was removed rather than migrated to neotest+adapters.
 }

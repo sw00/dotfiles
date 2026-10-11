@@ -35,8 +35,6 @@ removed — full implementation history lives in git. Shared-core behavior
   exists under `hosts/` today (mbpm3 = macOS, x13yg2/x1eg2 = WSL). Remove it
   and its stow include only if etckeeper is confirmed unused on any real
   machine; the `check.sh` tombstone for the includeIf stays meanwhile.
-- [ ] **nvim plugin cleanup.** Drop unmaintained `venv-selector.nvim`; migrate
-  `vim-test` → neotest or remove (retirement note already in `ide.lua`).
 - [ ] **git-crypt URL-hint dedup.** The URL-hint regex is copy-pasted across
   alacritty configs; move it to a shared imported file and add a `check.sh`
   parity test.
