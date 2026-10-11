@@ -1228,6 +1228,26 @@ check_has "pi-prune-sessions: keeps the -mtime age gate" \
 check "pi-prune-sessions: every -delete is guarded (-mtime or -empty)" \
     bash -c "! grep -- '-delete' '$_PI_PRUNE' | grep -qvE -- '-mtime|-empty'"
 
+# ── pi worktree helper ───────────────────────────────────────────────────────
+# pwt pairs a git worktree with a tmux window and a pinned pi session id, so two
+# agents can work in one repo without sharing a working tree. The pinned id is
+# the load-bearing part: resuming by "most recent for cwd" collides as soon as a
+# repo holds two sessions.
+section "pi worktree helper (pwt)"
+
+_PWT="$DOTFILES/base/fish/.config/fish/functions/pwt.fish"
+check "pwt: function exists in base/fish" test -f "$_PWT"
+if command -v fish >/dev/null 2>&1; then
+    check "pwt: parses (fish -n)" \
+        fish -n "$_PWT"
+fi
+check_has "pwt: pins an explicit pi session id" \
+    '\-\-session-id' "$_PWT"
+# The fish .gitignore is an allowlist: functions/* is ignored unless negated, so
+# a new own-file silently drops out of the repo without this.
+check_has "pwt: not gitignored (fish allowlist negation present)" \
+    '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
