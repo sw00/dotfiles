@@ -1248,6 +1248,24 @@ check_has "pwt: pins an explicit pi session id" \
 check_has "pwt: not gitignored (fish allowlist negation present)" \
     '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 
+# ── pi session prune schedule ────────────────────────────────────────────────
+# A manual prune does not happen, so the conf.d guard runs it at most once a day;
+# the bare mkdir makes that atomic when several shells start at once.
+section "pi session prune schedule"
+
+_PI_PRUNE_SCHED="$DOTFILES/base/fish/.config/fish/conf.d/pi-prune.fish"
+check "pi-prune: conf.d scheduler exists" test -f "$_PI_PRUNE_SCHED"
+if command -v fish >/dev/null 2>&1; then
+    check "pi-prune: scheduler parses (fish -n)" \
+        fish -n "$_PI_PRUNE_SCHED"
+fi
+check_has "pi-prune: refresh gate is 24h (86400s)" \
+    '86400' "$_PI_PRUNE_SCHED"
+check_has "pi-prune: gate uses a bare mkdir lock" \
+    'mkdir "\$_dir/lock"' "$_PI_PRUNE_SCHED"
+check_has "pi-prune: not gitignored (fish allowlist negation present)" \
+    '^!conf\.d/pi-prune\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
