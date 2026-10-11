@@ -26,6 +26,10 @@ return {
     {
         'tpope/vim-fugitive',
         dependencies = { 'tpope/vim-rhubarb', 'shumphrey/fugitive-gitlab.vim' },
+        -- Load on command as well as on keys. Fugitive is key-lazy by default, so
+        -- its commands do not exist at startup: `nvim -c Git` fails with E492, and
+        -- :Glog/:Gblame/:Gwrite/:Gread are unavailable until a key is pressed.
+        cmd = { 'Git', 'Gvdiffsplit', 'Glog', 'Gblame', 'Gwrite', 'Gread' },
         keys = {
             { '<c-g>', '<cmd>Git<CR>', desc = 'Fugitive summary' },
             { '<leader>gs', '<cmd>Git<CR>', desc = '[G]it [S]tatus' },
