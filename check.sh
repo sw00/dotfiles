@@ -35,16 +35,19 @@ check() {
     if "$@" >/dev/null 2>&1; then _ok "$name"; else _fail "$name"; fi
 }
 
-# Pass if an ERE pattern IS found in a file
+# Pass if an ERE pattern IS found in a file.
+# The `--` is load-bearing: without it a pattern beginning with "-" (e.g.
+# '--session-id "…"') is parsed as a grep OPTION, grep errors, and 2>/dev/null
+# turns that into a silent failure that looks like a genuine mismatch.
 check_has() {
     local name="$1" pattern="$2" file="$3"
-    if grep -qE "$pattern" "$file" 2>/dev/null; then _ok "$name"; else _fail "$name"; fi
+    if grep -qE -- "$pattern" "$file" 2>/dev/null; then _ok "$name"; else _fail "$name"; fi
 }
 
-# Pass if an ERE pattern is NOT found in a file
+# Pass if an ERE pattern is NOT found in a file. (`--` as in check_has.)
 check_not() {
     local name="$1" pattern="$2" file="$3"
-    if ! grep -qE "$pattern" "$file" 2>/dev/null; then _ok "$name"; else _fail "$name"; fi
+    if ! grep -qE -- "$pattern" "$file" 2>/dev/null; then _ok "$name"; else _fail "$name"; fi
 }
 
 # ── Stow helpers ───────────────────────────────────────────────────────────
@@ -1283,6 +1286,26 @@ check_has "pwt: refuses removal while ignored files are present" \
 # a new own-file silently drops out of the repo without this.
 check_has "pwt: not gitignored (fish allowlist negation present)" \
     '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+
+# The picker is the navigation half of pwt (tmux C-w): it must derive the same
+# session id pwt creates, and must not use bash-4-only builtins — a tmux popup's
+# PATH can resolve to macOS's bash 3.2.
+_PWT_PICK="$DOTFILES/base/tmux/bin/pwt-pick"
+check "pwt-pick: picker exists in base/tmux/bin" test -f "$_PWT_PICK"
+check "pwt-pick: is executable" test -x "$_PWT_PICK"
+check "pwt-pick: shellcheck clean" shellcheck -S warning "$_PWT_PICK"
+check "pwt-pick: --list runs under /bin/bash (3.2 on macOS)" \
+    env PWT_SRC="$DOTFILES/.git" HOME=/nonexistent /bin/bash "$_PWT_PICK" --list
+check_has "pwt-pick: pins the same session id form as pwt" \
+    '--session-id "\$repo-\$slug"' "$_PWT_PICK"
+
+# End-to-end listing: a fabricated worktree must surface as org/repo/slug.
+_pwt_tmp="$(mktemp -d)"
+mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo"
+check "pwt-pick: lists a worktree as org/repo/slug" \
+    bash -c '[[ "$(PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "  org/repo/demo" ]]' \
+    _ "$_pwt_tmp" "$_PWT_PICK"
+rm -rf "$_pwt_tmp"
 
 # ── pi session prune policy ──────────────────────────────────────────────────
 # Sessions are KEPT, not scheduled away: the transcripts are the only source for

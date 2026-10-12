@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# pwt-pick — fzf picker over pwt worktrees, for use as a tmux popup (C-w).
+#
+# Lists the worktrees under <repo>/__worktrees/ for every repo below $PWT_SRC
+# (default ~/src, matching the C-f picker's zoxide scope). Selecting one opens a
+# tmux window in that worktree running pi pinned to the SAME session id that
+# `pwt <slug>` uses (<repo>-<slug>), so it resumes that workstream's transcript.
+#
+# Creating and removing worktrees stays with `pwt` itself — this picker only
+# navigates. A ● marks workstreams that already have pi history.
+#
+# Deliberately avoids bash-4-only builtins (mapfile): the shebang resolves via
+# PATH, but a tmux popup can inherit a PATH whose bash is macOS's 3.2.
+set -euo pipefail
+
+SRC="${PWT_SRC:-$HOME/src}"
+SESSIONS="$HOME/.pi/agent/sessions"
+
+# pi names a project's session directory after the project path: drop the leading
+# slash, turn every / into -, wrap in --. e.g. /Users/x/dotfiles ->
+# --Users-x-dotfiles--  (verified against real directories).
+session_dir_for() {
+    printf -- '--%s--' "$(printf '%s' "$1" | sed 's|^/||; s|/|-|g')"
+}
+
+# Heavy directories are pruned rather than descended: a worktree root is always a
+# direct child of a repo root, and node_modules/target trees are enormous.
+WT_ROOTS=()
+while IFS= read -r _d; do
+    [[ -n "$_d" ]] && WT_ROOTS+=("$_d")
+done < <(
+    find "$SRC" -maxdepth 4 \
+        \( -name node_modules -o -name .git -o -name target -o -name .venv \) -prune -o \
+        -type d -name __worktrees -print 2>/dev/null | sort
+)
+
+rows=()
+for wt_root in ${WT_ROOTS[@]+"${WT_ROOTS[@]}"}; do
+    repo="$(basename "$(dirname "$wt_root")")"
+    while IFS= read -r wt; do
+        [[ -n "$wt" ]] || continue
+        slug="$(basename "$wt")"
+        marker=" "
+        if [[ -d "$SESSIONS/$(session_dir_for "$wt")" ]]; then
+            marker="●"
+        fi
+        # Label as org/repo/slug (path relative to $SRC, __worktrees/ elided) so
+        # two orgs with a same-named repo stay distinguishable. The session id
+        # stays <repo>-<slug>, which is what pwt creates.
+        rel="${wt#"$SRC"/}"
+        label="$(printf '%s' "$rel" | sed 's|/__worktrees/|/|')"
+        rows+=("$marker $label"$'\t'"$wt")
+    done < <(find "$wt_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+done
+
+# --list prints the rows and exits: used by check.sh, and handy for scripting.
+if [[ "${1:-}" == "--list" ]]; then
+    if [[ ${#rows[@]} -gt 0 ]]; then
+        printf '%s\n' "${rows[@]}"
+    fi
+    exit 0
+fi
+
+if [[ ${#rows[@]} -eq 0 ]]; then
+    echo "pwt-pick: no worktrees under $SRC" >&2
+    echo "          create one from inside a repo with: pwt <slug>" >&2
+    sleep 2
+    exit 0
+fi
+
+choice="$(printf '%s\n' "${rows[@]}" \
+    | fzf --prompt 'worktree> ' --reverse --delimiter='\t' --with-nth=1 \
+        --border-label ' pwt ' \
+        --preview 'git -C {2} status --short --branch 2>/dev/null | head -20' \
+        --preview-window 'down:40%')" || exit 0
+
+[[ -z "$choice" ]] && exit 0
+
+wt="${choice##*$'\t'}"
+repo="$(basename "$(dirname "$(dirname "$wt")")")"
+slug="$(basename "$wt")"
+tmux new-window -n "$slug" -c "$wt" pi --session-id "$repo-$slug"
