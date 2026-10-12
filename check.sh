@@ -1287,6 +1287,27 @@ check_has "pwt: refuses removal while ignored files are present" \
 check_has "pwt: not gitignored (fish allowlist negation present)" \
     '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 
+# repo-list backs the C-f repo half. The rule is subtle enough to have been got
+# wrong twice during development, so each branch is asserted directly.
+_RL="$DOTFILES/base/tmux/bin/repo-list"
+check "repo-list: helper exists in base/tmux/bin" test -f "$_RL"
+check "repo-list: is executable" test -x "$_RL"
+check "repo-list: shellcheck clean" shellcheck -S warning "$_RL"
+check "repo-list: runs under /bin/bash (3.2 on macOS)" \
+    env PWT_SRC="$DOTFILES/.git" /bin/bash "$_RL" --stdin < /dev/null
+check "repo-list: keeps a repo root, drops its subdirectories" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q; mkdir -p sub/deep
+        out=$(printf "%s\n%s\n%s\n" "$d" "$d/sub" "$d/sub/deep" | "$1" --stdin)
+        [[ "$out" == "$d" ]]' _ "$_RL"
+check "repo-list: keeps a path that is in no repo (nothing hidden)" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; mkdir -p "$d/standalone"
+        out=$(printf "%s\n" "$d/standalone" | "$1" --stdin)
+        [[ "$out" == "$d/standalone" ]]' _ "$_RL"
+check "repo-list: drops .git and __worktrees paths" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q
+        out=$(printf "%s\n%s\n" "$d/.git" "$d/__worktrees/x" | "$1" --stdin)
+        [[ -z "$out" ]]' _ "$_RL"
+
 # The picker is the navigation half of pwt (tmux C-w): it must derive the same
 # session id pwt creates, and must not use bash-4-only builtins — a tmux popup's
 # PATH can resolve to macOS's bash 3.2.

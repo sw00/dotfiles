@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# repo-list — directories worth offering in the C-f picker, in zoxide frecency
+# order (most-used first).
+#
+# `zoxide query -l` returns every directory zoxide has ever recorded, not repos:
+# under ~/src that was 55 entries of which only 26 were git roots. The rest were
+# deep subdirectories that were merely visited once (including a stray .git).
+# Clearing zoxide would not help — it would lose the frecency ordering and
+# re-accumulate — so the filtering belongs here.
+#
+# One `git rev-parse --show-toplevel` per entry answers both questions at once:
+#   toplevel == the path       → it IS a repo root             → keep
+#   toplevel == ""             → it is in no repo at all       → keep
+#                                (navigation roots like ~/src, and standalone
+#                                 non-repo project dirs, which a repos-only
+#                                 filter would silently hide)
+#   toplevel == something else → it is a subdirectory of one   → drop (the noise)
+#
+# Paths come from `zoxide query -l` by default. Pass --stdin to filter a list
+# instead, which is how the rule is tested without a populated zoxide database.
+# An explicit flag, not "stdin when it is not a tty": that heuristic silently
+# produced nothing in scripts and CI, where stdin is never a terminal.
+set -euo pipefail
+
+SRC="${PWT_SRC:-$HOME/src}"
+
+{
+    if [[ "${1:-}" == "--stdin" ]]; then
+        cat
+    else
+        zoxide query -l --base-dir "$SRC" 2>/dev/null || true
+    fi
+} | while IFS= read -r _d; do
+    [[ -n "$_d" ]] || continue
+    case "$_d" in
+        # pwt worktrees are workstreams, not repos — C-w picks those.
+        */__worktrees|*/__worktrees/*) continue ;;
+        # git reports NO toplevel for paths inside a .git directory, so the rule
+        # below would treat them as "in no repo" and keep them. Never navigation
+        # targets.
+        */.git|*/.git/*) continue ;;
+    esac
+    _t="$(command git -C "$_d" rev-parse --show-toplevel 2>/dev/null)" || _t=""
+    if [[ -n "$_t" && "$_t" != "$_d" ]]; then
+        # git returns a CANONICAL path, so a repo reached through a symlink
+        # (macOS /var -> /private/var, /tmp, or any symlinked parent) compares
+        # unequal to itself and would be dropped. Resolve only when they differ,
+        # which in a normal tree is never — so this costs nothing in practice.
+        [[ "$_t" == "$(cd "$_d" 2>/dev/null && pwd -P)" ]] || continue
+    fi
+    printf '%s\n' "$_d"
+done
