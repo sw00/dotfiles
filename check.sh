@@ -1307,12 +1307,14 @@ check "repo-list: drops .git and __worktrees paths" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q
         out=$(printf "%s\n%s\n" "$d/.git" "$d/__worktrees/x" | "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
-# The source root must not depend on zoxide still holding a score for it: a fresh
-# PWT_SRC has no zoxide entries at all, so this exercises the always-emit path.
-check "repo-list: always offers the source root" \
+# The two navigation roots must not depend on zoxide still holding a score for
+# them: a fresh PWT_SRC has no zoxide entries at all, so this exercises the
+# always-emit path. Home first, source root last (outer -> inner).
+check "repo-list: always offers ~ and the source root, in that order" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$(PWT_SRC="$d" "$1" 2>/dev/null)
-        [[ "$out" == "$d" ]]' _ "$_RL"
+        [[ "$(printf "%s\n" "$out" | head -1)" == "$HOME" ]] &&
+        [[ "$(printf "%s\n" "$out" | tail -1)" == "$d" ]]' _ "$_RL"
 check "repo-list: --stdin filters exactly the given list (no injection)" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$(printf "" | PWT_SRC="$d" "$1" --stdin)

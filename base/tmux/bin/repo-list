@@ -11,13 +11,13 @@
 # One `git rev-parse --show-toplevel` per entry answers both questions at once:
 #   toplevel == the path       → it IS a repo root             → keep
 #   toplevel == ""             → it is in no repo at all       → keep
-#                                (navigation roots like ~/src, and standalone
-#                                 non-repo project dirs, which a repos-only
-#                                 filter would silently hide)
+#                                (navigation roots, and standalone non-repo
+#                                 project dirs, which a repos-only filter would
+#                                 silently hide)
 #   toplevel == something else → it is a subdirectory of one   → drop (the noise)
 #
-# The source root ($SRC) is always emitted, last, even when zoxide has forgotten
-# it: a terminal in ~/src is useful regardless of frecency.
+# $HOME and $SRC are always emitted, last, even though zoxide has no score for
+# them: a shell at ~ and a terminal in ~/src are useful regardless of frecency.
 #
 # Pass --stdin to filter a supplied list instead of querying zoxide, which is how
 # the rule is tested. An explicit flag, not "stdin when it is not a tty": that
@@ -39,8 +39,10 @@ SRC="${PWT_SRC:-$HOME/src}"
     fi
 } | while IFS= read -r _d; do
     [[ -n "$_d" ]] || continue
-    # Skipped here and re-emitted last, so it can never appear twice.
-    [[ "$_d" == "$SRC" ]] && continue
+    # Skipped here and re-emitted below, so neither root can appear twice.
+    if [[ "$_d" == "$HOME" || "$_d" == "$SRC" ]]; then
+        continue
+    fi
     case "$_d" in
         # pwt worktrees are workstreams, not repos — C-w picks those.
         */__worktrees|*/__worktrees/*) continue ;;
@@ -61,8 +63,12 @@ SRC="${PWT_SRC:-$HOME/src}"
 done
 
 # Always offered, and always last so fzf's default selection (the first curated
-# entry) is unchanged. Skipped in --stdin mode, which must filter exactly the list
-# it is given.
-if [[ "${1:-}" != "--stdin" && -d "$SRC" ]]; then
-    printf '%s\n' "$SRC"
+# entry) is unchanged. Home before the source root, reading outer -> inner.
+# Skipped in --stdin mode, which must filter exactly the list it is given.
+if [[ "${1:-}" != "--stdin" ]]; then
+    for _r in "$HOME" "$SRC"; do
+        if [[ -d "$_r" ]]; then
+            printf '%s\n' "$_r"
+        fi
+    done
 fi
