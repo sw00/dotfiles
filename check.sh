@@ -1307,6 +1307,16 @@ check "repo-list: drops .git and __worktrees paths" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q
         out=$(printf "%s\n%s\n" "$d/.git" "$d/__worktrees/x" | "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
+# The source root must not depend on zoxide still holding a score for it: a fresh
+# PWT_SRC has no zoxide entries at all, so this exercises the always-emit path.
+check "repo-list: always offers the source root" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+        out=$(PWT_SRC="$d" "$1" 2>/dev/null)
+        [[ "$out" == "$d" ]]' _ "$_RL"
+check "repo-list: --stdin filters exactly the given list (no injection)" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+        out=$(printf "" | PWT_SRC="$d" "$1" --stdin)
+        [[ -z "$out" ]]' _ "$_RL"
 
 # The picker is the navigation half of pwt (tmux C-w): it must derive the same
 # session id pwt creates, and must not use bash-4-only builtins — a tmux popup's

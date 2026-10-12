@@ -16,10 +16,17 @@
 #                                 filter would silently hide)
 #   toplevel == something else → it is a subdirectory of one   → drop (the noise)
 #
-# Paths come from `zoxide query -l` by default. Pass --stdin to filter a list
-# instead, which is how the rule is tested without a populated zoxide database.
-# An explicit flag, not "stdin when it is not a tty": that heuristic silently
-# produced nothing in scripts and CI, where stdin is never a terminal.
+# The source root ($SRC) is always emitted, last, even when zoxide has forgotten
+# it: a terminal in ~/src is useful regardless of frecency.
+#
+# Pass --stdin to filter a supplied list instead of querying zoxide, which is how
+# the rule is tested. An explicit flag, not "stdin when it is not a tty": that
+# heuristic silently produced nothing in scripts and CI.
+#
+# NOTE: the filter loop must stay at the top level. bash 3.2 (macOS /bin/bash)
+# mis-parses a `case` pattern containing `|` alternation when it appears inside a
+# command substitution — `filtered="$( … | while … case a|b) …)"` fails with
+# "syntax error near unexpected token" and then "_d: unbound variable".
 set -euo pipefail
 
 SRC="${PWT_SRC:-$HOME/src}"
@@ -32,6 +39,8 @@ SRC="${PWT_SRC:-$HOME/src}"
     fi
 } | while IFS= read -r _d; do
     [[ -n "$_d" ]] || continue
+    # Skipped here and re-emitted last, so it can never appear twice.
+    [[ "$_d" == "$SRC" ]] && continue
     case "$_d" in
         # pwt worktrees are workstreams, not repos — C-w picks those.
         */__worktrees|*/__worktrees/*) continue ;;
@@ -45,8 +54,15 @@ SRC="${PWT_SRC:-$HOME/src}"
         # git returns a CANONICAL path, so a repo reached through a symlink
         # (macOS /var -> /private/var, /tmp, or any symlinked parent) compares
         # unequal to itself and would be dropped. Resolve only when they differ,
-        # which in a normal tree is never — so this costs nothing in practice.
+        # which in a normal tree is never — so it costs nothing.
         [[ "$_t" == "$(cd "$_d" 2>/dev/null && pwd -P)" ]] || continue
     fi
     printf '%s\n' "$_d"
 done
+
+# Always offered, and always last so fzf's default selection (the first curated
+# entry) is unchanged. Skipped in --stdin mode, which must filter exactly the list
+# it is given.
+if [[ "${1:-}" != "--stdin" && -d "$SRC" ]]; then
+    printf '%s\n' "$SRC"
+fi
