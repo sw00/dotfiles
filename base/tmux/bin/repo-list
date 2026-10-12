@@ -20,8 +20,9 @@
 # them: a shell at ~ and a terminal in ~/src are useful regardless of frecency.
 #
 # Pass --stdin to filter a supplied list instead of querying zoxide, which is how
-# the rule is tested. An explicit flag, not "stdin when it is not a tty": that
-# heuristic silently produced nothing in scripts and CI.
+# the rule is tested. In that mode the list is filtered EXACTLY — nothing is
+# skipped and nothing is appended. An explicit flag, not "stdin when it is not a
+# tty": that heuristic silently produced nothing in scripts and CI.
 #
 # NOTE: the filter loop must stay at the top level. bash 3.2 (macOS /bin/bash)
 # mis-parses a `case` pattern containing `|` alternation when it appears inside a
@@ -31,16 +32,23 @@ set -euo pipefail
 
 SRC="${PWT_SRC:-$HOME/src}"
 
+stdin_mode=0
+if [[ "${1:-}" == "--stdin" ]]; then
+    stdin_mode=1
+fi
+
 {
-    if [[ "${1:-}" == "--stdin" ]]; then
+    if (( stdin_mode )); then
         cat
     else
         zoxide query -l --base-dir "$SRC" 2>/dev/null || true
     fi
 } | while IFS= read -r _d; do
     [[ -n "$_d" ]] || continue
-    # Skipped here and re-emitted below, so neither root can appear twice.
-    if [[ "$_d" == "$HOME" || "$_d" == "$SRC" ]]; then
+    # In zoxide mode the two roots are re-emitted below, so skipping them here
+    # avoids a duplicate. In --stdin mode the given list is filtered exactly, so
+    # they must pass through like any other path.
+    if (( ! stdin_mode )) && [[ "$_d" == "$HOME" || "$_d" == "$SRC" ]]; then
         continue
     fi
     case "$_d" in
@@ -63,12 +71,14 @@ SRC="${PWT_SRC:-$HOME/src}"
 done
 
 # Always offered, and always last so fzf's default selection (the first curated
-# entry) is unchanged. Home before the source root, reading outer -> inner.
-# Skipped in --stdin mode, which must filter exactly the list it is given.
-if [[ "${1:-}" != "--stdin" ]]; then
+# entry) is unchanged. Home before the source root, reading outer -> inner. The
+# guard covers PWT_SRC being set to $HOME, which would otherwise emit it twice.
+if (( ! stdin_mode )); then
+    _prev=""
     for _r in "$HOME" "$SRC"; do
-        if [[ -d "$_r" ]]; then
+        if [[ -d "$_r" && "$_r" != "$_prev" ]]; then
             printf '%s\n' "$_r"
+            _prev="$_r"
         fi
     done
 fi

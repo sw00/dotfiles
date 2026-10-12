@@ -9,6 +9,9 @@
 # Creating and removing worktrees stays with `pwt` itself — this picker only
 # navigates. A ● marks workstreams that already have pi history.
 #
+# Scope: repos are expected at $PWT_SRC/<org>/<repo> (the search is -maxdepth 4),
+# so a more deeply nested repo is not discovered.
+#
 # Deliberately avoids bash-4-only builtins (mapfile): the shebang resolves via
 # PATH, but a tmux popup can inherit a PATH whose bash is macOS's 3.2.
 set -euo pipefail

@@ -1319,6 +1319,11 @@ check "repo-list: --stdin filters exactly the given list (no injection)" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$(printf "" | PWT_SRC="$d" "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
+# --stdin must pass paths through untouched: skipping $HOME/$SRC there (they are
+# skipped in zoxide mode to avoid re-emitting them) silently dropped input lines.
+check "repo-list: --stdin passes the roots through unchanged" \
+    bash -c 'out=$(printf "%s\n%s\n" "$HOME" "$1" | "$2" --stdin)
+        [[ "$out" == "$HOME"$'"'"'\n'"'"'"$1" ]]' _ "$HOME/src" "$_RL"
 
 # The picker is the navigation half of pwt (tmux C-w): it must derive the same
 # session id pwt creates, and must not use bash-4-only builtins — a tmux popup's
