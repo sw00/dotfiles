@@ -1385,6 +1385,9 @@ check "bootstrap: ensure_pi is called after ensure_mise (mise node provides npm)
 check "bootstrap: ensure_pi drops the stale mise shim" \
     bash -c "grep -q 'mise/shims/pi' '$DOTFILES/bootstrap.sh'"
 
+check "bootstrap: ensure_pi prunes the stale mise install dir" \
+    bash -c "grep -q 'mise/installs/pi' '$DOTFILES/bootstrap.sh'"
+
 if command -v pi >/dev/null 2>&1; then
     check "pi: resolves to the managed entrypoint, not a mise install or shim" \
         bash -c 'case "$(command -v pi)" in "$HOME/.local/share/mise/"*) exit 1;; *) exit 0;; esac'

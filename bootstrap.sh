@@ -463,14 +463,27 @@ ensure_pi() {
     # elsewhere on PATH would shadow the entrypoint this is meant to verify.
     if [[ -f "$marker" ]] && [[ "$resolved" == "$agent_dir/"* ]]; then
         log "pi already managed ($pi_path) — skipping installer"
-        return 0
+    else
+        if [[ -n "$pi_path" ]]; then
+            warn "pi resolves to $pi_path (not a managed install) — running the installer"
+        fi
+        log "installing pi (managed install)"
+        curl -fsSL https://pi.dev/install.sh | sh
     fi
 
-    if [[ -n "$pi_path" ]]; then
-        warn "pi resolves to $pi_path (not a managed install) — running the installer"
+    # mise-era leftovers, pruned only once a managed install exists: the mise
+    # copy is the only fallback if the installer didn't run (no network), so it
+    # must never be removed first.  `mise uninstall` also clears the download
+    # cache; the rm covers a host where mise isn't on PATH.
+    local mise_pi_dir="$HOME/.local/share/mise/installs/pi"
+    if [[ -f "$marker" && -d "$mise_pi_dir" ]]; then
+        log "pruning the mise-era pi install (pi is not mise-managed)"
+        if command -v mise >/dev/null 2>&1; then
+            mise uninstall pi >/dev/null 2>&1 || rm -rf "$mise_pi_dir"
+        else
+            rm -rf "$mise_pi_dir"
+        fi
     fi
-    log "installing pi (managed install)"
-    curl -fsSL https://pi.dev/install.sh | sh
 }
 
 _prune_dangling_stow_links() {
