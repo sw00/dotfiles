@@ -43,8 +43,15 @@ the regression suite (CI runs it on every push).
   (`~/.local/bin`), and neither updater will touch a mise copy: pi refuses any
   install it cannot classify by path, and Claude Code only updates its native
   layout under `~/.local/share/claude`. `ensure_pi()` / `ensure_claude()` in
-  bootstrap.sh run the upstream installers and bring an existing install to
-  latest; check.sh fails if either entry reappears in the mise config.
+  bootstrap.sh run the upstream installers through one shared
+  `_ensure_self_managed` helper and skip a host that is already self-managed;
+  check.sh fails if either entry reappears in the mise config.
+- Upgrading those two is deliberate, never a bootstrap step. An upgrade swaps the
+  harness under the prompts this repo ships, so it has to be paired with the
+  re-vendor (`base/pi/.pi/agent/extensions/subagent/`) and the pi-smoke /
+  PROMPT-EVAL pass. `agents-update` (base/fish) is that pairing and flags a
+  vendored extension whose pin has fallen behind; check.sh tombstones any forced
+  `pi update` / `claude update` reappearing in bootstrap.sh.
 - Adding a system-package-only tool (not in mise/aqua/ubi) requires exactly
   three touch points: (1) `Brewfile-base` for macOS brew, (2) `ensure_system_tools()`
   `wanted` array in `bootstrap.sh` for Linux/WSL apt/dnf/pacman, (3) the parity
@@ -70,6 +77,8 @@ Key config paths:
 - Before committing: `bash check.sh` — commit only when green, and sanity-
   check the pass count (a harness bug once hid skipped tests behind a green
   summary). Commits are GPG-signed; the signing subkey must be imported.
+- Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
+  flags any re-vendor/eval follow-up). Never make this a bootstrap step.
 - Adding a WSL host: `hosts/<hostname>/.wslconfig` is usually all you need;
   bootstrap discovers it by live hostname. Don't add stow packages there.
 - Windows-side changes from WSL: write a `.ps1` to a Windows path, run

@@ -1382,14 +1382,14 @@ check_has "bootstrap: ensure_pi runs the pi managed installer" \
 check "bootstrap: ensure_pi is called after ensure_mise (mise node provides npm)" \
     bash -c "grep -A1 -- 'ensure_mise\$' '$DOTFILES/bootstrap.sh' | grep -q 'ensure_pi'"
 
-check "bootstrap: ensure_pi drops the stale mise shim" \
-    bash -c "grep -q 'mise/shims/pi' '$DOTFILES/bootstrap.sh'"
+# The shim and install-dir handling moved into the shared helper when the two
+# ensure_* functions were merged, so these assert the generic form; the per-tool
+# wiring is asserted by the delegation guards in the upgrade-routine section.
+check_has "bootstrap: _ensure_self_managed drops the stale mise shim" \
+    'mise/shims/\$name' "$DOTFILES/bootstrap.sh"
 
-check "bootstrap: ensure_pi prunes the stale mise install dir" \
-    bash -c "grep -q 'mise/installs/pi' '$DOTFILES/bootstrap.sh'"
-
-check_has "bootstrap: ensure_pi brings a managed install to latest" \
-    'pi update --self' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: _ensure_self_managed prunes the stale mise install dir" \
+    'mise/installs/\$name' "$DOTFILES/bootstrap.sh"
 
 if command -v pi >/dev/null 2>&1; then
     check "pi: resolves to the managed entrypoint, not a mise install or shim" \
@@ -1434,14 +1434,8 @@ check_has "bootstrap: ensure_claude defined" \
 check_has "bootstrap: ensure_claude runs the native installer" \
     'claude\.ai/install\.sh' "$DOTFILES/bootstrap.sh"
 
-check_has "bootstrap: ensure_claude keeps the install on latest" \
-    'claude update' "$DOTFILES/bootstrap.sh"
-
 check "bootstrap: ensure_claude is called after ensure_mise (curl + jq available)" \
     bash -c "grep -A2 -- 'ensure_mise\$' '$DOTFILES/bootstrap.sh' | grep -q 'ensure_claude'"
-
-check "bootstrap: ensure_claude drops the stale mise shim" \
-    bash -c "grep -q 'mise/shims/claude' '$DOTFILES/bootstrap.sh'"
 
 if command -v claude >/dev/null 2>&1; then
     check "claude: resolves to the native install, not a mise copy" \
@@ -1462,6 +1456,50 @@ else
     _skip "claude: native install (PATH resolution, layout, shim, mise leftovers)" \
         "claude not installed on this machine"
 fi
+
+# ── Agent upgrade routine (deliberate) ───────────────────────────────────────
+# pi and claude install themselves (sections above), but bootstrap must NOT
+# upgrade them.  An upgrade swaps the harness under the prompts this repo ships,
+# so it has to be paired with the re-vendor and the pi-smoke / PROMPT-EVAL pass
+# that only a human can judge.  `agents-update` is that deliberate pairing; the
+# tombstones below keep a forced update from creeping back into bootstrap.
+# They match invocation lines only — prose about updating starts with '#', so a
+# comment saying "upgrades live in agents-update" cannot trip them.
+section "Agent upgrade routine (deliberate)"
+
+check_not "bootstrap: no forced pi upgrade (deliberate, not a bootstrap step)" \
+    '^[[:space:]]*pi (update|upgrade)' "$DOTFILES/bootstrap.sh"
+
+check_not "bootstrap: no forced claude upgrade (deliberate, not a bootstrap step)" \
+    '^[[:space:]]*claude (update|upgrade)' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: shared _ensure_self_managed helper defined" \
+    '^_ensure_self_managed\(\)' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: ensure_pi delegates to the shared helper" \
+    '_ensure_self_managed pi' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: ensure_claude delegates to the shared helper" \
+    '_ensure_self_managed claude' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: the skip message names the upgrade path" \
+    'upgrade: agents-update' "$DOTFILES/bootstrap.sh"
+
+_AGENTS_UPDATE="$DOTFILES/base/fish/.config/fish/functions/agents-update.fish"
+check "agents-update: function exists in base/fish" \
+    test -f "$_AGENTS_UPDATE"
+if command -v fish >/dev/null 2>&1; then
+    check "agents-update: parses (fish -n)" \
+        fish -n "$_AGENTS_UPDATE"
+fi
+check_has "agents-update: updates pi via its own updater" \
+    'pi update --self' "$_AGENTS_UPDATE"
+check_has "agents-update: updates Claude Code via its own updater" \
+    'claude update' "$_AGENTS_UPDATE"
+check_has "agents-update: tracks the vendored subagent pin" \
+    '@ pi ' "$_AGENTS_UPDATE"
+check_has "agents-update: names the smoke eval to re-run after a re-vendor" \
+    'pi-smoke' "$_AGENTS_UPDATE"
 
 # SUMMARY
 # =============================================================================

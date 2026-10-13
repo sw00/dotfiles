@@ -43,10 +43,14 @@ a stale shim at `~/.local/share/mise/shims/pi`, which keeps mise first on PATH
 (and errors outright if `~/.local/bin` leaves PATH). `ensure_pi()` deletes that
 shim and prunes the stale install dir; `check.sh` asserts both are gone.
 
-`ensure_pi()` also brings an existing install to latest (`pi update --self`) —
-bootstrap is the convergence point, since pi has no auto-update of its own. So an
-upgrade lands without asking: when a release moves the extension API, re-vendor
-`agent/extensions/subagent/` from pi's `examples/` (see Tests).
+`ensure_pi()` installs but never upgrades: a host that is already self-managed is
+skipped, because an upgrade swaps the harness under the prompts this repo ships
+and has to be paired with the re-vendor and the smoke eval that only a human can
+judge. Upgrades are therefore deliberate — `agents-update` (in `base/fish`) runs
+`pi update --self` and `claude update`, then compares the vendored subagent's
+`@ pi <version>` header against the running pi and, when they diverge, tells you
+to re-vendor `agent/extensions/subagent/` from pi's `examples/` and re-run
+`pi-smoke.sh` (see Tests).
 
 ## Models
 

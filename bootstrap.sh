@@ -418,145 +418,103 @@ ensure_mise() {
     fi
 }
 
-ensure_pi() {
-    # pi owns itself via its managed installer — the one layout where
-    # `pi update` works (see AGENTS.md).  Must run after ensure_mise: the
-    # installer installs through npm, which the mise-managed node provides.
+_ensure_self_managed() {
+    # Shared body for the apps that own themselves (pi, claude — see AGENTS.md):
+    # installed by upstream's installer, updated by upstream's updater, and
+    # deliberately absent from the mise config.
     #
-    # Idempotent.  A host whose managed install is already live is skipped
-    # outright, so re-running bootstrap doesn't churn releases.  On a first
-    # install the upstream installer takes its default action (install, or
-    # migrate when it finds a legacy npm install) — but only unprompted when
-    # /dev/tty cannot be opened.  It opens the tty directly (install.sh
-    # choose_pi_action), so an attended run pauses for a single keypress, and
-    # that cannot be suppressed: there is no non-interactive flag and stdin
-    # redirection is ignored.  It is the one prompt phase 2 can produce.
-    local marker="$HOME/.pi/agent/install/managed-install.json"
-    local pi_path="" resolved=""
-    # realpath($HOME) too: a symlinked component of $HOME would otherwise make
+    #   $1 name    — tool name; also its mise shim, install dir and config key
+    #   $2 layout  — path only upstream's installer creates (half of "is it
+    #                self-managed")
+    #   $3 root    — path the entrypoint must resolve inside (the other half)
+    #   $4 url     — upstream installer URL, run as `curl -fsSL $4 | $5`
+    #   $5 shell   — sh or bash, whichever that installer is written for
+    #
+    # Skip-when-installed is the whole point: this runs on every bootstrap, and
+    # upgrading is NOT a bootstrap concern.  Moving the harness version under
+    # the prompts in this repo has to be paired with the re-vendor and the smoke
+    # eval, so upgrades live in the deliberate `agents-update` function
+    # (base/fish) instead.  Bootstrap only converges to "self-managed at all".
+    #
+    # On a first install pi's installer prompts once when it can open /dev/tty
+    # (no flag and no stdin redirection suppresses that); claude's takes no
+    # input.
+    local name="$1" layout="$2" root="$3" url="$4" shell="$5"
+    local tool_path="" resolved=""
+    # realpath both sides: a symlinked component of $HOME would otherwise make
     # the comparison below fail and re-run the installer for nothing.
-    local agent_dir
-    agent_dir="$(realpath "$HOME/.pi/agent" 2>/dev/null || printf '%s' "$HOME/.pi/agent")"
+    local root_real
+    root_real="$(realpath "$root" 2>/dev/null || printf '%s' "$root")"
 
-    # Stale artefact of the mise-managed era: `mise uninstall pi` leaves the
-    # `pi` shim behind, and while it exists mise stays first on PATH for pi —
-    # `command -v pi` reports the shim (so install.sh thinks the managed
+    # Stale artefact of the mise-managed era: `mise uninstall <tool>` leaves the
+    # shim behind, and while it exists mise stays first on PATH for that tool —
+    # `command -v` reports the shim (so the upstream installer thinks its
     # entrypoint is not on PATH and offers to rewrite shell config), and the
     # shim errors outright if ~/.local/bin ever leaves PATH.  mise only creates
     # shims for tools it manages, so it never comes back on its own.
     # -L as well as -e: a shim whose mise target is gone is dangling, and -e
     # follows the link, so it would otherwise be left behind.
-    local shim="$HOME/.local/share/mise/shims/pi"
-    if [[ -L "$shim" || -e "$shim" ]] && ! grep -qE '^[[:space:]]*pi[[:space:]]*=' \
+    local shim="$HOME/.local/share/mise/shims/$name"
+    if [[ -L "$shim" || -e "$shim" ]] && ! grep -qE "^[[:space:]]*${name}[[:space:]]*=" \
         "$HOME/.config/mise/config.toml" 2>/dev/null; then
-        log "removing stale mise shim for pi (pi is not mise-managed)"
+        log "removing stale mise shim for $name ($name is not mise-managed)"
         rm -f "$shim"
     fi
 
-    if command -v pi >/dev/null 2>&1; then
-        pi_path="$(command -v pi)"
-        resolved="$(realpath "$pi_path" 2>/dev/null || printf '%s' "$pi_path")"
+    if command -v "$name" >/dev/null 2>&1; then
+        tool_path="$(command -v "$name")"
+        resolved="$(realpath "$tool_path" 2>/dev/null || printf '%s' "$tool_path")"
     fi
 
-    # "Managed" means: the managed-install marker exists AND pi resolves inside
-    # the managed tree.  Marker alone is not enough — a stale mise/brew copy
+    # "Self-managed" needs both halves: upstream's layout exists AND the tool
+    # resolves inside it.  Layout alone is not enough — a stale mise/brew copy
     # elsewhere on PATH would shadow the entrypoint this is meant to verify.
-    if [[ -f "$marker" ]] && [[ "$resolved" == "$agent_dir/"* ]]; then
-        # Always latest: the managed install tracks upstream releases and pi has
-        # no auto-update of its own, so bootstrap is the convergence point for a
-        # host that is otherwise only touched occasionally.  A failed update
-        # (offline) must not fail the run — the installed version still works.
-        log "pi already managed ($pi_path) — updating to latest"
-        if ! pi update --self; then
-            warn "pi update --self failed — staying on $(pi --version 2>/dev/null || echo 'the installed version')"
-        fi
+    if [[ -e "$layout" ]] && [[ "$resolved" == "$root_real/"* ]]; then
+        log "$name already self-managed ($tool_path) — version left alone (upgrade: agents-update)"
     else
-        if [[ -n "$pi_path" ]]; then
-            warn "pi resolves to $pi_path (not a managed install) — running the installer"
+        if [[ -n "$tool_path" ]]; then
+            warn "$name resolves to $tool_path (not the upstream install) — running the installer"
         fi
-        log "installing pi (managed install, latest)"
-        curl -fsSL https://pi.dev/install.sh | sh
+        log "installing $name (upstream installer, latest)"
+        curl -fsSL "$url" | "$shell"
     fi
 
-    # mise-era leftovers, pruned only once a managed install exists: the mise
+    # mise-era leftovers, pruned only once the upstream install exists: the mise
     # copy is the only fallback if the installer didn't run (no network), so it
     # must never be removed first.  `mise uninstall` also clears the download
     # cache; the rm covers a host where mise isn't on PATH.
-    local mise_pi_dir="$HOME/.local/share/mise/installs/pi"
-    if [[ -f "$marker" && -d "$mise_pi_dir" ]]; then
-        log "pruning the mise-era pi install (pi is not mise-managed)"
+    local mise_dir="$HOME/.local/share/mise/installs/$name"
+    if [[ -e "$layout" && -d "$mise_dir" ]]; then
+        log "pruning the mise-era $name install ($name is not mise-managed)"
         if command -v mise >/dev/null 2>&1; then
-            mise uninstall pi >/dev/null 2>&1 || rm -rf "$mise_pi_dir"
+            mise uninstall "$name" >/dev/null 2>&1 || rm -rf "$mise_dir"
         else
-            rm -rf "$mise_pi_dir"
+            rm -rf "$mise_dir"
         fi
     fi
 }
 
+ensure_pi() {
+    # pi owns itself via its managed installer — the one layout where
+    # `pi update` works (see AGENTS.md).  Must run after ensure_mise: the
+    # installer installs through npm, which the mise-managed node provides.
+    # The marker file, not a version string, is what the updater keys off.
+    _ensure_self_managed pi \
+        "$HOME/.pi/agent/install/managed-install.json" \
+        "$HOME/.pi/agent" \
+        https://pi.dev/install.sh sh
+}
+
 ensure_claude() {
-    # Claude Code owns itself the same way pi does (see AGENTS.md): mise can only
-    # move it when `mise upgrade` runs, its install dir precedes ~/.local/bin on
-    # PATH (shadowing the self-updating entrypoint), and Claude Code's updater
-    # only ever touches the native layout under ~/.local/share/claude — a mise
-    # copy can never self-update.  Must run after ensure_mise: the installer
-    # shells out to curl and jq.
-    #
-    # Idempotent: a host already on the native layout is moved forward with
-    # `claude update` rather than re-downloading the ~220M binary, and the
-    # upstream installer takes no input and verifies the release checksum.
-    local versions_dir="$HOME/.local/share/claude/versions"
-    local claude_path="" resolved=""
-    # realpath($HOME) too — see ensure_pi.
-    local claude_dir
-    claude_dir="$(realpath "$HOME/.local/share/claude" 2>/dev/null || printf '%s' "$HOME/.local/share/claude")"
-
-    # Stale artefact of the mise-managed era (same as pi's): `mise uninstall
-    # claude` leaves the `claude` shim behind, which keeps mise first on PATH
-    # for claude.  -L as well as -e: a shim whose mise target is gone is
-    # dangling, and -e follows the link.
-    local shim="$HOME/.local/share/mise/shims/claude"
-    if [[ -L "$shim" || -e "$shim" ]] && ! grep -qE '^[[:space:]]*claude[[:space:]]*=' \
-        "$HOME/.config/mise/config.toml" 2>/dev/null; then
-        log "removing stale mise shim for claude (claude is not mise-managed)"
-        rm -f "$shim"
-    fi
-
-    if command -v claude >/dev/null 2>&1; then
-        claude_path="$(command -v claude)"
-        resolved="$(realpath "$claude_path" 2>/dev/null || printf '%s' "$claude_path")"
-    fi
-
-    # "Native" means: the versions dir exists AND claude resolves inside the
-    # native tree.  That, not a version string, is what the updater keys off.
-    if [[ -d "$versions_dir" ]] && [[ "$resolved" == "$claude_dir/"* ]]; then
-        log "claude already native ($claude_path) — updating to latest"
-        # Claude Code does auto-update, but only from an interactive start;
-        # making it explicit keeps a headless host current too.  Non-fatal for
-        # the same reason as pi's: offline must not fail a bootstrap.  Output is
-        # left visible, as pi's is — the log is the only record of what moved.
-        if ! claude update; then
-            warn "claude update failed — staying on $(claude --version 2>/dev/null || echo 'the installed version')"
-        fi
-    else
-        if [[ -n "$claude_path" ]]; then
-            warn "claude resolves to $claude_path (not the native install) — running the installer"
-        fi
-        log "installing claude (native install, latest)"
-        curl -fsSL https://claude.ai/install.sh | bash
-    fi
-
-    # mise-era leftovers, pruned only once a native install exists: the mise copy
-    # is the only fallback if the installer didn't run, so it must never be
-    # removed first.
-    local mise_claude_dir="$HOME/.local/share/mise/installs/claude"
-    if [[ -d "$versions_dir" && -d "$mise_claude_dir" ]]; then
-        log "pruning the mise-era claude install (claude is not mise-managed)"
-        if command -v mise >/dev/null 2>&1; then
-            mise uninstall claude >/dev/null 2>&1 || rm -rf "$mise_claude_dir"
-        else
-            rm -rf "$mise_claude_dir"
-        fi
-    fi
+    # Claude Code owns itself the same way pi does (see AGENTS.md): its updater
+    # only ever touches the native layout under ~/.local/share/claude, and a
+    # mise copy both goes stale and shadows the native entrypoint on PATH.  Must
+    # run after ensure_mise: the installer shells out to curl and jq.  The
+    # versions dir, not a version string, is what the updater keys off.
+    _ensure_self_managed claude \
+        "$HOME/.local/share/claude/versions" \
+        "$HOME/.local/share/claude" \
+        https://claude.ai/install.sh bash
 }
 
 _prune_dangling_stow_links() {
