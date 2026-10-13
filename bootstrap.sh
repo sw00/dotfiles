@@ -418,6 +418,61 @@ ensure_mise() {
     fi
 }
 
+ensure_pi() {
+    # pi owns itself via its managed installer — the one layout where
+    # `pi update` works (see AGENTS.md).  Must run after ensure_mise: the
+    # installer installs through npm, which the mise-managed node provides.
+    #
+    # Idempotent.  A host whose managed install is already live is skipped
+    # outright, so re-running bootstrap doesn't churn releases.  On a first
+    # install the upstream installer takes its default action (install, or
+    # migrate when it finds a legacy npm install) — but only unprompted when
+    # /dev/tty cannot be opened.  It opens the tty directly (install.sh
+    # choose_pi_action), so an attended run pauses for a single keypress, and
+    # that cannot be suppressed: there is no non-interactive flag and stdin
+    # redirection is ignored.  It is the one prompt phase 2 can produce.
+    local marker="$HOME/.pi/agent/install/managed-install.json"
+    local pi_path="" resolved=""
+    # realpath($HOME) too: a symlinked component of $HOME would otherwise make
+    # the comparison below fail and re-run the installer for nothing.
+    local agent_dir
+    agent_dir="$(realpath "$HOME/.pi/agent" 2>/dev/null || printf '%s' "$HOME/.pi/agent")"
+
+    # Stale artefact of the mise-managed era: `mise uninstall pi` leaves the
+    # `pi` shim behind, and while it exists mise stays first on PATH for pi —
+    # `command -v pi` reports the shim (so install.sh thinks the managed
+    # entrypoint is not on PATH and offers to rewrite shell config), and the
+    # shim errors outright if ~/.local/bin ever leaves PATH.  mise only creates
+    # shims for tools it manages, so it never comes back on its own.
+    # -L as well as -e: a shim whose mise target is gone is dangling, and -e
+    # follows the link, so it would otherwise be left behind.
+    local shim="$HOME/.local/share/mise/shims/pi"
+    if [[ -L "$shim" || -e "$shim" ]] && ! grep -qE '^[[:space:]]*pi[[:space:]]*=' \
+        "$HOME/.config/mise/config.toml" 2>/dev/null; then
+        log "removing stale mise shim for pi (pi is not mise-managed)"
+        rm -f "$shim"
+    fi
+
+    if command -v pi >/dev/null 2>&1; then
+        pi_path="$(command -v pi)"
+        resolved="$(realpath "$pi_path" 2>/dev/null || printf '%s' "$pi_path")"
+    fi
+
+    # "Managed" means: the managed-install marker exists AND pi resolves inside
+    # the managed tree.  Marker alone is not enough — a stale mise/brew copy
+    # elsewhere on PATH would shadow the entrypoint this is meant to verify.
+    if [[ -f "$marker" ]] && [[ "$resolved" == "$agent_dir/"* ]]; then
+        log "pi already managed ($pi_path) — skipping installer"
+        return 0
+    fi
+
+    if [[ -n "$pi_path" ]]; then
+        warn "pi resolves to $pi_path (not a managed install) — running the installer"
+    fi
+    log "installing pi (managed install)"
+    curl -fsSL https://pi.dev/install.sh | sh
+}
+
 _prune_dangling_stow_links() {
     # stow cannot unstow a symlink whose target no longer exists (the file was
     # deleted from its package), and --restow leaves it in place. So deleting a
@@ -776,6 +831,7 @@ main() {
         linux|wsl)
             ensure_fisher
             ensure_mise
+            ensure_pi
             ensure_tmux_plugins
             ;;
         macos)
@@ -784,6 +840,7 @@ main() {
             ensure_vscodium_extensions
             ensure_fisher
             ensure_mise
+            ensure_pi
             ensure_tmux_plugins
             ;;
     esac

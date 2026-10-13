@@ -4,6 +4,45 @@ Minimal model roster for the [pi](https://pi.dev) coding agent: each model
 has a distinct role; escalation is driven by uncertainty, not failure counters.
 Three explicit modes shape each session. Stows to `~/.pi/`.
 
+## Installation
+
+pi installs itself with its **own managed installer** — deliberately not via
+mise (the dotfiles' normal tool route):
+
+```bash
+curl -fsSL https://pi.dev/install.sh | sh                  # macOS / Linux / WSL
+powershell -c "irm https://pi.dev/install.ps1 | iex"       # Windows (npm/pnpm only)
+```
+
+`ensure_pi()` in `bootstrap.sh` runs this (skipped when a managed install is
+already live). The layout: entrypoint `~/.local/bin/pi` → launcher
+`~/.pi/agent/bin/pi`, which exports `PI_MANAGED_INSTALL_ROOT` and execs
+`~/.pi/agent/install/releases/<version>/node_modules/.bin/pi`.
+
+Why the exception:
+
+- **Only this layout self-updates.** pi classifies its install by path; an
+aqua-extracted binary is `unknown` and a mise/npm copy is not under the global
+npm root it computes, so `pi update --self` refuses with *"cannot self-update
+this installation"*. With the managed root exported, `pi update` (and `--self`)
+work.
+- **mise cannot drive the version either.** It re-resolves `latest` only when
+`mise upgrade` runs — this host sat on 0.80.10 while upstream reached 1.2.0 —
+and its install dir precedes `~/.local/bin` on PATH, silently shadowing the
+managed entrypoint. That combination is what produces "moved pi to a managed
+installation and it can't self-update".
+- **Trade-off accepted:** the installer passes npm's `--min-release-age=0`
+(dependency graph pinned by npm-shrinkwrap), so there is no release-age soak
+window as mise's own gate would give. `pi update` is manual; that is the
+control.
+
+Never re-add `pi` to `~/.config/mise/config.toml` — `check.sh` fails if it
+reappears, or if `pi` resolves back into the mise tree. Removing the entry is
+not enough on a host that already had pi installed: `mise uninstall pi` leaves
+a stale shim at `~/.local/share/mise/shims/pi`, which keeps mise first on PATH
+(and errors outright if `~/.local/bin` leaves PATH). `ensure_pi()` deletes that
+shim; `check.sh` asserts it is gone.
+
 ## Models
 
 | Model | Role | Rationale |

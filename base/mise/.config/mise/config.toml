@@ -48,7 +48,13 @@ uv = "latest"
 github-cli = "latest"
 "pipx:httpie" = "latest"
 bitwarden-secrets-manager = "latest"
-pi = "latest"
+# pi is deliberately NOT mise-managed (see AGENTS.md: self-updating apps with
+# their own managed install own themselves).  mise only re-resolves `latest`
+# when `mise upgrade` runs, its install dir precedes ~/.local/bin on PATH (so it
+# shadows the managed entrypoint), and pi's updater classifies installs by path
+# — an aqua-extracted binary is "unknown", so `pi update --self` refuses.  pi
+# installs itself instead (ensure_pi() in bootstrap.sh); check.sh fails if a
+# `pi` entry reappears here.  Do not re-add.
 claude = "latest"
 "npm:tokscale" = "latest"
 "pipx:cerebrium" = "latest"

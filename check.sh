@@ -1358,6 +1358,57 @@ check "pi-prune: no conf.d auto-prune (sessions are kept, not deleted)" \
 check_has "pi-prune-sessions: documents that it is manual-only" \
     'MANUAL ONLY' "$_PI_PRUNE"
 
+# ── pi installation method ───────────────────────────────────────────────────
+# pi is deliberately NOT mise-managed (AGENTS.md: self-updating apps with their
+# own managed install own themselves).  Three facts force it: mise only
+# re-resolves `latest` when `mise upgrade` runs (it sat on 0.80.10 from July
+# while upstream reached 1.2.0), its install dir precedes ~/.local/bin on PATH
+# and so shadows the managed entrypoint, and pi's updater classifies installs by
+# path — an aqua-extracted binary is "unknown", so `pi update --self` refuses
+# with "cannot self-update this installation".  The managed install
+# (install.sh, PI_MANAGED_INSTALL_ROOT) is the only layout where it works.
+# Host-local assertions are skipped on machines without pi (CI runners).
+section "Pi installation method"
+
+check_not "mise: pi is NOT mise-managed (managed install owns it)" \
+    '^pi[[:space:]]*=' "$MISE_CFG"
+
+check_has "bootstrap: ensure_pi defined" \
+    '^ensure_pi\(\)' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: ensure_pi runs the pi managed installer" \
+    'pi\.dev/install\.sh' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap: ensure_pi is called after ensure_mise (mise node provides npm)" \
+    bash -c "grep -A1 -- 'ensure_mise\$' '$DOTFILES/bootstrap.sh' | grep -q 'ensure_pi'"
+
+check "bootstrap: ensure_pi drops the stale mise shim" \
+    bash -c "grep -q 'mise/shims/pi' '$DOTFILES/bootstrap.sh'"
+
+if command -v pi >/dev/null 2>&1; then
+    check "pi: resolves to the managed entrypoint, not a mise install or shim" \
+        bash -c 'case "$(command -v pi)" in "$HOME/.local/share/mise/"*) exit 1;; *) exit 0;; esac'
+
+    check "pi: no stale mise install directory" \
+        test ! -d "$HOME/.local/share/mise/installs/pi"
+
+    # mise leaves the shim behind after `mise uninstall pi`; ensure_pi removes
+    # it.  While present it keeps mise first on PATH for pi and breaks
+    # install.sh's first-on-PATH check.  -L as well as -e: a dangling shim
+    # (mise binary gone) is still stale state, and -e would follow the link.
+    check "pi: no stale mise shim (dangling links count)" \
+        bash -c 'p="$HOME/.local/share/mise/shims/pi"; [[ ! -e "$p" && ! -L "$p" ]]'
+
+    check "pi: managed install marker present" \
+        test -f "$HOME/.pi/agent/install/managed-install.json"
+
+    check "pi: launcher exports PI_MANAGED_INSTALL_ROOT (self-update path)" \
+        grep -q 'PI_MANAGED_INSTALL_ROOT' "$HOME/.pi/agent/bin/pi"
+else
+    _skip "pi: managed install (PATH resolution, marker, launcher)" \
+        "pi not installed on this machine"
+fi
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
