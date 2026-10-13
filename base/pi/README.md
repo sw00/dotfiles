@@ -41,7 +41,12 @@ reappears, or if `pi` resolves back into the mise tree. Removing the entry is
 not enough on a host that already had pi installed: `mise uninstall pi` leaves
 a stale shim at `~/.local/share/mise/shims/pi`, which keeps mise first on PATH
 (and errors outright if `~/.local/bin` leaves PATH). `ensure_pi()` deletes that
-shim; `check.sh` asserts it is gone.
+shim and prunes the stale install dir; `check.sh` asserts both are gone.
+
+`ensure_pi()` also brings an existing install to latest (`pi update --self`) —
+bootstrap is the convergence point, since pi has no auto-update of its own. So an
+upgrade lands without asking: when a release moves the extension API, re-vendor
+`agent/extensions/subagent/` from pi's `examples/` (see Tests).
 
 ## Models
 
@@ -69,6 +74,16 @@ authenticated `claude` binary (the Agent SDK ships its own copy of Claude Code;
 `provider.pathToClaudeCodeExecutable` overrides it), not a pi credential.
 Config: `agent/claude-bridge.json`
 (stowed — see the write-back note below).
+
+The `claude` binary on PATH is Claude Code's **native install**, not a mise copy:
+`ensure_claude()` in bootstrap.sh runs Anthropic's installer (`~/.local/bin/claude`
+→ `~/.local/share/claude/versions/<v>`) and keeps it on latest with `claude update`
+— the app owns itself, for the same reasons pi does (AGENTS.md). Note what the
+bridge actually executes: by default the Agent SDK's *bundled* Claude Code, with
+`provider.pathToClaudeCodeExecutable` reserved for overriding it. The PATH binary
+is the interactive CLI; what the bridge needs from it is the shared credential
+store (`~/.claude` plus the macOS Keychain entry), which is why moving claude off
+mise is transparent to the bridge.
 
 - `provider.plan` — `"pro"` (default); `"max"` unlocks Opus 4.6's 1M window.
 - `provider.strictMcpConfig: true` — blocks `~/.claude.json` / `.mcp.json` MCP

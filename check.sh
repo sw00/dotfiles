@@ -1388,6 +1388,9 @@ check "bootstrap: ensure_pi drops the stale mise shim" \
 check "bootstrap: ensure_pi prunes the stale mise install dir" \
     bash -c "grep -q 'mise/installs/pi' '$DOTFILES/bootstrap.sh'"
 
+check_has "bootstrap: ensure_pi brings a managed install to latest" \
+    'pi update --self' "$DOTFILES/bootstrap.sh"
+
 if command -v pi >/dev/null 2>&1; then
     check "pi: resolves to the managed entrypoint, not a mise install or shim" \
         bash -c 'case "$(command -v pi)" in "$HOME/.local/share/mise/"*) exit 1;; *) exit 0;; esac'
@@ -1410,6 +1413,54 @@ if command -v pi >/dev/null 2>&1; then
 else
     _skip "pi: managed install (PATH resolution, marker, launcher)" \
         "pi not installed on this machine"
+fi
+
+# ── Claude Code installation method ──────────────────────────────────────────
+# Same ownership rule as pi, for the same reasons (AGENTS.md): claude is NOT
+# mise-managed.  A mise/aqua copy (2.1.294) shadowed the native install (2.1.193)
+# and could never self-update — Claude Code's updater only touches the native
+# layout under ~/.local/share/claude/versions.  ensure_claude() runs the upstream
+# installer (checksum-verified) and keeps an existing install on latest via
+# `claude update`.  Host-local assertions are skipped on machines without claude
+# (CI runners).
+section "Claude Code installation method"
+
+check_not "mise: claude is NOT mise-managed (native install owns it)" \
+    '^claude[[:space:]]*=' "$MISE_CFG"
+
+check_has "bootstrap: ensure_claude defined" \
+    '^ensure_claude\(\)' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: ensure_claude runs the native installer" \
+    'claude\.ai/install\.sh' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: ensure_claude keeps the install on latest" \
+    'claude update' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap: ensure_claude is called after ensure_mise (curl + jq available)" \
+    bash -c "grep -A2 -- 'ensure_mise\$' '$DOTFILES/bootstrap.sh' | grep -q 'ensure_claude'"
+
+check "bootstrap: ensure_claude drops the stale mise shim" \
+    bash -c "grep -q 'mise/shims/claude' '$DOTFILES/bootstrap.sh'"
+
+if command -v claude >/dev/null 2>&1; then
+    check "claude: resolves to the native install, not a mise copy" \
+        bash -c 'case "$(command -v claude)" in "$HOME/.local/share/mise/"*) exit 1;; *) exit 0;; esac'
+
+    check "claude: no stale mise install directory" \
+        test ! -d "$HOME/.local/share/mise/installs/claude"
+
+    # Symmetric with ensure_claude's -L || -e guard: a dangling shim is stale too.
+    check "claude: no stale mise shim (dangling links count)" \
+        bash -c 'p="$HOME/.local/share/mise/shims/claude"; [[ ! -e "$p" && ! -L "$p" ]]'
+
+    # The native layout is what the updater keys off, so assert it directly
+    # rather than trusting the version string.
+    check "claude: resolves inside the native versions tree" \
+        bash -c 'case "$(realpath "$(command -v claude)")" in "$HOME/.local/share/claude/"*) exit 0;; *) exit 1;; esac'
+else
+    _skip "claude: native install (PATH resolution, layout, shim, mise leftovers)" \
+        "claude not installed on this machine"
 fi
 
 # SUMMARY

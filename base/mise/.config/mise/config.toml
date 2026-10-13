@@ -48,14 +48,15 @@ uv = "latest"
 github-cli = "latest"
 "pipx:httpie" = "latest"
 bitwarden-secrets-manager = "latest"
-# pi is deliberately NOT mise-managed (see AGENTS.md: self-updating apps with
-# their own managed install own themselves).  mise only re-resolves `latest`
-# when `mise upgrade` runs, its install dir precedes ~/.local/bin on PATH (so it
-# shadows the managed entrypoint), and pi's updater classifies installs by path
-# — an aqua-extracted binary is "unknown", so `pi update --self` refuses.  pi
-# installs itself instead (ensure_pi() in bootstrap.sh); check.sh fails if a
-# `pi` entry reappears here.  Do not re-add.
-claude = "latest"
+# pi and claude are deliberately NOT mise-managed (see AGENTS.md: self-updating
+# apps with their own managed install own themselves).  mise only re-resolves
+# `latest` when `mise upgrade` runs, and its install dirs precede ~/.local/bin on
+# PATH, so a mise copy both goes stale and shadows the self-updating entrypoint.
+# Neither updater will touch one: pi classifies installs by path and refuses an
+# aqua-extracted binary ("cannot self-update this installation"), and Claude Code
+# only updates its native layout under ~/.local/share/claude.  Both install
+# themselves instead (ensure_pi/ensure_claude in bootstrap.sh, which also keep
+# them on latest); check.sh fails if either entry reappears here.  Do not re-add.
 "npm:tokscale" = "latest"
 "pipx:cerebrium" = "latest"
 "pipx:python-dotenv" = "latest"

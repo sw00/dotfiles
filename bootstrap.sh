@@ -462,12 +462,19 @@ ensure_pi() {
     # the managed tree.  Marker alone is not enough — a stale mise/brew copy
     # elsewhere on PATH would shadow the entrypoint this is meant to verify.
     if [[ -f "$marker" ]] && [[ "$resolved" == "$agent_dir/"* ]]; then
-        log "pi already managed ($pi_path) — skipping installer"
+        # Always latest: the managed install tracks upstream releases and pi has
+        # no auto-update of its own, so bootstrap is the convergence point for a
+        # host that is otherwise only touched occasionally.  A failed update
+        # (offline) must not fail the run — the installed version still works.
+        log "pi already managed ($pi_path) — updating to latest"
+        if ! pi update --self; then
+            warn "pi update --self failed — staying on $(pi --version 2>/dev/null || echo 'the installed version')"
+        fi
     else
         if [[ -n "$pi_path" ]]; then
             warn "pi resolves to $pi_path (not a managed install) — running the installer"
         fi
-        log "installing pi (managed install)"
+        log "installing pi (managed install, latest)"
         curl -fsSL https://pi.dev/install.sh | sh
     fi
 
@@ -482,6 +489,72 @@ ensure_pi() {
             mise uninstall pi >/dev/null 2>&1 || rm -rf "$mise_pi_dir"
         else
             rm -rf "$mise_pi_dir"
+        fi
+    fi
+}
+
+ensure_claude() {
+    # Claude Code owns itself the same way pi does (see AGENTS.md): mise can only
+    # move it when `mise upgrade` runs, its install dir precedes ~/.local/bin on
+    # PATH (shadowing the self-updating entrypoint), and Claude Code's updater
+    # only ever touches the native layout under ~/.local/share/claude — a mise
+    # copy can never self-update.  Must run after ensure_mise: the installer
+    # shells out to curl and jq.
+    #
+    # Idempotent: a host already on the native layout is moved forward with
+    # `claude update` rather than re-downloading the ~220M binary, and the
+    # upstream installer takes no input and verifies the release checksum.
+    local versions_dir="$HOME/.local/share/claude/versions"
+    local claude_path="" resolved=""
+    # realpath($HOME) too — see ensure_pi.
+    local claude_dir
+    claude_dir="$(realpath "$HOME/.local/share/claude" 2>/dev/null || printf '%s' "$HOME/.local/share/claude")"
+
+    # Stale artefact of the mise-managed era (same as pi's): `mise uninstall
+    # claude` leaves the `claude` shim behind, which keeps mise first on PATH
+    # for claude.  -L as well as -e: a shim whose mise target is gone is
+    # dangling, and -e follows the link.
+    local shim="$HOME/.local/share/mise/shims/claude"
+    if [[ -L "$shim" || -e "$shim" ]] && ! grep -qE '^[[:space:]]*claude[[:space:]]*=' \
+        "$HOME/.config/mise/config.toml" 2>/dev/null; then
+        log "removing stale mise shim for claude (claude is not mise-managed)"
+        rm -f "$shim"
+    fi
+
+    if command -v claude >/dev/null 2>&1; then
+        claude_path="$(command -v claude)"
+        resolved="$(realpath "$claude_path" 2>/dev/null || printf '%s' "$claude_path")"
+    fi
+
+    # "Native" means: the versions dir exists AND claude resolves inside the
+    # native tree.  That, not a version string, is what the updater keys off.
+    if [[ -d "$versions_dir" ]] && [[ "$resolved" == "$claude_dir/"* ]]; then
+        log "claude already native ($claude_path) — updating to latest"
+        # Claude Code does auto-update, but only from an interactive start;
+        # making it explicit keeps a headless host current too.  Non-fatal for
+        # the same reason as pi's: offline must not fail a bootstrap.  Output is
+        # left visible, as pi's is — the log is the only record of what moved.
+        if ! claude update; then
+            warn "claude update failed — staying on $(claude --version 2>/dev/null || echo 'the installed version')"
+        fi
+    else
+        if [[ -n "$claude_path" ]]; then
+            warn "claude resolves to $claude_path (not the native install) — running the installer"
+        fi
+        log "installing claude (native install, latest)"
+        curl -fsSL https://claude.ai/install.sh | bash
+    fi
+
+    # mise-era leftovers, pruned only once a native install exists: the mise copy
+    # is the only fallback if the installer didn't run, so it must never be
+    # removed first.
+    local mise_claude_dir="$HOME/.local/share/mise/installs/claude"
+    if [[ -d "$versions_dir" && -d "$mise_claude_dir" ]]; then
+        log "pruning the mise-era claude install (claude is not mise-managed)"
+        if command -v mise >/dev/null 2>&1; then
+            mise uninstall claude >/dev/null 2>&1 || rm -rf "$mise_claude_dir"
+        else
+            rm -rf "$mise_claude_dir"
         fi
     fi
 }
@@ -845,6 +918,7 @@ main() {
             ensure_fisher
             ensure_mise
             ensure_pi
+            ensure_claude
             ensure_tmux_plugins
             ;;
         macos)
@@ -854,6 +928,7 @@ main() {
             ensure_fisher
             ensure_mise
             ensure_pi
+            ensure_claude
             ensure_tmux_plugins
             ;;
     esac

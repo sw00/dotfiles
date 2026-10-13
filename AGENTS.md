@@ -38,11 +38,13 @@ the regression suite (CI runs it on every push).
   (tig, graphviz, mosh), platform integrations (pinentry, wslu, wireguard), and
   native libs (libpq, ffmpeg).
 - Exception: self-updating apps with their own managed install own themselves.
-  pi is NOT mise-managed — mise can only move it when `mise upgrade` runs, its
-  PATH entry shadows the managed entrypoint, and pi's updater refuses any
-  install it can't classify (so `pi update` never works). `ensure_pi()` in
-  bootstrap.sh runs the upstream installer instead; check.sh fails if a `pi`
-  entry reappears in the mise config.
+  Neither pi nor claude is mise-managed — mise can only move either one when
+  `mise upgrade` runs, its PATH entries shadow their self-updating entrypoints
+  (`~/.local/bin`), and neither updater will touch a mise copy: pi refuses any
+  install it cannot classify by path, and Claude Code only updates its native
+  layout under `~/.local/share/claude`. `ensure_pi()` / `ensure_claude()` in
+  bootstrap.sh run the upstream installers and bring an existing install to
+  latest; check.sh fails if either entry reappears in the mise config.
 - Adding a system-package-only tool (not in mise/aqua/ubi) requires exactly
   three touch points: (1) `Brewfile-base` for macOS brew, (2) `ensure_system_tools()`
   `wanted` array in `bootstrap.sh` for Linux/WSL apt/dnf/pacman, (3) the parity
