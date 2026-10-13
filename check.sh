@@ -1501,6 +1501,17 @@ check_has "agents-update: tracks the vendored subagent pin" \
 check_has "agents-update: names the smoke eval to re-run after a re-vendor" \
     'pi-smoke' "$_AGENTS_UPDATE"
 
+# The fish .gitignore is an allowlist (functions/* is ignored unless negated), so
+# a new own-file silently drops out of the repo without this — which is exactly
+# what happened to agents-update.fish on the first attempt at this commit.
+check_has "agents-update: not gitignored (fish allowlist negation present)" \
+    '!functions/agents-update\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+
+# Generic form of the same trap, so the next new function cannot slip through:
+# no own file under fish/functions may be untracked or ignored.
+check "fish: no own function file is untracked or ignored (allowlist trap)" \
+    bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/)\""
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
