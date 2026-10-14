@@ -92,7 +92,10 @@ Same scenarios, live prompt (498 words), no `--append-system-prompt`. This run
 exists because pi moved 0.80.10 → 1.2.0 with the subagent extension re-vendored,
 and the 2026-10-09 numbers named only the model — so they were unattributable to a
 harness. `pi-smoke.sh` now stamps that provenance (pi version, model, vendored pin,
-flags) and writes the same lines to `provenance.txt` in the outdir.
+prompt word count + hash, context hash, flags) and writes the same lines to
+`provenance.txt` in the outdir. Attribution for this run: pi 1.2.0, model
+`opencode-go/deepseek-v4.1-flash`, subagent pin 1.2.0, `APPEND_SYSTEM.md` **498
+words sha 0513fdba**, `AGENTS.md` sha a60ef9b0.
 
 | Scenario | runs | subagents | shells | edits | plans | runs that asked |
 | trivial | 5 | 0 | 0 | **5** | 0 | 0 |

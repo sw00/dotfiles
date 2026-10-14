@@ -1506,6 +1506,14 @@ check_has "agents-update: tracks the vendored subagent pin" \
 check_has "agents-update: names the smoke eval to re-run after a re-vendor" \
     'pi-smoke' "$_AGENTS_UPDATE"
 
+# The counters are only readable next to what produced them, and a baseline that
+# cannot name its prompt or harness is what made the 2026-10-09 numbers useless.
+check_has "pi-smoke: stamps harness provenance into the outdir" \
+    'provenance\.txt' "$DOTFILES/pi-smoke.sh"
+
+check_has "pi-smoke: stamps the prompt identity (words + hash)" \
+    'prompt       APPEND_SYSTEM' "$DOTFILES/pi-smoke.sh"
+
 # The fish .gitignore is an allowlist (functions/* is ignored unless negated), so
 # a new own-file silently drops out of the repo without this — which is exactly
 # what happened to agents-update.fish on the first attempt at this commit.

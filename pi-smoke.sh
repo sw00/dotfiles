@@ -28,17 +28,26 @@ mkdir -p "$OUT"
 # Provenance: counters are meaningless without the harness that produced them.
 # The 2026-10-09 baseline recorded the model but not the pi version, so when pi
 # moved 0.80.10 -> 1.2.0 there was no way to tell whether a difference was the
-# prompt or the harness. Stamp it, and drop the same lines in the outdir.
+# prompt or the harness. Stamp it, and drop the same lines in the outdir. The
+# prompt identity matters just as much: these files are stow symlinks into the
+# working tree, so a hash ties the numbers to a revision and the word count ties
+# them to the budget check.sh enforces.
+_hash() { { shasum -a 256 "$1" 2>/dev/null || sha256sum "$1" 2>/dev/null; } | cut -c1-12; }
 PI_VERSION=$(command pi --version 2>/dev/null | head -1)
 PI_MODEL=$(sed -n 's/.*"defaultModel"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
   "$HOME/.pi/agent/settings.json" 2>/dev/null | head -1)
 PI_PIN=$(grep -oE '@ pi [0-9]+\.[0-9]+\.[0-9]+' \
   "$HOME/.pi/agent/extensions/subagent/index.ts" 2>/dev/null \
   | head -1 | sed 's/@ pi //')
+PROMPT_WORDS=$(wc -w < "$HOME/.pi/agent/APPEND_SYSTEM.md" 2>/dev/null | tr -d ' ')
+PROMPT_SHA=$(_hash "$HOME/.pi/agent/APPEND_SYSTEM.md")
+CONTEXT_SHA=$(_hash "$HOME/.pi/agent/AGENTS.md")
 {
   echo "pi           ${PI_VERSION:-unknown}"
   echo "model        ${PI_MODEL:-unknown}"
   echo "subagent pin ${PI_PIN:-none}"
+  echo "prompt       APPEND_SYSTEM.md ${PROMPT_WORDS:-?}w sha ${PROMPT_SHA:-?}"
+  echo "context      AGENTS.md sha ${CONTEXT_SHA:-?}"
   echo "flags        ${FLAGS:-none}"
   echo "runs         $RUNS"
   echo "date         $(date -u +%FT%TZ)"
