@@ -24,6 +24,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - git-crypt GPG subkey may expire. Use the repository's symmetric key backup as the documented fallback.
 - `gpg --export-secret-subkeys` copies the ENCRYPTED stub — no passphrase prompt at export time. The prompt fires on first signing USE on the receiving machine.
 - `gpg-agent.conf`'s `pinentry-program` line parser truncates at the first space. Leave it unset on Windows (Gpg4win defaults to its GUI pinentry-qt).
+- **`secrets/*.fish` is hand-edited and committed later, so a dirty working copy is normal work-in-progress — never `git checkout --` it without asking.** There is no machine snapshot of an uncommitted edit: mbpm3 has no APFS local snapshots and no Time Machine destination, and a `vi` session leaves no swap file once closed. On 2026-10-14 a 09:16 `vi secrets/env.fish` edit was reverted this way and was unrecoverable. To tell real content from filter noise, decrypt HEAD and compare instead: `git show HEAD:secrets/<f> | git-crypt smudge | cmp - secrets/<f>` — identical means ciphertext-only noise (safe to re-checkout), different means the plaintext really moved. The clean filter is deterministic here, so a reported modification is never *only* a nonce artefact.
 - Gpg4win installs to `C:\Program Files\GnuPG\bin\`, NOT `Program Files (x86)`.
 - Gpg4win's `--list-secret-keys` shows a `[keyboxd]` keyring; that's normal.
 

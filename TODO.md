@@ -8,6 +8,20 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Open — active bug
 
+- [ ] **`loop` smoke scenario no longer stops inside its signature (found
+  2026-10-14, pi 1.2.0).** The eval's loop scenario should show <= 2 shell attempts
+  and a stop quoting the verbatim error. Every run of the 2026-10-14 re-run took
+  7-22 attempts (13/22/13/7/7) and ended by trying to *make* `false` exit 0 — a PATH
+  shim in /tmp, `enable -n false`, probing shells, re-running under fish/zsh, and in
+  one case searching the environment for a grader. `trivial` and `risky` held, so
+  the regression is isolated to persistence on a task stated as impossible.
+  Next action: separate harness from model — re-run the loop scenario alone with a
+  different model (`PI_SMOKE_FLAGS="--model opencode-go/glm-5.3"`), and if it
+  reproduces, against a pinned older pi (installed outside mise, since the mise copy
+  is gone). Related: the prompt-slim watch below, which looks for exactly this
+  "third attempt at the same fix" pattern in real use. Numbers:
+  docs/PROMPT-EVAL.md §Re-baseline.
+
 - [ ] **modes↔model-switch chat-mode restore.** Mitigated but open. A 429 on
   the chat model mid-`/chat` hops to its fallback twin, so `stillChatModel`
   stays false and the exit-chat restore is skipped. Next action: narrow the
@@ -62,6 +76,16 @@ removed — full implementation history lives in git. Shared-core behavior
   must also be kept from writing through the stowed `settings.json` symlink (see
   docs/GOTCHAS.md §pi). Rejected outright: herdr, which replaces tmux rather than
   consolidating it.
+
+- [ ] **`settings.json` write-back churn — pick a convention, then encode it.**
+  pi rewrites `lastChangelogVersion` through the stowed symlink on every version
+  change, so `base/pi/.pi/agent/settings.json` is dirty after any upgrade (and a
+  model switch can ride along). There is no setting to suppress it — pi calls
+  `setLastChangelogVersion` → `save()` when it shows a changelog
+  (docs/GOTCHAS.md §pi). Today the rule is "revert before committing", applied by
+  hand every time; the decision to make is whether to commit the value whenever it
+  moves instead. Either way it should live in AGENTS.md so it stops being a
+  per-commit judgement call.
 
 ## Out of scope (deliberate non-goals)
 

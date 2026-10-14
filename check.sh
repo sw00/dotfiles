@@ -918,10 +918,15 @@ check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)
 
 # Public documentation must remain deployment-blind. Host-specific details
 # belong in the deployment repository, not this general-purpose public repo.
-check "pi docs: no homelab/agentbox/Telegram deployment references" \
+# Public-surface guard, widened 2026-10-14: this repo is public and must stay
+# decoupled from any particular deployment, so the check covers the rest of the
+# public surface too — base/fish (agent-facing helper functions) and the smoke
+# harness — not just the pi shared core and docs.
+check "public surface: no homelab/agentbox/Telegram deployment references" \
     bash -c "! grep -rEi 'homelab|agentbox|telegram|tg-session|tg-status|pi-telegram|ninimon' \
         '$DOTFILES/README.md' '$DOTFILES/AGENTS.md' '$DOTFILES/TODO.md' \
-        '$DOTFILES/docs' '$DOTFILES/base/pi' >/dev/null 2>&1"
+        '$DOTFILES/docs' '$DOTFILES/base/pi' '$DOTFILES/base/fish' \
+        '$DOTFILES/pi-smoke.sh' >/dev/null 2>&1"
 
 # Regression guard for the "use <model>" false-positive bug.  Plain-text
 # input switching was removed entirely in 3ebbb2e (Telegram bridge now strips

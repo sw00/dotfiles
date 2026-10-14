@@ -25,6 +25,26 @@ OUT=${2:-/tmp/pi-smoke-$(date +%Y%m%d-%H%M%S)}
 FLAGS=${PI_SMOKE_FLAGS:-}
 mkdir -p "$OUT"
 
+# Provenance: counters are meaningless without the harness that produced them.
+# The 2026-10-09 baseline recorded the model but not the pi version, so when pi
+# moved 0.80.10 -> 1.2.0 there was no way to tell whether a difference was the
+# prompt or the harness. Stamp it, and drop the same lines in the outdir.
+PI_VERSION=$(command pi --version 2>/dev/null | head -1)
+PI_MODEL=$(sed -n 's/.*"defaultModel"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+  "$HOME/.pi/agent/settings.json" 2>/dev/null | head -1)
+PI_PIN=$(grep -oE '@ pi [0-9]+\.[0-9]+\.[0-9]+' \
+  "$HOME/.pi/agent/extensions/subagent/index.ts" 2>/dev/null \
+  | head -1 | sed 's/@ pi //')
+{
+  echo "pi           ${PI_VERSION:-unknown}"
+  echo "model        ${PI_MODEL:-unknown}"
+  echo "subagent pin ${PI_PIN:-none}"
+  echo "flags        ${FLAGS:-none}"
+  echo "runs         $RUNS"
+  echo "date         $(date -u +%FT%TZ)"
+} | tee "$OUT/provenance.txt"
+echo
+
 scenario() { # name workdir prompt
   local name=$1 work=$2 prompt=$3 i
   echo "$work" > "$OUT/$name.workdir"
