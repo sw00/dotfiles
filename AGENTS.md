@@ -106,10 +106,10 @@ Key config paths:
 ## Capture tiers
 
 Tier by how much analysis remains before the item is actionable:
-`.pi/plans/` (host-local session scratch, gitignored, never commit) < `TODO.md` (analysis done, knock-off) < `ROADMAP.md` (needs deeper scoping). Record at the lowest tier that fits; escalate only when an item outgrows its tier.
+`.pi/plans/` (host-local session scratch, gitignored, never commit) < `TODO.md` (analysis done, knock-off). Record at the lowest tier that fits; escalate only when an item outgrows its tier.
 
 ## Reference material
 
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
-**Pending work**: `TODO.md`, `ROADMAP.md`
+**Pending work**: `TODO.md`

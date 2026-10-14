@@ -17,6 +17,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - Deleting a package leaves dangling symlinks stow can't unstow. Remove by hand first, then re-stow.
 - Pre-existing config files from other tools (e.g. `**/.claude/settings.local.json`) create stow conflicts. Merge, remove blocking file, re-stow.
 - stow prints "BUG in find_stowed_path" for symlinks it can't own (e.g. WSL's /mnt/c cross-filesystem links). Known noise; bootstrap.sh filters it.
+- `base/fish/.config/fish/.gitignore` is an **allowlist** (`functions/*`, `conf.d/*`, `completions/` are ignored unless explicitly negated), so a new own-file is silently *untracked*: `git add` stages nothing, warns "The following paths are ignored", and the commit then asserts a file only the author has — CI fails on assertions the author's run cannot see. Negate the path there, re-stow, and let `check.sh` guard it (it covers both the named file and the class: no own file under `fish/functions` may be untracked or ignored).
 
 ## git-crypt / GPG
 
@@ -40,10 +41,12 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   and classify the raw command; no wrapper-unwrapping is needed.
 - `pi-web-access` is not redundant — Pi core has no native `web_search`,
   `fetch_content`, `source_check`, or `get_search_content` tools.
-- pi writes runtime state (selected model, `lastChangelogVersion`) back through the stowed `settings.json` symlink. Before committing pi changes: inspect `git diff` and revert any unintended default-model drift rather than assuming a particular default.
+- pi writes runtime state (selected model, `lastChangelogVersion`) back through the stowed `settings.json` symlink. Before committing pi changes: inspect `git diff` and revert any unintended default-model drift rather than assuming a particular default. There is no setting to suppress the changelog write (pi calls `setLastChangelogVersion` → `save()` when it shows one), so expect it back after every pi version change.
+- **pi and claude are not mise-managed** (AGENTS.md, `base/pi/README.md`). `mise uninstall` leaves the shim behind, and a stale shim shadows the real entrypoint: `command -v pi` answers with the shim, which then errors. `ensure_pi` / `ensure_claude` prune it and `check.sh` guards it — but re-check after `mise reshim`, which was observed to resurrect a `pi` shim for a tool with no install at all (`mise which pi` errors; source record not found in mise state or config). A shim for a tool the mise config no longer declares must go.
+- Shims are **per-binary, not per-tool** (`2to3` comes from the python install), and they cover installed-but-inactive tools too. So neither shim-name-vs-`mise ls` nor `mise which <bin>` from `$HOME` is a staleness oracle — checking the second way deleted 85 legitimate shims here, and `mise reshim` restored them. Don't sweep shims on a heuristic; prune unused tool *versions* (`mise prune`) instead, and then re-check for pi/claude-class shims.
 - pi safety has two independent axes: session posture (change/check/chat) vs. per-domain write-gate (locked/armed). Never conflate. See `base/pi/README.md`.
 - Subagents load infra-safety locked with `hasUI=false` → infra mutations hard-blocked. General bash stays unguarded (oracle needs it). Intentional asymmetry.
-- pi infra-safety false-positives on commit messages: `git commit -m "...terraform..."` parses as a terraform invocation → blocked. Fix: `git commit -F <file>`.
+- pi infra-safety false-positives on commit messages: `git commit -m "...terraform..."` parses as a terraform invocation → blocked. Fix: `git commit -F <file>`. The scanner reads the whole command text, not just the first word, so an inline list of a guarded CLI plus any following word (`for t in kubectl k9s …`, a spot-check naming `gcloud`, even `rm`-ing shims in the same line) is likewise parsed as an invocation and blocked while the gate is locked. Run such loops from a script file, or split the command.
 - pi agent discovery: the `subagent` tool's `description:` frontmatter is not shown to the model except on an error path. The model learns agents from `APPEND_SYSTEM.md` only.
 - pi TS extensions: relative imports need explicit `.ts` extensions (`./classify.ts`) for node --experimental-strip-types.
 - **Shared core must be host-agnostic.** `base/pi/.pi/agent/` is copied verbatim to every deployment. Host-specific bridge packages, commands, and overlays belong in the deployment repository, not the shared core. `check.sh` enforces this.
