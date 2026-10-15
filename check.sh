@@ -1540,8 +1540,6 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     _pwtsock="$(mktemp -d)/sock"
     _pwt_repo="$(mktemp -d)/repo"
     _pwt_wt="$_pwt_repo/__worktrees/demo"
-    # The one assertion below that spawns pi: keep its transcript out of the real store.
-    _pwt_sessions="$(mktemp -d)"
     mkdir -p "$_pwt_repo"
     (cd "$_pwt_repo" && git init -q && git config user.email t@t && git config user.name t \
         && echo x > f && git add f && git commit -qm init \
@@ -1553,8 +1551,15 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     # The title is a faithful stand-in for pi, which sets it once and keeps it
     # because it stays the foreground program.
     mkdir -p "$_pwt_wt/sub"
+    # One assertion below spawns pi FOR REAL, and pi is not installed everywhere (CI
+    # has none). With no pi the pane's command exits at once and takes its WINDOW with
+    # it, so the window that assertion looks for would never be there — which has
+    # nothing to do with the reuse decision under test. remain-on-exit keeps the window
+    # and its pane_start_command whatever the command does. Fixing the pane's PATH up
+    # instead does not work: a pane's environment is the one tmux was STARTED with, and
+    # neither a global nor a session-scoped `set-environment` reaches a later pane.
     tmux -S "$_pwtsock" -f /dev/null new-session -d -s pwttest -c /tmp "sleep 300" >/dev/null 2>&1
-    tmux -S "$_pwtsock" set-environment -g PI_CODING_AGENT_SESSION_DIR "$_pwt_sessions"
+    tmux -S "$_pwtsock" set-option -g remain-on-exit on
     tmux -S "$_pwtsock" new-window -t pwttest -n pisub -c "$_pwt_wt/sub" "sleep 300" >/dev/null 2>&1
     _pwt_p1="$(tmux -S "$_pwtsock" list-panes -t pisub -F '#{pane_id}')"
     tmux -S "$_pwtsock" select-pane -t "$_pwt_p1" -T 'π - demo' >/dev/null 2>&1
@@ -1637,7 +1642,8 @@ PROBE
     # (same directory) and jumped to it, so the new label never became a workstream at
     # all and the jump still looked like success. `gamma` deliberately does not appear
     # in the fixtures above, which already claim repo-alpha and repo-beta. This is the
-    # one assertion that spawns pi, hence the redirected session store set up above.
+    # one assertion that spawns pi — which need not be installed, since remain-on-exit
+    # keeps the window either way.
     check "pwt: a second in-place label gets its own window, not the first one's" \
         bash -c 'env TMUX="$1" fish "$2" "$3" here "$4" gamma >/dev/null 2>&1
             tmux -S "$1" list-windows -t pwttest -F "#{window_name}|#{pane_start_command}" \
@@ -1645,7 +1651,7 @@ PROBE
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
 
     tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
-    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwt_sessions" "$_pwtprobe"
+    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe"
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
 fi
@@ -1776,7 +1782,12 @@ OREC
     _osc_mute=''   # 0 stands in for `tmux set -g @pwt_notify 0`
     _osc_n() { wc -l < "$_osc_nlog" | tr -d ' '; }
 
-    _osc_head="$(printf 'Waiting for approval:\nrun the tests?' | base64)"
+    # `tr -d '\n'` is load-bearing: GNU base64 wraps its output at 76 columns and BSD
+    # does not, so a wrapped fixture arrives as SEVERAL lines and the tap — which parses
+    # one line per report, as the protocol requires, since a value may not contain a
+    # control character and a newline is one — keeps only the first. This is exactly how
+    # the clamp check below passed on macOS and failed on CI.
+    _osc_head="$(printf 'Waiting for approval:\nrun the tests?' | base64 | tr -d '\n')"
     _osc_clear; _osc_shot blocked auth "$_osc_head" 0 audit
     check "pwt-osc: a blocked report pushes one notification" \
         test "$(_osc_n)" = "1"
@@ -1835,7 +1846,7 @@ OREC
         test ! -e "$_osc_opt/@pi_notified_at"
     _osc_clear
     _osc_long="$(printf 'x%.0s' $(seq 1 300))"
-    _osc_shot blocked custom "$(printf 'need\001a %s decision %s' $'\342\200\256' "$_osc_long" | base64)" 0 audit
+    _osc_shot blocked custom "$(printf 'need\001a %s decision %s' $'\342\200\256' "$_osc_long" | base64 | tr -d '\n')" 0 audit
     check "pwt-osc: a long message is clamped to a banner" \
         bash -c 'body=${1#*|}; [[ ${#body} -eq 160 ]]' _ "$(tail -1 "$_osc_nlog")"
     check "pwt-osc: control characters and bidi overrides are disarmed" \
