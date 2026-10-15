@@ -1436,6 +1436,18 @@ check_has "pwt-pick: reserves the new verb as a slug too" \
     'rm\|remove\|jump\|here\|help' "$_PWT_PICK"
 check_has "pwt-pick: labels a row from the window marker when present" \
     '@pwt_label' "$_PWT_PICK"
+# A repo with no workstreams has no row, so the list cannot reach it; and not every
+# repo can take a worktree. This is the way in for both.
+check_has "pwt-pick: reaches a repo with no rows through repo-list" \
+    'repo-list' "$_PWT_PICK"
+check_has "pwt-pick: that stage can create the in-place rung too" \
+    'run_pwt here' "$_PWT_PICK"
+# The query is never fed to fzf as a command string: it is free text, and that is the
+# injection this whole design exists to avoid.
+check_not "pwt-pick: never interpolates the typed query into a command" \
+    '{q}' "$_PWT_PICK"
+check_has "pwt-pick: shows the state pi reports" \
+    '@pi_state' "$_PWT_PICK"
 # An fzf execute()/reload() bind interpolates the row and whatever was typed into
 # a COMMAND STRING that a shell then parses, so a quote in a path is an injection.
 # --expect delivers the key and the row on stdout, to be passed as argv instead.
@@ -1469,7 +1481,7 @@ check_has "pwt-pick: holds the popup open when pwt fails" \
 _pwt_tmp="$(mktemp -d)"
 mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/live"
 check "pwt-pick: lists a worktree as org/repo/slug" \
-    bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "   org/repo/demo" ]]' \
+    bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "    org/repo/demo" ]]' \
     _ "$_pwt_tmp" "$_PWT_PICK"
 
 # Live pi panes and the ▸ marker without a real tmux server: a stub on PATH
@@ -1479,8 +1491,8 @@ _pwt_bin="$(mktemp -d)"
 cat > "$_pwt_bin/tmux" <<'STUB'
 #!/bin/bash
 case "$*" in
-  *pane_title*)        printf '%s\t%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" "$PWT_STUB_LABEL" ;;
-  *pane_current_path*) printf '%s\n' "$PWT_STUB_WT" ;;
+  *pane_title*)        printf '%s\t%s\t%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" "${PWT_STUB_LABEL:--}" "$PWT_STUB_STATE" ;;
+  *pane_current_path*) printf '%s\t%s\n' "$PWT_STUB_WT" "$PWT_STUB_WTSTATE" ;;
 esac
 STUB
 chmod +x "$_pwt_bin/tmux"
@@ -1488,7 +1500,7 @@ check "pwt-pick: marks a worktree whose window is open and lists live pi panes" 
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - main" PWT_STUB_WT="$2/org/repo/__worktrees/demo" \
         PWT_STUB_LIVE="$2/org/live" "$3" --list)
-        grep -qF "▸  org/repo/demo" <<<"$out" && grep -qF "▸  org/live" <<<"$out"' \
+        grep -qF "▸   org/repo/demo" <<<"$out" && grep -qF "▸   org/live" <<<"$out"' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 check "pwt-pick: a pi pane inside a worktree is not listed twice" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
@@ -1500,7 +1512,16 @@ check "pwt-pick: labels a marked window by its workstream, not its directory" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - x" PWT_STUB_WT=/nonexistent-wt PWT_STUB_LIVE="$2/org/live" \
         PWT_STUB_LABEL="audit" "$3" --list)
-        grep -qF "▸  audit" <<<"$out" && ! grep -qF "▸  org/live" <<<"$out"' \
+        grep -qF "▸   audit" <<<"$out" && ! grep -qF "▸   org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# pi's own state, and the ordering that makes the list answer "which one wants me"
+# without reading it: a blocked workstream sorts above a working one.
+check "pwt-pick: shows pi's state and floats a blocked workstream to the top" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="π - x" PWT_STUB_WT="$2/org/repo/__worktrees/demo" PWT_STUB_WTSTATE=blocked \
+        PWT_STUB_LIVE="$2/org/live" PWT_STUB_STATE=working "$3" --list)
+        [[ "$(printf "%s\n" "$out" | head -1 | cut -f1)" == "▸ ⚑ org/repo/demo" ]] &&
+        printf "%s\n" "$out" | grep -qF "◐ org/live"' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 rm -rf "$_pwt_tmp" "$_pwt_bin"
 

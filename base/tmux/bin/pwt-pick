@@ -78,18 +78,56 @@ label() {
 #
 # list-PANES, not list-windows: the latter reports only the ACTIVE pane's cwd, so
 # a worktree whose window has pi in a non-active split would show no ▸ marker.
-pane_cwds() {
+pane_info() {
     [[ -n "${TMUX:-}" ]] || return 0
-    tmux list-panes -a -F '#{pane_current_path}' 2>/dev/null || true
+    tmux list-panes -a -F "#{pane_current_path}	#{@pi_state}" 2>/dev/null || true
 }
 
 live_panes() {
     [[ -n "${TMUX:-}" ]] || return 0
-    # Tab-separated so a title containing spaces stays one field. The third field is
-    # the workstream marker pwt writes when it opens a window (empty for sessions it
-    # did not): it distinguishes two IN-PLACE workstreams, which share a directory
-    # and would otherwise render as identical rows.
-    tmux list-panes -a -F "#{pane_title}	#{pane_current_path}	#{@pwt_label}" 2>/dev/null || true
+    # Tab-separated so a title containing spaces stays one field. Field 3 is the
+    # workstream marker pwt writes when it opens a window (empty for sessions it did
+    # not): it distinguishes two IN-PLACE workstreams, which share a directory and
+    # would otherwise render as identical rows. Field 4 is the state.
+    # The label is emitted as `-` when unset rather than left empty, because `read`
+    # COLLAPSES consecutive IFS whitespace and a tab is whitespace: an empty middle
+    # field silently shifts the state into the label. (`-` cannot be a real label:
+    # pwt requires a name to start alphanumeric.)
+    tmux list-panes -a -F "#{pane_title}	#{pane_current_path}	#{?#{@pwt_label},#{@pwt_label},-}	#{@pi_state}" 2>/dev/null || true
+}
+
+# pi's last reported state as one glyph. Mirrors the window list's ⚑ for "wants a
+# human" and adds the two the window list cannot show, so the panel reads at a
+# glance instead of only when it wants something.
+state_glyph() {
+    case "$1" in
+        blocked) printf '⚑' ;;
+        done)    printf '✓' ;;
+        error)   printf '✗' ;;
+        working) printf '◐' ;;
+        *)       printf ' ' ;;
+    esac
+}
+
+# Sort rank: blocked first, then work that finished, then work in flight — "which
+# one wants me" is the question this list exists to answer.
+state_rank() {
+    case "$1" in
+        blocked)    printf '0' ;;
+        done|error) printf '1' ;;
+        working)    printf '2' ;;
+        *)          printf '3' ;;
+    esac
+}
+
+# The state of a pane sitting exactly at <path> (empty when there is none, or when
+# that pane has no state yet). Linear over the server's panes, which is all there is.
+state_for_path() {
+    local _p _s
+    while IFS=$'\t' read -r _p _s; do
+        if [[ "$_p" == "$1" ]]; then printf '%s' "$_s"; return 0; fi
+    done <<< "$PANE_INFO"
+    return 0
 }
 
 # ── rows ─────────────────────────────────────────────────────────────────────
@@ -115,12 +153,19 @@ done < <(
 # canonicalised for the reason canon_dir explains. A herestring rather than a
 # pipe into grep: under `set -o pipefail` a long list can make grep exit on
 # SIGPIPE (141), which would silently drop the ▸ marker.
+PANE_INFO=''
 OPEN_CWDS=''
-while IFS= read -r _c; do
-    [[ -n "$_c" ]] || continue
-    OPEN_CWDS+="$(canon_dir "$_c")"$'\n'
-done <<< "$(pane_cwds)"
+while IFS=$'\t' read -r _p _s; do
+    [[ -n "$_p" ]] || continue
+    _p="$(canon_dir "$_p")"
+    PANE_INFO+="$_p"$'\t'"$_s"$'\n'
+    OPEN_CWDS+="$_p"$'\n'
+done <<< "$(pane_info)"
 
+# Rows are collected rank-first ("rank<TAB>row") and sorted at the end. `sort -s` is
+# stable, so within a rank the original order — worktrees, then live sessions, each
+# sorted — is preserved.
+rows_ranked=()
 EMITTED_WT=''
 for wt_root in ${WT_ROOTS[@]+"${WT_ROOTS[@]}"}; do
     while IFS= read -r wt; do
@@ -130,18 +175,20 @@ for wt_root in ${WT_ROOTS[@]+"${WT_ROOTS[@]}"}; do
         mk_hist=' '
         if grep -Fxq -- "$wt" <<< "$OPEN_CWDS"; then mk_open='▸'; fi
         if [[ -d "$SESSIONS/$(session_dir_for "$wt")" ]]; then mk_hist='●'; fi
-        rows+=("$mk_open$mk_hist $(label "$wt")"$'\t'"$wt"$'\t'"wt")
+        _state="$(state_for_path "$wt")"
+        rows_ranked+=("$(state_rank "$_state")"$'\t'"$mk_open$mk_hist$(state_glyph "$_state") $(label "$wt")"$'\t'"$wt"$'\t'"wt")
         EMITTED_WT+="$wt"$'\n'
     done < <(find "$wt_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
 done
 
 LIVE="$(live_panes)"
 if [[ -n "$LIVE" ]]; then
-    while IFS=$'\t' read -r _title _path _label; do
+    while IFS=$'\t' read -r _title _path _label _state; do
         [[ -n "$_path" ]] || continue
         case "$_title" in "$PI_TITLE"*) ;; *) continue ;; esac
         _path="$(canon_dir "$_path")"
         # A window pwt opened names itself; anything else is labelled by its path.
+        [[ "$_label" == "-" ]] && _label=''
         [[ -n "$_label" ]] || _label="$(label "$_path")"
         # Suppress only when a worktree ROW covers this pane. Keying on
         # "*/__worktrees/*" instead would hide the window entirely for a worktree
@@ -152,9 +199,16 @@ if [[ -n "$LIVE" ]]; then
             case "$_path" in "$_w"|"$_w"/*) _covered=1; break ;; esac
         done <<< "$EMITTED_WT"
         [[ "$_covered" == "0" ]] || continue
-        rows+=("▸  $_label"$'\t'"$_path"$'\t'"live")
+        rows_ranked+=("$(state_rank "$_state")"$'\t'"▸ $(state_glyph "$_state") $_label"$'\t'"$_path"$'\t'"live")
     done <<< "$LIVE"
 fi
+
+# Strip the rank back off, after a stable sort on it.
+rows=()
+while IFS= read -r _line; do
+    [[ -n "$_line" ]] || continue
+    rows+=("${_line#*$'\t'}")
+done < <(printf '%s\n' ${rows_ranked[@]+"${rows_ranked[@]}"} | sort -s -n -k1,1)
 
 if [[ "${1:-}" == "--list" ]]; then
     if [[ ${#rows[@]} -gt 0 ]]; then
@@ -163,41 +217,47 @@ if [[ "${1:-}" == "--list" ]]; then
     exit 0
 fi
 
-if [[ ${#rows[@]} -eq 0 ]]; then
-    echo "pwt-pick: no worktrees or pi sessions under $SRC" >&2
-    echo "          start one from inside a repo with: pwt <slug>" >&2
-    sleep 2
-    exit 0
-fi
-
-# ── panel ────────────────────────────────────────────────────────────────────
-# The selection is never cancelled on a non-zero fzf status other than a real
-# abort: `|| true` keeps `set -e` from turning fzf's exit into a trace.
-out="$(printf '%s\n' "${rows[@]}" \
-    | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
-        --border-label ' pwt ' \
-        --header 'enter open · ctrl-n new · ctrl-d remove' \
-        --expect=ctrl-n,ctrl-d \
-        --preview 'git -C {2} status --short --branch 2>/dev/null | head -20' \
-        --preview-window 'down:40%')" || exit 0
-
-[[ -n "$out" ]] || exit 0
-
-# --expect prints the key as the first line (empty for enter) then the selection.
-# Parsed by shape rather than by position so a change in that contract degrades
-# to "no key" instead of acting on the wrong row: no row can ever be exactly
-# "ctrl-n"/"ctrl-d", and every row contains a tab.
+# `key` starts empty so that having nothing to list can jump straight to the repo
+# picker instead of running fzf over an empty list: no workstreams anywhere is not a
+# dead end, just a different way in.
 key=''
 sel=''
-while IFS= read -r _line; do
-    case "$_line" in
-        ctrl-n|ctrl-d) key="$_line"; continue ;;
-    esac
-    [[ -n "$_line" ]] || continue
-    sel="$_line"
-done <<< "$out"
 
-if [[ -z "$sel" ]]; then
+# ── panel ────────────────────────────────────────────────────────────────────
+if [[ ${#rows[@]} -gt 0 ]]; then
+    # Two header lines: fzf truncates a long one, and the glyphs are meaningless
+    # without a legend.
+    panel_header="$(printf '%s\n%s' \
+        'enter open · ctrl-n new worktree · ctrl-f other repo · ctrl-d remove' \
+        '◐ working · ⚑ blocked · ✓ done · ✗ error')"
+    # The selection is never cancelled on a non-zero fzf status other than a real
+    # abort: `|| true` keeps `set -e` from turning fzf's exit into a trace.
+    out="$(printf '%s\n' "${rows[@]}" \
+        | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
+            --border-label ' pwt ' \
+            --header "$panel_header" \
+            --expect=ctrl-n,ctrl-d,ctrl-f \
+            --preview 'git -C {2} status --short --branch 2>/dev/null | head -20' \
+            --preview-window 'down:40%')" || exit 0
+
+    [[ -n "$out" ]] || exit 0
+
+    # --expect prints the key as the first line (empty for enter) then the selection.
+    # Parsed by shape rather than by position so a change in that contract degrades
+    # to "no key" instead of acting on the wrong row: no row can ever be exactly
+    # "ctrl-n"/"ctrl-d", and every row contains a tab.
+    while IFS= read -r _line; do
+        case "$_line" in
+            ctrl-n|ctrl-d|ctrl-f) key="$_line"; continue ;;
+        esac
+        [[ -n "$_line" ]] || continue
+        sel="$_line"
+    done <<< "$out"
+else
+    key=ctrl-f
+fi
+
+if [[ -z "$sel" && "$key" != "ctrl-f" ]]; then
     echo "pwt-pick: no row selected" >&2
     exit 0
 fi
@@ -208,13 +268,14 @@ path="$(printf '%s' "$sel" | cut -f2)"
 # Run a pwt verb and KEEP THE POPUP OPEN when it fails. `display-popup -E` closes
 # the moment the command exits, so a refusal ("window @N still holds …") or a
 # validation error would otherwise flash and vanish before it could be read.
-# <verb> is new (cd + pwt <slug>), rm, or jump (pwt jump <dir>).
+# <verb> is new (cd + pwt <name>), rm, jump (pwt jump <dir>), or here (cd + pwt here).
 run_pwt() {
     local verb="$1" a="$2" b="${3:-}" rc=0
     case "$verb" in
         new)  fish -c 'cd $argv[1]; and pwt $argv[2]' "$a" "$b" || rc=$? ;;
         rm)   fish -c 'cd $argv[1]; and pwt rm $argv[2]' "$a" "$b" || rc=$? ;;
         jump) fish -c 'pwt jump $argv[1]' "$a" || rc=$? ;;
+        here) fish -c 'cd $argv[1]; and pwt here $argv[2]' "$a" "$b" || rc=$? ;;
         *)    echo "pwt-pick: unknown verb '$verb'" >&2; rc=2 ;;
     esac
     if [[ $rc -ne 0 ]]; then
@@ -225,21 +286,54 @@ run_pwt() {
     return 0
 }
 
-case "$key" in
-ctrl-n)
-    # Prompted here, not pre-filled from the query: a query is free text, and
-    # feeding it through an fzf command string is the injection this design
-    # exists to avoid. pwt validates it right after.
-    printf 'new worktree in %s — slug: ' "$(label "$path")"
+# pwt's first argument is a verb switch, so these would never become a workstream.
+# `here` and `jump` are reachable only from a shell, but a workstream named after one
+# would still be unusable, so they are reserved the same way.
+reject_reserved() {
+    case "$1" in
+        rm|remove|jump|here|help)
+            echo "pwt: '$1' is a pwt verb, not a workstream name" >&2
+            exit 2 ;;
+    esac
+}
+
+# Prompt for and validate a new workstream name. Prompted here rather than taken from
+# the fzf query, and never interpolated into an fzf command string: a query is free
+# text, which is the injection this design exists to avoid. pwt validates it again.
+read_label() {
+    printf 'new %s — name: ' "$1"
     read -r slug || slug=''
     [[ -n "$slug" ]] || { echo "aborted"; exit 0; }
-    # pwt's first argument is a verb switch, so these would never become a branch.
-    # `here` and `jump` are reachable only from a shell, but a workstream named after
-    # one would still be unusable, so they are reserved the same way.
-    case "$slug" in
-        rm|remove|jump|here|help) echo "pwt: '$slug' is a pwt verb, not a workstream name" >&2
-                                  exit 2 ;;
-    esac
+    reject_reserved "$slug"
+}
+
+case "$key" in
+ctrl-f)
+    # Two ways in. A repo with no workstreams has no row, so the list cannot reach it,
+    # and not every repo can take a worktree. repo-list backs C-f's repo half, so the
+    # frecency order and $PWT_SRC scope are the same here. This second stage's key
+    # picks the rung: a worktree, or the in-place kind for a checkout that cannot be
+    # materialised (a git-crypt repo fails `worktree add`) or is not worth
+    # re-provisioning. Two --expect stages, both parsed the same way: key, then choice.
+    repo_bin="${PWT_REPO_LIST:-$HOME/bin/repo-list}"
+    picked="$("$repo_bin" | fzf --prompt 'repo> ' --reverse --no-preview \
+        --border-label ' pwt · repo ' \
+        --header 'enter worktree in it · ctrl-o workstream in place' \
+        --expect=ctrl-o)" || exit 0
+    [[ -n "$picked" ]] || exit 0
+    rk="$(printf '%s\n' "$picked" | head -1)"
+    repo="$(printf '%s\n' "$picked" | tail -1)"
+    [[ -n "$repo" ]] || exit 0
+    if [[ "$rk" == "ctrl-o" ]]; then
+        read_label "in-place workstream in $(label "$repo")"
+        run_pwt here "$repo" "$slug"
+    else
+        read_label "worktree in $(label "$repo")"
+        run_pwt new "$repo" "$slug"
+    fi
+    ;;
+ctrl-n)
+    read_label "worktree in $(label "$path")"
     case "$kind" in
         wt) repo="$(dirname "$(dirname "$path")")" ;;
         *)  repo="$path" ;;
