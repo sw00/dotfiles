@@ -1332,6 +1332,24 @@ check_not "pwt: never attaches the tap with pipe-pane -o" \
     'pipe-pane -o' "$_PWT"
 check_has "pwt: adopts a live session when the C-w panel jumps to it" \
     '__pwt_tap' "$_PWT"
+# The in-place rung: a workstream with no worktree, for repos a fresh checkout
+# cannot serve (a git-crypt repo fails `worktree add` at the smudge filter) or
+# where the per-worktree state is not worth re-provisioning.
+check_has "pwt: exposes an in-place workstream verb" \
+    'case here' "$_PWT"
+check_has "pwt: rejects a base ref for the in-place verb" \
+    'takes no base ref' "$_PWT"
+# Identity, not cwd: two in-place workstreams share one directory, so matching on
+# the path would hand the second one the first one's window and its transcript.
+check_has "pwt: records the workstream identity on the window it opens" \
+    '@pwt_sid' "$_PWT"
+check_has "pwt: reuses by that identity before falling back to the path" \
+    '__pwt_workstream_window' "$_PWT"
+# ...but that fallback is for worktrees only: an in-place workstream shares its
+# directory, so a window found there may belong to a different one. Without this the
+# second label silently lands in the first label's window and never exists.
+check_has "pwt: reuses an in-place workstream by identity alone" \
+    'identity-only' "$_PWT"
 
 # ── tmux status wiring for the tap ───────────────────────────────────────────
 _TMUXCONF="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
@@ -1412,6 +1430,12 @@ check_has "pwt-pick: delegates lifecycle to pwt" \
     'fish -c' "$_PWT_PICK"
 check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
     '\-\-session-id' "$_PWT_PICK"
+# Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
+# defined until this point in the file, and grep against an empty filename fails.
+check_has "pwt-pick: reserves the new verb as a slug too" \
+    'rm\|remove\|jump\|here\|help' "$_PWT_PICK"
+check_has "pwt-pick: labels a row from the window marker when present" \
+    '@pwt_label' "$_PWT_PICK"
 # An fzf execute()/reload() bind interpolates the row and whatever was typed into
 # a COMMAND STRING that a shell then parses, so a quote in a path is an injection.
 # --expect delivers the key and the row on stdout, to be passed as argv instead.
@@ -1455,7 +1479,7 @@ _pwt_bin="$(mktemp -d)"
 cat > "$_pwt_bin/tmux" <<'STUB'
 #!/bin/bash
 case "$*" in
-  *pane_title*)        printf '%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" ;;
+  *pane_title*)        printf '%s\t%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" "$PWT_STUB_LABEL" ;;
   *pane_current_path*) printf '%s\n' "$PWT_STUB_WT" ;;
 esac
 STUB
@@ -1472,6 +1496,12 @@ check "pwt-pick: a pi pane inside a worktree is not listed twice" \
         PWT_STUB_LIVE="$2/org/repo/__worktrees/demo" "$3" --list)
         [[ "$(grep -c . <<<"$out")" == "1" ]]' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+check "pwt-pick: labels a marked window by its workstream, not its directory" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="π - x" PWT_STUB_WT=/nonexistent-wt PWT_STUB_LIVE="$2/org/live" \
+        PWT_STUB_LABEL="audit" "$3" --list)
+        grep -qF "▸  audit" <<<"$out" && ! grep -qF "▸  org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 rm -rf "$_pwt_tmp" "$_pwt_bin"
 
 # ── pwt window resolution (behavioural, not textual) ─────────────────────────
@@ -1485,6 +1515,8 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     _pwtsock="$(mktemp -d)/sock"
     _pwt_repo="$(mktemp -d)/repo"
     _pwt_wt="$_pwt_repo/__worktrees/demo"
+    # The one assertion below that spawns pi: keep its transcript out of the real store.
+    _pwt_sessions="$(mktemp -d)"
     mkdir -p "$_pwt_repo"
     (cd "$_pwt_repo" && git init -q && git config user.email t@t && git config user.name t \
         && echo x > f && git add f && git commit -qm init \
@@ -1497,6 +1529,7 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     # because it stays the foreground program.
     mkdir -p "$_pwt_wt/sub"
     tmux -S "$_pwtsock" -f /dev/null new-session -d -s pwttest -c /tmp "sleep 300" >/dev/null 2>&1
+    tmux -S "$_pwtsock" set-environment -g PI_CODING_AGENT_SESSION_DIR "$_pwt_sessions"
     tmux -S "$_pwtsock" new-window -t pwttest -n pisub -c "$_pwt_wt/sub" "sleep 300" >/dev/null 2>&1
     _pwt_p1="$(tmux -S "$_pwtsock" list-panes -t pisub -F '#{pane_id}')"
     tmux -S "$_pwtsock" select-pane -t "$_pwt_p1" -T 'π - demo' >/dev/null 2>&1
@@ -1517,6 +1550,10 @@ switch $argv[2]
         cd $argv[3]; and pwt rm $argv[4]
     case jump
         pwt jump $argv[3]
+    case ws
+        echo (__pwt_workstream_window $argv[3])
+    case here
+        cd $argv[3]; and pwt here $argv[4] $argv[5]
 end
 PROBE
 
@@ -1542,8 +1579,48 @@ PROBE
             tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{pane_title}" | grep -q "^1:π - "' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
 
+    # TWO in-place workstreams in ONE repo: same directory, different workstreams.
+    # Nothing about the cwd separates them, which is exactly why the window carries
+    # @pwt_sid — matching on the path would send both to the first window, and a
+    # second pi on that window's session id clobbers its transcript.
+    tmux -S "$_pwtsock" new-window -t pwttest -n inplace-a -c "$_pwt_repo" "sleep 300"
+    tmux -S "$_pwtsock" new-window -t pwttest -n inplace-b -c "$_pwt_repo" "sleep 300"
+    _in_a="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="inplace-a"{print $1}')"
+    _in_b="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="inplace-b"{print $1}')"
+    tmux -S "$_pwtsock" set-window-option -t "$_in_a" @pwt_sid repo-alpha
+    tmux -S "$_pwtsock" set-window-option -t "$_in_b" @pwt_sid repo-beta
+    check "pwt: tells two in-place workstreams in one directory apart" \
+        bash -c '[[ "$(env TMUX="$1" fish "$2" "$3" ws repo-alpha)" == "$4" && \
+                  "$(env TMUX="$1" fish "$2" "$3" ws repo-beta)" == "$5" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_in_a" "$_in_b"
+    # The second `pwt here` must JUMP to that window, not open a second one on the
+    # only working tree there is — and it needs no pi to prove it, since reuse never
+    # spawns one.
+    _in_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _in_out="$(env TMUX="$_pwtsock" fish "$_pwtprobe" "$DOTFILES" here "$_pwt_repo" alpha 2>&1)"
+    _in_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: 'here' jumps to the existing in-place workstream, opening no window" \
+        bash -c '[[ "$1" == "$2" && "$3" == *"jumped to the open window"* ]]' \
+        _ "$_in_before" "$_in_after" "$_in_out"
+    check "pwt: 'here' rejects a base ref (nothing to base a worktree on)" \
+        bash -c 'cd "$4" && ! env TMUX="$1" fish "$2" "$3" here alpha develop >/dev/null 2>&1' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+    # A second, DIFFERENT in-place label in the same repo must get its own window.
+    # This is the regression the path fallback caused: the lookup found alpha's window
+    # (same directory) and jumped to it, so the new label never became a workstream at
+    # all and the jump still looked like success. `gamma` deliberately does not appear
+    # in the fixtures above, which already claim repo-alpha and repo-beta. This is the
+    # one assertion that spawns pi, hence the redirected session store set up above.
+    check "pwt: a second in-place label gets its own window, not the first one's" \
+        bash -c 'env TMUX="$1" fish "$2" "$3" here "$4" gamma >/dev/null 2>&1
+            tmux -S "$1" list-windows -t pwttest -F "#{window_name}|#{pane_start_command}" \
+                | grep -q "^gamma|pi --session-id repo-gamma"' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+
     tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
-    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe"
+    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwt_sessions" "$_pwtprobe"
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
 fi

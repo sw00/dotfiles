@@ -5,6 +5,7 @@
 # Usage: pwt <slug> [base]   # worktree under <repo>/__worktrees/<slug>
 #        pwt rm <slug>       # remove the worktree and its local branch
 #        pwt jump <dir>      # go to the window whose cwd is <dir> (C-w panel)
+#        pwt here <label>    # a workstream in THIS checkout, no worktree
 #
 # Why a worktree: several pi sessions in ONE checkout share a working tree, so
 # parallel mutating agents collide at the file level. Sessions alone do not fix
@@ -155,6 +156,37 @@ function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi
     return 1
 end
 
+# The window that DECLARES workstream <sid>, or nothing. pwt records @pwt_sid on
+# every window it opens, which makes this the identity check: two in-place
+# workstreams share one directory, so a cwd cannot tell them apart, and matching on
+# it would hand the second one the first one's window — and with it the first one's
+# transcript. Path matching stays the fallback for windows that predate the marker
+# and for sessions adopted from the panel.
+function __pwt_workstream_window --description 'window id declaring workstream <sid>'
+    set -l out_pane 0
+    test "$argv[2]" = pane-id; and set out_pane 1
+    for line in (command tmux list-windows -a -F '#{window_id}|#{pane_id}|#{@pwt_sid}' 2>/dev/null)
+        set -l parts (string split -m2 '|' -- $line)
+        test (count $parts) -eq 3; or continue
+        test "$parts[3]" = "$argv[1]"; or continue
+        if test $out_pane -eq 1
+            echo $parts[2]
+        else
+            echo $parts[1]
+        end
+        return 0
+    end
+    return 1
+end
+
+# Record a window as the home of a workstream. A window option, not something
+# inferred from the pane's cwd, because the cwd cannot separate two in-place
+# sessions — and because the C-w panel labels its rows from @pwt_label.
+function __pwt_mark --description 'record the workstream sid and label on a pane window'
+    command tmux set-window-option -t "$argv[1]" @pwt_sid "$argv[2]" 2>/dev/null
+    command tmux set-window-option -t "$argv[1]" @pwt_label "$argv[3]" 2>/dev/null
+end
+
 # select-window only moves within the current session; a worktree window in
 # another session needs the client moved first, or the jump looks like a no-op.
 function __pwt_jump_to --description 'select <window id>, moving session if needed'
@@ -176,23 +208,37 @@ end
 #   Reuse is matched by pane CWD, so a pi whose pane sits in a subdirectory of the
 # worktree is not recognised and would be duplicated. pwt always opens pi AT the
 # worktree root, so that only arises for a pi started by hand deeper in the tree.
-function __pwt_open_window --description 'jump to <worktree>\'s window, else open pi in it'
-    set -l wt $argv[1]
-    set -l slug $argv[2]
+function __pwt_open_window --description 'jump to a workstream window, else open pi in <dir>'
+    set -l dir $argv[1]
+    set -l label $argv[2]
     set -l sid $argv[3]
-    set -l wid (__pwt_window_for "$wt" pi-only)
+    # Identity first, path second. A window that DECLARES this workstream is the
+    # right one even when another window shares its directory, which is the whole
+    # point of the marker.
+    set -l wid (__pwt_workstream_window "$sid")
+    # The PATH fallback is for worktrees only, where the directory IS the workstream
+    # and a window sitting in it is the workstream window (it still catches windows
+    # opened before pwt wrote the marker). For an in-place workstream the directory
+    # is shared, so a pi window found there may belong to a DIFFERENT in-place
+    # workstream: falling back would land the new label in that window and it would
+    # never exist as a workstream at all — silently, since the jump succeeds. So
+    # in-place is identity or nothing.
+    if test -z "$wid"; and test "$argv[4]" != identity-only
+        set wid (__pwt_window_for "$dir" pi-only)
+    end
     if test -n "$wid"
         # Say so: `pwt foo` that creates nothing looks like it failed.
         __pwt_jump_to "$wid"
-        or begin; echo "pwt: could not select window $wid for $wt" >&2; return 1; end
-        echo "pwt: jumped to the open window for __worktrees/$slug"
+        or begin; echo "pwt: could not select window $wid for $label" >&2; return 1; end
+        echo "pwt: jumped to the open window for $label"
         return 0
     end
-    # -P -F yields the pane we just made, so the tap attaches without a racy search
-    # for it (pi has not set its window title yet at this point).
-    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$slug" -c "$wt" pi --session-id "$sid")
+    # -P -F yields the pane we just made, so marking and tapping it need no racy
+    # search (pi has not set its window title yet at this point).
+    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" pi --session-id "$sid")
     or return 1
     command tmux select-window -t "$pane" 2>/dev/null
+    __pwt_mark "$pane" "$sid" "$label"
     __pwt_tap "$pane"
 end
 
@@ -233,7 +279,7 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             end
             command git -C "$root" worktree remove "$wt"; and command git -C "$root" branch -d "$slug"
         case help ''
-            echo "Usage: pwt <slug> [base] | pwt rm <slug> | pwt jump <dir>"
+            echo "Usage: pwt <slug> [base] | pwt rm <slug> | pwt jump <dir> | pwt here <label>"
         case jump
             # Used by the C-w panel for rows that are live pi sessions rather
             # than worktrees: there is nothing to create, only a window to find.
@@ -248,6 +294,35 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             # trip, since it spawns pi as a child and would re-tap the parent pane.
             __pwt_tap "$pane"
             __pwt_jump_to "$wid"
+        case here
+            # A workstream in THIS checkout, with no worktree: same window naming,
+            # same tap, same pinned session id. This is the fallback for repos where
+            # a fresh checkout cannot be materialised — a git-crypt repo fails
+            # `worktree add` at the smudge filter, and the new tree would need its
+            # own key unlock anyway — or where it is not worth the provisioning:
+            # .env, .venv, node_modules and `direnv allow` are keyed by path and do
+            # not carry over. Isolation is the entire point of a worktree, so two
+            # in-place workstreams in one repo share a working tree: they must not
+            # be mutating the same files at the same time.
+            set -l label "$argv[2]"
+            test -n "$label"; or begin; echo "usage: pwt here <label>" >&2; return 2; end
+            test -z "$argv[3]"; or begin
+                echo "pwt: 'pwt here' takes no base ref — there is no worktree to base" >&2
+                return 2
+            end
+            __pwt_valid_slug "$label"; or begin
+                echo "pwt: invalid label '$label' (letters, digits, . _ -)" >&2
+                return 2
+            end
+            set -l dir (__pwt_main_root); or return 1
+            set -l sid (basename $dir)-$label
+            if set -q TMUX
+                # identity-only: see __pwt_open_window — a shared directory cannot
+                # identify an in-place workstream.
+                __pwt_open_window "$dir" "$label" "$sid" identity-only
+            else
+                echo "pwt: not in tmux — pi --session-id $sid"
+            end
         case '*'
             set -l slug "$argv[1]"
             test -n "$slug"; or begin; echo "pwt: missing slug" >&2; return 2; end

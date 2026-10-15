@@ -85,8 +85,11 @@ pane_cwds() {
 
 live_panes() {
     [[ -n "${TMUX:-}" ]] || return 0
-    # A tab keeps a title containing spaces in one field.
-    tmux list-panes -a -F "#{pane_title}	#{pane_current_path}" 2>/dev/null || true
+    # Tab-separated so a title containing spaces stays one field. The third field is
+    # the workstream marker pwt writes when it opens a window (empty for sessions it
+    # did not): it distinguishes two IN-PLACE workstreams, which share a directory
+    # and would otherwise render as identical rows.
+    tmux list-panes -a -F "#{pane_title}	#{pane_current_path}	#{@pwt_label}" 2>/dev/null || true
 }
 
 # ── rows ─────────────────────────────────────────────────────────────────────
@@ -134,10 +137,12 @@ done
 
 LIVE="$(live_panes)"
 if [[ -n "$LIVE" ]]; then
-    while IFS=$'\t' read -r _title _path; do
+    while IFS=$'\t' read -r _title _path _label; do
         [[ -n "$_path" ]] || continue
         case "$_title" in "$PI_TITLE"*) ;; *) continue ;; esac
         _path="$(canon_dir "$_path")"
+        # A window pwt opened names itself; anything else is labelled by its path.
+        [[ -n "$_label" ]] || _label="$(label "$_path")"
         # Suppress only when a worktree ROW covers this pane. Keying on
         # "*/__worktrees/*" instead would hide the window entirely for a worktree
         # outside $PWT_SRC, which has no row to fall back on.
@@ -147,7 +152,7 @@ if [[ -n "$LIVE" ]]; then
             case "$_path" in "$_w"|"$_w"/*) _covered=1; break ;; esac
         done <<< "$EMITTED_WT"
         [[ "$_covered" == "0" ]] || continue
-        rows+=("▸  $(label "$_path")"$'\t'"$_path"$'\t'"live")
+        rows+=("▸  $_label"$'\t'"$_path"$'\t'"live")
     done <<< "$LIVE"
 fi
 
@@ -229,9 +234,11 @@ ctrl-n)
     read -r slug || slug=''
     [[ -n "$slug" ]] || { echo "aborted"; exit 0; }
     # pwt's first argument is a verb switch, so these would never become a branch.
+    # `here` and `jump` are reachable only from a shell, but a workstream named after
+    # one would still be unusable, so they are reserved the same way.
     case "$slug" in
-        rm|remove|jump|help) echo "pwt: '$slug' is a pwt verb, not a workstream name" >&2
-                             exit 2 ;;
+        rm|remove|jump|here|help) echo "pwt: '$slug' is a pwt verb, not a workstream name" >&2
+                                  exit 2 ;;
     esac
     case "$kind" in
         wt) repo="$(dirname "$(dirname "$path")")" ;;
