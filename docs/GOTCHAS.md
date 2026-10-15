@@ -96,6 +96,17 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   itself (`pipe-pane … "exec env VAR=value …"`), which is also how check.sh
   configures the notifier. A tmux **user option** is the way to have something
   changeable at runtime, since the tap can read it per report.
+- **`#{window_active}` does not mean "someone is looking at it".** tmux sets that
+  flag on the current window of *every* session in the server — including sessions no
+  client is attached to, and including a server with no clients at all (verified: a
+  detached session's current window still reports `window_active=1`). Gating an alert
+  on it as "the user is already watching this" silently suppresses the flag and the
+  notification for exactly the cases worth notifying about: a workstream in another
+  session's current window, and everything while tmux is detached. Ask the clients
+  instead — per `list-clients -F '#{client_tty}'`,
+  `display-message -p -c <tty> '#{window_id}'` is that client's current window, so
+  comparing it with the pane's own `#{window_id}` answers the real question. No clients
+  attached then means nobody is looking, which is when a push is *most* wanted.
 - **BSD/macOS `tr` block-buffers its output**: `{ printf a; sleep 1; printf b; } |
   tr a X` writes nothing until EOF, so a `tr`-based stream splitter delivers nothing
   until the process feeding it exits. For a streaming split use
