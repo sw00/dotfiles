@@ -88,14 +88,18 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   and quietly clears nothing without it. Write hooks as **tmux commands**
   (`set-hook -g after-select-window 'set-window-option -u @pi_alert'`) — the server
   runs those itself, with no shell and no socket lookup.
-- **`set-environment -g` does NOT reach a `pipe-pane` job.** The job inherits the
-  environment tmux was started with (what the creating client had), not the live
-  global table: setting a variable and re-running the pipe in the same server leaves
-  the job without it — verified directly. So a knob for the tap has to be in the
-  client's environment *before* the server starts, or passed in the pipe command
-  itself (`pipe-pane … "exec env VAR=value …"`), which is also how check.sh
-  configures the notifier. A tmux **user option** is the way to have something
-  changeable at runtime, since the tap can read it per report.
+- **`set-environment` does NOT reach a pane or a `pipe-pane` job created later.** Both
+  inherit the environment tmux was STARTED with (what the creating client had), not the
+  live global table: setting a variable and then creating the pane or re-running the
+  pipe in the same server leaves it without it — verified directly, twice (a pane's
+  `PATH` stayed the startup `PATH`; a session-scoped `set-environment` on the session
+  did not reach a window created in it either). So a knob for the tap has to be in the
+  client's environment *before* the server starts, or passed in the pipe command itself
+  (`pipe-pane … "exec env VAR=value …"`), which is also how check.sh configures the
+  notifier. A tmux **user option** is the way to have something changeable at runtime,
+  since the tap can read it per report — and `remain-on-exit on` is the way to keep a
+  pane (and its `#{pane_start_command}`) around after its command exits, which is how
+  the pwt tests survive a machine with no pi installed.
 - **`#{window_active}` does not mean "someone is looking at it".** tmux sets that
   flag on the current window of *every* session in the server — including sessions no
   client is attached to, and including a server with no clients at all (verified: a
