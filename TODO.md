@@ -77,6 +77,41 @@ removed — full implementation history lives in git. Shared-core behavior
   docs/GOTCHAS.md §pi). Rejected outright: herdr, which replaces tmux rather than
   consolidating it.
 
+- [ ] **pwt Tier 2 — ambient agent state per workstream (Tier 1 landed in
+  f6b2e59).** Tier 1 gave `C-w` one panel (worktrees + live pi windows, verbs
+  enter/ctrl-n/ctrl-d) and stopped a second pi from ever being spawned on one
+  `--session-id` — which was not cosmetic: pi resumes that id's existing session
+  and rewrites its JSONL from its own memory, so two writers clobber each other's
+  turns with no lock to catch it. Tier 2 is the status signal: a flag in
+  `window-status-format` for any workstream that wants a human, decaying when its
+  window is focused.
+  **Mechanism, corrected** — the workmux entry above calls this a gap because
+  "pi emits working/blocked/done over OSC 7501, which tmux does not forward". True,
+  but not a dead end: pi writes the OSC RAW (never DCS-wrapped, so `allow-passthrough`
+  buys nothing), tmux consumes and discards it, and `pipe-pane` taps the bytes
+  before that. Verified on a private server: 22 sequences captured from a session
+  with NO client attached, and 17 from a non-current window. `PI_PROGRAM_STATUS=1`
+  is required — it sets the same `programStatusSupported` flag the emitter is gated
+  on, skipping the feature-detection query that tmux never answers. The status gap
+  is therefore addressable without a new tool, which weakens workmux's remaining
+  rationale: what is left of it is prompt injection and a merge/cleanup lifecycle,
+  neither of which costs >10 min/week today.
+  Decisions taken: `PI_PROGRAM_STATUS=1` goes in the tmux server env beside the
+  existing PATH injection; the tap is attached by `pwt` to each pane it creates and
+  adopted on `enter` for live pi rows, so coverage grows with use instead of needing
+  a `pi` wrapper (which `subagent` would trip, since it spawns `pi` as a child and
+  would re-tap the parent's pane) or an `after-new-window` poll hook.
+  Two field-notes, both verified the hard way: **never** `pipe-pane -o` — a second
+  call silently DETACHES the pipe rather than no-op'ing, so re-attach unconditionally;
+  and the consumer must filter in C (`grep -a --line-buffered -o`) and always drain
+  stdin, or the pane risks backpressure. Also note `pwt rm` now refuses while any
+  pane sits inside the worktree, including a subdirectory.
+  Tier 3 (push: `osascript` locally, PowerShell toast on WSL, ~5 min cooling-off per
+  workstream) stays deferred until Tier 2 has been in use for a while: the payoff is
+  unproven at one worktree and three sessions, and it is the piece carrying a
+  platform asymmetry — click-to-jump needs `terminal-notifier` (brew) or nothing at
+  all.
+
 - [ ] **`settings.json` write-back churn — pick a convention, then encode it.**
   pi rewrites `lastChangelogVersion` through the stowed symlink on every version
   change, so `base/pi/.pi/agent/settings.json` is dirty after any upgrade (and a
