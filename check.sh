@@ -1359,6 +1359,10 @@ check_has "tmux.conf: pi is told to report without feature detection" \
     'set-environment -g PI_PROGRAM_STATUS 1' "$_TMUXCONF"
 check_has "tmux.conf: the window list carries the alert flag" \
     'window-status-format .*@pi_alert' "$_TMUXCONF"
+# A push cannot be un-invented once it has fired, so it needs a switch that does not
+# cost the ambient flag: the tap reads this at push time, so it mutes live.
+check_has "tmux.conf: pushes are muted by one option, not by the flag" \
+    'set -g @pwt_notify 1' "$_TMUXCONF"
 # Hooks are tmux commands, not shell commands: a run-shell version needs $TMUX to
 # find the server and silently clears nothing when it is absent.
 check_has "tmux.conf: the flag decays when the pane is focused" \
@@ -1678,6 +1682,142 @@ check "pwt-osc: --parse decides every state and drops impostors" \
     _ "$_PWT_OSC" "$_osc_fix" "$_osc_expect"
 rm -f "$_osc_fix"
 
+# ── push notification (the tap's third job) ─────────────────────────────────
+# The flag is ambient and free, but it can only be seen by someone already looking
+# at tmux. The push covers the case no flag can: being in another app entirely.
+# Same three states, never for progress, never for the window you are looking at,
+# and at most one per workstream per cooldown — a live smoke agent settled 7–22
+# times on one task, so without the cooldown a single stuck agent is a storm.
+check_has "pwt-osc: repeat settles are coalesced by a cooldown" \
+    'COOLDOWN_SECONDS=300' "$_PWT_OSC"
+# The cooldown lives on the window, so it needs no state directory to clean up and
+# dies with the workstream it describes.
+check_has "pwt-osc: the cooldown is stamped on the window, not in a temp file" \
+    '@pi_notified_at' "$_PWT_OSC"
+# A message is program-controlled text on its way to a notifier, so it must arrive
+# as DATA: building `display notification "$msg"` is the injection, and osascript
+# being handed the text as arguments to `on run argv` is the fix.
+check_has "pwt-osc: osascript receives the text as argv, never as script source" \
+    'on run argv' "$_PWT_OSC"
+check_has "pwt-osc: WSL pushes through a zero-dep WinRT toast" \
+    'ToastNotificationManager' "$_PWT_OSC"
+check_has "pwt-osc: Linux falls back to notify-send when there is one" \
+    'notify-send' "$_PWT_OSC"
+# Outside the grid is exactly where the protocol asks for control and bidi
+# characters to be disarmed rather than rendered.
+check_has "pwt-osc: disarms bidi overrides in a message" \
+    'x\{202a\}.*x\{202e\}' "$_PWT_OSC"
+check_has "pwt-osc: clamps a message to the length of a banner" \
+    'substr\(\$s, 0, 160\)' "$_PWT_OSC"
+
+# Behaviour, not text: drive the REAL consumer with stub tmux over synthetic report
+# streams, because window-active suppression, the cooldown and the sanitising are
+# decisions. PWT_NOTIFY_CMD — the documented override — becomes the recorder.
+if command -v perl >/dev/null 2>&1 && command -v base64 >/dev/null 2>&1; then
+    _osc_stub_dir="$(mktemp -d)"; _osc_opt="$_osc_stub_dir/opt"; mkdir -p "$_osc_opt"
+    _osc_nlog="$_osc_stub_dir/notify.log"; : > "$_osc_nlog"
+    cat > "$_osc_stub_dir/tmux" <<'OSTUB'
+#!/bin/bash
+# The sliver of tmux the tap touches: one format query, then option reads/writes.
+case "$1" in
+display-message)
+    case "$*" in
+    *window_active*)     printf '%s\n' "${PWT_STUB_ACTIVE:-0}" ;;
+    *@pwt_label*)        printf '%s\n' "${PWT_STUB_LABEL:-}" ;;
+    *pane_current_path*) printf '%s\n' "${PWT_STUB_CWD:-}" ;;
+    *@pwt_notify*)       printf '%s\n' "${PWT_STUB_NOTIFY:-}" ;;
+    *@pi_notified_at*)   cat "$PWT_STUB_OPT/@pi_notified_at" 2>/dev/null ;;
+    esac ;;
+set-window-option)
+    shift 3
+    if [ "$1" = "-u" ]; then rm -f "$PWT_STUB_OPT/$2"; else printf '%s\n' "$2" > "$PWT_STUB_OPT/$1"; fi ;;
+esac
+exit 0
+OSTUB
+    cat > "$_osc_stub_dir/rec" <<'OREC'
+#!/bin/bash
+printf '%s|%s\n' "$1" "$2" >> "$PWT_NOTIFY_LOG"
+OREC
+    chmod +x "$_osc_stub_dir/tmux" "$_osc_stub_dir/rec"
+    # <payload> [active] [label] [cwd]. The defaults use - not :- so a case that
+    # WANTS an empty label can pass one.
+    _osc_raw() {
+        printf '\033]7501;%s\033\\' "$1" \
+            | env PATH="$_osc_stub_dir:$PATH" PWT_STUB_OPT="$_osc_opt" \
+                  PWT_STUB_ACTIVE="${2-0}" PWT_STUB_LABEL="${3-audit}" \
+                  PWT_STUB_CWD="${4-/src/org/repo/__worktrees/audit}" \
+                  PWT_STUB_NOTIFY="${_osc_mute:-}" \
+                  PWT_NOTIFY_CMD="$_osc_stub_dir/rec" PWT_NOTIFY_LOG="$_osc_nlog" "$_PWT_OSC" %99
+    }
+    # <state> [kind] [msg-b64] [active] [label] [cwd]
+    _osc_shot() {
+        local payload="state=$1:app=pi"
+        [[ -n "${2:-}" ]] && payload="$payload:kind=$2"
+        [[ -n "${3:-}" ]] && payload="$payload:msg=$3"
+        _osc_raw "$payload" "${4-0}" "${5-audit}" "${6-/src/org/repo/__worktrees/audit}"
+    }
+    _osc_clear() { rm -f "$_osc_opt"/*; : > "$_osc_nlog"; }
+    _osc_mute=''   # 0 stands in for `tmux set -g @pwt_notify 0`
+    _osc_n() { wc -l < "$_osc_nlog" | tr -d ' '; }
+
+    _osc_head="$(printf 'Waiting for approval:\nrun the tests?' | base64)"
+    _osc_clear; _osc_shot blocked auth "$_osc_head" 0 audit
+    check "pwt-osc: a blocked report pushes one notification" \
+        test "$(_osc_n)" = "1"
+    check "pwt-osc: it names the workstream and repeats what pi said" \
+        grep -qF 'audit — blocked|Waiting for approval: run the tests?' "$_osc_nlog"
+    check "pwt-osc: the ambient flag is still raised alongside the push" \
+        test "$(cat "$_osc_opt/@pi_alert")" = "1"
+    _osc_shot blocked auth "$_osc_head" 0 audit
+    check "pwt-osc: a repeat inside the cooldown pushes nothing" \
+        test "$(_osc_n)" = "1"
+    printf '1\n' > "$_osc_opt/@pi_notified_at"
+    _osc_shot 'done' '' '' 0 audit
+    check "pwt-osc: an expired cooldown pushes again" \
+        test "$(_osc_n)" = "2"
+    check "pwt-osc: the push re-stamps the cooldown" \
+        bash -c '[[ "$(cat "$1")" -gt 1600000000 ]]' _ "$_osc_opt/@pi_notified_at"
+    _osc_clear; _osc_shot error '' '' 1 audit
+    check "pwt-osc: no push for the window you are already looking at" \
+        test ! -s "$_osc_nlog"
+    check "pwt-osc: that report still records the state and clears the flag" \
+        bash -c '[[ "$(cat "$1/@pi_state")" = error && -z "$(cat "$1/@pi_alert")" ]]' _ "$_osc_opt"
+    _osc_clear; _osc_shot working '' '' 0 audit
+    check "pwt-osc: progress is never a push" test ! -s "$_osc_nlog"
+    _osc_clear; _osc_shot idle '' '' 0 audit
+    check "pwt-osc: nor is resting" test ! -s "$_osc_nlog"
+    _osc_clear; _osc_mute=0; _osc_shot blocked auth "$_osc_head" 0 audit; _osc_mute=''
+    check "pwt-osc: a muted push does not fire" test ! -s "$_osc_nlog"
+    check "pwt-osc: muting the push does not mute the flag" \
+        test "$(cat "$_osc_opt/@pi_alert")" = "1"
+    check "pwt-osc: a muted push leaves no cooldown stamp behind" \
+        test ! -e "$_osc_opt/@pi_notified_at"
+    _osc_clear; _osc_shot blocked '' '' 0 '' /src/org/repo/__worktrees/del-1119
+    check "pwt-osc: an unlabelled session is named by its directory instead" \
+        grep -qF 'del-1119 — blocked|pi is waiting on you' "$_osc_nlog"
+    _osc_clear; _osc_shot blocked auth '' 0 audit
+    check "pwt-osc: a login block with no message still says what it wants" \
+        grep -qF 'audit — blocked|sign-in needed' "$_osc_nlog"
+    _osc_clear; _osc_raw 'state=done:app=terraform' 0 audit
+    check "pwt-osc: another program's report cannot drive a notification" \
+        test ! -s "$_osc_nlog"
+    _osc_clear; _osc_raw 'state=brokenish:app=pi' 0 audit
+    check "pwt-osc: an unknown state notifies nothing" test ! -s "$_osc_nlog"
+    _osc_clear; _osc_shot blocked '' '' 0 audit; _osc_raw 'state=clear:app=pi' 0 audit
+    check "pwt-osc: clear drops the cooldown too, so the next run can push" \
+        test ! -e "$_osc_opt/@pi_notified_at"
+    _osc_clear
+    _osc_long="$(printf 'x%.0s' $(seq 1 300))"
+    _osc_shot blocked custom "$(printf 'need\001a %s decision %s' $'\342\200\256' "$_osc_long" | base64)" 0 audit
+    check "pwt-osc: a long message is clamped to a banner" \
+        bash -c 'body=${1#*|}; [[ ${#body} -eq 160 ]]' _ "$(tail -1 "$_osc_nlog")"
+    check "pwt-osc: control characters and bidi overrides are disarmed" \
+        bash -c 'body=${1#*|}; [[ "$body" == "need a decision"* ]]' _ "$(tail -1 "$_osc_nlog")"
+    rm -rf "$_osc_stub_dir"
+else
+    _skip "pwt-osc: push decisions (behavioural)" "perl or base64 not installed"
+fi
+
 if command -v tmux >/dev/null 2>&1 && command -v perl >/dev/null 2>&1; then
     _osc_dir="$(mktemp -d)"; _osc_sock="$_osc_dir/sock"
     cat > "$_osc_dir/emit.sh" <<'EMIT'
@@ -1687,7 +1827,11 @@ if command -v tmux >/dev/null 2>&1 && command -v perl >/dev/null 2>&1; then
 # it is asserted by the --parse fixture instead, where the policy is deterministic.
 while :; do printf '\033]7501;state=blocked:kind=auth:app=pi\033\\'; sleep 0.25; done
 EMIT
-    chmod +x "$_osc_dir/emit.sh"
+    cat > "$_osc_dir/rec" <<'REC'
+#!/bin/bash
+printf '%s|%s\n' "$1" "$2" >> "$PWT_NOTIFY_LOG"
+REC
+    chmod +x "$_osc_dir/emit.sh" "$_osc_dir/rec"
     tmux -S "$_osc_sock" -f /dev/null new-session -d -s osctest -c "$_osc_dir" "sleep 300"
     # The emitter shares the FIRST window (index 0) while a distractor takes index
     # 1, so a strftime-mangled `-t 1` is visible to the assertion instead of landing
@@ -1699,8 +1843,11 @@ EMIT
         | awk -F: '$1==1{print $2}')"
     tmux -S "$_osc_sock" select-window -t osctest:0
     # #{pane_id}, never the literal id: this string is a strftime template first.
+    # The notifier is passed in this command's own environment on purpose: a
+    # pipe-pane job does NOT see `set-environment -g`, it inherits the pane's
+    # captured environment (see GOTCHAS).
     tmux -S "$_osc_sock" pipe-pane -t "$_osc_pane" \
-        "exec env TMUX=$_osc_sock $_PWT_OSC #{pane_id}"
+        "exec env TMUX=$_osc_sock PWT_NOTIFY_CMD=$_osc_dir/rec PWT_NOTIFY_LOG=$_osc_dir/notify.log $_PWT_OSC #{pane_id}"
     _osc_state=''
     for _i in 1 2 3 4 5 6 7 8 9 10 11 12; do
         _osc_state="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_state}')"
@@ -1715,6 +1862,13 @@ EMIT
     _osc_alert="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_alert}')"
     check "pwt-osc: an alert is raised while the window is not the current one" \
         test "$_osc_alert" = "1"
+    # The push rides that same report through the same real pipe. Nothing is pushed
+    # while the window is current; once it is not, the FIRST blocked emit pushes and
+    # the rest are coalesced — so a stream of them yields exactly one.
+    check "pwt-osc: a live stream of reports pushes exactly once" \
+        test "$(wc -l < "$_osc_dir/notify.log" 2>/dev/null | tr -d ' ')" = "1"
+    check "pwt-osc: the live push names the state it is about" \
+        bash -c 'grep -q " — blocked" "$1"' _ "$_osc_dir/notify.log"
     tmux -S "$_osc_sock" select-window -t osctest:0; sleep 0.6
     check "pwt-osc: focusing the window clears the alert but keeps the state" \
         bash -c '[[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_alert}")" && \

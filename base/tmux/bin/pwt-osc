@@ -29,6 +29,14 @@ set -uo pipefail
 #   @pi_alert  1 when that state wants a human, so `window-status-format` can show
 #              a flag. Cleared by progress, by `clear`, and by focusing the window.
 #
+# THE SAME THREE STATES ALSO PUSH AN OS NOTIFICATION, and only when the window is
+# not the one being looked at. The flag is ambient and free, but it can only be
+# seen by someone already looking at tmux; the push is for the case no flag can
+# serve, which is being in another app entirely. One push per workstream per
+# COOLDOWN_SECONDS, stamped in `@pi_notified_at`, and muted entirely by
+# `@pwt_notify 0`. PWT_NOTIFY_CMD replaces the transport — that is how check.sh
+# drives it without posting a real banner.
+#
 # Values are `key=value` pairs joined by ':', and a value can never contain ':'
 # (the protocol reserves it), so splitting the payload on ':' is lossless. Only
 # the FIRST occurrence of a key is read; the protocol says last-wins, but pi never
@@ -77,6 +85,146 @@ osc_wants_alert() {
 # Not filtering would attribute that to pi.
 osc_is_pi() { # <app>
     [ -z "$1" ] || [ "$1" = "pi" ]
+}
+
+# ── push notification ────────────────────────────────────────────────────────
+# The cooldown is not a nicety. The protocol's security section asks terminals to
+# rate-limit "anything a record causes outside the terminal, such as desktop
+# notifications", and a live smoke agent settled 7–22 times on one task: without
+# this, a single stuck agent becomes a notification storm.
+#
+# It is keyed on the WORKSTREAM, not on the state, because the storm is the same
+# event repeating — a per-state key would let `blocked` and `error` alternate into
+# twice the noise. The deliberate other half: a `done` that lands within the
+# cooldown of the `blocked` it resolved stays silent. The flag shown in the window
+# list is unaffected either way and still shows the latest state.
+COOLDOWN_SECONDS=300
+
+# One window option, by pane. Called only when a report is worth an alert, so the
+# extra tmux client here costs nothing on the hot path.
+osc_window_opt() { # <pane> <option>
+    command tmux display-message -p -t "$1" "#{$2}" 2>/dev/null
+}
+
+# A notification is drawn by the OS, OUTSIDE the grid: it is the one place a pane's
+# text escapes the terminal, so it gets the treatment the protocol asks for beyond
+# the grid — control characters and bidi overrides dropped rather than rendered.
+# `msg` is program-controlled and base64 by spec; it is also clamped, because a
+# notification body is a banner and not a log.
+#
+# The control character becomes a SPACE rather than disappearing: pi sends prompts
+# with newlines, and deleting the newline welds two words together.
+#
+# Decoding is perl's MIME::Base64 — core, and perl is already required for the
+# splitter — rather than base64(1), whose decode flag is -d on GNU and -D on BSD:
+# one code path instead of a platform probe.
+osc_sanitize() { # <b64|raw> <text>
+    perl -MMIME::Base64 -e '
+        my ($mode, $text) = @ARGV;
+        my $s = ($mode eq "b64") ? decode_base64($text // "") : ($text // "");
+        utf8::decode($s) if $mode eq "b64";   # so substr below counts characters
+        $s =~ s/[\x00-\x1f\x7f]/ /g;
+        $s =~ s/[\x{200e}\x{200f}\x{202a}-\x{202e}\x{2066}-\x{2069}]//g;
+        $s =~ s/\s+/ /g;
+        $s =~ s/^ +//; $s =~ s/ +$//;
+        $s = substr($s, 0, 160);
+        binmode(STDOUT, ":utf8") if $mode eq "b64";
+        print $s;
+    ' "$1" "$2" 2>/dev/null
+}
+
+# Zero-dep WinRT toast for WSL: no wslu, no wsl-notify-send. The SCRIPT TEXT is a
+# constant and the message is embedded as a single-quoted PowerShell literal with `'`
+# doubled, which is the only escape such a literal has — single quotes suppress both
+# interpolation and every backslash escape, so `$`, `"` and backticks in a message
+# cannot do anything. Precedent for calling powershell.exe here: base/tmux/bin/tmux-status.
+# If this proves flaky, the documented escalation is ubi:wsl-notify-send. UNVERIFIED
+# on a real WSL host as of 2026-10-15, and the failure mode is silence: a
+# pipe-pane job's output is dropped, so a bad snippet looks exactly like a good one
+# until someone is on that machine.
+osc_toast_wsl() { # <title> <body>
+    local t="${1//\'/\'\'}" b="${2//\'/\'\'}"
+    powershell.exe -NoProfile -NonInteractive -Command "
+        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > \$null
+        \$xml = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+        \$text = \$xml.GetElementsByTagName('text')
+        \$text.Item(0).AppendChild(\$xml.CreateTextNode('$t')) > \$null
+        \$text.Item(1).AppendChild(\$xml.CreateTextNode('$b')) > \$null
+        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('pwt').Show([Windows.UI.Notifications.ToastNotification]::new(\$xml))
+    " </dev/null >/dev/null 2>&1
+}
+
+# Send <title> <body>. Every transport takes the text as DATA and never as source,
+# because a message is program-controlled: building "display notification \"$body\""
+# breaks on the first quote in the message. osascript gets it as an argument to
+# `on run argv`, PowerShell as a quoted literal, notify-send as plain argv.
+#
+# stdin is redirected everywhere: this runs with the pane's byte stream on stdin,
+# and a transport that read it would EAT the pane's output.
+osc_send() { # <title> <body>
+    if [ -n "${PWT_NOTIFY_CMD:-}" ]; then
+        "$PWT_NOTIFY_CMD" "$1" "$2" </dev/null >/dev/null 2>&1
+        return 0
+    fi
+    case "$(uname -s)" in
+        Darwin)
+            osascript -e 'on run argv' \
+                -e 'display notification (item 2 of argv) with title (item 1 of argv)' \
+                -e 'end run' "$1" "$2" </dev/null >/dev/null 2>&1 ;;
+        Linux)
+            if [ -n "${WSL_DISTRO_NAME:-}" ]; then
+                osc_toast_wsl "$1" "$2"
+            elif command -v notify-send >/dev/null 2>&1; then
+                notify-send -- "$1" "$2" </dev/null >/dev/null 2>&1
+            fi ;;
+    esac
+    return 0
+}
+
+osc_notify() { # <pane> <state> <kind> <msg-b64>
+    local pane="$1" state="$2" kind="$3" msg="$4"
+    local last now name cwd detail
+    # Mute switch, live-controllable with `tmux set -g @pwt_notify 0` and visible
+    # from any window because the option walk is window → session → global. Only an
+    # explicit off mutes: an unset option reads as empty, which means on, so the
+    # default needs no configuration.
+    case "$(osc_window_opt "$pane" @pwt_notify)" in
+        0|off|false|no) return 0 ;;
+    esac
+    last="$(osc_window_opt "$pane" @pi_notified_at)"
+    case "$last" in
+        ''|*[!0-9]*) last=0 ;;   # never notified, or not a timestamp: due
+    esac
+    now="$(date +%s)"
+    if [ "$((now - last))" -lt "$COOLDOWN_SECONDS" ]; then
+        return 0
+    fi
+    # The workstream's own name — the label the user typed, which the C-w panel
+    # shows too — else its directory: an ad-hoc pi session is still a thing that
+    # can want you. Rendering `org/repo/slug` is deliberately NOT duplicated here;
+    # that lives in pwt-pick, and a second copy would drift from the first.
+    name="$(osc_window_opt "$pane" @pwt_label)"
+    if [ -z "$name" ]; then
+        cwd="$(osc_window_opt "$pane" pane_current_path)"
+        [ -n "$cwd" ] && name="$(basename -- "$cwd")"
+    fi
+    name="$(osc_sanitize raw "$name")"
+    [ -n "$name" ] || name="pi"
+    detail="$(osc_sanitize b64 "$msg")"
+    if [ -z "$detail" ]; then
+        case "$state" in
+            blocked)
+                case "$kind" in
+                    auth) detail="sign-in needed" ;;
+                    *)    detail="pi is waiting on you" ;;
+                esac ;;
+            done)  detail="finished" ;;
+            error) detail="ended with an error" ;;
+        esac
+    fi
+    osc_send "$name — $state" "$detail"
+    command tmux set-window-option -t "$pane" @pi_notified_at "$now" 2>/dev/null
+    return 0
 }
 
 osc_apply() { # <pane> <state> [alert]
@@ -139,11 +287,16 @@ LC_ALL=C perl -e '$| = 1; while (sysread(STDIN, $b, 8192)) { $b =~ s/\e/\n/g; pr
     osc_state_known "$state" || continue
     app="$(osc_field app "$payload")"
     osc_is_pi "$app" || continue
+    kind="$(osc_field kind "$payload")"
+    msg="$(osc_field msg "$payload")"
 
     # `clear` is not a state: it asks for the record to be dropped.
     if [ "$state" = "clear" ]; then
         command tmux set-window-option -t "$pane" -u @pi_state 2>/dev/null
         command tmux set-window-option -t "$pane" -u @pi_alert 2>/dev/null
+        # pi is gone, so the cooldown's premise is gone with it: a NEW run in this
+        # pane should be able to notify about its own first block.
+        command tmux set-window-option -t "$pane" -u @pi_notified_at 2>/dev/null
         continue
     fi
 
@@ -152,10 +305,15 @@ LC_ALL=C perl -e '$| = 1; while (sysread(STDIN, $b, 8192)) { $b =~ s/\e/\n/g; pr
     # "not active" and light an alert. Harmless today, since the window dies with
     # the pane, but it would strand a stale flag if remain-on-exit were ever on.
     if osc_wants_alert "$state"; then
-        # Never flag the window someone is already looking at, or the flag becomes
-        # noise you learn to ignore.
+        # Never flag or notify about the window someone is already looking at, or
+        # both become noise you learn to ignore.
         active="$(command tmux display-message -p -t "$pane" '#{window_active}' 2>/dev/null)"
-        if [ "$active" = "1" ]; then osc_apply "$pane" "$state" 0; else osc_apply "$pane" "$state" 1; fi
+        if [ "$active" = "1" ]; then
+            osc_apply "$pane" "$state" 0
+        else
+            osc_apply "$pane" "$state" 1
+            osc_notify "$pane" "$state" "$kind" "$msg"
+        fi
     else
         osc_apply "$pane" "$state" 0
     fi
