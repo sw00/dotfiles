@@ -73,6 +73,28 @@ function __pwt_pi_title --description 'pi window-title prefix'
     end
 end
 
+# Attach the OSC 7501 state tap to <pane> (pwt-osc mirrors pi's working/blocked/
+# done/error reports into @pi_state/@pi_alert for the status line).
+#
+# The command string is a strftime TEMPLATE before it is a format string — tmux
+# calls format_expand_time on it (cmd-pipe-pane.c) — so a literal pane id like %3
+# is mangled into "3", and every `tmux -t 3` afterwards silently targets WINDOW
+# index 3 instead of the pane. `#{pane_id}` contains no %, so it survives that pass
+# and is expanded after it. This held for tmux 3.4 as well, so the fix is not
+# version-specific.
+#
+# Plain pipe-pane, NEVER `-o`: tmux closes an existing pipe before evaluating -o,
+# so a second call would DETACH the tap rather than no-op.
+function __pwt_tap --description 'attach the pwt-osc state tap to <pane>'
+    set -l pane $argv[1]
+    test -n "$pane"; or return 1
+    # A pipe-pane job inherits the SERVER's environment, and that $TMUX can be
+    # stale (verified: a server started with -S still handed jobs the DEFAULT
+    # socket), so pin the socket this pwt is talking to.
+    set -l sock (string split -m1 ',' -- "$TMUX")[1]
+    command tmux pipe-pane -t "$pane" "exec env TMUX=$sock $HOME/bin/pwt-osc #{pane_id}"
+end
+
 # The window holding <path>, or nothing. Options:
 #   pi-only  accept only a window actually running pi — a plain shell cd'd into the
 #            worktree is not a workstream, though it IS enough to block removal
@@ -83,16 +105,19 @@ end
 # path as given, so canonicalising the TARGET is what makes the two meet — whereas
 # canonicalising each PANE would fire fish's PWD-change event per pane, which
 # direnv hooks on, for every pane on the server.
-function __pwt_window_for --description 'window id at <path>; opts: pi-only, in-tree'
+function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi-only, in-tree, pane-id'
     set -l want (__pwt_realpath "$argv[1]")
     set -l pi_only 0
     set -l in_tree 0
+    set -l out_pane 0
     for opt in $argv[2..-1]
         switch $opt
             case pi-only
                 set pi_only 1
             case in-tree
                 set in_tree 1
+            case pane-id
+                set out_pane 1
         end
     end
     # list-PANES, not list-windows: the latter reports only the ACTIVE pane's cwd,
@@ -118,8 +143,13 @@ function __pwt_window_for --description 'window id at <path>; opts: pi-only, in-
             set -l title (command tmux display-message -p -t "$parts[2]" '#{pane_title}' 2>/dev/null)
             string match -q (__pwt_pi_title)'*' -- "$title"; or continue
         end
-        # ...and return the WINDOW id, which is what select-window wants.
-        echo $parts[1]
+        # ...and return the WINDOW id (what select-window wants), or the PANE id
+        # when the caller is going to attach a tap to it.
+        if test $out_pane -eq 1
+            echo $parts[2]
+        else
+            echo $parts[1]
+        end
         return 0
     end
     return 1
@@ -158,7 +188,12 @@ function __pwt_open_window --description 'jump to <worktree>\'s window, else ope
         echo "pwt: jumped to the open window for __worktrees/$slug"
         return 0
     end
-    command tmux new-window -n "$slug" -c "$wt" pi --session-id "$sid"
+    # -P -F yields the pane we just made, so the tap attaches without a racy search
+    # for it (pi has not set its window title yet at this point).
+    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$slug" -c "$wt" pi --session-id "$sid")
+    or return 1
+    command tmux select-window -t "$pane" 2>/dev/null
+    __pwt_tap "$pane"
 end
 
 function pwt --description 'pi git-worktree helper (tmux window + pinned session)'
@@ -205,8 +240,13 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             set -l dir "$argv[2]"
             test -n "$dir"; or begin; echo "usage: pwt jump <dir>" >&2; return 2; end
             set -q TMUX; or begin; echo "pwt: not in tmux" >&2; return 1; end
+            set -l pane (__pwt_window_for "$dir" pi-only pane-id)
             set -l wid (__pwt_window_for "$dir" pi-only)
-            test -n "$wid"; or begin; echo "pwt: no window with cwd $dir" >&2; return 1; end
+            test -n "$wid"; or begin; echo "pwt: no pi window with cwd $dir" >&2; return 1; end
+            # Arriving at a session from the panel ADOPTS it, so state coverage
+            # grows by use rather than needing a `pi` wrapper — which subagent would
+            # trip, since it spawns pi as a child and would re-tap the parent pane.
+            __pwt_tap "$pane"
             __pwt_jump_to "$wid"
         case '*'
             set -l slug "$argv[1]"

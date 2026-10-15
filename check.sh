@@ -1318,6 +1318,37 @@ check_has "pwt: distinguishes a pi window from a shell in the worktree" \
     'case pi-only' "$_PWT"
 check_has "pwt: treats a pane anywhere inside the worktree as in use" \
     'case in-tree' "$_PWT"
+# The state tap: pwt attaches it as it opens a pane, and adopts one when the panel
+# jumps to a live session. The attach string goes through strftime BEFORE tmux
+# expands formats — a literal pane id (%3) is mangled to "3" and every later
+# `tmux -t 3` silently targets WINDOW index 3 — so #{pane_id} is the only safe
+# channel. And never `-o`: tmux closes an existing pipe before evaluating -o, so a
+# second attach would DETACH the tap instead of no-oping.
+check_has "pwt: attaches the pi state tap when it opens a window" \
+    'pipe-pane' "$_PWT"
+check_has "pwt: names the tap's pane with #{pane_id}, never a literal id" \
+    'pwt-osc #\{pane_id\}' "$_PWT"
+check_not "pwt: never attaches the tap with pipe-pane -o" \
+    'pipe-pane -o' "$_PWT"
+check_has "pwt: adopts a live session when the C-w panel jumps to it" \
+    '__pwt_tap' "$_PWT"
+
+# ── tmux status wiring for the tap ───────────────────────────────────────────
+_TMUXCONF="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
+# pi stays silent unless it is told the terminal supports OSC 7501, and tmux never
+# answers that query.
+check_has "tmux.conf: pi is told to report without feature detection" \
+    'set-environment -g PI_PROGRAM_STATUS 1' "$_TMUXCONF"
+check_has "tmux.conf: the window list carries the alert flag" \
+    'window-status-format .*@pi_alert' "$_TMUXCONF"
+# Hooks are tmux commands, not shell commands: a run-shell version needs $TMUX to
+# find the server and silently clears nothing when it is absent.
+check_has "tmux.conf: the flag decays when the pane is focused" \
+    "set-hook -g pane-focus-in 'set-window-option -u @pi_alert'" "$_TMUXCONF"
+check_has "tmux.conf: the flag decays on a window switch" \
+    "set-hook -g after-select-window 'set-window-option -u @pi_alert'" "$_TMUXCONF"
+check_not "tmux.conf: the decay hooks spawn no tmux client" \
+    'run-shell .*@pi_alert' "$_TMUXCONF"
 # Live (non-worktree) sessions are reached through the same window-finding code.
 check_has "pwt: exposes a jump verb for live sessions" \
     'case jump' "$_PWT"
@@ -1515,6 +1546,86 @@ PROBE
     rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe"
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
+fi
+
+# ── pi program-status tap (pwt-osc) ─────────────────────────────────────────
+# pi reports working/blocked/done/error over OSC 7501 (superlogical program-status
+# protocol). tmux consumes and discards OSC it does not recognise and never answers
+# the protocol's support query, so a per-pane `pipe-pane` tap reads the bytes
+# before that and mirrors them into @pi_state/@pi_alert. Two traps here cost real
+# debugging time and neither is visible by reading the code, so both are asserted:
+#   * the report is a RAW OSC that a TUI emits with no newline, and BSD `tr`
+#     BLOCK-buffers, so a tr-based splitter delivers nothing until the pane dies;
+#   * a FINITE emitter passes even a broken consumer, because everything arrives in
+#     the single flush at pane death. The emitter below never exits.
+_PWT_OSC="$DOTFILES/base/tmux/bin/pwt-osc"
+check "pwt-osc: consumer exists in base/tmux/bin" test -f "$_PWT_OSC"
+check "pwt-osc: is executable" test -x "$_PWT_OSC"
+check "pwt-osc: shellcheck clean" shellcheck -S warning "$_PWT_OSC"
+
+# The parse half needs no tmux: six states, plus a report carrying no `app` at all
+# (accepted) and two that must be dropped — an unknown state, and a nested program
+# that adopts the protocol.
+_osc_fix="$(mktemp)"
+printf '\033]7501;state=idle:app=pi\033\\\n\033]7501;state=working:app=pi\033\\\n\033]7501;state=blocked:kind=auth:app=pi:msg=QUJD\033\\\n\033]7501;state=done:app=pi\033\\\n\033]7501;state=error:app=pi\033\\\n\033]7501;state=clear:app=pi\033\\\n\033]7501;state=bogus:app=pi\033\\\n\033]7501;state=blocked:app=terraform\033\\\n\033]7501;state=working\033\\\n' > "$_osc_fix"
+_osc_expect='state=idle app=pi kind=- alert=no
+state=working app=pi kind=- alert=no
+state=blocked app=pi kind=auth alert=yes
+state=done app=pi kind=- alert=yes
+state=error app=pi kind=- alert=yes
+state=clear app=pi kind=- alert=no
+state=working app=- kind=- alert=no'
+check "pwt-osc: --parse decides every state and drops impostors" \
+    bash -c '[[ "$(env -u TMUX "$1" --parse < "$2")" == "$3" ]]' \
+    _ "$_PWT_OSC" "$_osc_fix" "$_osc_expect"
+rm -f "$_osc_fix"
+
+if command -v tmux >/dev/null 2>&1 && command -v perl >/dev/null 2>&1; then
+    _osc_dir="$(mktemp -d)"; _osc_sock="$_osc_dir/sock"
+    cat > "$_osc_dir/emit.sh" <<'EMIT'
+#!/bin/sh
+# Emits ONLY blocked. An alternating emitter makes the alert assertion below a coin
+# flip, because a working report legitimately clears the alert — that working clears
+# it is asserted by the --parse fixture instead, where the policy is deterministic.
+while :; do printf '\033]7501;state=blocked:kind=auth:app=pi\033\\'; sleep 0.25; done
+EMIT
+    chmod +x "$_osc_dir/emit.sh"
+    tmux -S "$_osc_sock" -f /dev/null new-session -d -s osctest -c "$_osc_dir" "sleep 300"
+    # The emitter shares the FIRST window (index 0) while a distractor takes index
+    # 1, so a strftime-mangled `-t 1` is visible to the assertion instead of landing
+    # invisibly on the emitter's own window.
+    tmux -S "$_osc_sock" split-window -t osctest:0 -c "$_osc_dir" "$_osc_dir/emit.sh"
+    tmux -S "$_osc_sock" new-window -t osctest -n distractor -c "$_osc_dir" "sleep 300"
+    _osc_pane="$(tmux -S "$_osc_sock" list-panes -t osctest:0 -F '#{pane_id}' | tail -1)"
+    _osc_dist="$(tmux -S "$_osc_sock" list-windows -t osctest -F '#{window_index}:#{window_id}' \
+        | awk -F: '$1==1{print $2}')"
+    tmux -S "$_osc_sock" select-window -t osctest:0
+    # #{pane_id}, never the literal id: this string is a strftime template first.
+    tmux -S "$_osc_sock" pipe-pane -t "$_osc_pane" \
+        "exec env TMUX=$_osc_sock $_PWT_OSC #{pane_id}"
+    _osc_state=''
+    for _i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+        _osc_state="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_state}')"
+        [ "$_osc_state" = "blocked" ] && break
+        sleep 0.5
+    done
+    check "pwt-osc: a live report reaches @pi_state while the pane lives" \
+        test "$_osc_state" = "blocked"
+    check "pwt-osc: nothing leaks onto another window (the pane-id trap)" \
+        test -z "$(tmux -S "$_osc_sock" display-message -p -t "$_osc_dist" '#{@pi_state}')"
+    tmux -S "$_osc_sock" select-window -t distractor; sleep 0.5
+    _osc_alert="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_alert}')"
+    check "pwt-osc: an alert is raised while the window is not the current one" \
+        test "$_osc_alert" = "1"
+    tmux -S "$_osc_sock" select-window -t osctest:0; sleep 0.6
+    check "pwt-osc: focusing the window clears the alert but keeps the state" \
+        bash -c '[[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_alert}")" && \
+                  -n "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_state}")" ]]' \
+        _ "$_osc_sock" "$_osc_pane"
+    tmux -S "$_osc_sock" kill-server >/dev/null 2>&1
+    rm -rf "$_osc_dir"
+else
+    _skip "pwt-osc: tap behaviour (behavioural)" "tmux or perl not installed"
 fi
 
 # ── pi session prune policy ──────────────────────────────────────────────────

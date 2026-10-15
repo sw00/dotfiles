@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# pwt-osc — turn pi's program-status reports (OSC 7501) for ONE tmux pane into
+# window options the status line and the C-w panel can read.
+#
+# WHY A TAP AT ALL. pi writes its state as a RAW OSC 7501 sequence (dist:
+# terminal.setProgramStatus → formatProgramStatus) and tmux consumes and discards
+# OSC it does not recognise, so the report cannot reach anything on the outside —
+# pi's own docs say so ("tmux and screen do not forward them"). `tmux pipe-pane`
+# reads the pane's byte stream BEFORE tmux parses it, which is the whole trick.
+# allow-passthrough does not help: it forwards only sequences an application has
+# already wrapped in a DCS passthrough, and pi never wraps.
+#
+# PI_PROGRAM_STATUS=1 must be in the pane's environment (tmux.conf sets it in the
+# server environment, so every pane tmux starts inherits it). It sets the same
+# programStatusSupported flag the emitter is gated on, skipping the
+# feature-detection query that tmux never answers — without it pi stays silent.
+#
+# ATTACHED by `pwt` when it opens a pane, and by `pwt jump` when the panel adopts
+# a live session. Never with `pipe-pane -o`: tmux closes an existing pipe BEFORE
+# evaluating -o, so a second call silently DETACHES the tap instead of no-oping.
+#
+# Reads the pane's stream on stdin until the pane closes. `--parse` is the
+# testable half: it reads report lines, prints what it decided, and touches
+# nothing, so check.sh can assert the parse and the alert policy without tmux.
+set -uo pipefail
+
+# Two states of interest, per the protocol:
+#   @pi_state  what pi last said (idle|working|done|blocked|error; unset on clear)
+#   @pi_alert  1 when that state wants a human, so `window-status-format` can show
+#              a flag. Cleared by progress, by `clear`, and by focusing the window.
+#
+# Values are `key=value` pairs joined by ':', and a value can never contain ':'
+# (the protocol reserves it), so splitting the payload on ':' is lossless. Only
+# the FIRST occurrence of a key is read; the protocol says last-wins, but pi never
+# repeats a key within a report.
+osc_field() { # <key> <payload>
+    local key="$1" pair
+    local IFS=':'
+    for pair in $2; do
+        case "$pair" in
+            "$key"=*) printf '%s' "${pair#"$key"=}"; return 0 ;;
+        esac
+    done
+    return 0
+}
+
+# Strip everything up to and including "7501;", then anything from the first ESC:
+# the protocol's values exclude control characters, so the ST terminator ends the
+# payload, and a caller that hands over a whole line (rather than the pre-filtered
+# match) does not smuggle "\e\\" into the last field's value. Pure expansion, so
+# no fork on a path that runs per report.
+osc_payload() {
+    local p="${1#*7501;}"
+    printf '%s' "${p%%$'\033'*}"
+}
+
+# A report whose state the reader does not recognise is ignored whole (protocol
+# rule), which is also what keeps a future state from arriving as "idle".
+osc_state_known() {
+    case "$1" in
+        idle|working|done|blocked|error|clear) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# The states that mean "a human is needed". working and idle are progress.
+osc_wants_alert() {
+    case "$1" in
+        blocked|done|error) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+# A report is only OURS if it is pi's. pi spawns shell tools with its own stdout
+# inherited, so a nested program that adopts the protocol — the spec's own
+# examples are terraform and brew — writes its reports into this same pane stream.
+# Not filtering would attribute that to pi.
+osc_is_pi() { # <app>
+    [ -z "$1" ] || [ "$1" = "pi" ]
+}
+
+osc_apply() { # <pane> <state> [alert]
+    command tmux set-window-option -t "$1" @pi_state "$2" 2>/dev/null
+    if [ "${3:-0}" = "1" ]; then
+        command tmux set-window-option -t "$1" @pi_alert 1 2>/dev/null
+    else
+        command tmux set-window-option -t "$1" -u @pi_alert 2>/dev/null
+    fi
+    return 0
+}
+
+if [ "${1:-}" = "--parse" ]; then
+    while IFS= read -r line; do
+        payload="$(osc_payload "$line")"
+        state="$(osc_field state "$payload")"
+        osc_state_known "$state" || continue
+        app="$(osc_field app "$payload")"
+        osc_is_pi "$app" || continue
+        kind="$(osc_field kind "$payload")"
+        if osc_wants_alert "$state"; then alert=yes; else alert=no; fi
+        printf 'state=%s app=%s kind=%s alert=%s\n' \
+            "$state" "${app:--}" "${kind:--}" "$alert"
+    done
+    exit 0
+fi
+
+pane="${1:-}"
+if [ -z "$pane" ]; then
+    echo "usage: pwt-osc <pane-id>   (or --parse < reports)" >&2
+    exit 2
+fi
+
+# The split on ESC FIRST is load-bearing. grep -o is line-based on its INPUT as
+# well as its output, and a TUI positions text with escape sequences rather than
+# newlines, so against a stream that goes a while without a newline grep holds
+# matches in its buffer and emits nothing. Reports never contain a raw ESC and
+# always end with `ESC \`, so one ESC per line is a faithful split, and `.*` then
+# takes the rest of that line (grep never matches across a line). Do NOT write the
+# class as `[^\n]`: inside a single-quoted pattern that is a literal backslash and
+# "n", not a newline.
+#
+# The splitter is perl, NOT `tr`, and `$| = 1` is the reason. macOS/BSD `tr`
+# block-buffers its output, so a `tr`-based tap delivers nothing at all until the
+# pane's process EXITS — verified: `{ printf a; sleep 1; printf b; } | tr a X`
+# stays empty until EOF. That failure mode is invisible to a finite-emitter probe,
+# which is why one looked like a pass here: everything arrived in the single flush
+# at pane death. sysread + print per chunk with autoflush streams immediately.
+# `perl` is priority-required on Debian/Ubuntu and always present on macOS.
+#
+# Scanning stays in C because a full-screen TUI redraws constantly and a bash loop
+# over those bytes would burn a core; this way the loop below runs a few times a
+# minute. Reading continuously also guarantees stdin is drained: a consumer that
+# stopped reading would leave the pane's output backing up behind the pipe.
+LC_ALL=C perl -e '$| = 1; while (sysread(STDIN, $b, 8192)) { $b =~ s/\e/\n/g; print $b }' \
+    | LC_ALL=C grep -a --line-buffered -o '^]7501;.*' \
+    | while IFS= read -r line; do
+    payload="$(osc_payload "$line")"
+    state="$(osc_field state "$payload")"
+    osc_state_known "$state" || continue
+    app="$(osc_field app "$payload")"
+    osc_is_pi "$app" || continue
+
+    # `clear` is not a state: it asks for the record to be dropped.
+    if [ "$state" = "clear" ]; then
+        command tmux set-window-option -t "$pane" -u @pi_state 2>/dev/null
+        command tmux set-window-option -t "$pane" -u @pi_alert 2>/dev/null
+        continue
+    fi
+
+    # When the pane's process exits, the last buffered reports arrive together and
+    # `display-message` on the now-exited pane returns empty — which would read as
+    # "not active" and light an alert. Harmless today, since the window dies with
+    # the pane, but it would strand a stale flag if remain-on-exit were ever on.
+    if osc_wants_alert "$state"; then
+        # Never flag the window someone is already looking at, or the flag becomes
+        # noise you learn to ignore.
+        active="$(command tmux display-message -p -t "$pane" '#{window_active}' 2>/dev/null)"
+        if [ "$active" = "1" ]; then osc_apply "$pane" "$state" 0; else osc_apply "$pane" "$state" 1; fi
+    else
+        osc_apply "$pane" "$state" 0
+    fi
+done
