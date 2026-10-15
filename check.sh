@@ -1718,16 +1718,23 @@ if command -v perl >/dev/null 2>&1 && command -v base64 >/dev/null 2>&1; then
     _osc_nlog="$_osc_stub_dir/notify.log"; : > "$_osc_nlog"
     cat > "$_osc_stub_dir/tmux" <<'OSTUB'
 #!/bin/bash
-# The sliver of tmux the tap touches: one format query, then option reads/writes.
+# The sliver of tmux the tap touches: format queries, the client list, option writes.
 case "$1" in
 display-message)
     case "$*" in
-    *window_active*)     printf '%s\n' "${PWT_STUB_ACTIVE:-0}" ;;
+    # The default 1 is what a detached server really reports for a session's current
+    # window — the trap. A tap that gates on this must fail the checks below.
+    *window_active*)     printf '%s\n' "${PWT_STUB_ACTIVE:-1}" ;;
     *@pwt_label*)        printf '%s\n' "${PWT_STUB_LABEL:-}" ;;
     *pane_current_path*) printf '%s\n' "${PWT_STUB_CWD:-}" ;;
     *@pwt_notify*)       printf '%s\n' "${PWT_STUB_NOTIFY:-}" ;;
     *@pi_notified_at*)   cat "$PWT_STUB_OPT/@pi_notified_at" 2>/dev/null ;;
+    # The client-context query asks for the same format as the pane one, so -c has
+    # to be matched before it.
+    *-c" "*)             printf '%s\n' "${PWT_STUB_CLIENT_WIN:-}" ;;
+    *window_id*)         printf '%s\n' "@99" ;;
     esac ;;
+list-clients) printf '%s\n' "${PWT_STUB_CLIENTS:-}" ;;
 set-window-option)
     shift 3
     if [ "$1" = "-u" ]; then rm -f "$PWT_STUB_OPT/$2"; else printf '%s\n' "$2" > "$PWT_STUB_OPT/$1"; fi ;;
@@ -1739,17 +1746,26 @@ OSTUB
 printf '%s|%s\n' "$1" "$2" >> "$PWT_NOTIFY_LOG"
 OREC
     chmod +x "$_osc_stub_dir/tmux" "$_osc_stub_dir/rec"
-    # <payload> [active] [label] [cwd]. The defaults use - not :- so a case that
-    # WANTS an empty label can pass one.
+    # <payload> [looking] [label] [cwd]. `looking` is what the CLIENT list says, not
+    # what `window_active` says: 0 nobody attached (which is also what a client on
+    # another session's window amounts to), 1 a client whose current window IS this
+    # one, 2 a client attached somewhere else. Defaults use - not :- so a case can
+    # pass an empty label.
     _osc_raw() {
+        local clients='' cwin=''
+        case "${2-0}" in
+            1) clients=/dev/ttys999; cwin='@99' ;;
+            2) clients=/dev/ttys999; cwin='@42' ;;
+        esac
         printf '\033]7501;%s\033\\' "$1" \
             | env PATH="$_osc_stub_dir:$PATH" PWT_STUB_OPT="$_osc_opt" \
-                  PWT_STUB_ACTIVE="${2-0}" PWT_STUB_LABEL="${3-audit}" \
+                  PWT_STUB_CLIENTS="$clients" PWT_STUB_CLIENT_WIN="$cwin" \
+                  PWT_STUB_LABEL="${3-audit}" \
                   PWT_STUB_CWD="${4-/src/org/repo/__worktrees/audit}" \
                   PWT_STUB_NOTIFY="${_osc_mute:-}" \
                   PWT_NOTIFY_CMD="$_osc_stub_dir/rec" PWT_NOTIFY_LOG="$_osc_nlog" "$_PWT_OSC" %99
     }
-    # <state> [kind] [msg-b64] [active] [label] [cwd]
+    # <state> [kind] [msg-b64] [looking] [label] [cwd]
     _osc_shot() {
         local payload="state=$1:app=pi"
         [[ -n "${2:-}" ]] && payload="$payload:kind=$2"
@@ -1766,7 +1782,10 @@ OREC
         test "$(_osc_n)" = "1"
     check "pwt-osc: it names the workstream and repeats what pi said" \
         grep -qF 'audit — blocked|Waiting for approval: run the tests?' "$_osc_nlog"
-    check "pwt-osc: the ambient flag is still raised alongside the push" \
+    # The stub answers window_active=1, exactly as a detached server does for a
+    # session's current window, and no client is attached: the flag must go up anyway,
+    # because nothing is looking at it.
+    check "pwt-osc: nobody attached means nobody looking, current window included" \
         test "$(cat "$_osc_opt/@pi_alert")" = "1"
     _osc_shot blocked auth "$_osc_head" 0 audit
     check "pwt-osc: a repeat inside the cooldown pushes nothing" \
@@ -1782,6 +1801,14 @@ OREC
         test ! -s "$_osc_nlog"
     check "pwt-osc: that report still records the state and clears the flag" \
         bash -c '[[ "$(cat "$1/@pi_state")" = error && -z "$(cat "$1/@pi_alert")" ]]' _ "$_osc_opt"
+    # The other half of that decision: a client IS attached, just not here. Suppressing
+    # on "a client exists" rather than "a client is on THIS window" would lose every
+    # workstream sitting in another session's current window.
+    _osc_clear; _osc_shot blocked auth "$_osc_head" 2
+    check "pwt-osc: a client attached elsewhere does not suppress the push" \
+        test "$(_osc_n)" = "1"
+    check "pwt-osc: nor the flag on that window" \
+        test "$(cat "$_osc_opt/@pi_alert")" = "1"
     _osc_clear; _osc_shot working '' '' 0 audit
     check "pwt-osc: progress is never a push" test ! -s "$_osc_nlog"
     _osc_clear; _osc_shot idle '' '' 0 audit
@@ -1833,6 +1860,12 @@ printf '%s|%s\n' "$1" "$2" >> "$PWT_NOTIFY_LOG"
 REC
     chmod +x "$_osc_dir/emit.sh" "$_osc_dir/rec"
     tmux -S "$_osc_sock" -f /dev/null new-session -d -s osctest -c "$_osc_dir" "sleep 300"
+    # The decay hooks, taken as they ship (tmux.conf's own text is asserted above
+    # instead; this server deliberately loads no file, because loading the real one
+    # would run its run-shell against the DEFAULT socket).
+    tmux -S "$_osc_sock" set-hook -g pane-focus-in 'set-window-option -u @pi_alert'
+    tmux -S "$_osc_sock" set-hook -g after-select-window 'set-window-option -u @pi_alert'
+    tmux -S "$_osc_sock" set-hook -g client-focus-in 'set-window-option -u @pi_alert'
     # The emitter shares the FIRST window (index 0) while a distractor takes index
     # 1, so a strftime-mangled `-t 1` is visible to the assertion instead of landing
     # invisibly on the emitter's own window.
@@ -1858,21 +1891,49 @@ REC
         test "$_osc_state" = "blocked"
     check "pwt-osc: nothing leaks onto another window (the pane-id trap)" \
         test -z "$(tmux -S "$_osc_sock" display-message -p -t "$_osc_dist" '#{@pi_state}')"
-    tmux -S "$_osc_sock" select-window -t distractor; sleep 0.5
-    _osc_alert="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_alert}')"
-    check "pwt-osc: an alert is raised while the window is not the current one" \
+    # No client is attached to this private server, and the emitter's window IS the
+    # session's current one — precisely where `#{window_active}` reports 1, and so
+    # precisely where the old test suppressed flag and push alike. Nothing is looking
+    # at it, so the flag has to go up anyway.
+    _osc_alert=''
+    for _i in 1 2 3 4 5 6 7 8 9 10; do
+        _osc_alert="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_alert}')"
+        [ "$_osc_alert" = "1" ] && break
+        sleep 0.5
+    done
+    check "pwt-osc: a detached server still flags its session's current window" \
         test "$_osc_alert" = "1"
-    # The push rides that same report through the same real pipe. Nothing is pushed
-    # while the window is current; once it is not, the FIRST blocked emit pushes and
-    # the rest are coalesced — so a stream of them yields exactly one.
+    # The push rides that same report through the same real pipe: the first blocked
+    # emit pushes (no client is attached, so nobody is looking) and the rest are
+    # coalesced by the cooldown — a stream of them yields exactly one.
     check "pwt-osc: a live stream of reports pushes exactly once" \
         test "$(wc -l < "$_osc_dir/notify.log" 2>/dev/null | tr -d ' ')" = "1"
     check "pwt-osc: the live push names the state it is about" \
         bash -c 'grep -q " — blocked" "$1"' _ "$_osc_dir/notify.log"
-    tmux -S "$_osc_sock" select-window -t osctest:0; sleep 0.6
-    check "pwt-osc: focusing the window clears the alert but keeps the state" \
+    # Moving the session to another window must not decay a flag nobody has looked at:
+    # the hook clears the window that was SELECTED, not every window.
+    tmux -S "$_osc_sock" select-window -t distractor; sleep 0.5
+    _osc_alert="$(tmux -S "$_osc_sock" display-message -p -t "$_osc_pane" '#{@pi_alert}')"
+    check "pwt-osc: the flag survives the session moving to another window" \
+        test "$_osc_alert" = "1"
+    # The decay hook, tested deterministically instead of against a live emitter: a
+    # window with no emitter behind it, flagged, then SELECTED. The hook clears the
+    # window that was selected and leaves the state behind it.
+    _osc_decay="$(tmux -S "$_osc_sock" new-window -dP -F '#{window_id}' -t osctest \
+        -n decay -c "$_osc_dir" 'sleep 300')"
+    tmux -S "$_osc_sock" set-window-option -t "$_osc_decay" @pi_alert 1
+    tmux -S "$_osc_sock" set-window-option -t "$_osc_decay" @pi_state 'done'
+    tmux -S "$_osc_sock" select-window -t "$_osc_decay"; sleep 0.5
+    check "pwt-osc: looking at a flagged window decays the flag and keeps the state" \
         bash -c '[[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_alert}")" && \
-                  -n "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_state}")" ]]' \
+                  "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_state}")" = done ]]' \
+        _ "$_osc_sock" "$_osc_decay"
+    # And in the emitter's window the flag comes BACK after the hook clears it: nobody
+    # is attached, so the next report raises it again. Under the old `window_active`
+    # gate this could never happen — that window was treated as being looked at.
+    tmux -S "$_osc_sock" select-window -t osctest:0; sleep 0.6
+    check "pwt-osc: the flag is raised again while nothing is attached" \
+        bash -c '[[ "$(tmux -S "$1" display-message -p -t "$2" "#{@pi_alert}")" = 1 ]]' \
         _ "$_osc_sock" "$_osc_pane"
     tmux -S "$_osc_sock" kill-server >/dev/null 2>&1
     rm -rf "$_osc_dir"

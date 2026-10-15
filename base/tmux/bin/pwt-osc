@@ -237,6 +237,30 @@ osc_apply() { # <pane> <state> [alert]
     return 0
 }
 
+# Is a human actually LOOKING at this pane's window? NOT `#{window_active}`, which
+# answers a different question: it is set on the current window of EVERY session in
+# the server, including sessions no client is attached to, and including a server with
+# no clients at all (verified in a detached server: the session's current window still
+# reports window_active=1). Used as the gate it silently suppressed the flag and the
+# push for exactly the class of case the push exists for — a workstream sitting in
+# another session's current window, and every workstream while tmux is detached.
+#
+# So ask the clients instead: a client's current window is `#{window_id}` in that
+# client's own context (-c <client tty>). No attached client means nobody is looking,
+# so the alert and the push both fire. Costs one call plus two per attached client,
+# only for a report that was already worth an alert, and fails OPEN to alerting: a
+# tmux too old for -c yields no match rather than a swallowed alert.
+osc_on_screen() { # <pane>
+    local win cur cl
+    win="$(command tmux display-message -p -t "$1" '#{window_id}' 2>/dev/null)"
+    [ -n "$win" ] || return 1
+    for cl in $(command tmux list-clients -F '#{client_tty}' 2>/dev/null); do
+        cur="$(command tmux display-message -p -c "$cl" '#{window_id}' 2>/dev/null)"
+        [ "$cur" = "$win" ] && return 0
+    done
+    return 1
+}
+
 if [ "${1:-}" = "--parse" ]; then
     while IFS= read -r line; do
         payload="$(osc_payload "$line")"
@@ -306,9 +330,9 @@ LC_ALL=C perl -e '$| = 1; while (sysread(STDIN, $b, 8192)) { $b =~ s/\e/\n/g; pr
     # the pane, but it would strand a stale flag if remain-on-exit were ever on.
     if osc_wants_alert "$state"; then
         # Never flag or notify about the window someone is already looking at, or
-        # both become noise you learn to ignore.
-        active="$(command tmux display-message -p -t "$pane" '#{window_active}' 2>/dev/null)"
-        if [ "$active" = "1" ]; then
+        # both become noise you learn to ignore. See osc_on_screen for why that
+        # cannot be `#{window_active}`.
+        if osc_on_screen "$pane"; then
             osc_apply "$pane" "$state" 0
         else
             osc_apply "$pane" "$state" 1
