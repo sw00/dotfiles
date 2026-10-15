@@ -1,23 +1,48 @@
 #!/usr/bin/env bash
-# pwt-pick — fzf picker over pwt worktrees, for use as a tmux popup (C-w).
+# pwt-pick — the workstream panel behind tmux `C-w`.
 #
-# Lists the worktrees under <repo>/__worktrees/ for every repo below $PWT_SRC
-# (default ~/src, matching the C-f picker's zoxide scope). Selecting one opens a
-# tmux window in that worktree running pi pinned to the SAME session id that
-# `pwt <slug>` uses (<repo>-<slug>), so it resumes that workstream's transcript.
+# Rows come from two places:
+#   * worktrees under <repo>/__worktrees/ for every repo below $PWT_SRC
+#     (default ~/src, matching the C-f picker's zoxide scope);
+#   * live pi windows NOT backed by a worktree — the main-checkout sessions.
+#     pi titles its window "<APP_TITLE> - [<session name> - ]<cwd basename>"
+#     (dist: modes/interactive/interactive-mode.js), so the title prefix is what
+#     identifies a pi pane. pane_current_command cannot: pi runs as `node`, and
+#     so does every other node program.
 #
-# Creating and removing worktrees stays with `pwt` itself — this picker only
-# navigates. A ● marks workstreams that already have pi history.
+# Verbs, all of them from inside the list:
+#   enter    open   — go to the window already holding it, else ask pwt for one
+#   ctrl-n   new    — create a worktree in the highlighted row's repo
+#   ctrl-d   remove — `pwt rm`, which refuses on ignored files or an open window
 #
-# Scope: repos are expected at $PWT_SRC/<org>/<repo> (the search is -maxdepth 4),
-# so a more deeply nested repo is not discovered.
+# Why --expect rather than ctrl-n/ctrl-d:execute(...): an execute bind
+# interpolates the selected row and the typed query into a COMMAND STRING that a
+# shell then parses, so a quote in a path — or in what you typed — is a shell
+# injection. With --expect the key and the row arrive on stdout instead, and every
+# argument this script hands to a shell is passed as argv. The cost is that an
+# action closes the panel instead of reloading in place, which is also what you
+# want when creating (it opens the new window) and is one extra C-w between bulk
+# removals. ctrl-n/ctrl-d also take over fzf's own ctrl-n (move down) and ctrl-d
+# (delete-char/eof); arrows and ctrl-j/ctrl-k still navigate.
+#
+# Lifecycle stays in pwt (base/fish/.config/fish/functions/pwt.fish): this script
+# decides WHAT to act on and delegates, so the panel and `pwt <slug>` typed in a
+# shell cannot drift apart — including the pinned session id, which must stay in
+# exactly one place.
 #
 # Deliberately avoids bash-4-only builtins (mapfile): the shebang resolves via
 # PATH, but a tmux popup can inherit a PATH whose bash is macOS's 3.2.
+#
+# `--list` prints the rows and exits, for check.sh and scripting.
 set -euo pipefail
 
-SRC="${PWT_SRC:-$HOME/src}"
+SRC_RAW="${PWT_SRC:-$HOME/src}"
 SESSIONS="$HOME/.pi/agent/sessions"
+
+# pi's window-title prefix. The app title comes from the pi package's piConfig
+# (`π` on this install); PWT_PI_TITLE exists so the live-session rows can be
+# exercised without a real pi, and so a rename is a one-line change.
+PI_TITLE="${PWT_PI_TITLE:-π - }"
 
 # pi names a project's session directory after the project path: drop the leading
 # slash, turn every / into -, wrap in --. e.g. /Users/x/dotfiles ->
@@ -25,6 +50,52 @@ SESSIONS="$HOME/.pi/agent/sessions"
 session_dir_for() {
     printf -- '--%s--' "$(printf '%s' "$1" | sed 's|^/||; s|/|-|g')"
 }
+
+# canonical form of a directory, for comparison AND for display. tmux reports the
+# RESOLVED path (a window opened at /tmp shows /private/tmp) while find returns
+# the path as given, so comparing them raw silently drops the ▸ marker on macOS
+# and makes every live row fall back to an absolute label. repo-list carries the
+# same lesson for the same reason.
+canon_dir() {
+    local d
+    d="$(cd "$1" 2>/dev/null && pwd -P)" || d="$1"
+    printf '%s' "${d:-$1}"
+}
+
+# label <path> — path relative to $SRC with __worktrees/ elided, so two orgs with
+# a same-named repo stay distinguishable. Absolute when outside $SRC (a session
+# started in ~, say), because hiding that would be worse than a long label.
+label() {
+    case "$1" in
+        "$SRC"/*) printf '%s' "${1#"$SRC"/}" | sed 's|/__worktrees/|/|' ;;
+        *) printf '%s' "$1" ;;
+    esac
+}
+
+# Both tmux queries are gated on $TMUX and must stay silent and empty outside it:
+# `--list` has to be deterministic for check.sh, which may itself run inside a
+# tmux pane and would otherwise see the developer's live windows in the results.
+#
+# list-PANES, not list-windows: the latter reports only the ACTIVE pane's cwd, so
+# a worktree whose window has pi in a non-active split would show no ▸ marker.
+pane_cwds() {
+    [[ -n "${TMUX:-}" ]] || return 0
+    tmux list-panes -a -F '#{pane_current_path}' 2>/dev/null || true
+}
+
+live_panes() {
+    [[ -n "${TMUX:-}" ]] || return 0
+    # A tab keeps a title containing spaces in one field.
+    tmux list-panes -a -F "#{pane_title}	#{pane_current_path}" 2>/dev/null || true
+}
+
+# ── rows ─────────────────────────────────────────────────────────────────────
+rows=()
+
+# $SRC is canonicalised ONCE, before anything compares against it: find returns
+# the path as given while tmux reports resolved paths, so a symlinked $SRC would
+# break both the label base and every comparison below.
+SRC="$(canon_dir "$SRC_RAW")"
 
 # Heavy directories are pruned rather than descended: a worktree root is always a
 # direct child of a repo root, and node_modules/target trees are enormous.
@@ -37,26 +108,49 @@ done < <(
         -type d -name __worktrees -print 2>/dev/null | sort
 )
 
-rows=()
+# One tmux call, then a fixed-string match per worktree. Both sides are
+# canonicalised for the reason canon_dir explains. A herestring rather than a
+# pipe into grep: under `set -o pipefail` a long list can make grep exit on
+# SIGPIPE (141), which would silently drop the ▸ marker.
+OPEN_CWDS=''
+while IFS= read -r _c; do
+    [[ -n "$_c" ]] || continue
+    OPEN_CWDS+="$(canon_dir "$_c")"$'\n'
+done <<< "$(pane_cwds)"
+
+EMITTED_WT=''
 for wt_root in ${WT_ROOTS[@]+"${WT_ROOTS[@]}"}; do
-    repo="$(basename "$(dirname "$wt_root")")"
     while IFS= read -r wt; do
         [[ -n "$wt" ]] || continue
-        slug="$(basename "$wt")"
-        marker=" "
-        if [[ -d "$SESSIONS/$(session_dir_for "$wt")" ]]; then
-            marker="●"
-        fi
-        # Label as org/repo/slug (path relative to $SRC, __worktrees/ elided) so
-        # two orgs with a same-named repo stay distinguishable. The session id
-        # stays <repo>-<slug>, which is what pwt creates.
-        rel="${wt#"$SRC"/}"
-        label="$(printf '%s' "$rel" | sed 's|/__worktrees/|/|')"
-        rows+=("$marker $label"$'\t'"$wt")
+        wt="$(canon_dir "$wt")"
+        mk_open=' '
+        mk_hist=' '
+        if grep -Fxq -- "$wt" <<< "$OPEN_CWDS"; then mk_open='▸'; fi
+        if [[ -d "$SESSIONS/$(session_dir_for "$wt")" ]]; then mk_hist='●'; fi
+        rows+=("$mk_open$mk_hist $(label "$wt")"$'\t'"$wt"$'\t'"wt")
+        EMITTED_WT+="$wt"$'\n'
     done < <(find "$wt_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
 done
 
-# --list prints the rows and exits: used by check.sh, and handy for scripting.
+LIVE="$(live_panes)"
+if [[ -n "$LIVE" ]]; then
+    while IFS=$'\t' read -r _title _path; do
+        [[ -n "$_path" ]] || continue
+        case "$_title" in "$PI_TITLE"*) ;; *) continue ;; esac
+        _path="$(canon_dir "$_path")"
+        # Suppress only when a worktree ROW covers this pane. Keying on
+        # "*/__worktrees/*" instead would hide the window entirely for a worktree
+        # outside $PWT_SRC, which has no row to fall back on.
+        _covered=0
+        while IFS= read -r _w; do
+            [[ -n "$_w" ]] || continue
+            case "$_path" in "$_w"|"$_w"/*) _covered=1; break ;; esac
+        done <<< "$EMITTED_WT"
+        [[ "$_covered" == "0" ]] || continue
+        rows+=("▸  $(label "$_path")"$'\t'"$_path"$'\t'"live")
+    done <<< "$LIVE"
+fi
+
 if [[ "${1:-}" == "--list" ]]; then
     if [[ ${#rows[@]} -gt 0 ]]; then
         printf '%s\n' "${rows[@]}"
@@ -65,21 +159,117 @@ if [[ "${1:-}" == "--list" ]]; then
 fi
 
 if [[ ${#rows[@]} -eq 0 ]]; then
-    echo "pwt-pick: no worktrees under $SRC" >&2
-    echo "          create one from inside a repo with: pwt <slug>" >&2
+    echo "pwt-pick: no worktrees or pi sessions under $SRC" >&2
+    echo "          start one from inside a repo with: pwt <slug>" >&2
     sleep 2
     exit 0
 fi
 
-choice="$(printf '%s\n' "${rows[@]}" \
-    | fzf --prompt 'worktree> ' --reverse --delimiter='\t' --with-nth=1 \
+# ── panel ────────────────────────────────────────────────────────────────────
+# The selection is never cancelled on a non-zero fzf status other than a real
+# abort: `|| true` keeps `set -e` from turning fzf's exit into a trace.
+out="$(printf '%s\n' "${rows[@]}" \
+    | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
         --border-label ' pwt ' \
+        --header 'enter open · ctrl-n new · ctrl-d remove' \
+        --expect=ctrl-n,ctrl-d \
         --preview 'git -C {2} status --short --branch 2>/dev/null | head -20' \
         --preview-window 'down:40%')" || exit 0
 
-[[ -z "$choice" ]] && exit 0
+[[ -n "$out" ]] || exit 0
 
-wt="${choice##*$'\t'}"
-repo="$(basename "$(dirname "$(dirname "$wt")")")"
-slug="$(basename "$wt")"
-tmux new-window -n "$slug" -c "$wt" pi --session-id "$repo-$slug"
+# --expect prints the key as the first line (empty for enter) then the selection.
+# Parsed by shape rather than by position so a change in that contract degrades
+# to "no key" instead of acting on the wrong row: no row can ever be exactly
+# "ctrl-n"/"ctrl-d", and every row contains a tab.
+key=''
+sel=''
+while IFS= read -r _line; do
+    case "$_line" in
+        ctrl-n|ctrl-d) key="$_line"; continue ;;
+    esac
+    [[ -n "$_line" ]] || continue
+    sel="$_line"
+done <<< "$out"
+
+if [[ -z "$sel" ]]; then
+    echo "pwt-pick: no row selected" >&2
+    exit 0
+fi
+
+kind="$(printf '%s' "$sel" | cut -f3)"
+path="$(printf '%s' "$sel" | cut -f2)"
+
+# Run a pwt verb and KEEP THE POPUP OPEN when it fails. `display-popup -E` closes
+# the moment the command exits, so a refusal ("window @N still holds …") or a
+# validation error would otherwise flash and vanish before it could be read.
+# <verb> is new (cd + pwt <slug>), rm, or jump (pwt jump <dir>).
+run_pwt() {
+    local verb="$1" a="$2" b="${3:-}" rc=0
+    case "$verb" in
+        new)  fish -c 'cd $argv[1]; and pwt $argv[2]' "$a" "$b" || rc=$? ;;
+        rm)   fish -c 'cd $argv[1]; and pwt rm $argv[2]' "$a" "$b" || rc=$? ;;
+        jump) fish -c 'pwt jump $argv[1]' "$a" || rc=$? ;;
+        *)    echo "pwt-pick: unknown verb '$verb'" >&2; rc=2 ;;
+    esac
+    if [[ $rc -ne 0 ]]; then
+        printf '\n[failed — press enter to close] '
+        read -r _ || true
+        return "$rc"
+    fi
+    return 0
+}
+
+case "$key" in
+ctrl-n)
+    # Prompted here, not pre-filled from the query: a query is free text, and
+    # feeding it through an fzf command string is the injection this design
+    # exists to avoid. pwt validates it right after.
+    printf 'new worktree in %s — slug: ' "$(label "$path")"
+    read -r slug || slug=''
+    [[ -n "$slug" ]] || { echo "aborted"; exit 0; }
+    # pwt's first argument is a verb switch, so these would never become a branch.
+    case "$slug" in
+        rm|remove|jump|help) echo "pwt: '$slug' is a pwt verb, not a workstream name" >&2
+                             exit 2 ;;
+    esac
+    case "$kind" in
+        wt) repo="$(dirname "$(dirname "$path")")" ;;
+        *)  repo="$path" ;;
+    esac
+    run_pwt new "$repo" "$slug"
+    ;;
+ctrl-d)
+    case "$path" in
+        */__worktrees/*) ;;
+        *) echo "pwt: $(label "$path") is a live session, not a worktree — nothing to remove" >&2
+           exit 0 ;;
+    esac
+    # Show what is about to be lost BEFORE asking: the ignored-file refusal is
+    # pwt's, but discovering it only after answering "y" wastes the decision.
+    echo "── $(label "$path")"
+    git -C "$path" status --short --branch 2>/dev/null | head -20 || true
+    ignored="$(git -C "$path" status --porcelain --ignored 2>/dev/null | grep -c '^!!' || true)"
+    if [[ "${ignored:-0}" != "0" ]]; then
+        echo "   ⚠ $ignored ignored entr(y|ies) (.env/.venv/node_modules) — pwt rm will refuse"
+    fi
+    printf 'Remove this worktree and its branch? [y/N] '
+    read -r ans || ans=''
+    case "$ans" in
+        [yY]*) ;;
+        *) echo "aborted"; exit 0 ;;
+    esac
+    run_pwt rm "$(dirname "$(dirname "$path")")" "$(basename "$path")"
+    ;;
+*)
+    case "$kind" in
+        live)
+            # Nothing to create: find the window that is already there.
+            run_pwt jump "$path"
+            ;;
+        *)
+            run_pwt new "$(dirname "$(dirname "$path")")" "$(basename "$path")"
+            ;;
+    esac
+    ;;
+esac

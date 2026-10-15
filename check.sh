@@ -1287,6 +1287,40 @@ check_has "pwt: pins an explicit pi session id" \
 # worktree remove deletes IGNORED files without complaint, so pwt must refuse.
 check_has "pwt: refuses removal while ignored files are present" \
     'porcelain --ignored' "$_PWT"
+# Two pi processes on one --session-id resume the SAME transcript JSONL and pi
+# rewrites that file from its own memory, so the second writer silently clobbers
+# the first. An open window must therefore be reused, never duplicated.
+check_has "pwt: reuses an open window instead of spawning a second pi" \
+    'tmux select-window -t' "$_PWT"
+check_has "pwt: finds that window by pane cwd" \
+    'list-panes -a' "$_PWT"
+# tmux reports the RESOLVED path (a window at /tmp shows /private/tmp) while git
+# and find hand back the path as given, so a checkout behind any symlinked parent
+# would never match and pwt would spawn the duplicate after all.
+check_has "pwt: compares window paths canonically" \
+    'command pwd -P' "$_PWT"
+# ...and must not leave the caller's shell where the lookup cd'd to: fish runs a
+# command substitution in the same process, so `pwt rm` would otherwise strand the
+# shell inside the directory it just deleted.
+check_has "pwt: puts the shell back after canonicalising" \
+    'cd -- "\$here"' "$_PWT"
+# A live window means the worktree is in use: removing it pulls the directory out
+# from under a running pi, so the ignored-file guard is not the only one. This one
+# is deliberately NOT gated on $TMUX — `pwt rm` from a plain terminal while pi
+# works in tmux is exactly when it matters.
+check_has "pwt: refuses removal while a window still holds the worktree" \
+    'window \$live still holds' "$_PWT"
+# Reuse must require an actual pi: a plain shell cd'd into the worktree is not a
+# workstream, but it IS enough to make removal unsafe. Removal additionally has to
+# see a pane that cd'd into a SUBDIRECTORY — deleting the tree under it leaves that
+# shell in a directory that no longer exists.
+check_has "pwt: distinguishes a pi window from a shell in the worktree" \
+    'case pi-only' "$_PWT"
+check_has "pwt: treats a pane anywhere inside the worktree as in use" \
+    'case in-tree' "$_PWT"
+# Live (non-worktree) sessions are reached through the same window-finding code.
+check_has "pwt: exposes a jump verb for live sessions" \
+    'case jump' "$_PWT"
 # The fish .gitignore is an allowlist: functions/* is ignored unless negated, so
 # a new own-file silently drops out of the repo without this.
 check_has "pwt: not gitignored (fish allowlist negation present)" \
@@ -1337,18 +1371,151 @@ _PWT_PICK="$DOTFILES/base/tmux/bin/pwt-pick"
 check "pwt-pick: picker exists in base/tmux/bin" test -f "$_PWT_PICK"
 check "pwt-pick: is executable" test -x "$_PWT_PICK"
 check "pwt-pick: shellcheck clean" shellcheck -S warning "$_PWT_PICK"
+# TMUX is unset for every --list assertion: check.sh may itself run inside a tmux
+# pane, and live-pane rows would then appear in the results and move `head -1`.
 check "pwt-pick: --list runs under /bin/bash (3.2 on macOS)" \
-    env PWT_SRC="$DOTFILES/.git" HOME=/nonexistent /bin/bash "$_PWT_PICK" --list
-check_has "pwt-pick: pins the same session id form as pwt" \
-    '--session-id "\$repo-\$slug"' "$_PWT_PICK"
+    env -u TMUX PWT_SRC="$DOTFILES/.git" HOME=/nonexistent /bin/bash "$_PWT_PICK" --list
+# Single source of truth: the panel creates and removes nothing itself, and no
+# longer pins a session id — it asks pwt, which owns the worktree lifecycle.
+check_has "pwt-pick: delegates lifecycle to pwt" \
+    'fish -c' "$_PWT_PICK"
+check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
+    '\-\-session-id' "$_PWT_PICK"
+# An fzf execute()/reload() bind interpolates the row and whatever was typed into
+# a COMMAND STRING that a shell then parses, so a quote in a path is an injection.
+# --expect delivers the key and the row on stdout, to be passed as argv instead.
+check_has "pwt-pick: takes its verbs from --expect" \
+    '\-\-expect=' "$_PWT_PICK"
+check_not "pwt-pick: builds no shell command string for fzf" \
+    '\-\-bind' "$_PWT_PICK"
+# pi panes are found by window TITLE, because pane_current_command is `node` for
+# pi and for every other node program. tmux also reports RESOLVED paths while find
+# does not, so without canonicalisation the ▸ marker silently disappears.
+check_has "pwt-pick: identifies pi panes by window title" \
+    'pane_title' "$_PWT_PICK"
+check_has "pwt-pick: canonicalises paths before comparing" \
+    'pwd -P' "$_PWT_PICK"
+# The prefix is needed in BOTH files — pwt decides whether a window is worth
+# reusing, the panel decides which panes are pi — so a rename must not be able to
+# update one and miss the other. The default is read from pwt-pick and asserted in
+# pwt, which fails if either side moves alone.
+_pi_pref="$(sed -n 's/.*PWT_PI_TITLE:-\(.*\)}.*/\1/p' "$_PWT_PICK" | head -1)"
+check "pwt-pick: declares a default pi window-title prefix" test -n "$_pi_pref"
+check "pwt: uses the same pi window-title prefix as pwt-pick" \
+    grep -qF -- "$_pi_pref" "$_PWT"
+# display-popup -E closes as soon as the command exits, so a refusal or a
+# validation error has to hold the popup open or it is unreadable.
+check_has "pwt-pick: holds the popup open when pwt fails" \
+    'press enter' "$_PWT_PICK"
 
-# End-to-end listing: a fabricated worktree must surface as org/repo/slug.
+# End-to-end listing: a fabricated worktree must surface as org/repo/slug behind a
+# two-column marker (▸ window open / ● pi history). With no tmux and a missing
+# HOME both markers are blank, which also pins the column layout.
 _pwt_tmp="$(mktemp -d)"
-mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo"
+mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/live"
 check "pwt-pick: lists a worktree as org/repo/slug" \
-    bash -c '[[ "$(PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "  org/repo/demo" ]]' \
+    bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "   org/repo/demo" ]]' \
     _ "$_pwt_tmp" "$_PWT_PICK"
-rm -rf "$_pwt_tmp"
+
+# Live pi panes and the ▸ marker without a real tmux server: a stub on PATH
+# answers the two format queries the picker makes, so no session of the
+# developer's is involved and the result is deterministic.
+_pwt_bin="$(mktemp -d)"
+cat > "$_pwt_bin/tmux" <<'STUB'
+#!/bin/bash
+case "$*" in
+  *pane_title*)        printf '%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" ;;
+  *pane_current_path*) printf '%s\n' "$PWT_STUB_WT" ;;
+esac
+STUB
+chmod +x "$_pwt_bin/tmux"
+check "pwt-pick: marks a worktree whose window is open and lists live pi panes" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="π - main" PWT_STUB_WT="$2/org/repo/__worktrees/demo" \
+        PWT_STUB_LIVE="$2/org/live" "$3" --list)
+        grep -qF "▸  org/repo/demo" <<<"$out" && grep -qF "▸  org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+check "pwt-pick: a pi pane inside a worktree is not listed twice" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="π - main" PWT_STUB_WT="$2/org/repo/__worktrees/demo" \
+        PWT_STUB_LIVE="$2/org/repo/__worktrees/demo" "$3" --list)
+        [[ "$(grep -c . <<<"$out")" == "1" ]]' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+rm -rf "$_pwt_tmp" "$_pwt_bin"
+
+# ── pwt window resolution (behavioural, not textual) ─────────────────────────
+# Every pwt assertion above is a grep, and three live-probed bugs passed all of
+# them: `pwt jump` landing on a plain shell, `pwt rm` missing a pi that had cd'd
+# into a subdirectory of the worktree, and the lookup missing pi in a split that
+# was not the active pane. These run the real lookups against a PRIVATE tmux
+# server (-f /dev/null, own socket), so nothing the developer is running is
+# touched and no fixture repo is left behind.
+if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
+    _pwtsock="$(mktemp -d)/sock"
+    _pwt_repo="$(mktemp -d)/repo"
+    _pwt_wt="$_pwt_repo/__worktrees/demo"
+    mkdir -p "$_pwt_repo"
+    (cd "$_pwt_repo" && git init -q && git config user.email t@t && git config user.name t \
+        && echo x > f && git add f && git commit -qm init \
+        && git worktree add -q "$_pwt_wt") >/dev/null 2>&1
+    # pi cd'd into a SUBDIRECTORY of the worktree, in a window whose active pane is
+    # therefore not the pane we are looking for either way. The panes run `sleep`,
+    # not a shell: a shell rewrites its own pane title on every prompt (fish sets
+    # "<cwd> - fish"), which would wipe the `π - ` title select-pane -T just set.
+    # The title is a faithful stand-in for pi, which sets it once and keeps it
+    # because it stays the foreground program.
+    mkdir -p "$_pwt_wt/sub"
+    tmux -S "$_pwtsock" -f /dev/null new-session -d -s pwttest -c /tmp "sleep 300" >/dev/null 2>&1
+    tmux -S "$_pwtsock" new-window -t pwttest -n pisub -c "$_pwt_wt/sub" "sleep 300" >/dev/null 2>&1
+    _pwt_p1="$(tmux -S "$_pwtsock" list-panes -t pisub -F '#{pane_id}')"
+    tmux -S "$_pwtsock" select-pane -t "$_pwt_p1" -T 'π - demo' >/dev/null 2>&1
+    # A non-pi window and a pi window in the SAME directory, to pin which one jump
+    # picks: the plain one keeps tmux's default pane title.
+    tmux -S "$_pwtsock" new-window -t pwttest -n otheratroot -c "$_pwt_repo" "sleep 300" >/dev/null 2>&1
+    tmux -S "$_pwtsock" new-window -t pwttest -n piatroot -c "$_pwt_repo" "sleep 300" >/dev/null 2>&1
+    _pwt_p3="$(tmux -S "$_pwtsock" list-panes -t piatroot -F '#{pane_id}')"
+    tmux -S "$_pwtsock" select-pane -t "$_pwt_p3" -T 'π - root' >/dev/null 2>&1
+
+    _pwtprobe="$(mktemp)"
+    cat > "$_pwtprobe" <<'PROBE'
+source $argv[1]/base/fish/.config/fish/functions/pwt.fish
+switch $argv[2]
+    case find
+        echo (__pwt_window_for $argv[3] $argv[4..-1])
+    case rm
+        cd $argv[3]; and pwt rm $argv[4]
+    case jump
+        pwt jump $argv[3]
+end
+PROBE
+
+    check "pwt: finds pi in a SUBDIRECTORY of the worktree (in-tree)" \
+        bash -c '[[ -n "$(env TMUX="$1" fish "$2" "$3" find "$4" in-tree)" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_wt"
+    check "pwt: an exact-only lookup does not match that pane (documented limit)" \
+        bash -c '[[ -z "$(env TMUX="$1" fish "$2" "$3" find "$4" pi-only)" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_wt"
+    check "pwt: rm refuses while a pi pane sits inside the worktree" \
+        bash -c 'env TMUX="$1" fish "$2" "$3" rm "$4" demo >/dev/null 2>&1
+            [[ -d "$4/__worktrees/demo" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+    # The control matters as much as the refusal: a guard that refuses everything
+    # would pass the test above while making `pwt rm` useless.
+    check "pwt: rm still removes a worktree no window holds (positive control)" \
+        bash -c 'cd "$4" && git worktree add -q __worktrees/solo >/dev/null 2>&1
+            env TMUX="$1" fish "$2" "$3" rm "$4" solo >/dev/null 2>&1
+            [[ ! -d "$4/__worktrees/solo" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+    check "pwt: jump picks the pi window, not a shell in the same directory" \
+        bash -c 'env TMUX="$1" fish "$2" "$3" jump "$4" >/dev/null 2>&1
+            tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{pane_title}" | grep -q "^1:π - "' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+
+    tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
+    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe"
+else
+    _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
+fi
 
 # ── pi session prune policy ──────────────────────────────────────────────────
 # Sessions are KEPT, not scheduled away: the transcripts are the only source for
