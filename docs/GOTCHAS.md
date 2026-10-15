@@ -117,6 +117,12 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 ## General
 
 - bash `${var#...}` tolerates no spaces around the operator.
+- `read` with a tab IFS **collapses empty fields**: a tab is IFS *whitespace*, so
+  consecutive tabs are one delimiter and everything after an empty middle field shifts
+  left — `a<TAB>b<TAB><TAB>c` reads as `a b c`. Emit a placeholder for any field that
+  can be empty (a tmux format can: `#{?#{@var},#{@var},-}`), or parse with a
+  non-whitespace separator. This is how a pane's state came to be read as its own
+  label, and then sorted by it.
 - `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` is a plain `grep -qE` against the file, so its pattern must be `^-anchored` (or otherwise tight) whenever the file can contain prose that legitimately mentions the thing — a loose substring turns a passing repo into a false failure. Structured files (JSON) are safe unanchored.
 - Mosh needs system packages (protobuf, utempter, openssl) — no mise/ubi binary.
 - Linux/WSL has no system ssh-agent: `base/fish/.../conf.d/ssh-agent.fish` runs a shared agent on `~/.ssh/agent.sock`. Extend that file, don't add another.

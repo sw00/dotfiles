@@ -104,10 +104,11 @@ removed — full implementation history lives in git. Shared-core behavior
   since the payoff is unproven at one worktree and three sessions and it is the piece
   carrying a platform asymmetry — click-to-jump needs `terminal-notifier` (brew) or
   nothing at all.
-  Two small follow-ups, not tiers, both in the C-w panel: rows do not show the state
-  yet (`@pi_state` is already on the window, so this is a read in the row generator),
-  and the panel can only create WORKTREES — a repo with no rows is unreachable from it
-  (needs a `ctrl-f` picker over repo-list) and `pwt here` is shell-only.
+  The panel gaps are closed too: rows carry pi's state (◐ working ⚑ blocked ✓ done
+  ✗ error) and sort a blocked workstream to the top, and ctrl-f reaches any repo
+  through repo-list — including one with no rows at all, which the list cannot show —
+  with a second key choosing a worktree or the in-place rung. So Tier 3 (push) is the
+  only thing left.
   Field notes if this is revisited, all now in docs/GOTCHAS.md §tmux: **never**
   `pipe-pane -o` (a second call silently DETACHES the pipe); the tap's command string
   is a strftime template, so a literal pane id is mangled — use `#{pane_id}`; BSD `tr`
