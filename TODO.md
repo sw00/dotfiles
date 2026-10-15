@@ -90,13 +90,24 @@ removed — full implementation history lives in git. Shared-core behavior
   and a tap reads the bytes before that — so the status gap needs no new tool, and
   what is left of workmux is prompt injection plus a merge/cleanup lifecycle, neither
   of which costs >10 min/week today.
+  The in-place rung landed too: `pwt here <label>` opens a workstream in the repo's
+  OWN checkout — for repos a fresh checkout cannot serve (dotfiles: `worktree add`
+  dies at the git-crypt smudge filter) or where .env/.venv/node_modules are not worth
+  re-provisioning. It is a separate window over a SHARED working tree, so two in-place
+  workstreams in one repo must not mutate the same files at once. Windows pwt opens
+  now carry @pwt_sid/@pwt_label, and reuse matches that identity before falling back
+  to the path — and that fallback is worktrees-only, because a shared directory cannot
+  identify an in-place workstream: it sent the second label into the first one's window,
+  silently, and the new label then never existed as a workstream at all.
   What remains is Tier 3: push (osascript locally, PowerShell toast on WSL, ~5 min
-  cooling-off per workstream), deferred until Tier 2 has been in use for a while,
+  cooling-off per workstream), deferred until the tap has been in use for a while,
   since the payoff is unproven at one worktree and three sessions and it is the piece
   carrying a platform asymmetry — click-to-jump needs `terminal-notifier` (brew) or
   nothing at all.
-  One small follow-up, not a tier: the C-w panel rows do not show the state yet. It
-  is already on the window, so this is a read in the row generator.
+  Two small follow-ups, not tiers, both in the C-w panel: rows do not show the state
+  yet (`@pi_state` is already on the window, so this is a read in the row generator),
+  and the panel can only create WORKTREES — a repo with no rows is unreachable from it
+  (needs a `ctrl-f` picker over repo-list) and `pwt here` is shell-only.
   Field notes if this is revisited, all now in docs/GOTCHAS.md §tmux: **never**
   `pipe-pane -o` (a second call silently DETACHES the pipe); the tap's command string
   is a strftime template, so a literal pane id is mangled — use `#{pane_id}`; BSD `tr`
