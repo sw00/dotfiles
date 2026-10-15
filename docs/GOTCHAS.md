@@ -69,6 +69,51 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - Discord brew cask can leave a dangling Caskroom symlink. Fix: `brew reinstall --cask discord`.
 - Discord auto-updater caches old versions in `~/Library/Application Support/discord/app-*`. Fix: quit Discord, remove old dirs + updater state files, relaunch.
 
+## tmux
+
+- **A `pipe-pane` shell command is a `strftime(3)` template before it is a format
+  string.** tmux runs `format_expand_time` over it (`cmd-pipe-pane.c`), so a literal
+  pane id `%3` becomes `3`, and every later `tmux -t 3` silently targets **window
+  index 3** with rc 0 — no error, wrong window. Use `#{pane_id}`: it contains no `%`,
+  so it survives that pass and is expanded afterwards. The same call exists in 3.4,
+  so it is not a version quirk, and any `%` in the string (a path or socket
+  containing one) is mangled the same way. The job's stdout and stderr are `dup2`'d
+  to `/dev/null`, so a broken tap fails *silently* — redirect inside the command
+  string when debugging one.
+- **A `pipe-pane` job inherits the server's environment, and that `$TMUX` can be
+  stale or absent.** A server started with `-S <private-sock>` still handed its jobs
+  the *default* socket, so a job that calls `tmux` should be given `env TMUX=<sock>`
+  explicitly (which is also what makes such a job testable). Same class of bug for
+  hooks: `run-shell "tmux …"` spawns a client that needs `$TMUX` to find the server
+  and quietly clears nothing without it. Write hooks as **tmux commands**
+  (`set-hook -g after-select-window 'set-window-option -u @pi_alert'`) — the server
+  runs those itself, with no shell and no socket lookup.
+- **BSD/macOS `tr` block-buffers its output**: `{ printf a; sleep 1; printf b; } |
+  tr a X` writes nothing until EOF, so a `tr`-based stream splitter delivers nothing
+  until the process feeding it exits. For a streaming split use
+  `perl -e '$| = 1; while (sysread(STDIN,$b,8192)) { … print $b }'`. `stdbuf` is
+  GNU-only and unavailable here.
+- **`grep -o` is line-based on its INPUT, not just its output.** A TUI draws with
+  escape sequences and can go a long time without a newline, so matches sit in
+  grep's buffer and never appear; split the stream on ESC first, then match
+  `^]7501;.*`. Related: `[^\n]` inside a *single-quoted* pattern is a literal
+  backslash and `n`, not a newline class.
+- **`pane-focus-in` fires only for a real client.** A detached or probe server never
+  fires it, which reads exactly like "my hook is broken". `after-select-window` does
+  fire without a client, so wire both (they are idempotent) and test the one that can
+  fire. `set-hook` does reject names tmux does not know, so a typo fails at config
+  load — but a valid hook that never fires fails silently.
+- **Testing a pane tap: a finite emitter proves nothing.** When the feeding process
+  exits, its buffered output arrives in one flush, so a *dead* consumer still looks
+  like it works — as does a one-shot `printf | consumer`, which pipes EOF
+  immediately. Use an emitter that never exits, plus a bounded poll, plus a
+  distractor window at the index a mangled pane id would hit, so a wrong-target bug
+  is visible instead of landing on the right window by luck.
+- **Probes inherit the developer's `TMUX`, so a "private socket" test will still
+  write to the live server.** Every `tmux` call inside a probe needs `-S <sock>` or
+  `env -u TMUX`; testing a consumer without that put window options on the author's
+  real windows.
+
 ## General
 
 - bash `${var#...}` tolerates no spaces around the operator.
