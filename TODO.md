@@ -35,6 +35,17 @@ removed — full implementation history lives in git. Shared-core behavior
   it is reachable wherever the map is populated, which is the shared-core case
   that matters. Still worth fixing, deprioritizable for an attended profile.
 
+- [ ] **pwt push notifications are unverified on WSL (2026-10-15).** Everything else
+  about them is covered by `./check.sh`, including a live report through a real
+  `pipe-pane`, but the WSL transport is a zero-dep WinRT toast run through
+  `powershell.exe -NoProfile -NonInteractive -Command`, and its failure mode is
+  SILENCE: a pipe-pane job's output is dropped, so a wrong snippet looks exactly like
+  a working one until someone is on that machine. Next action: on a WSL host, `pwt
+  <slug>`, switch to another window while an agent settles, and confirm a toast; if
+  there is none, the documented escalation is `ubi:joshmedeski/wsl-notify-send` (ubi =
+  mise-managed, so no Brewfile/apt parity work). `tmux set -g @pwt_notify 0` mutes
+  the pushes meanwhile — the ⚑ flag and the C-w panel are independent of them.
+
 ## Deferred — judgment, not blocked
 
 - [ ] **Prompt-slim watch (due ~2 weeks after c321cfb).** The always-on prompt was
@@ -76,45 +87,6 @@ removed — full implementation history lives in git. Shared-core behavior
   must also be kept from writing through the stowed `settings.json` symlink (see
   docs/GOTCHAS.md §pi). Rejected outright: herdr, which replaces tmux rather than
   consolidating it.
-
-- [ ] **pwt Tier 3 — push notifications (Tiers 1 and 2 have landed).** Tier 1
-  (f6b2e59) gave `C-w` one panel over worktrees and live pi windows and stopped a
-  second pi from ever being spawned on one `--session-id` — not cosmetic: pi resumes
-  that id's existing session and rewrites its JSONL from its own memory, so two
-  writers clobber each other's turns with no lock to catch it. Tier 2 added the
-  state signal: `base/tmux/bin/pwt-osc` taps each pane's byte stream with
-  `pipe-pane` and mirrors pi's OSC 7501 reports into `@pi_state`/`@pi_alert`, which
-  `window-status-format` renders as a ⚑ and the focus hooks clear. That also settles
-  the mechanism the workmux entry above wrote off: pi writes the OSC RAW (never
-  DCS-wrapped, so `allow-passthrough` buys nothing), tmux consumes and discards it,
-  and a tap reads the bytes before that — so the status gap needs no new tool, and
-  what is left of workmux is prompt injection plus a merge/cleanup lifecycle, neither
-  of which costs >10 min/week today.
-  The in-place rung landed too: `pwt here <label>` opens a workstream in the repo's
-  OWN checkout — for repos a fresh checkout cannot serve (dotfiles: `worktree add`
-  dies at the git-crypt smudge filter) or where .env/.venv/node_modules are not worth
-  re-provisioning. It is a separate window over a SHARED working tree, so two in-place
-  workstreams in one repo must not mutate the same files at once. Windows pwt opens
-  now carry @pwt_sid/@pwt_label, and reuse matches that identity before falling back
-  to the path — and that fallback is worktrees-only, because a shared directory cannot
-  identify an in-place workstream: it sent the second label into the first one's window,
-  silently, and the new label then never existed as a workstream at all.
-  What remains is Tier 3: push (osascript locally, PowerShell toast on WSL, ~5 min
-  cooling-off per workstream), deferred until the tap has been in use for a while,
-  since the payoff is unproven at one worktree and three sessions and it is the piece
-  carrying a platform asymmetry — click-to-jump needs `terminal-notifier` (brew) or
-  nothing at all.
-  The panel gaps are closed too: rows carry pi's state (◐ working ⚑ blocked ✓ done
-  ✗ error) and sort a blocked workstream to the top, and ctrl-f reaches any repo
-  through repo-list — including one with no rows at all, which the list cannot show —
-  with a second key choosing a worktree or the in-place rung. So Tier 3 (push) is the
-  only thing left.
-  Field notes if this is revisited, all now in docs/GOTCHAS.md §tmux: **never**
-  `pipe-pane -o` (a second call silently DETACHES the pipe); the tap's command string
-  is a strftime template, so a literal pane id is mangled — use `#{pane_id}`; BSD `tr`
-  block-buffers, so the splitter is perl with autoflush; and a pane-tap test needs a
-  NON-EXITING emitter, because a finite one flushes everything at pane death and
-  passes a broken consumer.
 
 - [ ] **`settings.json` write-back churn — pick a convention, then encode it.**
   pi rewrites `lastChangelogVersion` through the stowed symlink on every version

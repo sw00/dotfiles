@@ -88,6 +88,14 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   and quietly clears nothing without it. Write hooks as **tmux commands**
   (`set-hook -g after-select-window 'set-window-option -u @pi_alert'`) — the server
   runs those itself, with no shell and no socket lookup.
+- **`set-environment -g` does NOT reach a `pipe-pane` job.** The job inherits the
+  environment tmux was started with (what the creating client had), not the live
+  global table: setting a variable and re-running the pipe in the same server leaves
+  the job without it — verified directly. So a knob for the tap has to be in the
+  client's environment *before* the server starts, or passed in the pipe command
+  itself (`pipe-pane … "exec env VAR=value …"`), which is also how check.sh
+  configures the notifier. A tmux **user option** is the way to have something
+  changeable at runtime, since the tap can read it per report.
 - **BSD/macOS `tr` block-buffers its output**: `{ printf a; sleep 1; printf b; } |
   tr a X` writes nothing until EOF, so a `tr`-based stream splitter delivers nothing
   until the process feeding it exits. For a streaming split use
