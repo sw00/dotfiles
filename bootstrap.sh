@@ -27,6 +27,9 @@ err()  { printf '\033[1;31m==>\033[0m %b\n' "$*" >&2; exit 1; }
 # bootstrap's privileged phase runs early, but up.sh's Windows-side work can
 # outlast the 15-minute ticket, and "it started with a ticket already cached"
 # is exactly the run where nobody expects a password prompt to reappear.
+# Start time (field 20 of /proc/<pid>/stat, past the comm field) identifies a PID
+# *incarnation*: a recycled PID gets a different one.
+_proc_start() { awk '{ sub(/.*\) /, ""); print $20 }' "/proc/$1/stat" 2>/dev/null; }
 _SUDO_PID=""
 _cleanup_sudo() {
     [[ -n "$_SUDO_PID" ]] && kill "$_SUDO_PID" 2>/dev/null || true
@@ -50,13 +53,25 @@ ensure_sudo() {
         sudo -v
     fi
 
-    # Background loop: keep the ticket alive as long as this script runs, and
-    # bow out if the script is gone — a SIGKILLed bootstrap leaves no trap to
-    # stop it.  Fds detached on purpose: an orphaned `sleep` must not hold
-    # bootstrap's stdout open, or a `bootstrap.sh | tee log` never sees EOF
-    # (docs/GOTCHAS.md).
+    # Background loop: keep the ticket alive as long as this script runs, and bow
+    # out if the script is gone — a SIGKILLed bootstrap leaves no trap to stop it.
+    # Liveness is PID *plus* start time, not `kill -0` alone: once a recycled PID
+    # belongs to an unrelated process the loop would go on renewing a sudo ticket
+    # on this host forever, which is worse than the expiry it exists to prevent.
+    # The tick cap bounds it even if that predicate is ever wrong.  (`$$` is the
+    # main shell even inside a subshell, and /proc is fine here — ensure_sudo only
+    # runs on Linux/WSL.)  Fds are detached on purpose: an orphaned `sleep` must
+    # not hold bootstrap's stdout open, or a `bootstrap.sh | tee log` never sees
+    # EOF (docs/GOTCHAS.md).
+    local _self_start; _self_start="$(_proc_start "$$")"
     (
-        while kill -0 "$$" 2>/dev/null && sudo -v -n 2>/dev/null; do sleep 60; done
+        _ticks=0
+        while (( _ticks < 480 )) \
+            && [[ "$(_proc_start "$$")" == "$_self_start" ]] \
+            && sudo -v -n 2>/dev/null; do
+            _ticks=$((_ticks + 1))
+            sleep 60
+        done
     ) >/dev/null 2>&1 &
     _SUDO_PID=$!
 }
