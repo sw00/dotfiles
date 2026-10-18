@@ -124,10 +124,14 @@ if [[ "$(git -C "$DOTFILES" rev-parse --show-toplevel 2>/dev/null)" == "$(realpa
         git -C "$DOTFILES" check-ignore -q -- "$s" || _lintable+=("$s")
     done
     ALL_SCRIPTS=("${_lintable[@]}")
-    if [[ ${#ALL_SCRIPTS[@]} -eq 0 ]]; then
-        printf '==> check.sh: no lintable scripts under %s — wrong DOTFILES?\n' "$DOTFILES" >&2
-        exit 1
-    fi
+fi
+
+# Unconditional on purpose: without a repo the list falls back to the bare find,
+# where an empty result means the same thing — stop rather than report a green
+# run that linted nothing.
+if [[ ${#ALL_SCRIPTS[@]} -eq 0 ]]; then
+    printf '==> check.sh: no lintable scripts under %s — wrong DOTFILES?\n' "$DOTFILES" >&2
+    exit 1
 fi
 
 for s in "${ALL_SCRIPTS[@]}"; do
