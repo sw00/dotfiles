@@ -451,7 +451,7 @@ _ensure_self_managed() {
     #
     # Skip-when-installed is the whole point: this runs on every bootstrap, and
     # upgrading is NOT a bootstrap concern.  Moving the harness version under
-    # the prompts in this repo has to be paired with the re-vendor and the smoke
+    # the prompts in this repo has to be paired with the smoke
     # eval, so upgrades live in the deliberate `agents-update` function
     # (base/fish) instead.  Bootstrap only converges to "self-managed at all".
     #

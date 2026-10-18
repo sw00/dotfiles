@@ -45,12 +45,12 @@ shim and prunes the stale install dir; `check.sh` asserts both are gone.
 
 `ensure_pi()` installs but never upgrades: a host that is already self-managed is
 skipped, because an upgrade swaps the harness under the prompts this repo ships
-and has to be paired with the re-vendor and the smoke eval that only a human can
-judge. Upgrades are therefore deliberate — `agents-update` (in `base/fish`) runs
-`pi update --self` and `claude update`, then compares the vendored subagent's
-`@ pi <version>` header against the running pi and, when they diverge, tells you
-to re-vendor `agent/extensions/subagent/` from pi's `examples/` and re-run
-`pi-smoke.sh` (see Tests).
+and has to be paired with the smoke eval that only a human can judge. Upgrades
+are therefore deliberate — `agents-update` (in `base/fish`) runs
+`pi update --self` and `claude update`, then reports whether pi's version moved
+and, when it did, points at `pi-smoke.sh` and `docs/PROMPT-EVAL.md` (see Tests).
+Nothing needs re-vendoring: the subagent extension loads pi's own example from
+the active release at load time.
 
 ## Models
 
@@ -140,8 +140,8 @@ Worker (Pro)
   └─ after non-trivial change                         → reviewer → fix → re-review once → oracle if stuck
 ```
 
-Subagents run in isolated pi subprocesses (vendored `agent/extensions/subagent/`,
-from pi examples — re-vendor on pi upgrades if the extension API changes).
+Subagents run in isolated pi subprocesses (`agent/extensions/subagent/` loads the
+example pi ships, from the active release — nothing to re-vendor on upgrade).
 
 ## Modes
 
@@ -269,7 +269,7 @@ is exercised by `check.sh` to prevent regressions.
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, reviewer
     └── extensions/
-        ├── subagent/            vendored delegation tool
+        ├── subagent/            delegation tool (loads pi's shipped example)
         ├── modes/               /chat /check /change
         ├── model-switch.ts      /use /cycle /models + rate-limit auto-fallback
         ├── infra-safety.ts      infra CLI mutation guard (wires infra-tables)

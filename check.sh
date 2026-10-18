@@ -2086,7 +2086,7 @@ fi
 # ── Agent upgrade routine (deliberate) ───────────────────────────────────────
 # pi and claude install themselves (sections above), but bootstrap must NOT
 # upgrade them.  An upgrade swaps the harness under the prompts this repo ships,
-# so it has to be paired with the re-vendor and the pi-smoke / PROMPT-EVAL pass
+# so it has to be paired with the pi-smoke / PROMPT-EVAL pass
 # that only a human can judge.  `agents-update` is that deliberate pairing; the
 # tombstones below keep a forced update from creeping back into bootstrap.
 # They match invocation lines only — prose about updating starts with '#', so a
@@ -2122,10 +2122,18 @@ check_has "agents-update: updates pi via its own updater" \
     'pi update --self' "$_AGENTS_UPDATE"
 check_has "agents-update: updates Claude Code via its own updater" \
     'claude update' "$_AGENTS_UPDATE"
-check_has "agents-update: tracks the vendored subagent pin" \
+check_not "agents-update: no vendored pin left to compare" \
     '@ pi ' "$_AGENTS_UPDATE"
-check_has "agents-update: names the smoke eval to re-run after a re-vendor" \
+check_has "agents-update: names the smoke eval a harness move owes" \
     'pi-smoke' "$_AGENTS_UPDATE"
+
+# The extension is not a copy any more: it resolves pi's own example from the
+# active release at load time, which is what dropped the re-vendor ritual.  Both
+# halves are asserted — resolves the release, and carries no vendored header.
+check_has "pi: subagent extension loads from the active pi release" \
+    'current-version' "$DOTFILES/base/pi/.pi/agent/extensions/subagent/index.ts"
+check_not "pi: subagent extension is not a vendored copy" \
+    'Vendored from pi examples' "$DOTFILES/base/pi/.pi/agent/extensions/subagent/index.ts"
 
 # The counters are only readable next to what produced them, and a baseline that
 # cannot name its prompt or harness is what made the 2026-10-09 numbers useless.
