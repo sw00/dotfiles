@@ -111,6 +111,25 @@ mapfile -t ALL_SCRIPTS < <(
         -type f | sort
 )
 
+# Lint repo content, not whatever happens to be lying in the working tree: a
+# scratch clone under $DOTFILES (an ignored src/, say) is not part of the repo,
+# and CI — which runs this suite on a fresh clone — never sees it.  Only the
+# repo rooted at $DOTFILES counts (an enclosing repo's rules must not decide
+# what this suite lints), untracked-but-not-ignored scripts are still linted so
+# a new script is checked before it is committed, and an empty result is fatal
+# rather than a silent green run.
+if [[ "$(git -C "$DOTFILES" rev-parse --show-toplevel 2>/dev/null)" == "$(realpath "$DOTFILES")" ]]; then
+    _lintable=()
+    for s in "${ALL_SCRIPTS[@]}"; do
+        git -C "$DOTFILES" check-ignore -q -- "$s" || _lintable+=("$s")
+    done
+    ALL_SCRIPTS=("${_lintable[@]}")
+    if [[ ${#ALL_SCRIPTS[@]} -eq 0 ]]; then
+        printf '==> check.sh: no lintable scripts under %s — wrong DOTFILES?\n' "$DOTFILES" >&2
+        exit 1
+    fi
+fi
+
 for s in "${ALL_SCRIPTS[@]}"; do
     rel="${s#"$DOTFILES/"}"
     check "bash -n: $rel" bash -n "$s"

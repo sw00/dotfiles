@@ -9,3 +9,6 @@ vim/.netrwhist
 **/fish/fish_variables
 # pi session captures (transient, machine-local)
 pi-session-*.html
+
+# Scratch clones (work repos cloned locally, not dotfiles content)
+/src/
