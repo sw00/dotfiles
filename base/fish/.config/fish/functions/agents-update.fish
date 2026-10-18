@@ -40,5 +40,6 @@ function agents-update --description 'Update pi and Claude Code, then flag the e
     end
     echo "pi $before -> $current — the harness moved under the prompts this repo ships:"
     echo '    run pi-smoke.sh and compare against docs/PROMPT-EVAL.md before trusting the numbers.'
+    echo '    pi also writes runtime state through the stowed settings.json symlink — check git status.'
     return 1
 end

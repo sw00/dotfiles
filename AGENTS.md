@@ -78,7 +78,10 @@ Key config paths:
 
 - Before committing: `bash check.sh` — commit only when green, and sanity-
   check the pass count (a harness bug once hid skipped tests behind a green
-  summary). Commits are GPG-signed; the signing subkey must be imported.
+  summary). Commits are GPG-signed; the signing subkey must be imported. For a
+  session that will end in commit+push, inventory the interactive prerequisites
+  up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
+  unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
 - Adding a WSL host: `hosts/<hostname>/.wslconfig` is usually all you need;
@@ -115,3 +118,6 @@ Tier by how much analysis remains before the item is actionable:
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
 **Pending work**: `TODO.md`
+**Before changing provisioning behaviour** (`bootstrap.sh`, `check.sh`, `os/wsl/up.sh`):
+skim `docs/GOTCHAS.md` and `TODO.md` first, then `.pi/plans/` if it exists — the
+intended UX of a phase and more than one invariant are written down only there.

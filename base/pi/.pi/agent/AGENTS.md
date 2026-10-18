@@ -21,3 +21,9 @@ Project skills live in `.agents/skills/` — the cross-harness agentskills.io
 standard (pi, Claude Code, Codex all read it) — never `.pi/skills/`. Follow the
 spec: `SKILL.md` with `name`/`description` frontmatter, progressive disclosure,
 paths relative to the skill directory.
+
+## Process safety
+
+Before killing a process, walk the ancestry from `$$`: if the target is your own
+parent, say what the kill takes down (this session, its tmux server) and let the
+user choose rather than killing it yourself.
