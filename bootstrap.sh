@@ -15,13 +15,18 @@ DOTFILES="${DOTFILES:-$HOME/dotfiles}"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==>\033[0m %s\n' "$*" >&2; }
-err()  { printf '\033[1;31m==>\033[0m %s\n' "$*" >&2; exit 1; }
+err()  { printf '\033[1;31m==>\033[0m %b\n' "$*" >&2; exit 1; }
 
 # ── Sudo keepalive ─────────────────────────────────────────────────────────────
 # Prompts for sudo once (if needed) and keeps the ticket alive for the rest of
 # the script via a background sudo -v -n loop. This avoids mid-script password
 # prompts on long operations (up.sh → ensure_system_tools, etc.).
 # Call ensure_sudo at the start of any path that needs elevation.
+#
+# A cached ticket gets the same background loop as a freshly entered password:
+# bootstrap's privileged phase runs early, but up.sh's Windows-side work can
+# outlast the 15-minute ticket, and "it started with a ticket already cached"
+# is exactly the run where nobody expects a password prompt to reappear.
 _SUDO_PID=""
 _cleanup_sudo() {
     [[ -n "$_SUDO_PID" ]] && kill "$_SUDO_PID" 2>/dev/null || true
@@ -29,16 +34,30 @@ _cleanup_sudo() {
 ensure_sudo() {
     # Already running under fakeroot / container?  No sudo needed.
     if [[ $EUID -eq 0 ]]; then return 0; fi
-    # Ticket is already valid (passwordless sudo or still cached).
-    if sudo -n true 2>/dev/null; then return 0; fi
     trap _cleanup_sudo EXIT
-    log "sudo required — entering password (will be cached for this session)"
-    sudo -v
-    # Background loop: keep the ticket alive as long as this script runs.
-    # Runs at most once per minute; exits if the ticket can't be refreshed.
+
+    if sudo -n true 2>/dev/null; then
+        log "sudo ticket already valid — keeping it alive for this run"
+    else
+        # No ticket, so a password is required.  Fail fast when there is no
+        # terminal to ask on (redirected/unattended run) rather than blocking
+        # on a prompt that can never be answered: sudo reads /dev/tty if it can
+        # open it, else stdin — neither means nobody is there to type.
+        if [[ ! -t 0 ]] && ! ( : <>/dev/tty ) 2>/dev/null; then
+            err "sudo needs a password but this run has no terminal to prompt on.\n\n  Prime the ticket from a real terminal first:  sudo -v\n  then re-run bootstrap.sh (a cached ticket is kept alive for the whole run)."
+        fi
+        log "sudo required — entering password (will be cached for this session)"
+        sudo -v
+    fi
+
+    # Background loop: keep the ticket alive as long as this script runs, and
+    # bow out if the script is gone — a SIGKILLed bootstrap leaves no trap to
+    # stop it.  Fds detached on purpose: an orphaned `sleep` must not hold
+    # bootstrap's stdout open, or a `bootstrap.sh | tee log` never sees EOF
+    # (docs/GOTCHAS.md).
     (
-        while sudo -v -n 2>/dev/null; do sleep 60; done
-    ) &
+        while kill -0 "$$" 2>/dev/null && sudo -v -n 2>/dev/null; do sleep 60; done
+    ) >/dev/null 2>&1 &
     _SUDO_PID=$!
 }
 
@@ -436,9 +455,12 @@ _ensure_self_managed() {
     # eval, so upgrades live in the deliberate `agents-update` function
     # (base/fish) instead.  Bootstrap only converges to "self-managed at all".
     #
-    # On a first install pi's installer prompts once when it can open /dev/tty
-    # (no flag and no stdin redirection suppresses that); claude's takes no
-    # input.
+    # On a first install pi's installer offers to launch pi ("Start pi now?") —
+    # but only when its stdout is a terminal, and answering yes `exec`s pi over
+    # the installer's process.  That steals the terminal and leaves bootstrap
+    # waiting under the new pi session until pi exits (docs/GOTCHAS.md, "pi");
+    # installing is bootstrap's job, launching never is — same split as upgrades
+    # above.  claude's installer takes no input.
     local name="$1" layout="$2" root="$3" url="$4" shell="$5"
     local tool_path="" resolved=""
     # realpath both sides: a symlinked component of $HOME would otherwise make
@@ -476,7 +498,19 @@ _ensure_self_managed() {
             warn "$name resolves to $tool_path (not the upstream install) — running the installer"
         fi
         log "installing $name (upstream installer, latest)"
-        curl -fsSL "$url" | "$shell"
+        # stdout through a pipe, never the terminal: that is what makes pi's
+        # tty-based launch offer decline itself (`[ -t 1 ] || return 0`, then
+        # `exec pi`, which would steal the terminal — docs/GOTCHAS.md, "pi").
+        # `cat >&2` keeps the installer's output visible and streaming rather
+        # than buffered, and merging stderr in keeps the two streamed in order.
+        # Never redirect the installer's stdin: `$shell` reads its own script
+        # from there, so `</dev/null` would feed it an empty script and the
+        # install would silently no-op (it exits 0).
+        curl -fsSL "$url" | "$shell" 2>&1 | cat >&2 \
+            || err "$name: upstream installer failed (see above)"
+        # Trusting the pipeline's status is not enough — verify the layout this
+        # whole branch is about, so a silent no-op install cannot pass.
+        [[ -e "$layout" ]] || err "$name: installer finished but $layout is missing"
     fi
 
     # mise-era leftovers, pruned only once the upstream install exists: the mise
@@ -486,11 +520,15 @@ _ensure_self_managed() {
     local mise_dir="$HOME/.local/share/mise/installs/$name"
     if [[ -e "$layout" && -d "$mise_dir" ]]; then
         log "pruning the mise-era $name install ($name is not mise-managed)"
+        # `mise uninstall` also clears the download cache, but it can exit 0
+        # while leaving the version symlinks behind (seen on pi and claude:
+        # installs/<name>/{latest,0.82} dangling once the version dir went), so
+        # the rm — not the uninstall — is what satisfies check.sh's "no stale
+        # mise install directory" guard.
         if command -v mise >/dev/null 2>&1; then
-            mise uninstall "$name" >/dev/null 2>&1 || rm -rf "$mise_dir"
-        else
-            rm -rf "$mise_dir"
+            mise uninstall "$name" >/dev/null 2>&1 || true
         fi
+        rm -rf "$mise_dir"
     fi
 }
 
