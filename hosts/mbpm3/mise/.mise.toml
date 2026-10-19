@@ -6,11 +6,12 @@
 # Everyday k8s navigation tools (kubectl, k9s, kubectx, kubens) are global
 # and live in base/mise/.config/mise/config.toml.
 #
-# Several tools below use mise's pipx backend (isolated venvs per tool):
-#   azure → pipx:azure-cli   (registry shorthand)
-#   pdm   → pipx:pdm         (registry shorthand)
-# mise installs the pipx backend automatically when needed — no separate
-# Homebrew installation required.
+# Several tools below use mise's pypi backend (isolated venvs per tool):
+#   azure → pypi:azure-cli   (registry default; was pipx: until mise switched)
+#   pdm   → pypi:pdm         (registry default; was pipx: until mise switched)
+# mise installs the backend automatically when needed — no separate Homebrew
+# installation required. The switch was done with `mise uninstall --all X &&
+# mise install X`; `mise backends switch` only works for lockfile-locked tools.
 
 [tools]
 helm       = "latest"

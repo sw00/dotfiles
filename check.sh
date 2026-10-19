@@ -988,6 +988,66 @@ telegram|Telegram.TelegramDesktop
 firefox@developer-edition|Mozilla.Firefox.DeveloperEdition
 PARITY
 
+# ── Ownership drift guards ───────────────────────────────────────────────────
+# The audit behind these found (a) tools installed with no declaration in any
+# config and (b) five tools installed by brew AND mise at once, every one of them
+# silently resolving to brew. Neither class was visible to this suite: the parity
+# tests above only ever covered three hardcoded packages. These generalise it —
+# the same reasoning as the leak guard, applied to package ownership.
+BREW_HOST="$DOTFILES/hosts/$HOST/brew/.Brewfile-host"
+MISE_HOST="$DOTFILES/hosts/$HOST/mise/.mise.toml"
+
+# Every formula named in either Brewfile that applies to this host.
+_brew_declared() {
+    cat "$BREW_BASE" "$BREW_HOST" 2>/dev/null \
+        | grep -oE '^brew "[^"]+"' | cut -d'"' -f2 | sort -u
+}
+
+# (b) One owner per tool: a name may not be both a mise-declared tool and a
+# Brewfile formula. Pure config, so it also runs in CI. The exceptions are a
+# documented platform split — aqua publishes no macOS build, so mise carries the
+# linux declaration and brew carries macOS.
+_dual_exempt='btop navi'
+_both_owned=""
+while read -r _f; do
+    [ -n "$_f" ] || continue
+    case " $_dual_exempt " in *" $_f "*) continue ;; esac
+    if grep -qE "^(\[tools\.)?\"?${_f}\"?[[:space:]]*=" "$MISE_CFG" "$MISE_HOST" 2>/dev/null; then
+        _both_owned+="$_f "
+    fi
+done < <(_brew_declared)
+if [ -n "$_both_owned" ]; then
+    _fail "ownership: declared by both mise and brew — $_both_owned"
+else
+    _ok "ownership: no tool declared by both mise and brew"
+fi
+
+# (a) Every explicitly installed formula must be either declared in a Brewfile or
+# exempted here with a reason. Needs this machine's brew state, so it skips on the
+# ubuntu CI runner rather than pretending to be green.
+declare -A _brew_exempt=(
+    [boz/repo/kail]="k8s log tailer, in daily use; untrusted third-party tap, deliberately unmanaged"
+    [localstack/tap/localstack-cli]="LocalStack CLI; installed once, left unmanaged"
+    [tmux-fingers]="tap formula; TPM is the plugin path"
+)
+if command -v brew >/dev/null 2>&1; then
+    _decl=$(_brew_declared)
+    _undecl=""
+    while read -r _f; do
+        [ -n "$_f" ] || continue
+        [ -n "${_brew_exempt[$_f]+x}" ] && continue
+        printf '%s\n' "$_decl" | grep -qxF "$_f" && continue
+        _undecl+="$_f "
+    done < <(brew leaves 2>/dev/null)
+    if [ -n "$_undecl" ]; then
+        _fail "brew: installed but declared nowhere and not exempt — $_undecl"
+    else
+        _ok "brew: every explicitly installed formula is declared or exempt"
+    fi
+else
+    _skip "brew: every explicitly installed formula is declared or exempt" "brew not installed (CI)"
+fi
+
 check_has "Brewfile-base: CaskaydiaCove font cask present" \
     'font-caskaydia-cove-nerd-font' \
     "$DOTFILES/os/macos/brew/.Brewfile-base"
