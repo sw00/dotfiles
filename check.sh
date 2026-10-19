@@ -1678,6 +1678,92 @@ check_has "pwt: reuses by that identity before falling back to the path" \
 # second label silently lands in the first label's window and never exists.
 check_has "pwt: reuses an in-place workstream by identity alone" \
     'identity-only' "$_PWT"
+# Neither the sid nor the repo root can be unique on their own: the sid is derived
+# from the repo's BASENAME (two repos can share it, and `here` shares it with a
+# worktree of the same name) while a here window and a worktree window in one repo
+# share the root. The window records the workstream's own directory instead, and is
+# matched on sid AND dir; the fallback tier is restricted to windows with NO dir so
+# the fix cannot reintroduce the hijack for pairs it just separated.
+check_has "pwt: records the workstream's own directory on the window" \
+    '@pwt_dir' "$_PWT"
+check_has "pwt: the pre-marker fallback needs an unmarked window" \
+    'test -z "\$parts\[4\]"' "$_PWT"
+# __worktrees/ must be invisible to everything that is not pwt: an untracked dir has
+# `git add -A` stage a mode-160000 gitlink for the worktree, and it doubles every
+# ripgrep/editor hit. info/exclude is per-clone and uncommitted, so no target repo
+# has to commit an ignore rule.
+check_has "pwt: hides __worktrees from the parent repo" \
+    'info/exclude' "$_PWT"
+# A missing pi makes the pane exit at once and tmux takes the window with it, so the
+# worktree would be created and nothing would be shown.
+check_has "pwt: preflights pi before spawning a window" \
+    'command -sq pi' "$_PWT"
+check_has "pwt: reports a window that died at birth" \
+    'died at birth' "$_PWT"
+# No legitimate commit-ish starts with '-' — git would parse it as an OPTION.
+check_has "pwt: rejects a base ref git would parse as an option" \
+    'invalid base ref' "$_PWT"
+# Two in-place workstreams share one working tree: warn, never refuse (the rung
+# exists for repos a worktree cannot serve).
+check_has "pwt: warns when a second in-place workstream shares a working tree" \
+    'parallel edits will collide' "$_PWT"
+# `worktree remove` succeeds first, so `branch -d` refusing an unmerged branch must
+# name the follow-up rather than leave a bare git hint.
+check_has "pwt: names the branch left behind by an unmerged rm" \
+    'not fully merged' "$_PWT"
+
+# The written contract. pwt's design lives in code comments and this suite; a real
+# tool ships the parts a user has to know.
+check "pwt: has a user-facing contract doc" test -f "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc states the __worktrees ignore rule" \
+    'info/exclude' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc states the in-place shared-tree caveat" \
+    'shares? one working tree' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc states the notification mute switch" \
+    '@pwt_notify' "$DOTFILES/docs/PWT.md"
+check_has "pwt: help points at the doc" \
+    'docs/PWT' "$_PWT"
+check_has "AGENTS.md: points at docs/PWT.md" \
+    'docs/PWT\.md' "$DOTFILES/AGENTS.md"
+
+if command -v fish >/dev/null 2>&1; then
+    # Behavioural, no tmux needed: the ignore rule is written on create, and a
+    # second run must not append a duplicate line.
+    check "pwt: hides __worktrees from git status, add -A, and indexers" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            git config user.email t@t; git config user.name t; echo x > f; git add f
+            git -c commit.gpgsign=false commit -qm init
+            printf %s node_modules/ > .git/info/exclude
+            env -u TMUX "$1" -c "source $2; pwt demo" >/dev/null 2>&1
+            [[ -d __worktrees/demo ]] || exit 1
+            git check-ignore -q __worktrees/demo || exit 1
+            [[ -z "$(git status --porcelain)" ]] || exit 1
+            git add -A || exit 1
+            ! git ls-files -s | grep -q "^160000" || exit 1
+            [[ "$(grep -cxF -- "__worktrees/" .git/info/exclude)" == "1" ]] || exit 1
+            [[ "$(head -1 .git/info/exclude)" == "node_modules/" ]] || exit 1
+            [[ "$(grep -c "^$" .git/info/exclude)" == "0" ]] || exit 1
+            env -u TMUX "$1" -c "source $2; pwt demo" >/dev/null 2>&1
+            [[ "$(grep -cxF -- "__worktrees/" .git/info/exclude)" == "1" ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    # TMUX is set so the preflight path runs, but no server is touched: the guard must
+    # fire before anything is created. PATH is the real one minus pi's own directory,
+    # so the test is not vacuous on a machine that keeps pi elsewhere. --no-config is
+    # load-bearing: fish sources config.fish even for -c, and this repo's config re-adds
+    # ~/.local/bin (where pi lives) to PATH, which would defeat the restricted PATH.
+    _pi_dir="$(dirname "$(command -v pi 2>/dev/null || printf /nonexistent/pi)")"
+    _no_pi_path="$(printf '%s' "$PATH" | tr ':' '\n' | grep -vxF -- "$_pi_dir" | paste -sd: -)"
+    check "pwt: refuses to spawn a window when pi is not on PATH" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            git config user.email t@t; git config user.name t; echo x > f; git add f
+            git -c commit.gpgsign=false commit -qm init
+            out=$(env TMUX=/nonexistent PATH="$1" "$2" -N -c "source $3; pwt demo" 2>&1)
+            rc=$?
+            [[ $rc -ne 0 && ! -d __worktrees/demo && "$out" == *"pi is not on PATH"* ]]' \
+        _ "$_no_pi_path" "$(command -v fish)" "$_PWT"
+else
+    _skip "pwt: __worktrees ignore + pi preflight" "fish not installed"
+fi
 
 # ── tmux status wiring for the tap ───────────────────────────────────────────
 _TMUXCONF="$DOTFILES/base/tmux/.config/tmux/tmux.conf"
@@ -1783,8 +1869,25 @@ check_has "pwt-pick: shows the state pi reports" \
 # An fzf execute()/reload() bind interpolates the row and whatever was typed into
 # a COMMAND STRING that a shell then parses, so a quote in a path is an injection.
 # --expect delivers the key and the row on stdout, to be passed as argv instead.
-check_has "pwt-pick: takes its verbs from --expect" \
-    '\-\-expect=' "$_PWT_PICK"
+# --expect TAKES the key away from fzf's line editor, so the verbs must be keys the
+# editor does not use: ctrl-n/ctrl-p are its next/previous-match pair and ctrl-d is
+# delete-char/eof. Binding those made ctrl-p navigate while ctrl-n exited the panel.
+check_has "pwt-pick: takes its verbs from --expect, off the editor's keys" \
+    '--expect=ctrl-t,ctrl-x,ctrl-r' "$_PWT_PICK"
+check_not "pwt-pick: no longer steals the fzf navigation keys" \
+    '--expect=ctrl-n' "$_PWT_PICK"
+# Every live pi pane is adopted as the panel opens — the ones pwt opened are an
+# idempotent re-attach (plain pipe-pane replaces), a hand-started session gets its
+# only attach. Twin of the pwt.fish assertion: #{pane_id} is the only safe channel,
+# because the command string passes through strftime before tmux expands formats.
+check_has "pwt-pick: adopts every live pi pane when the panel opens" \
+    'pwt-osc #\{pane_id\}' "$_PWT_PICK"
+# ...and neither list format may ever emit an EMPTY field: `read` collapses one and
+# shifts every later column, so the tap would skip exactly the panes that have no
+# state yet — the untapped ones, i.e. the whole point of the adoption. grep -F: the
+# pattern is a tmux format, all braces and question marks.
+check "pwt-pick: emits a placeholder, never an empty state field" \
+    grep -qF -- '#{?#{@pi_state},#{@pi_state},-}' "$_PWT_PICK"
 check_not "pwt-pick: builds no shell command string for fzf" \
     '\-\-bind' "$_PWT_PICK"
 # pi panes are found by window TITLE, because pane_current_command is `node` for
@@ -1811,7 +1914,7 @@ check_has "pwt-pick: holds the popup open when pwt fails" \
 # two-column marker (▸ window open / ● pi history). With no tmux and a missing
 # HOME both markers are blank, which also pins the column layout.
 _pwt_tmp="$(mktemp -d)"
-mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/live"
+mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/repo/__worktrees/demo/sub" "$_pwt_tmp/org/live"
 check "pwt-pick: lists a worktree as org/repo/slug" \
     bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "    org/repo/demo" ]]' \
     _ "$_pwt_tmp" "$_PWT_PICK"
@@ -1823,8 +1926,9 @@ _pwt_bin="$(mktemp -d)"
 cat > "$_pwt_bin/tmux" <<'STUB'
 #!/bin/bash
 case "$*" in
-  *pane_title*)        printf '%s\t%s\t%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" "${PWT_STUB_LABEL:--}" "$PWT_STUB_STATE" ;;
+  *pane_title*)        printf '%s\t%s\t%s\t%s\t%s\n' "$PWT_STUB_TITLE" "$PWT_STUB_LIVE" "${PWT_STUB_LABEL:--}" "${PWT_STUB_STATE:--}" "%9" ;;
   *pane_current_path*) printf '%s\t%s\n' "$PWT_STUB_WT" "$PWT_STUB_WTSTATE" ;;
+  *pipe-pane*)         printf '%s\n' "$*" >> "$PWT_STUB_PIPELOG" ;;
 esac
 STUB
 chmod +x "$_pwt_bin/tmux"
@@ -1845,6 +1949,34 @@ check "pwt-pick: labels a marked window by its workstream, not its directory" \
         PWT_STUB_TITLE="π - x" PWT_STUB_WT=/nonexistent-wt PWT_STUB_LIVE="$2/org/live" \
         PWT_STUB_LABEL="audit" "$3" --list)
         grep -qF "▸   audit" <<<"$out" && ! grep -qF "▸   org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# The ▸ marker and the live-row suppression must use the SAME rule (a pane anywhere
+# beneath the worktree), or a pi that cd'd into a subdirectory hides its own row and
+# leaves the worktree row unmarked: the open state disappears from the panel.
+check "pwt-pick: a pane in a subdirectory still marks the worktree row open" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="π - x" PWT_STUB_WT="$2/org/repo/__worktrees/demo/sub" \
+        PWT_STUB_LIVE="$2/org/repo/__worktrees/demo/sub" "$3" --list)
+        grep -qF "▸   org/repo/demo" <<<"$out" && [[ "$(grep -c . <<<"$out")" == "1" ]]' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# The adoption itself: an EMPTY state is the untapped pane this exists for, and the
+# panel must still attach to it. The stub answers the row/state queries the way the
+# real formats do (a `-` placeholder), and records pipe-pane.
+check "pwt-pick: --tap-live adopts a pane that has no state yet" \
+    bash -c 'log=$(mktemp); trap "rm -f \"$log\"" EXIT
+        env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+            PWT_STUB_TITLE="π - x" PWT_STUB_LIVE="$2/org/live" PWT_STUB_STATE="" \
+            PWT_STUB_PIPELOG="$log" "$3" --tap-live || exit 1
+        grep -qF "pipe-pane -t %9" "$log" && grep -qF "pwt-osc #{pane_id}" "$log"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# ...and the query seam stays a query: --list must attach nothing, or check.sh and
+# every script that lists would mutate the developer's server.
+check "pwt-pick: --list never attaches a tap" \
+    bash -c 'log=$(mktemp); trap "rm -f \"$log\"" EXIT
+        env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+            PWT_STUB_TITLE="π - x" PWT_STUB_LIVE="$2/org/live" \
+            PWT_STUB_PIPELOG="$log" "$3" --list >/dev/null || exit 1
+        [[ ! -s "$log" ]]' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 # pi's own state, and the ordering that makes the list answer "which one wants me"
 # without reading it: a blocked workstream sorts above a working one.
@@ -1869,9 +2001,22 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     _pwt_repo="$(mktemp -d)/repo"
     _pwt_wt="$_pwt_repo/__worktrees/demo"
     mkdir -p "$_pwt_repo"
-    (cd "$_pwt_repo" && git init -q && git config user.email t@t && git config user.name t \
-        && echo x > f && git add f && git commit -qm init \
+    (cd "$_pwt_repo" && git init -q && git -c commit.gpgsign=false config commit.gpgsign false \
+        && git config user.email t@t && git config user.name t \
+        && echo x > f && git add f && git -c commit.gpgsign=false commit -qm init \
         && git worktree add -q "$_pwt_wt") >/dev/null 2>&1
+    # A stub `pi` makes window creation deterministic everywhere: every pane pwt
+    # spawns stays alive (so "a window was opened" is observable without leaning on
+    # remain-on-exit), and no test spawns the real one. It must be exported because
+    # the tmux server inherits the PATH — and every probe below runs `fish -N`, because
+    # this repo's config moves ~/.local/bin (where the real pi lives) back to the front
+    # of PATH, which would silently undo the stub. PATH is restored before the block
+    # ends so later sections see the real one.
+    _pwt_stub="$(mktemp -d)"
+    printf '#!/bin/sh\nexec sleep 300\n' > "$_pwt_stub/pi"
+    chmod +x "$_pwt_stub/pi"
+    _pwt_path_saved="$PATH"
+    PATH="$_pwt_stub:$PATH"; export PATH
     # pi cd'd into a SUBDIRECTORY of the worktree, in a window whose active pane is
     # therefore not the pane we are looking for either way. The panes run `sleep`,
     # not a shell: a shell rewrites its own pane title on every prompt (fish sets
@@ -1879,13 +2024,10 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     # The title is a faithful stand-in for pi, which sets it once and keeps it
     # because it stays the foreground program.
     mkdir -p "$_pwt_wt/sub"
-    # One assertion below spawns pi FOR REAL, and pi is not installed everywhere (CI
-    # has none). With no pi the pane's command exits at once and takes its WINDOW with
-    # it, so the window that assertion looks for would never be there — which has
-    # nothing to do with the reuse decision under test. remain-on-exit keeps the window
-    # and its pane_start_command whatever the command does. Fixing the pane's PATH up
-    # instead does not work: a pane's environment is the one tmux was STARTED with, and
-    # neither a global nor a session-scoped `set-environment` reaches a later pane.
+    # remain-on-exit is belt-and-braces under the stub: if a pane's command exits at
+    # once (a stub that could not be found), tmux takes the window with it and "a
+    # window was opened" would read as a failure that has nothing to do with the reuse
+    # decision under test.
     tmux -S "$_pwtsock" -f /dev/null new-session -d -s pwttest -c /tmp "sleep 300" >/dev/null 2>&1
     tmux -S "$_pwtsock" set-option -g remain-on-exit on
     tmux -S "$_pwtsock" new-window -t pwttest -n pisub -c "$_pwt_wt/sub" "sleep 300" >/dev/null 2>&1
@@ -1909,31 +2051,33 @@ switch $argv[2]
     case jump
         pwt jump $argv[3]
     case ws
-        echo (__pwt_workstream_window $argv[3])
+        echo (__pwt_workstream_window $argv[3] $argv[4])
+    case open
+        __pwt_open_window $argv[3] $argv[4] $argv[5] $argv[6]
     case here
         cd $argv[3]; and pwt here $argv[4] $argv[5]
 end
 PROBE
 
     check "pwt: finds pi in a SUBDIRECTORY of the worktree (in-tree)" \
-        bash -c '[[ -n "$(env TMUX="$1" fish "$2" "$3" find "$4" in-tree)" ]]' \
+        bash -c '[[ -n "$(env TMUX="$1" fish -N "$2" "$3" find "$4" in-tree)" ]]' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_wt"
     check "pwt: an exact-only lookup does not match that pane (documented limit)" \
-        bash -c '[[ -z "$(env TMUX="$1" fish "$2" "$3" find "$4" pi-only)" ]]' \
+        bash -c '[[ -z "$(env TMUX="$1" fish -N "$2" "$3" find "$4" pi-only)" ]]' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_wt"
     check "pwt: rm refuses while a pi pane sits inside the worktree" \
-        bash -c 'env TMUX="$1" fish "$2" "$3" rm "$4" demo >/dev/null 2>&1
+        bash -c 'env TMUX="$1" fish -N "$2" "$3" rm "$4" demo >/dev/null 2>&1
             [[ -d "$4/__worktrees/demo" ]]' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
     # The control matters as much as the refusal: a guard that refuses everything
     # would pass the test above while making `pwt rm` useless.
     check "pwt: rm still removes a worktree no window holds (positive control)" \
         bash -c 'cd "$4" && git worktree add -q __worktrees/solo >/dev/null 2>&1
-            env TMUX="$1" fish "$2" "$3" rm "$4" solo >/dev/null 2>&1
+            env TMUX="$1" fish -N "$2" "$3" rm "$4" solo >/dev/null 2>&1
             [[ ! -d "$4/__worktrees/solo" ]]' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
     check "pwt: jump picks the pi window, not a shell in the same directory" \
-        bash -c 'env TMUX="$1" fish "$2" "$3" jump "$4" >/dev/null 2>&1
+        bash -c 'env TMUX="$1" fish -N "$2" "$3" jump "$4" >/dev/null 2>&1
             tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{pane_title}" | grep -q "^1:π - "' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
 
@@ -1950,20 +2094,20 @@ PROBE
     tmux -S "$_pwtsock" set-window-option -t "$_in_a" @pwt_sid repo-alpha
     tmux -S "$_pwtsock" set-window-option -t "$_in_b" @pwt_sid repo-beta
     check "pwt: tells two in-place workstreams in one directory apart" \
-        bash -c '[[ "$(env TMUX="$1" fish "$2" "$3" ws repo-alpha)" == "$4" && \
-                  "$(env TMUX="$1" fish "$2" "$3" ws repo-beta)" == "$5" ]]' \
-        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_in_a" "$_in_b"
+        bash -c '[[ "$(env TMUX="$1" fish -N "$2" "$3" ws repo-alpha "$6")" == "$4" && \
+                  "$(env TMUX="$1" fish -N "$2" "$3" ws repo-beta "$6")" == "$5" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_in_a" "$_in_b" "$_pwt_repo"
     # The second `pwt here` must JUMP to that window, not open a second one on the
     # only working tree there is — and it needs no pi to prove it, since reuse never
     # spawns one.
     _in_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
-    _in_out="$(env TMUX="$_pwtsock" fish "$_pwtprobe" "$DOTFILES" here "$_pwt_repo" alpha 2>&1)"
+    _in_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" here "$_pwt_repo" alpha 2>&1)"
     _in_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
     check "pwt: 'here' jumps to the existing in-place workstream, opening no window" \
         bash -c '[[ "$1" == "$2" && "$3" == *"jumped to the open window"* ]]' \
         _ "$_in_before" "$_in_after" "$_in_out"
     check "pwt: 'here' rejects a base ref (nothing to base a worktree on)" \
-        bash -c 'cd "$4" && ! env TMUX="$1" fish "$2" "$3" here alpha develop >/dev/null 2>&1' \
+        bash -c 'cd "$4" && ! env TMUX="$1" fish -N "$2" "$3" here alpha develop >/dev/null 2>&1' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
     # A second, DIFFERENT in-place label in the same repo must get its own window.
     # This is the regression the path fallback caused: the lookup found alpha's window
@@ -1973,13 +2117,94 @@ PROBE
     # one assertion that spawns pi — which need not be installed, since remain-on-exit
     # keeps the window either way.
     check "pwt: a second in-place label gets its own window, not the first one's" \
-        bash -c 'env TMUX="$1" fish "$2" "$3" here "$4" gamma >/dev/null 2>&1
+        bash -c 'env TMUX="$1" fish -N "$2" "$3" here "$4" gamma >/dev/null 2>&1
             tmux -S "$1" list-windows -t pwttest -F "#{window_name}|#{pane_start_command}" \
                 | grep -q "^gamma|pi --session-id repo-gamma"' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
 
+    # Identity is sid AND dir. The basename-derived sid is not unique — `here demo`
+    # and a worktree `demo` in one repo share it, as do two repos with one name — and
+    # the lookup is server-wide. Matching on the sid alone created the worktree, then
+    # jumped into the OTHER workstream and reported success.
+    tmux -S "$_pwtsock" new-window -t pwttest -n hereclash -c "$_pwt_repo" "sleep 300"
+    _clash_w="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="hereclash"{print $1}')"
+    tmux -S "$_pwtsock" set-window-option -t "$_clash_w" @pwt_sid repo-demo
+    tmux -S "$_pwtsock" set-window-option -t "$_clash_w" @pwt_dir "$(cd "$_pwt_repo" && pwd -P)"
+    _clash_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" open "$_pwt_wt" demo repo-demo >/dev/null 2>&1 || true
+    _clash_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: same sid in a different dir gets its own window (here vs worktree)" \
+        bash -c '[[ "$1" -lt "$2" ]]' _ "$_clash_before" "$_clash_after"
+    # ...and a window opened before @pwt_dir existed is still reused, so the fix
+    # cannot orphan a live workstream. The in-place assertions above already exercise
+    # this tier: they mark @pwt_sid only.
+    tmux -S "$_pwtsock" new-window -t pwttest -n legacy -c "$_pwt_repo" "sleep 300"
+    _legacy_w="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="legacy"{print $1}')"
+    tmux -S "$_pwtsock" set-window-option -t "$_legacy_w" @pwt_sid repo-legacy
+    _legacy_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _legacy_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" open "$_pwt_repo" legacy repo-legacy 2>&1)"
+    _legacy_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: a window without @pwt_dir is still reused (pre-marker fallback)" \
+        bash -c '[[ "$1" == "$2" && "$3" == *"jumped to the open window"* ]]' \
+        _ "$_legacy_before" "$_legacy_after" "$_legacy_out"
+    # ...but only when that window's panes are actually IN the workstream's tree. A
+    # legacy `here` window (unmarked, cwd = repo root) must not be handed to the
+    # same-named WORKTREE: that created the worktree, jumped into the main checkout
+    # and reported success.
+    tmux -S "$_pwtsock" new-window -t pwttest -n legacyother -c "$_pwt_repo" "sleep 300"
+    _lother_w="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="legacyother"{print $1}')"
+    tmux -S "$_pwtsock" set-window-option -t "$_lother_w" @pwt_sid repo-other
+    _lother_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" open "$_pwt_wt" other repo-other >/dev/null 2>&1 || true
+    _lother_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: an unmarked window elsewhere in the repo is NOT reused for a worktree" \
+        bash -c '[[ "$1" -lt "$2" ]]' _ "$_lother_before" "$_lother_after"
+    # A legacy window whose original pane sits in a NON-ACTIVE split: the plain
+    # window formats report the ACTIVE pane's cwd, so a window-keyed lookup sees the
+    # wrong directory. `here` is identity-only and has no path fallback behind it, so
+    # that miss would open a SECOND pi on one session id — the transcript clobber.
+    tmux -S "$_pwtsock" new-window -t pwttest -n legacysplit -c /tmp "sleep 300"
+    tmux -S "$_pwtsock" split-window -t legacysplit -c "$_pwt_repo" "sleep 300"
+    _split_main="$(tmux -S "$_pwtsock" list-panes -t legacysplit -F '#{pane_id}' | head -1)"
+    tmux -S "$_pwtsock" select-pane -t "$_split_main"
+    _split_w="$(tmux -S "$_pwtsock" list-windows -t pwttest -F '#{window_id} #{window_name}' \
+        | awk '$2=="legacysplit"{print $1}')"
+    tmux -S "$_pwtsock" set-window-option -t "$_split_w" @pwt_sid repo-split
+    _split_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _split_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" here "$_pwt_repo" split 2>&1)"
+    _split_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: a legacy window is found through a pane that is not its active one" \
+        bash -c '[[ "$1" == "$2" && "$3" == *"jumped to the open window"* ]]' \
+        _ "$_split_before" "$_split_after" "$_split_out"
+
+    # Tier 1, positively: a window pwt marked with sid AND dir (gamma, above) is
+    # reused without opening a second window — the case that would otherwise start a
+    # second pi on one session id.
+    _tier_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _tier_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" open "$_pwt_repo" gamma repo-gamma 2>&1)"
+    _tier_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: a window marked with sid AND dir is reused" \
+        bash -c '[[ "$1" == "$2" && "$3" == *"jumped to the open window"* ]]' \
+        _ "$_tier_before" "$_tier_after" "$_tier_out"
+    # A worktree with no branch (detached): `branch -d` has nothing to delete, which
+    # is finished rather than failed — it must not print a "not found" error or claim
+    # a "kept" branch, and the worktree must actually be gone.
+    (cd "$_pwt_repo" && git worktree add --detach -q "$_pwt_repo/__worktrees/detached" >/dev/null 2>&1)
+    check "pwt: rm fixture for a branchless worktree exists" test -d "$_pwt_repo/__worktrees/detached"
+    _detached_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" rm "$_pwt_repo" detached 2>&1)"
+    _detached_rc=$?
+    check "pwt: rm of a branchless worktree succeeds and mentions no branch" \
+        bash -c '[[ "$1" -eq 0 && "$2" != *"not fully merged"* && "$2" != *"not found"* ]]' \
+        _ "$_detached_rc" "$_detached_out"
+    check "pwt: rm of a branchless worktree removed it" \
+        test ! -d "$_pwt_repo/__worktrees/detached"
+
     tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
-    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe"
+    PATH="$_pwt_path_saved"; export PATH
+    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe" "$_pwt_stub"
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
 fi
@@ -2245,6 +2470,18 @@ REC
     # The push rides that same report through the same real pipe: the first blocked
     # emit pushes (no client is attached, so nobody is looking) and the rest are
     # coalesced by the cooldown — a stream of them yields exactly one.
+    #
+    # Wait for the log before asserting. The tap sets @pi_alert and THEN spawns the
+    # notifier, so a flag observed above can be a beat ahead of the `rec` write: the
+    # assertion is "exactly one push", not "one push within the flag's own write".
+    for _i in 1 2 3 4 5 6 7 8 9 10; do
+        [ -s "$_osc_dir/notify.log" ] && break
+        sleep 0.3
+    done
+    # Settle one more second before counting: the emitter fires every 0.25 s, so this
+    # is the window in which a BROKEN cooldown would produce a second push. Without
+    # it the count samples the moment the first line appears and can never see one.
+    sleep 1
     check "pwt-osc: a live stream of reports pushes exactly once" \
         test "$(wc -l < "$_osc_dir/notify.log" 2>/dev/null | tr -d ' ')" = "1"
     check "pwt-osc: the live push names the state it is about" \

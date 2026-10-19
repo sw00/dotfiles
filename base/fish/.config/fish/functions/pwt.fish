@@ -106,11 +106,12 @@ end
 # path as given, so canonicalising the TARGET is what makes the two meet — whereas
 # canonicalising each PANE would fire fish's PWD-change event per pane, which
 # direnv hooks on, for every pane on the server.
-function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi-only, in-tree, pane-id'
+function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi-only, in-tree, pane-id, no-worktrees'
     set -l want (__pwt_realpath "$argv[1]")
     set -l pi_only 0
     set -l in_tree 0
     set -l out_pane 0
+    set -l no_wt 0
     for opt in $argv[2..-1]
         switch $opt
             case pi-only
@@ -119,6 +120,8 @@ function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi
                 set in_tree 1
             case pane-id
                 set out_pane 1
+            case no-worktrees
+                set no_wt 1
         end
     end
     # list-PANES, not list-windows: the latter reports only the ACTIVE pane's cwd,
@@ -137,6 +140,12 @@ function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi
             set hit 1
         end
         test $hit -eq 1; or continue
+        # A worktree root's __worktrees/ holds DIFFERENT workstreams, so a check that
+        # means "the checkout itself" (the in-place collision warning) must not be
+        # answered by a sibling worktree's pi.
+        if test $no_wt -eq 1; and string match -q -- "$want/__worktrees/*" "$parts[3]"
+            continue
+        end
         if test $pi_only -eq 1
             # Addressed by PANE id: display-message -t <window id> resolves to the
             # window's ACTIVE pane, which is a different pane whenever pi shares
@@ -156,35 +165,83 @@ function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi
     return 1
 end
 
-# The window that DECLARES workstream <sid>, or nothing. pwt records @pwt_sid on
-# every window it opens, which makes this the identity check: two in-place
-# workstreams share one directory, so a cwd cannot tell them apart, and matching on
-# it would hand the second one the first one's window — and with it the first one's
-# transcript. Path matching stays the fallback for windows that predate the marker
-# and for sessions adopted from the panel.
-function __pwt_workstream_window --description 'window id declaring workstream <sid>'
-    set -l out_pane 0
-    test "$argv[2]" = pane-id; and set out_pane 1
-    for line in (command tmux list-windows -a -F '#{window_id}|#{pane_id}|#{@pwt_sid}' 2>/dev/null)
-        set -l parts (string split -m2 '|' -- $line)
-        test (count $parts) -eq 3; or continue
-        test "$parts[3]" = "$argv[1]"; or continue
-        if test $out_pane -eq 1
-            echo $parts[2]
-        else
+# The window that DECLARES workstream <sid> at <dir>, or nothing. pwt records the
+# identity on every window it opens, which makes this the identity check: two
+# in-place workstreams share one directory, so a cwd cannot tell them apart, and
+# matching on it would hand the second one the first one's window — and with it the
+# first one's transcript. Path matching stays the fallback for sessions adopted from
+# the panel.
+#
+# TWO TIERS, sid+dir then unmarked-windows-by-cwd. Not sid alone: the
+# basename-derived sid is shared by two repos with the same name and by `here` vs
+# worktree of the same name, so matching it without a directory teleports the user
+# into the other workstream — and reports success. The second tier exists only for
+# windows opened before @pwt_dir was written, and it is restricted twice over: the
+# window must have no @pwt_dir, AND its pane cwd must sit in the workstream's tree.
+# An unconditional sid match would hand a legacy `here` window to the same-named
+# worktree (and vice versa); no cwd evidence at all would let a legacy window whose
+# pi has since cd'd outside the tree be duplicated, which is the transcript clobber.
+# In-tree, not exact, for the same reason `pwt rm` uses it: one `cd` into a
+# subdirectory must not turn the window invisible.
+#
+# list-PANES, not list-windows: both formats answer with the ACTIVE pane's cwd, so a
+# legacy window with pi in a non-active split would look absent — and a `here`
+# workstream is identity-only, with no path fallback behind it, so the miss would
+# open a second pi on one session id, which is the at-clobber this exists to avoid.
+function __pwt_workstream_window --description 'window id declaring workstream <sid> at <dir>'
+    set -l want_dir ''
+    test -n "$argv[2]"; and set want_dir (__pwt_realpath "$argv[2]")
+    test -n "$want_dir"; or return 1
+    set -l lines (command tmux list-panes -a -F '#{window_id}|#{pane_id}|#{@pwt_sid}|#{@pwt_dir}|#{pane_current_path}' 2>/dev/null)
+    for tier in 1 2
+        for line in $lines
+            # -m4 keeps a path containing '|' intact in the last field.
+            set -l parts (string split -m4 '|' -- $line)
+            test (count $parts) -eq 5; or continue
+            test "$parts[3]" = "$argv[1]"; or continue
+            if test $tier -eq 1
+                test "$parts[4]" = "$want_dir"; or continue
+            else
+                test -z "$parts[4]"; or continue
+                set -l cwd "$parts[5]"
+                # In-tree, except for __worktrees/: a worktree root's __worktrees/
+                # holds DIFFERENT workstreams, so a here-query must not be answered
+                # by a sibling worktree's window (and vice versa).
+                test "$cwd" = "$want_dir"; or begin
+                    string match -q -- "$want_dir/*" "$cwd"; or continue
+                    string match -q -- "$want_dir/__worktrees/*" "$cwd"; and continue
+                end
+            end
             echo $parts[1]
+            return 0
         end
-        return 0
     end
     return 1
 end
 
-# Record a window as the home of a workstream. A window option, not something
+# Record a window as the home of a workstream. Window options, not something
 # inferred from the pane's cwd, because the cwd cannot separate two in-place
 # sessions — and because the C-w panel labels its rows from @pwt_label.
-function __pwt_mark --description 'record the workstream sid and label on a pane window'
+#
+# @pwt_dir is the workstream's OWN home: the worktree for `pwt <slug>`, the main
+# root for `pwt here`. The REPO root cannot do this job — a here window and a
+# worktree window in one repo record the same root, and would still collide. And
+# it is RECORDED, never observed: matching a pane's live cwd would stop matching a
+# pi that cd'd elsewhere, which lets a second pi open on the same session id — the
+# transcript clobber __pwt_open_window exists to prevent.
+#
+# Chained with `and` and not silenced, for the opposite reason: a successful mark is
+# the best available proof that the pane SURVIVED (tmux hands back a pane id for a
+# command it cannot exec and then closes the window with it). It is a snapshot, not a
+# guarantee — pi can still exit a moment later — but it turns "silently opened
+# nothing" into a message.
+function __pwt_mark --description 'record a workstream identity on a pane window'
+    # A missing dir would be written as an EMPTY @pwt_dir, which reads as "pre-marker
+    # window" — the one state the fallback tier trusts. Fail instead of degrading.
+    test -n "$argv[4]"; or return 1
     command tmux set-window-option -t "$argv[1]" @pwt_sid "$argv[2]" 2>/dev/null
-    command tmux set-window-option -t "$argv[1]" @pwt_label "$argv[3]" 2>/dev/null
+    and command tmux set-window-option -t "$argv[1]" @pwt_dir (__pwt_realpath "$argv[4]") 2>/dev/null
+    and command tmux set-window-option -t "$argv[1]" @pwt_label "$argv[3]" 2>/dev/null
 end
 
 # select-window only moves within the current session; a worktree window in
@@ -197,6 +254,21 @@ function __pwt_jump_to --description 'select <window id>, moving session if need
         command tmux switch-client -t "$target" 2>/dev/null
     end
     command tmux select-window -t "$wid"
+end
+
+# pi must resolve before a window is SPAWNED — a missing pi makes the pane exit at
+# once, tmux takes the window down with it, and every later step (select, mark, tap)
+# fails silently, leaving a created worktree and nothing else.
+#
+# This checks the CALLER's PATH, which is a proxy: the pane resolves pi against the
+# tmux server's environment. They agree because tmux.conf injects the mise shims
+# into that environment. The honest check is the mark below — a window that died
+# anyway cannot take its window options.
+function __pwt_need_pi --description 'fail unless pi is on PATH'
+    command -sq pi; or begin
+        echo "pwt: pi is not on PATH — the tmux window would die at once" >&2
+        return 1
+    end
 end
 
 # Open the worktree as a tmux window — or, if one already holds it, go there
@@ -215,7 +287,7 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     # Identity first, path second. A window that DECLARES this workstream is the
     # right one even when another window shares its directory, which is the whole
     # point of the marker.
-    set -l wid (__pwt_workstream_window "$sid")
+    set -l wid (__pwt_workstream_window "$sid" "$dir")
     # The PATH fallback is for worktrees only, where the directory IS the workstream
     # and a window sitting in it is the workstream window (it still catches windows
     # opened before pwt wrote the marker). For an in-place workstream the directory
@@ -235,10 +307,16 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     end
     # -P -F yields the pane we just made, so marking and tapping it need no racy
     # search (pi has not set its window title yet at this point).
+    __pwt_need_pi; or return 1
     set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" pi --session-id "$sid")
     or return 1
     command tmux select-window -t "$pane" 2>/dev/null
-    __pwt_mark "$pane" "$sid" "$label"
+    __pwt_mark "$pane" "$sid" "$label" "$dir"
+    or begin
+        echo "pwt: the window for '$label' died at birth — is pi runnable there?" >&2
+        echo "     nothing is open; run the same pwt command again once pi resolves" >&2
+        return 1
+    end
     __pwt_tap "$pane"
 end
 
@@ -277,9 +355,26 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                 echo "     Remove them yourself first, then re-run: pwt rm $slug" >&2
                 return 1
             end
-            command git -C "$root" worktree remove "$wt"; and command git -C "$root" branch -d "$slug"
+            command git -C "$root" worktree remove "$wt"; or return 1
+            # A detached worktree (or one whose branch was already deleted) has nothing
+            # to delete: that is finished, not failed — and `branch -d` would print a
+            # "not found" error for it.
+            command git -C "$root" show-ref --verify --quiet "refs/heads/$slug"; or return 0
+            # branch -d refuses an unmerged branch — correctly: those commits exist
+            # nowhere else. The tree is already gone by then, so a bare git hint
+            # reads like pwt half-failed; name the follow-up instead. (Re-running
+            # `pwt <slug>` WITHOUT a base ref checks that branch back out, so the
+            # work is not lost — a deliberate resume, not a dead end.)
+            command git -C "$root" branch -d "$slug"; and return 0
+            echo "pwt: worktree removed; branch '$slug' kept (not fully merged)." >&2
+            echo "     merge it, then: git -C '$root' branch -d '$slug'" >&2
+            return 1
         case help ''
-            echo "Usage: pwt <slug> [base] | pwt rm <slug> | pwt jump <dir> | pwt here <label>"
+            echo "Usage: pwt <slug> [base]    worktree + tmux window + pinned pi session"
+            echo "       pwt rm <slug>         remove it (refuses on an open window or ignored files)"
+            echo "       pwt here <label>      a workstream in THIS checkout, no worktree"
+            echo "       pwt jump <dir>        go to the pi window whose cwd is <dir>"
+            echo "Docs: docs/PWT.md · panel: tmux prefix then C-w"
         case jump
             # Used by the C-w panel for rows that are live pi sessions rather
             # than worktrees: there is nothing to create, only a window to find.
@@ -317,6 +412,20 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             set -l dir (__pwt_main_root); or return 1
             set -l sid (basename $dir)-$label
             if set -q TMUX
+                # Reuse needs no pi; only a NEW window does. Deciding before the
+                # open also keeps the warning below off a workstream you already
+                # own (that call jumps rather than opening).
+                if test -z (__pwt_workstream_window "$sid" "$dir")
+                    __pwt_need_pi; or return 1
+                    # Two in-place workstreams share ONE working tree — the exact
+                    # collision worktrees exist to prevent. This rung is still the
+                    # right one for repos a worktree cannot serve (git-crypt fails
+                    # at the smudge filter) and for per-path state (.env/.venv/
+                    # direnv), so warn and let the user decide: refusing would
+                    # delete the rung's reason to exist.
+                    set -l squatter (__pwt_window_for "$dir" pi-only in-tree no-worktrees)
+                    test -n "$squatter"; and echo "pwt: a pi is already open in this checkout — '$label' and it share one working tree, so parallel edits will collide" >&2
+                end
                 # identity-only: see __pwt_open_window — a shared directory cannot
                 # identify an in-place workstream.
                 __pwt_open_window "$dir" "$label" "$sid" identity-only
@@ -331,8 +440,53 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                 return 2
             end
             set -l base "$argv[2]"
+            # No legitimate commit-ish starts with '-': passing one through lets git
+            # parse it as an OPTION (`pwt foo --detach`), silently changing what the
+            # worktree is based on.
+            test -n "$base"; and string match -q -- '-*' "$base"; and begin
+                echo "pwt: invalid base ref '$base'" >&2
+                return 2
+            end
             set -l root (__pwt_main_root); or return 1
             set -l wt "$root/__worktrees/$slug"
+            set -l sid (basename $root)-$slug
+            # Only a run that will SPAWN pi needs to find it: reusing an open window
+            # must work on a machine with no pi (and never leaves an orphan worktree
+            # behind a launch that cannot succeed). Ahead of the ignore write, so a
+            # refused run changes nothing on disk.
+            if set -q TMUX
+                if test -z (__pwt_workstream_window "$sid" "$wt"); and test -z (__pwt_window_for "$wt" pi-only)
+                    __pwt_need_pi; or return 1
+                end
+            end
+            # __worktrees/ must be invisible to everything that is not pwt: git
+            # reports it as an untracked directory, `git add -A` then stages a
+            # mode-160000 gitlink for it (a worktree is an "embedded repository" to
+            # git), and ripgrep/editor indexes walk every worktree copy. info/exclude
+            # is per-clone and uncommitted, so it fixes all three without asking
+            # every target repo to commit an ignore rule. Written before the
+            # worktree-exists check, so a repo polluted by an older pwt repairs
+            # itself on next use; never removed by `pwt rm` — the repo's other
+            # worktrees still need it.
+            set -l common (command git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+            if test -n "$common"
+                set -l excl "$common/info/exclude"
+                command mkdir -p "$common/info" 2>/dev/null
+                if not command grep -qxF -- '__worktrees/' "$excl" 2>/dev/null
+                    # Appending onto a last line that has no newline would MERGE with
+                    # it — `node_modules/` becoming `node_modules/__worktrees/`, which
+                    # un-ignores it. A command substitution strips trailing newlines,
+                    # so a non-empty last BYTE means the file does not end with one.
+                    if test -s "$excl"; and test -n (command tail -c 1 "$excl" 2>/dev/null)
+                        printf '\n' >>"$excl" 2>/dev/null
+                    end
+                    # Warn, never abort: the worktree is the durable artifact and a
+                    # read-only .git must not stop a workstream from starting.
+                    if not printf '%s\n' '__worktrees/' >>"$excl" 2>/dev/null
+                        echo "pwt: could not write $excl — git status will show __worktrees/" >&2
+                    end
+                end
+            end
             if not test -d "$wt"
                 if test -n "$base"
                     # -b is required, not cosmetic: without it git refuses when
@@ -348,7 +502,6 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             end
             # Per-worktree state does not carry over: .env, .venv, node_modules
             # and `direnv allow` are all keyed by path. Re-allow explicitly.
-            set -l sid (basename $root)-$slug
             if set -q TMUX
                 __pwt_open_window "$wt" "$slug" "$sid"
             else

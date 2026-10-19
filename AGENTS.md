@@ -82,6 +82,11 @@ Key config paths:
   session that will end in commit+push, inventory the interactive prerequisites
   up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
+- Parallel agent workstreams: `pwt <slug>` pairs a git worktree, a tmux window and
+  a pinned pi session; `C-w` in tmux is the state-sorted panel (`ctrl-t` new,
+  `ctrl-x` remove, `ctrl-r` other repo). Read `docs/PWT.md` before changing `pwt`,
+  `pwt-pick` or `pwt-osc` — the identity, ignore and tap rules there are
+  load-bearing.
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
 - pi settings drift: sessions write runtime state into the stowed
@@ -121,6 +126,7 @@ Tier by how much analysis remains before the item is actionable:
 
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
+**Parallel agent workstreams (pwt)**: `docs/PWT.md`
 **Pending work**: `TODO.md`
 **Before changing provisioning behaviour** (`bootstrap.sh`, `check.sh`, `os/wsl/up.sh`):
 skim `docs/GOTCHAS.md` and `TODO.md` first, then `.pi/plans/` if it exists — the
