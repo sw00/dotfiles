@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# pre-commit — stop a leak before it becomes a commit object.
+#
+# Why here and not in CI: CI checks out a LOCKED clone, so it cannot decrypt
+# secrets/leak-patterns and therefore cannot run the identifier scan at all. The
+# check that matters can only run where the git-crypt key is. Pre-commit rather
+# than pre-push because a secret that reaches a commit object stays recoverable
+# out of .git (reflog, fsck) even after a rewrite; one blocked here never enters
+# the object store — which is the situation git-crypt already warns about with
+# "an older version of this file may be unencrypted in the repository's history".
+#
+# Offline, staged paths only, well under 100 ms. Prints the PATTERN that matched,
+# never the matched text, so the value never lands in scrollback or a log.
+#
+# Installed with `git config core.hooksPath .githooks`, wired by bootstrap.sh.
+# Bypass deliberately with `git commit --no-verify` — never for secrets/ paths.
+
+set -u
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$root" || exit 0
+
+# Generic provider shapes. Harmless in cleartext because they describe the
+# provider, not our resources.
+#
+# DISCIPLINE: write every literal so it does NOT contain another pattern's
+# literal text — otherwise the guard matches its own definition and blocks the
+# commit that introduces it. Bracket classes do this: `ar[o]app` is the regex for
+# the ARO host suffix while not containing that text itself. The rule applies to
+# prose too — a comment that spells out a stem trips the same guard.
+shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J'
+
+patterns="$shapes"
+if [[ -f secrets/leak-patterns ]]; then
+    if head -c 10 secrets/leak-patterns | grep -aq GITCRYPT; then
+        # Locked clone. The strongest half of this guard cannot run — say so out
+        # loud rather than reporting a green that means less than it looks like.
+        echo "pre-commit: NOTE secrets/leak-patterns is locked, so the identifier" >&2
+        echo "pre-commit:      scan is limited to generic shapes. Run: git-crypt unlock" >&2
+    else
+        extra="$(grep -vE '^[[:space:]]*(#|$)' secrets/leak-patterns | paste -sd'|' -)"
+        [[ -n "$extra" ]] && patterns="$patterns|$extra"
+    fi
+fi
+
+fail=0
+while IFS= read -r -d '' p; do
+    case "$p" in
+        secrets/*)
+            # 1. Encryption coverage — the highest-value check in this hook. One
+            #    path that misses the .gitattributes glob, or one `git add -f`,
+            #    publishes plaintext to a public repo.
+            if [[ "$(git check-attr filter -- "$p" | awk '{print $NF}')" != git-crypt ]]; then
+                echo "pre-commit: BLOCKED  $p is under secrets/ but is not git-crypt filtered" >&2
+                fail=1
+                continue
+            fi
+            if ! git cat-file blob ":$p" 2>/dev/null | head -c 10 | grep -aq GITCRYPT; then
+                echo "pre-commit: BLOCKED  $p is staged as PLAINTEXT (git-crypt did not encrypt it)" >&2
+                fail=1
+            fi
+            ;;
+        *)
+            # 2. Identifier scan over what this commit ADDS (or renames in).
+            if git diff --cached -U0 -- "$p" | grep -aE '^\+' | grep -aqE "$patterns"; then
+                echo "pre-commit: BLOCKED  $p adds content matching a sensitive pattern" >&2
+                fail=1
+            fi
+            ;;
+    esac
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if [[ $fail -ne 0 ]]; then
+    echo >&2
+    echo "pre-commit: nothing was committed. Patterns live in secrets/leak-patterns" >&2
+    echo "pre-commit: (see AGENTS.md). If a hit is a false positive, loosen the stem." >&2
+    exit 1
+fi
+exit 0

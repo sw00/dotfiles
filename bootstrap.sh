@@ -880,6 +880,15 @@ main() {
     # (stow cannot unstow them), so the restow below can recreate live links.
     _prune_dangling_stow_links
 
+    # 2a-ter. Install the repo's git hooks. Pointing core.hooksPath at the tracked
+    # .githooks/ means every clone gets the leak guard with no `pre-commit
+    # install` step. The guard has to be local: CI checks out a LOCKED clone, so
+    # it cannot decrypt secrets/leak-patterns and cannot run the identifier scan.
+    if [[ -d "$DOTFILES/.githooks" ]]; then
+        git -C "$DOTFILES" config core.hooksPath .githooks
+        log "git hooks: core.hooksPath -> .githooks"
+    fi
+
     # 2b. Stow configs
     # git-crypt was unlocked in phase 1a (or we aborted), so ssh is always
     # safe to stow here.

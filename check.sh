@@ -838,8 +838,68 @@ check_has "Brewfile-base: obsidian present" \
 check_has "Brewfile-base: flameshot present" \
     'flameshot' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
-check_has "hosts/mbpm3: work.fish conf.d exists" \
-    'flyl' "$DOTFILES/hosts/mbpm3/fish/.config/fish/conf.d/work.fish"
+# Rev 4: the mbpm3 work.fish conf.d fragment was deleted — it carried a work
+# target abbreviation in cleartext. Work tooling stays mbpm3-exclusive (see the
+# mise tests above); what replaced it stores no identifier at all, discovering
+# its targets from the tools' own config at runtime.
+check "hosts/mbpm3: work conf.d fragment removed (target names must not be public)" \
+    bash -c "! test -e '$DOTFILES/hosts/mbpm3/fish/.config/fish/conf.d/work.fish'"
+
+for _wf in work-login work-status; do
+    check "hosts/mbpm3: $_wf function present" \
+        test -f "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
+
+    check "hosts/mbpm3: $_wf parses" \
+        fish -n "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
+done
+
+# Shape-level leak scan over every tracked file outside secrets/. The pattern is
+# written with bracket classes so this file does not contain the contiguous
+# shapes it searches for — otherwise it would match its own pattern list. That
+# discipline is not cosmetic: the pre-commit hook uses the SAME stems, so
+# spelling one out here — even inside a comment — is blocked by the guard that
+# reads it. The self-immunity test below locks this in.
+# Catches SHAPES: a cloud SSO start URL, an EKS endpoint, an AKS/ARO host, an
+# account-id key, a JWT. Employer *names* are not sensitive; infrastructure
+# resource names, IDs and URLs/IPs are, and those live in secrets/leak-patterns.
+_leak_shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J'
+check "leak scan: no cloud/SSO identifiers tracked outside secrets/" \
+    bash -c "! git -C '$DOTFILES' grep -IE '$_leak_shapes' -- ':(exclude)secrets/**'"
+
+check "leak scan: the guard's own files are immune to its shape list" \
+    bash -c "! grep -aqE '$_leak_shapes' '$DOTFILES/check.sh' '$DOTFILES/.githooks/pre-commit'"
+
+# ── Leak guard: the pre-commit hook ─────────────────────────────────────────
+# CI cannot run the identifier scan (locked clone, no key), so that half of the
+# guard has to live in a local hook. Assert it exists AND that bootstrap wires it.
+check "hooks: .githooks/pre-commit present" \
+    test -f "$DOTFILES/.githooks/pre-commit"
+
+check "hooks: .githooks/pre-commit executable" \
+    test -x "$DOTFILES/.githooks/pre-commit"
+
+check_has "bootstrap: wires core.hooksPath to .githooks" \
+    'core.hooksPath .githooks' "$DOTFILES/bootstrap.sh"
+
+check_has "hook: blocks a plaintext file staged under secrets/" \
+    'staged as PLAINTEXT' "$DOTFILES/.githooks/pre-commit"
+
+check_has "hook: asserts git-crypt filter coverage per staged path" \
+    'git check-attr filter' "$DOTFILES/.githooks/pre-commit"
+
+check_has "hook: never reports green when the pattern file is locked" \
+    'is locked' "$DOTFILES/.githooks/pre-commit"
+
+check "leak-patterns: git-crypt filter applies (asserted without reading it)" \
+    bash -c "git -C '$DOTFILES' check-attr filter secrets/leak-patterns | grep -q git-crypt"
+
+# fly refuses to talk to a mismatched server API, so its version must be pinned
+# rather than floated on mise's `latest`.
+check_has "hosts/mbpm3: fly pinned to the server API version" \
+    '^fly[[:space:]]*= "8\.3\.0"' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
+check_not "hosts/mbpm3: fly not floating on latest" \
+    '^fly[[:space:]]*= "latest"' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
 check_has "winget.txt: Bitwarden present" \
     'Bitwarden.Bitwarden' "$DOTFILES/os/wsl/windows/winget.txt"
