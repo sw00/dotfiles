@@ -23,6 +23,10 @@ brew "colima"
 brew "docker"           # docker CLI client
 brew "docker-compose"   # compose plugin
 brew "docker-buildx"    # buildx plugin
+# Required, not optional: ~/.docker/config.json sets credsStore=osxkeychain, so
+# this is what resolves registry credentials for colima/docker. Deleting it (as
+# the first audit recommended) would silently break auth to ghcr.io and friends.
+brew "docker-credential-helper"
 cask "pycharm"
 cask "tomighty"
 cask "vlc"
@@ -31,7 +35,19 @@ cask "notion"
 cask "readest"              # EPUB ebook reader
 cask "signal"               # Secure messaging
 cask "microsoft-teams"      # Work messaging
+cask "microsoft-outlook"    # Work mail — teams was declared without it, an oversight
+cask "windows-app"          # Microsoft RDP client (work)
+cask "openusage"            # AI usage tracker (the desktop app; the CLI form is separate)
 cask "monokle"              # Kubernetes config UI
+
+# ── CLI tools with no mise backend ────────────────────────────────────────────
+# No mise registry entry and no usable ubi release, so brew owns them. Declared
+# only after the audit found them installed-and-undeclared — declared HERE rather
+# than in Brewfile-base so as not to imply a Linux/ensure_system_tools twin.
+brew "goaccess"             # web log analyzer
+brew "inframap"             # terraform/state graph generator
+brew "hf"                   # Hugging Face CLI (a Python tool, no registry entry)
+brew "telnet"               # nc is not equivalent; small and occasionally needed
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104

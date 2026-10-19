@@ -52,6 +52,9 @@ brew "make"             # GNU Make as `gmake`. macOS ships make 3.81 at
                         # formula is keg-only for `make`, so nothing is shadowed.
 brew "graphviz"         # graph visualization library
 brew "btop"             # system monitor — aqua/github releases ship linux builds only; macOS has no prebuilt binary, so brew (Linux/WSL uses mise aqua)
+brew "navi"             # cheatsheet browser — same shape as btop: aqua publishes
+                        # linux + windows/amd64 only, so `mise install navi` fails
+                        # on Apple Silicon. See [tools.navi] os restriction.
 brew "wireguard-tools"  # VPN (also in ensure_system_tools on Linux/WSL)
 brew "pstree"           # process tree viewer (also in ensure_system_tools)
 brew "mosh"             # mobile shell — roaming/offline SSH (also in ensure_system_tools)

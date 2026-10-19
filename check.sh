@@ -658,8 +658,15 @@ check_has "mise: sesh managed by mise (ubi backend)" \
 check_has "mise: lf managed by mise (ubi backend)" \
     'ubi:gokcehan/lf' "$MISE_CFG"
 
-check_has "mise: navi managed by mise (aqua backend)" \
-    '^navi ' "$MISE_CFG"
+# navi cannot come from mise on macOS: aqua:denisidoro/navi publishes linux and
+# windows/amd64 only, so `mise install navi` fails outright on Apple Silicon. That
+# is why it sat declared-but-missing for so long. It now carries the same os
+# restriction as btop, and brew owns it on macOS.
+check_has "mise: navi declared with an os restriction (aqua is linux/windows only)" \
+    '^\[tools\.navi\]' "$MISE_CFG"
+
+check_has "Brewfile-base: navi present (no aqua build for macOS)" \
+    'brew "navi"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
 check_has "mise: git-lfs managed by mise" \
     'git-lfs' "$MISE_CFG"

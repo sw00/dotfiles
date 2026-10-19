@@ -32,4 +32,9 @@ pdm        = "latest"          # resolves to pipx:pdm
 # ── Work CLI tools (moved from Homebrew — both in the aqua registry) ──────────
 d2         = "latest"          # modern diagram scripting language (aqua:terrastruct/d2)
 websocat   = "latest"          # WebSocket tool (aqua:vi/websocat)
+oc         = "latest"          # OpenShift CLI — ARO/OpenShift work. Registry default
+                               # backend is http:oc. Declared here so mise owns it and
+                               # Homebrew's openshift-cli can go (one owner).
+gcloud     = "latest"          # Google Cloud CLI (vfox:mise-plugins/vfox-gcloud). Used on
+                               # this machine; was installed undeclared.
 

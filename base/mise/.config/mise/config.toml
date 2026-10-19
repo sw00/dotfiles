@@ -17,6 +17,7 @@ yq          = "latest"
 zoxide      = "latest"
 direnv      = "latest"
 shellcheck  = "latest"
+shfmt       = "latest"   # shell formatter — pairs with shellcheck (aqua:mvdan/sh)
 pre-commit  = "latest"
 lazygit     = "latest"
 git-lfs     = "latest"
@@ -29,7 +30,7 @@ tmux              = "latest"
 # entry; the ubi backend installs their prebuilt GitHub release binaries.
 "ubi:joshmedeski/sesh" = "latest"
 "ubi:gokcehan/lf"      = "latest"
-navi             = "latest"   # interactive cheatsheet browser (aqua:denisidoro/navi)
+mutagen          = "latest"   # two-way file sync over SSH (aqua:mutagen-io/mutagen)
 
 # ── Devops — everyday k8s navigation ─────────────────────────────────────────
 kubectl  = "latest"
@@ -37,6 +38,7 @@ k9s      = "latest"
 kubectx  = "latest"
 kubens   = "latest"
 lnav     = "latest"
+tflint   = "latest"   # terraform linter (aqua:terraform-linters/tflint)
 # Deployment/infra tools are work-laptop specific:
 # see hosts/mbpm3/mise/.mise.toml for helm, kubeseal, crane, kustomize, argocd, opentofu
 
@@ -48,6 +50,11 @@ uv = "latest"
 github-cli = "latest"
 "pipx:httpie" = "latest"
 bitwarden-secrets-manager = "latest"
+# The Bitwarden CLI (bw). aqua:bitwarden/clients. Declared so it has ONE owner:
+# it was installed undeclared while an npm global @bitwarden/cli also existed,
+# and the npm copy won — which meant `bw` would vanish on the next Node
+# re-provision (mise only installs default-node-packages when it provisions).
+bitwarden = "latest"
 # pi and claude are deliberately NOT mise-managed (see AGENTS.md: self-updating
 # apps with their own managed install own themselves).  mise only re-resolves
 # `latest` when `mise upgrade` runs, and its install dirs precede ~/.local/bin on
@@ -59,6 +66,9 @@ bitwarden-secrets-manager = "latest"
 # them on latest); check.sh fails if either entry reappears here.  Do not re-add.
 "npm:tokscale" = "latest"
 "pipx:cerebrium" = "latest"
+# terravision has no registry entry under its bare name; the pipx backend is how
+# it is actually installed, so it has to be spelled out.
+"pipx:terravision" = "latest"
 "pipx:python-dotenv" = "latest"
 "ubi:rikorose/DeepFilterNet" = "latest"
 "npm:ccusage" = "latest"
@@ -66,6 +76,14 @@ bitwarden-secrets-manager = "latest"
 # backend, so it comes from brew instead (os/macos/brew/.Brewfile-base). The
 # os restriction makes mise skip it on macOS rather than fail on aqua.
 [tools.btop]
+version = "latest"
+os = ["linux"]
+
+# navi: same shape as btop, and the reason it sat declared-but-missing for so
+# long — aqua:denisidoro/navi publishes linux and windows/amd64 only, so
+# `mise install navi` fails outright on Apple Silicon. macOS takes it from brew
+# via the same os restriction.
+[tools.navi]
 version = "latest"
 os = ["linux"]
 
