@@ -45,6 +45,11 @@ cask "aerospace"
 # come from the OS package manager on every platform (brew on macOS,
 # ensure_system_tools on Linux/WSL). lf moved to mise (ubi:gokcehan/lf).
 brew "tig"              # text-mode git log/diff browser
+brew "make"             # GNU Make as `gmake`. macOS ships make 3.81 at
+                        # /usr/bin/make; gmake is the only route to a modern GNU
+                        # make, and mise offers only conda:/asdf: backends for it.
+                        # Declared for the `gmake` binary, not `make` — the brew
+                        # formula is keg-only for `make`, so nothing is shadowed.
 brew "graphviz"         # graph visualization library
 brew "btop"             # system monitor — aqua/github releases ship linux builds only; macOS has no prebuilt binary, so brew (Linux/WSL uses mise aqua)
 brew "wireguard-tools"  # VPN (also in ensure_system_tools on Linux/WSL)

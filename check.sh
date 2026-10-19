@@ -832,6 +832,11 @@ check_has "Brewfile-base: tig present (moved from host)" \
 check_has "Brewfile-base: graphviz present (moved from host)" \
     'brew "graphviz"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
+# Declared for gmake, not make: the brew formula is keg-only for `make`, so
+# /usr/bin/make still wins and only `gmake` is reachable from it.
+check_has "Brewfile-base: make present (provides gmake; macOS make is 3.81)" \
+    'brew "make"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
 check_has "Brewfile-base: obsidian present" \
     'obsidian' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
