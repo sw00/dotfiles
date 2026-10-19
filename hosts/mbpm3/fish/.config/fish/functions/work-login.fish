@@ -1,8 +1,9 @@
 # work-login — idempotently authenticate the work toolchain.
 #
 # Checks each tool first and re-authenticates only what has actually lapsed, so
-# the common case (nothing expired) is a fast no-op. Order matters: aws first,
-# because the EKS contexts mint their tokens off that session.
+# the common case (nothing expired) is a fast no-op. Order matters: the cloud
+# sessions first (aws, az), because the k8s contexts below mint their tokens off
+# them per request — EKS off aws, ARO and AKS off az.
 #
 # Discovered, never stored: every target this logs into is read at runtime from
 # the tool's own config. No cluster, server, team, account or domain identifier
@@ -14,7 +15,7 @@
 function work-login --description 'Authenticate the work toolchain (idempotent)'
     set -l want $argv
     test (count $want) -eq 0
-    and set want aws k8s argocd fly
+    and set want aws az k8s argocd fly
 
     set -l failed 0
 
@@ -30,6 +31,24 @@ function work-login --description 'Authenticate the work toolchain (idempotent)'
                 else
                     echo "aws: session lapsed — logging in (browser)…"
                     aws sso login --profile $prof
+                    or set failed (math $failed + 1)
+                end
+
+            case az
+                if not command -q az
+                    echo 'az: not installed'
+                else if az account show >/dev/null 2>&1
+                    echo 'az: already authenticated'
+                else
+                    # No target to discover here, unlike aws and fly: a bare
+                    # `az login` re-authenticates the cached home tenant, so
+                    # there is no identifier for this file to carry. A
+                    # multi-tenant account would need `--tenant <id>` — exactly
+                    # the kind of value that stays out of this repo.
+                    echo 'az: session lapsed — logging in (browser)…'
+                    # stdout is the tenant/subscription table as JSON; stderr
+                    # carries the real failure, so only stdout is dropped.
+                    az login 1>/dev/null
                     or set failed (math $failed + 1)
                 end
 
@@ -86,7 +105,7 @@ function work-login --description 'Authenticate the work toolchain (idempotent)'
                 end
 
             case '*'
-                echo "work-login: unknown tool '$tool' (known: aws k8s argocd fly)" >&2
+                echo "work-login: unknown tool '$tool' (known: aws az k8s argocd fly)" >&2
                 set failed (math $failed + 1)
 
         end

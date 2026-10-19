@@ -853,6 +853,22 @@ for _wf in work-login work-status; do
         fish -n "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
 done
 
+# Rev 5: az joined the work toolchain. Assert the wiring rather than just the
+# presence of the word, so the two functions cannot drift apart: work-login must
+# offer az by default, and both must probe it the same way — otherwise one
+# reports ready while the other re-logs in on every run.
+check "hosts/mbpm3: work-login defaults include az" \
+    grep -q 'set want aws az k8s argocd fly' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
+
+check "hosts/mbpm3: work-login has an az case" \
+    grep -qE '^[[:space:]]+case az$' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
+
+check "hosts/mbpm3: work-login probes az with account show" \
+    grep -q 'az account show' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
+
+check "hosts/mbpm3: work-status probes az with account show" \
+    grep -q 'az account show' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-status.fish"
+
 # Shape-level leak scan over every tracked file outside secrets/. The pattern is
 # written with bracket classes so this file does not contain the contiguous
 # shapes it searches for — otherwise it would match its own pattern list. That

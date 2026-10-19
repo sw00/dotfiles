@@ -62,9 +62,35 @@ function work-status --description 'Report work toolchain authentication state'
         set bad (math $bad + 1)
     end
 
-    # k8s — exec-plugin contexts mint a token per request off that session, so
-    # there is nothing to authenticate here; if aws is live, so is this.
-    printf '%-8s · %s exec-plugin context(s), rides the aws session\n' k8s (__work_exec_contexts)
+    # az — the Azure side of the estate, and what any kubelogin-backed contexts
+    # below authenticate against. `account show` is the live probe, same
+    # reasoning as aws: it re-mints silently from the stored refresh token, so
+    # the cached expiry says nothing about whether a browser is needed.
+    # The subscription name is printed, not stored. The rule is that identifiers
+    # never enter the repo — not that they never surface in your own terminal,
+    # which is also how the fly targets below work.
+    # What this answers is "is the CLI authenticated", which is the part that can
+    # live here. Which subscription work commands should target is deliberately
+    # left out: encoding it would mean carrying the very identifier this file
+    # must not have, and it is a machine-local choice anyway — so this reports
+    # the default, which is what a bare `az` command would hit.
+    if not command -q az
+        printf '%-8s · not installed\n' az
+    else
+        set -l sub (az account show --query name -o tsv 2>/dev/null)
+        if test -n "$sub"
+            printf '%-8s ✓ authenticated (%s)\n' az $sub
+            set ok (math $ok + 1)
+        else
+            printf '%-8s ✗ needs login\n' az
+            set bad (math $bad + 1)
+        end
+    end
+
+    # k8s — exec-plugin contexts mint a token per request off whichever cloud
+    # session they use (EKS off aws, ARO/AKS off az), so there is nothing to
+    # authenticate here; if those are live, so is this.
+    printf '%-8s · %s exec-plugin context(s), rides the cloud sessions\n' k8s (__work_exec_contexts)
 
     # argocd
     if not command -q argocd
