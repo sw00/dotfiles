@@ -84,6 +84,10 @@ Key config paths:
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
+- pi settings drift: sessions write runtime state into the stowed
+  `base/pi/.pi/agent/settings.json`, so run `pi-settings-reset` before committing
+  pi config (reverts to HEAD, keeps `packages`/`lastChangelogVersion` and reports
+  them; `--all` discards those too, `-n` only reports).
 - Adding a WSL host: `hosts/<hostname>/.wslconfig` is usually all you need;
   bootstrap discovers it by live hostname. Don't add stow packages there.
 - Windows-side changes from WSL: write a `.ps1` to a Windows path, run
