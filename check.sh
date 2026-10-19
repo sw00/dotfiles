@@ -1003,6 +1003,16 @@ _brew_declared() {
         | grep -oE '^brew "[^"]+"' | cut -d'"' -f2 | sort -u
 }
 
+# Does either mise config declare this tool? BOTH forms count: the key form
+# (`foo = "1.0"`) and the table form (`[tools.foo]`) that btop and navi use when
+# they need an os restriction. Missing the table form was a real blind spot when
+# this guard shipped — the btop/navi exemptions masked it, so a genuine dual
+# owner would have passed silently.
+_mise_declares() {
+    grep -qE "^\[tools\.\"?$1\"?\][[:space:]]*$|^\"?$1\"?[[:space:]]*=" \
+        "$MISE_CFG" "$MISE_HOST" 2>/dev/null
+}
+
 # (b) One owner per tool: a name may not be both a mise-declared tool and a
 # Brewfile formula. Pure config, so it also runs in CI. The exceptions are a
 # documented platform split — aqua publishes no macOS build, so mise carries the
@@ -1012,7 +1022,7 @@ _both_owned=""
 while read -r _f; do
     [ -n "$_f" ] || continue
     case " $_dual_exempt " in *" $_f "*) continue ;; esac
-    if grep -qE "^(\[tools\.)?\"?${_f}\"?[[:space:]]*=" "$MISE_CFG" "$MISE_HOST" 2>/dev/null; then
+    if _mise_declares "$_f"; then
         _both_owned+="$_f "
     fi
 done < <(_brew_declared)
@@ -1022,11 +1032,17 @@ else
     _ok "ownership: no tool declared by both mise and brew"
 fi
 
+# Self-tests for the matcher above: both declaration forms must be recognised, or
+# the guard silently misses exactly what it exists for.
+check "guard: recognises the table-form declaration (btop)" _mise_declares btop
+check "guard: recognises the key-form declaration (kubectl)" _mise_declares kubectl
+check "guard: does not claim an undeclared tool" \
+    test -z "$(_mise_declares definitely-not-a-tool && echo yes)"
+
 # (a) Every explicitly installed formula must be either declared in a Brewfile or
 # exempted here with a reason. Needs this machine's brew state, so it skips on the
 # ubuntu CI runner rather than pretending to be green.
 declare -A _brew_exempt=(
-    [boz/repo/kail]="k8s log tailer, in daily use; untrusted third-party tap, deliberately unmanaged"
     [localstack/tap/localstack-cli]="LocalStack CLI; installed once, left unmanaged"
     [tmux-fingers]="tap formula; TPM is the plugin path"
 )

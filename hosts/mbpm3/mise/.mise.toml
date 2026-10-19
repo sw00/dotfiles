@@ -21,6 +21,10 @@ kustomize  = "latest"
 argocd     = "latest"
 opentofu   = "latest"
 stern      = "latest"          # k8s log tailing (was: asdf)
+"ubi:boz/kail" = "latest"     # k8s log tailer — in daily use. Moved off Homebrew's
+                               # boz/repo tap: that tap is untrusted, so brew
+                               # refuses to even load the formula and it could
+                               # never be upgraded there. ubi gives it one owner.
 k3d        = "latest"          # local k3s clusters (was: asdf)
 awscli     = "latest"          # AWS CLI (was: asdf)
 fly        = "8.3.0"           # Concourse CLI — PINNED to the server's API version.
