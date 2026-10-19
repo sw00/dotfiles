@@ -10,6 +10,15 @@ if test -f $_secrets
     end
 end
 
+# ── Homebrew (macOS only) ─────────────────────────────────────────────────────
+# Deliberately FIRST of the PATH blocks: the mise block below needs `mise` on
+# PATH, and on a clean shell the only mise is Homebrew's. With this block last
+# (as it was until now) `command -q mise` failed and mise never activated at all
+# unless Homebrew's vendor_conf.d drop-in had already run — see conf.d/mise.fish.
+if test -d /opt/homebrew/bin
+    eval (/opt/homebrew/bin/brew shellenv)
+end
+
 # ── PATH ──────────────────────────────────────────────────────────────────────
 fish_add_path ~/bin
 fish_add_path ~/.local/bin
@@ -19,13 +28,15 @@ fish_add_path ~/.local/bin
 # Shims resolve the correct tool version per-directory at invocation time,
 # so per-project .mise.toml still works. Avoids the ~76ms hook-env scan that
 # `mise activate fish` (dynamic mode) runs on every shell startup.
+#
+# LAST of the PATH blocks on purpose: the shims dir must precede
+# /opt/homebrew/bin, or brew quietly wins every name collision (it was taking
+# d2, lf, websocat, hcl2json and git-lfs — the mise copies never ran).
+# ~/.local/bin stays behind the shims so mise keeps owning the tools it declares
+# (sesh); pi and claude are unaffected either way because they have no shims —
+# _ensure_self_managed in bootstrap.sh keeps it that way.
 if command -q mise
     mise activate --shims fish | source
-end
-
-# ── Homebrew (macOS only) ─────────────────────────────────────────────────────
-if test -d /opt/homebrew/bin
-    eval (/opt/homebrew/bin/brew shellenv)
 end
 
 # ── Tool integrations ─────────────────────────────────────────────────────────

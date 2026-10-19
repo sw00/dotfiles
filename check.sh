@@ -2229,10 +2229,16 @@ check_has "pi-smoke: stamps the prompt identity (words + hash)" \
 check_has "agents-update: not gitignored (fish allowlist negation present)" \
     '!functions/agents-update\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 
-# Generic form of the same trap, so the next new function cannot slip through:
-# no own file under fish/functions may be untracked or ignored.
-check "fish: no own function file is untracked or ignored (allowlist trap)" \
-    bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/)\""
+check_has "conf.d/mise.fish: not gitignored (fish allowlist negation present)" \
+    '^!conf\.d/mise\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+
+# Generic form of the same trap, so the next new own-file cannot slip through.
+# Covers conf.d/ as well as functions/: the .gitignore is an ALLOWLIST, so
+# a new own-file in either directory is silently ignored and never committed.
+# This test was on functions/ only until conf.d/mise.fish fell straight into
+# it — same trap, one directory over.
+check "fish: no own function or conf.d file is untracked or ignored (allowlist trap)" \
+    bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/)\""
 
 # SUMMARY
 # =============================================================================
