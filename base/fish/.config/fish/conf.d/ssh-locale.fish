@@ -8,11 +8,11 @@
 # still work. Caveat: scp/sftp/git exec the ssh binary directly and bypass
 # this wrapper.
 #
-# Workbench integration: when the workbench env is active (WORKBENCH set,
-# i.e. inside ~/src/lelapa/workbench via direnv), delegate to its bin/ssh
-# wrapper first so the team SSH fragments (gpu-vm-*, ...) apply too. The
-# wrapper builds a temp config with -F, which ignores the systemwide file
-# just the same, so the locale fix below still holds in-repo.
+# Workspace integration: when a workspace env is active (WORKBENCH set by a
+# project's own direnv), delegate to its bin/ssh wrapper first, so that
+# project's own SSH fragments apply too. The wrapper builds a temp config with
+# -F, which ignores the systemwide file just the same, so the locale fix below
+# still holds in-repo.
 function ssh --wraps ssh
     if set -q WORKBENCH; and test -x "$WORKBENCH/bin/ssh"
         command "$WORKBENCH/bin/ssh" $argv

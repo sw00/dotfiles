@@ -19,7 +19,7 @@
 # that starts fresh.
 #
 # Worktrees live under __worktrees/ so they stay inside the trusted path prefix
-# (~/.pi/agent/trust.json trusts /Users/sett/src/lelapa) and can be filtered out
+# (~/.pi/agent/trust.json trusts the source-tree prefix) and can be filtered out
 # of the sesh/zoxide picker (see the C-f binding in tmux.conf).
 
 function __pwt_main_root
