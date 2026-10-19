@@ -63,16 +63,29 @@ removed — full implementation history lives in git. Shared-core behavior
 - [ ] **git-crypt URL-hint dedup.** The URL-hint regex is copy-pasted across
   alacritty configs; move it to a shared imported file and add a `check.sh`
   parity test.
-- [ ] **Bitwarden Secrets Manager (BWS) for provider keys — future/optional.**
-  `BWS_ACCESS_TOKEN` is already in `secrets/env.fish` (git-crypt), but provider
-  keys still live there directly. BWS would give per-host/project key
-  partitioning and dashboard-driven rotation instead of git-crypt re-key, with
-  `check.sh` verifying only `BWS_ACCESS_TOKEN`. Path: add `bws` via
-  mise/aqua, pull keys through a fish `conf.d` hook at shell startup. Risk:
-  offline shell startup loses keys unless cached; machines can stay on direct
-  keys if that risk matters. Direct keys were rotated out-of-band after a prior
-  exposure; migration not started — needs an owner decision on the offline
-  trade-off.
+- [ ] **Bitwarden Secrets Manager for provider keys — decided against (2026-10-19).**
+  `BWS_ACCESS_TOKEN` has been removed from `secrets/env.fish` (it existed only to
+  replicate CI/CD job runs locally) and is to be revoked after a canary week.
+  Separately, the org's Secrets Manager is the deployment/external-secrets plane —
+  its projects back ESO and the pipelines — so it is the wrong place for
+  personal-shell material: wrong principal, wrong lifecycle, and a soft
+  admin-controlled boundary. If provider keys ever move off git-crypt, the
+  replacement is a personal store, not that org.
+
+- [ ] **Revoke the retired ArgoCD admin API key (2026-10-19).** `ARGOCD_AUTH_TOKEN`
+  was a never-expiring `admin:apiKey` exported into every process. It has been
+  removed from `secrets/env.fish`, and the per-context token in the Argo CD CLI's
+  own config is verified working without it. Revoke the key in Argo CD once a day
+  or two has passed without anything breaking.
+
+- [ ] **Work-laptop login friction (2026-10-19).** `work-login` / `work-status`
+  (in the mbpm3 host package) re-auth idempotently. Remaining, in order of value:
+  surface `work-status` in the tmux status bar so a lapsed session is visible
+  before it bites; find out the org's IAM Identity Center session duration (the
+  AWS refresh token re-mints hourly, but the sign-in session is what forces a
+  browser, and it is org-configured); decide whether the ARO break-glass
+  credential and the AKS kubeconfig contexts stay machine-local (they need a
+  `$HOME` backup to survive a rebuild).
 - [ ] **workmux trial — deferred (2026-10-11).** Higher-order pi session/agent
   management: git worktrees + tmux windows with per-agent status, prompt injection,
   merge/cleanup lifecycle, and a dashboard. Deferred because the acute bottleneck was

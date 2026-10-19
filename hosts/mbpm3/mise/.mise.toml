@@ -22,6 +22,10 @@ opentofu   = "latest"
 stern      = "latest"          # k8s log tailing (was: asdf)
 k3d        = "latest"          # local k3s clusters (was: asdf)
 awscli     = "latest"          # AWS CLI (was: asdf)
+fly        = "8.3.0"           # Concourse CLI — PINNED to the server's API version.
+                               # Do NOT float this: mise's `latest` runs ahead of
+                               # the server, and fly refuses to talk to a
+                               # mismatched API. Bump only when the server does.
 azure      = "latest"          # resolves to pipx:azure-cli
 pdm        = "latest"          # resolves to pipx:pdm
 
