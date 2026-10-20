@@ -20,8 +20,9 @@ Review for, in priority order:
 1. **Correctness** — does the diff actually achieve the stated goal? Logic errors, missed edge cases, broken error handling.
 2. **Plan adherence** — if a plan was provided, are all steps done and nothing out-of-scope snuck in?
 3. **Regressions** — does it break existing behavior, tests, or callers elsewhere in the codebase? Check callers with grep.
-4. **Security/safety** — injection, leaked secrets, unsafe commands, unvalidated input.
-5. **Consistency** — does it follow the codebase's existing conventions?
+4. **Tests** — for every new or changed test, demand evidence that it FAILS on the unfixed code. A fixture that already satisfies the fix passes either way and proves nothing (a tautological test shipped past a 463-assertion suite this way).
+5. **Security/safety** — injection, leaked secrets, unsafe commands, unvalidated input.
+6. **Consistency** — does it follow the codebase's existing conventions?
 
 Do NOT nitpick style, formatting, or subjective preferences. Keep the review lightweight and focused.
 

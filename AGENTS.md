@@ -66,13 +66,9 @@ the regression suite (CI runs it on every push).
 
 ## Tiling window managers
 
-AeroSpace (macOS) + Komorebi (Windows) share a common keybinding grammar.
-Workspace scheme: 10 per monitor, 1-5 primary / 6-10 secondary.
-See `docs/TILING.md` for full keybinding parity table and layout policy.
-
-Key config paths:
-- macOS: `hosts/mbpm3/aerospace/.config/aerospace/aerospace.toml`
-- Windows: `os/wsl/windows/komorebi/` (deployed by `up.sh`)
+AeroSpace (macOS) + Komorebi (Windows): 10 workspaces per monitor, 1-5 primary /
+6-10 secondary. Keybindings, layout policy, the known asymmetries and both config
+paths live in `docs/TILING.md` — read it before changing either config.
 
 ## Workflows
 
@@ -125,6 +121,7 @@ Key config paths:
 
 Tier by how much analysis remains before the item is actionable:
 `.pi/plans/` (host-local session scratch, gitignored, never commit) < `TODO.md` (analysis done, knock-off). Record at the lowest tier that fits; escalate only when an item outgrows its tier.
+A plan's only required header is `> **Status:** draft | in-progress | landed (<commit>) | abandoned (<why>)` — a stale plan reads as ground truth to the next session.
 
 ## Reference material
 

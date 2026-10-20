@@ -48,6 +48,14 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Deferred — judgment, not blocked
 
+- [ ] **MCP re-enable + credential rotation (2026-10-20).** `~/.pi/agent/mcp.json.disabled`
+  holds a read-only Grafana + Linear config (Keychain-backed, write tools hidden,
+  `exposure: codemode`) that is landed but switched off, with no record of why.
+  Rotation of both credentials was never done (`pi-mcp-work-integration.md` follow-up
+  #4) — do that first. Re-enable trigger: the first work-telemetry question that must
+  be answered mid-session; then verify `pi mcp list` and one tool call per server in a
+  throwaway session, and confirm the Keychain entries still resolve.
+
 - [ ] **Prompt-slim watch (due ~2 weeks after c321cfb).** The always-on prompt was
   distilled (`APPEND_SYSTEM.md` 817 → 498 words, global `AGENTS.md` 201 → 138) and
   is now held by a 500-word budget in `check.sh`. `docs/PROMPT-EVAL.md` lists the

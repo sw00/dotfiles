@@ -1351,6 +1351,20 @@ check "pi: agent tools: lists use only known tool names" \
 _append_words=$(wc -w < "$DOTFILES/base/pi/.pi/agent/APPEND_SYSTEM.md" | tr -d ' ')
 check "pi: APPEND_SYSTEM.md within its word budget ($_append_words/500)" \
     test "$_append_words" -le 500
+# The other two always-on layers had NO budget, and that is where the growth went: the
+# 2026-10-09 slim took APPEND to 498 while the repo AGENTS grew 763 -> 1,168, leaving
+# the always-on total 63 words HIGHER than before the exercise. Per-layer budgets, not
+# one total: each layer has a different owner and growth rate, and a total cap would
+# make project knowledge outbid global rules.
+# Global AGENTS' recorded target is 138 words (TODO "prompt-slim watch"); this freezes
+# it at 185 until that trim happens, so the 43-word gap stays visible instead of being
+# blessed. A bump must name the incident behind it, same rule as APPEND.
+_global_agents_words=$(wc -w < "$DOTFILES/base/pi/.pi/agent/AGENTS.md" | tr -d ' ')
+check "pi: global AGENTS.md within its word budget ($_global_agents_words/185)" \
+    test "$_global_agents_words" -le 185
+_repo_agents_words=$(wc -w < "$DOTFILES/AGENTS.md" | tr -d ' ')
+check "repo AGENTS.md within its word budget ($_repo_agents_words/1200)" \
+    test "$_repo_agents_words" -le 1200
 # =============================================================================
 section "Neovim smoke test"
 
