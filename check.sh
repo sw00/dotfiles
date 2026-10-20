@@ -243,6 +243,14 @@ check_has "bootstrap: WSL calls os/wsl/up.sh" \
 
 check_has "bootstrap: os/wsl stow is explicit (git gnupg alacritty)" \
     'stow_dir.*os/wsl.*git gnupg alacritty' "$DOTFILES/bootstrap.sh"
+# The update path on every machine is "run bootstrap": so it must RESTOW (a file
+# added to a package is otherwise never linked) and dry-run first (an existing target
+# is then reported instead of leaving a half-applied layer). Both were load-bearing
+# the week pwt added a completion and a bin script to already-stowed packages.
+check_has "bootstrap: stows with --restow, so new package files get linked" \
+    'stow --restow --no-folding' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: dry-runs stow to catch conflicts before touching \$HOME" \
+    'stow -n --no-folding' "$DOTFILES/bootstrap.sh"
 
 # WSL host dirs hold only bare files (.wslconfig). Stow packages for the WSL
 # platform live in os/wsl (alacritty); Windows-side app configs live in
@@ -1725,6 +1733,17 @@ check_has "pwt: warns when a second in-place workstream shares a working tree" \
 # name the follow-up rather than leave a bare git hint.
 check_has "pwt: names the branch left behind by an unmerged rm" \
     'not fully merged' "$_PWT"
+# `--stash` is the panel's confirmed teardown: close the window, keep the work, remove
+# the tree. The parking path is what makes it safe — ignored files are MOVED, never
+# deleted, under the git common dir.
+check_has "pwt: exposes a preserve-and-remove mode" \
+    '\-\-stash' "$_PWT"
+check_has "pwt: parks ignored files instead of deleting them" \
+    'pwt-removed' "$_PWT"
+check_has "pwt: exposes a close verb for live workstreams" \
+    'case close' "$_PWT"
+check_has "pwt: the doc says what --stash preserves" \
+    'pwt-removed' "$DOTFILES/docs/PWT.md"
 
 # The written contract. pwt's design lives in code comments and this suite; a real
 # tool ships the parts a user has to know.
@@ -1865,7 +1884,13 @@ check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
 # Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
 # defined until this point in the file, and grep against an empty filename fails.
 check_has "pwt-pick: reserves the new verb as a slug too" \
-    'rm\|remove\|jump\|here\|help\|ls' "$_PWT_PICK"
+    'rm\|remove\|jump\|here\|help\|ls\|close' "$_PWT_PICK"
+# C-x is one confirmation before the whole teardown, and a live row is closeable —
+# nothing in the panel asks the user to type a command to finish the job.
+check_has "pwt-pick: ctrl-x runs the confirmed teardown" \
+    'rmstash' "$_PWT_PICK"
+check_has "pwt-pick: ctrl-x can close a live workstream" \
+    'run_pwt close' "$_PWT_PICK"
 check_has "pwt-pick: labels a row from the window marker when present" \
     '@pwt_label' "$_PWT_PICK"
 # A repo with no workstreams has no row, so the list cannot reach it; and not every
@@ -2135,6 +2160,10 @@ switch $argv[2]
         echo (__pwt_window_for $argv[3] $argv[4..-1])
     case rm
         cd $argv[3]; and pwt rm $argv[4]
+    case rmstash
+        cd $argv[3]; and pwt rm --stash $argv[4]
+    case close
+        pwt close $argv[3]
     case jump
         pwt jump $argv[3]
     case ws
@@ -2288,6 +2317,56 @@ PROBE
         _ "$_detached_rc" "$_detached_out"
     check "pwt: rm of a branchless worktree removed it" \
         test ! -d "$_pwt_repo/__worktrees/detached"
+
+    # `rm --stash` is what C-x runs: close the window, keep the work, remove the tree.
+    # The order matters and is asserted as a whole — a teardown that loses a `.env` or
+    # a piece of uncommitted work is the failure mode this exists to prevent.
+    (cd "$_pwt_repo" && git worktree add -q -b stashme "$_pwt_repo/__worktrees/stashme") >/dev/null 2>&1
+    _stash_wt="$_pwt_repo/__worktrees/stashme"
+    # .env must be IGNORED for the parking path: untracked-but-not-ignored goes to the
+    # stash instead, which is a different assertion.
+    (cd "$_stash_wt" && printf '.env\n' > .gitignore && echo y > g && git add .gitignore g \
+        && git -c commit.gpgsign=false commit -qm wip \
+        && echo change >> f && printf 'SECRET=1\n' > .env) >/dev/null 2>&1
+    tmux -S "$_pwtsock" new-window -t pwttest -n stashme -c "$_stash_wt" "sleep 300" >/dev/null 2>&1
+    _stash_pane="$(tmux -S "$_pwtsock" list-panes -t stashme -F '#{pane_id}' | head -1)"
+    tmux -S "$_pwtsock" select-pane -t "$_stash_pane" -T 'π - stashme'
+    _stash_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _stash_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" rmstash "$_pwt_repo" stashme 2>&1)"
+    _stash_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: rm --stash closes the window and removes the tree" \
+        bash -c '[[ "$1" -gt "$2" && ! -d "$3" ]]' \
+        _ "$_stash_before" "$_stash_after" "$_stash_wt"
+    check "pwt: rm --stash stashes uncommitted work onto the repo's list" \
+        bash -c 'git -C "$1" stash list | grep -q "pwt: removed stashme"' _ "$_pwt_repo"
+    check "pwt: rm --stash parks ignored files outside the tree" \
+        bash -c 'd="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir)/pwt-removed"
+            ls -d "$d"/stashme-* >/dev/null 2>&1 && grep -q SECRET "$d"/stashme-*/.env' \
+        _ "$_pwt_repo"
+    check "pwt: rm --stash keeps an unmerged branch" \
+        bash -c 'git -C "$1" show-ref --verify --quiet refs/heads/stashme' _ "$_pwt_repo"
+    check "pwt: rm --stash reports what it preserved" \
+        bash -c '[[ "$1" == *"uncommitted changes stashed"* && "$1" == *"ignored entr"* && "$1" == *"closed window"* ]]' \
+        _ "$_stash_out"
+    # ...and the plain form still refuses, with the stash path named as the way out.
+    check "pwt: bare rm refuses and points at --stash" \
+        bash -c 'cd "$1" && git worktree add -q -b refuser "$1/__worktrees/refuser" >/dev/null 2>&1
+            printf "KEYS=1\n" > "$1/__worktrees/refuser/.env"
+            out=$(env TMUX="$2" fish -N "$3" "$4" rm "$1" refuser 2>&1) || true
+            [[ "$out" == *"--stash"* ]]' \
+        _ "$_pwt_repo" "$_pwtsock" "$_pwtprobe" "$DOTFILES"
+
+    # `close` ends a LIVE workstream (no worktree): it must kill the pi window and
+    # refuse to pretend when there is none.
+    _close_before="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    _close_out="$(env TMUX="$_pwtsock" fish -N "$_pwtprobe" "$DOTFILES" close "$_pwt_repo" 2>&1)"
+    _close_after="$(tmux -S "$_pwtsock" list-windows -t pwttest -F x | wc -l | tr -d ' ')"
+    check "pwt: close ends a live workstream's window" \
+        bash -c '[[ "$1" -gt "$2" && "$3" == *"closed window"* ]]' \
+        _ "$_close_before" "$_close_after" "$_close_out"
+    check "pwt: close reports failure where no pi window exists" \
+        bash -c '! env TMUX="$1" fish -N "$2" "$3" close /tmp >/dev/null 2>&1' \
+        _ "$_pwtsock" "$DOTFILES" "$_pwtprobe"
 
     tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
     PATH="$_pwt_path_saved"; export PATH

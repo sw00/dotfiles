@@ -31,7 +31,8 @@ complete -c pwt -n __fish_use_subcommand -a ls -d 'list workstreams and live ses
 complete -c pwt -n __fish_use_subcommand -a rm -d 'remove a worktree and its branch'
 complete -c pwt -n __fish_use_subcommand -a here -d 'a workstream in THIS checkout, no worktree'
 complete -c pwt -n __fish_use_subcommand -a jump -d 'go to the pi window at a directory'
+complete -c pwt -n __fish_use_subcommand -a close -d 'end a live workstream: close its pi window'
 complete -c pwt -n __fish_use_subcommand -a '(__fish_pwt_worktrees)' -d workstream
 
 complete -c pwt -n '__fish_seen_subcommand_from rm' -a '(__fish_pwt_worktrees)' -d workstream
-complete -c pwt -n '__fish_seen_subcommand_from jump' -F
+complete -c pwt -n '__fish_seen_subcommand_from jump close' -F

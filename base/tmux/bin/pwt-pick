@@ -285,7 +285,7 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     # Two header lines: fzf truncates a long one, and the glyphs are meaningless
     # without a legend.
     panel_header="$(printf '%s\n%s' \
-        'enter open · ctrl-t new worktree · ctrl-r other repo · ctrl-x remove' \
+        'enter open · ctrl-t new worktree · ctrl-r other repo · ctrl-x end it' \
         '◐ working · ⚑ blocked · ✓ done · ✗ error')"
     # The preview answers "do I still need this?": branch state, then the commits that
     # exist on NO remote. `status --branch` cannot answer the second half — a pwt
@@ -328,12 +328,15 @@ path="$(printf '%s' "$sel" | cut -f2)"
 # Run a pwt verb and KEEP THE POPUP OPEN when it fails. `display-popup -E` closes
 # the moment the command exits, so a refusal ("window @N still holds …") or a
 # validation error would otherwise flash and vanish before it could be read.
-# <verb> is new (cd + pwt <name>), rm, jump (pwt jump <dir>), or here (cd + pwt here).
+# <verb> is new (cd + pwt <name>), rm, jump (pwt jump <dir>), rmstash (the confirmed
+# teardown), close (end a live workstream), or here (cd + pwt here).
 run_pwt() {
     local verb="$1" a="$2" b="${3:-}" rc=0
     case "$verb" in
         new)  fish -c 'cd $argv[1]; and pwt $argv[2]' "$a" "$b" || rc=$? ;;
         rm)   fish -c 'cd $argv[1]; and pwt rm $argv[2]' "$a" "$b" || rc=$? ;;
+        rmstash) fish -c 'cd $argv[1]; and pwt rm --stash $argv[2]' "$a" "$b" || rc=$? ;;
+        close) fish -c 'pwt close $argv[1]' "$a" || rc=$? ;;
         jump) fish -c 'pwt jump $argv[1]' "$a" || rc=$? ;;
         here) fish -c 'cd $argv[1]; and pwt here $argv[2]' "$a" "$b" || rc=$? ;;
         *)    echo "pwt-pick: unknown verb '$verb'" >&2; rc=2 ;;
@@ -351,7 +354,7 @@ run_pwt() {
 # after one would still be unusable, so they are reserved the same way.
 reject_reserved() {
     case "$1" in
-        rm|remove|jump|here|help|ls)
+        rm|remove|jump|here|help|ls|close)
             echo "pwt: '$1' is a pwt verb, not a workstream name" >&2
             exit 2 ;;
     esac
@@ -412,26 +415,31 @@ ctrl-t)
     run_pwt new "$repo" "$slug"
     ;;
 ctrl-x)
-    case "$path" in
-        */__worktrees/*) ;;
-        *) echo "pwt: $(label "$path") is a live session, not a worktree — nothing to remove" >&2
-           exit 0 ;;
-    esac
-    # Show what is about to be lost BEFORE asking: the ignored-file refusal is
-    # pwt's, but discovering it only after answering "y" wastes the decision.
+    # One confirmation, then pwt does the WHOLE teardown: close the window, stash
+    # uncommitted work, park ignored files outside the tree, remove it. Nothing is
+    # left for the user to type, and nothing is unrecoverable — which is why bare
+    # `pwt rm` keeps its refusals for shell use and this path asks once.
     echo "── $(label "$path")"
-    git -C "$path" status --short --branch 2>/dev/null | head -20 || true
+    if [[ "$kind" == "live" ]]; then
+        printf 'Close the pi window at %s? [y/N] ' "$path"
+        read -r ans || ans=''
+        case "$ans" in [yY]*) ;; *) echo "aborted"; exit 0 ;; esac
+        run_pwt close "$path"
+        exit 0
+    fi
+    git -C "$path" status --short --branch 2>/dev/null | head -12 || true
     ignored="$(git -C "$path" status --porcelain --ignored 2>/dev/null | grep -c '^!!' || true)"
     if [[ "${ignored:-0}" != "0" ]]; then
-        echo "   ⚠ $ignored ignored entr(y|ies) (.env/.venv/node_modules) — pwt rm will refuse"
+        echo "  · $ignored ignored entr(y|ies) move to .git/pwt-removed/"
     fi
-    printf 'Remove this worktree and its branch? [y/N] '
+    echo "  · the window closes, uncommitted work is stashed, an unmerged branch is kept"
+    printf 'Remove this worktree? [y/N] '
     read -r ans || ans=''
     case "$ans" in
         [yY]*) ;;
         *) echo "aborted"; exit 0 ;;
     esac
-    run_pwt rm "$(dirname "$(dirname "$path")")" "$(basename "$path")"
+    run_pwt rmstash "$(dirname "$(dirname "$path")")" "$(basename "$path")"
     ;;
 *)
     case "$kind" in

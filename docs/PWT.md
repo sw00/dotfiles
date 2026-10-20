@@ -15,7 +15,8 @@ pins a session id, and this is it.
 |---|---|
 | `pwt <slug> [base]` | worktree at `<repo>/__worktrees/<slug>`, tmux window named after the slug, `pi --session-id <repo>-<slug>` |
 | `pwt here <label>` | a workstream in the CURRENT checkout, no worktree (see below) |
-| `pwt rm <slug>` | remove worktree + branch; refuses while a window holds it or ignored files are present |
+| `pwt rm [--stash] <slug>` | remove worktree + branch. Bare: refuses while a window holds it or ignored files are present. `--stash`: closes the window, stashes changes, parks ignored files, then removes (see below) |
+| `pwt close <dir>` | end a LIVE workstream: close the pi window at `<dir>` |
 | `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>` |
 | `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
 | `pwt help` | usage |
@@ -43,7 +44,7 @@ window is open on it, `●` means it has session history.
 | `enter` | go to the open window, else open one |
 | `ctrl-t` | new worktree in the highlighted row's repo |
 | `ctrl-r` | pick any other repo (worktree, or a workstream in place) |
-| `ctrl-x` | remove — prints what would be lost, asks `y/N` |
+| `ctrl-x` | end it — one `y/N`: closes the window; a worktree is stashed and removed |
 
 The preview is the "do I still need this?" panel: `git status --short --branch`, then
 the commits that exist on **no remote**. The second half matters because `--branch`
@@ -89,21 +90,33 @@ work, or one agent at a time.
   `-f` skips it as a nested repository (verified: "Would skip repository"), but a
   double force would delete a live worktree.
 - The branch named after the slug.
+- After `pwt rm --stash`: one stash entry per removed worktree (`git stash list`) and
+  `<git-common-dir>/pwt-removed/<slug>-<stamp>/` holding whatever was ignored. Both are
+  yours to delete once you are sure.
 
 ## Removal
 
-`pwt rm` refuses in two cases, both deliberate:
+`pwt rm` is the conservative form, for a shell: it refuses while a window holds the
+worktree, and while ignored files are present (`.env`, `.venv`, `node_modules` — `git
+worktree remove` deletes those without a word). Both refusals name `--stash` as the
+way out.
 
-- **A window still holds the worktree** (including a pane that cd'd into a
-  subdirectory). Killing that window is its own act. Refusal prints the window id.
-- **Ignored files are present** (`.env`, `.venv`, `node_modules`). `git worktree
-  remove` deletes those without a word; they are exactly what a worktree
-  accumulates, so losing them must be deliberate.
+`pwt rm --stash` is what `ctrl-x` runs. One confirmation, then the whole teardown, in
+an order chosen so every step is recoverable:
 
-If the branch is not fully merged, the worktree is removed and the branch is kept —
-correctly, those commits exist nowhere else. Merge it, then
-`git -C <repo> branch -d <slug>`. Re-running `pwt <slug>` (without a base ref)
-checks that branch back out, so the work is not lost.
+1. uncommitted tracked and untracked work is stashed onto the REPO's list — it
+   survives this worktree and its branch (`git -C <repo> stash list`);
+2. ignored files are **moved, never deleted**, to
+   `<git-common-dir>/pwt-removed/<slug>-<UTC stamp>/`, where git status, ripgrep and
+   the panel will not see them (a rename, so a `node_modules` costs nothing);
+3. the window holding the worktree is closed **last**, so a popup that dies with it
+   cannot leave a half-dismantled tree;
+4. the worktree is removed and the branch deleted — but an **unmerged branch is
+   kept**, because those commits exist nowhere else.
+
+Re-running `pwt <slug>` (without a base ref) checks a kept branch back out, so the
+work is not lost. `pwt close <dir>` is the same idea for a live workstream, minus the
+tree: it closes the pi window and nothing else.
 
 ## State and notifications
 

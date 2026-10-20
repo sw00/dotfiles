@@ -321,19 +321,56 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     __pwt_tap "$pane"
 end
 
+# The ignored entries of a worktree, relative, one per line. `--ignored` collapses a
+# fully-ignored directory into ONE entry, which is what makes parking them a rename
+# instead of a walk. Trailing slashes are stripped: `mv dir/ dest/` needs dest to
+# exist, while `mv dir dest` does not.
+function __pwt_ignored --description 'ignored paths in <dir>, relative'
+    for line in (command git -C "$argv[1]" status --porcelain --ignored 2>/dev/null)
+        string match -q '!! *' -- $line; or continue
+        string replace -r '/+$' '' -- (string sub -s 4 -- $line)
+    end
+end
+
+# Move <paths...> out of <dir> into <dest>, preserving their relative layout. Returns
+# 1 if ANY of them could not be moved, so the caller aborts before deleting the tree.
+# A rename on one filesystem, so a node_modules costs nothing.
+function __pwt_park --description 'move ignored paths out of <dir> into <dest>'
+    set -l dir $argv[1]
+    set -l dest $argv[2]
+    set -l failed 0
+    for rel in $argv[3..-1]
+        set -l src "$dir/$rel"
+        set -l dst "$dest/$rel"
+        command mkdir -p (command dirname -- "$dst") 2>/dev/null; or set failed 1
+        command mv -- "$src" "$dst" 2>/dev/null; or set failed 1
+    end
+    return $failed
+end
+
 function pwt --description 'pi git-worktree helper (tmux window + pinned session)'
     set -l cmd "$argv[1]"
     switch "$cmd"
         case rm remove
-            set -l slug "$argv[2]"
-            test -n "$slug"; or begin; echo "usage: pwt rm <slug>" >&2; return 2; end
+            # `--stash` is the panel's confirmed path: close the window that holds the
+            # worktree, stash uncommitted work, park ignored files OUTSIDE the tree,
+            # then remove. Everything it destroys is recoverable, and an unmerged
+            # branch is still kept. Bare `rm` stays conservative for shell use.
+            set -l rest $argv[2..-1]
+            set -l stash_mode 0
+            if test "$rest[1]" = --stash
+                set stash_mode 1
+                set -e rest[1]
+            end
+            set -l slug "$rest[1]"
+            test -n "$slug"; or begin; echo "usage: pwt rm [--stash] <slug>" >&2; return 2; end
             __pwt_valid_slug "$slug"; or begin; echo "pwt: invalid slug '$slug'" >&2; return 2; end
             set -l root (__pwt_main_root); or return 1
             set -l wt "$root/__worktrees/$slug"
             test -d "$wt"; or begin; echo "pwt: no worktree at $wt" >&2; return 1; end
             # A worktree a window still holds is IN USE: removing it pulls the
-            # directory out from under a running pi. Killing that window is its
-            # own deliberate act (C-a C-x), so refuse and name what is open.
+            # directory out from under a running pi. Bare `rm` names what is open;
+            # `--stash` closes it, which is the confirmed path.
             # in-tree, not exact: pi whose pane has cd'd into a subdirectory of the
             # worktree is just as much in the way, and deleting the tree under it
             # leaves that shell sitting in a directory that no longer exists.
@@ -341,22 +378,73 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             # while pi works in tmux is exactly when this matters. With no
             # reachable server the lookup returns empty, which is correct.
             set -l live (__pwt_window_for "$wt" in-tree)
-            if test -n "$live"
+            if test -n "$live"; and test $stash_mode -eq 0
                 echo "pwt: window $live still holds $wt" >&2
                 echo "     close it first: tmux kill-window -t $live" >&2
+                echo "     or let pwt close it and keep the work: pwt rm --stash $slug" >&2
                 return 1
             end
-            # `worktree remove` refuses only on TRACKED modifications; ignored
-            # files (.env, .venv, node_modules) are deleted without a word. Those
-            # are exactly the untracked-by-design files a worktree accumulates,
-            # so refuse while any are present — losing them must be deliberate.
-            set -l ignored (command git -C "$wt" status --porcelain --ignored 2>/dev/null | string match -r '^!!.*')
-            if test (count $ignored) -gt 0
+            # `worktree remove` refuses only on TRACKED modifications; ignored files
+            # (.env, .venv, node_modules) are deleted without a word. Those are exactly
+            # the untracked-by-design files a worktree accumulates, so bare `rm`
+            # refuses — naming `--stash` as the way out — while `--stash` preserves.
+            set -l ignored (__pwt_ignored "$wt")
+            set -l dirty (command git -C "$wt" status --porcelain 2>/dev/null | string match -rv '^!!')
+            if test $stash_mode -eq 0; and test (count $dirty) -gt 0
+                echo "pwt: $wt has uncommitted changes — refusing." >&2
+                echo "     commit or stash them, or: pwt rm --stash $slug   (stashes, then removes)" >&2
+                return 1
+            end
+            if test $stash_mode -eq 0; and test (count $ignored) -gt 0
                 echo "pwt: $wt holds ignored files (.env/.venv/node_modules) — refusing." >&2
                 echo "     Remove them yourself first, then re-run: pwt rm $slug" >&2
+                echo "     or park them and keep the work: pwt rm --stash $slug" >&2
                 return 1
             end
-            command git -C "$root" worktree remove "$wt"; or return 1
+            set -l park ''
+            if test $stash_mode -eq 1
+                set -l stamp (command date -u +%Y%m%dT%H%M%SZ)
+                # 1. Uncommitted work (tracked + untracked). A stash lives on the
+                #    REPO's stash list, so it survives this worktree and its branch.
+                if test (count $dirty) -gt 0
+                    if not command git -C "$wt" stash push --include-untracked -q -m "pwt: removed $slug $stamp"
+                        echo "pwt: could not stash changes in $wt — nothing was removed" >&2
+                        return 1
+                    end
+                    echo "pwt: uncommitted changes stashed — recover with: git -C $root stash list"
+                end
+                # 2. Ignored files. Never deleted: moved under the git common dir, where
+                #    nothing (git status, ripgrep, the panel) will see them.
+                if test (count $ignored) -gt 0
+                    set -l common (command git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+                    set park "$common/pwt-removed/$slug-$stamp"
+                    if not __pwt_park "$wt" "$park" $ignored
+                        echo "pwt: could not move ignored files aside — nothing was removed" >&2
+                        echo "     they are still in $wt; fix permissions and retry" >&2
+                        return 1
+                    end
+                    echo "pwt: moved "(count $ignored)" ignored entr(y|ies) to $park"
+                end
+                # 3. The window LAST: a popup waiting on this command can die with the
+                #    window, and steps 1-2 are already complete by then. A window that
+                #    vanished on its own is fine; one that refuses is not.
+                if test -n "$live"
+                    if not command tmux kill-window -t "$live" 2>/dev/null
+                        test -n (command tmux display-message -p -t "$live" '#{window_id}' 2>/dev/null)
+                        and begin
+                            echo "pwt: could not close window $live — worktree left in place" >&2
+                            return 1
+                        end
+                    end
+                    echo "pwt: closed window $live"
+                end
+            end
+            command git -C "$root" worktree remove "$wt"
+            or begin
+                echo "pwt: git could not remove $wt — the tree is still there" >&2
+                test -n "$park"; and echo "     ignored files are parked at $park" >&2
+                return 1
+            end
             # A detached worktree (or one whose branch was already deleted) has nothing
             # to delete: that is finished, not failed — and `branch -d` would print a
             # "not found" error for it.
@@ -384,13 +472,28 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                 return 1
             end
             command "$picker" --list
+        case close
+            # End a live workstream: kill the window whose pane is pi at <dir>. The
+            # worktree case is `rm --stash`, which does this plus the tree. no-worktrees
+            # because "the checkout" must not be answered by a pi in one of its own
+            # worktrees — that one belongs to a different workstream.
+            set -l dir "$argv[2]"
+            test -n "$dir"; or begin; echo "usage: pwt close <dir>" >&2; return 2; end
+            set -q TMUX; or begin; echo "pwt: not in tmux" >&2; return 1; end
+            set -l wid (__pwt_window_for "$dir" pi-only in-tree no-worktrees)
+            test -n "$wid"; or begin; echo "pwt: no pi window at $dir" >&2; return 1; end
+            command tmux kill-window -t "$wid" 2>/dev/null
+            or begin; echo "pwt: could not close window $wid" >&2; return 1; end
+            echo "pwt: closed window $wid"
         case help ''
-            echo "Usage: pwt <slug> [base]    worktree + tmux window + pinned pi session"
-            echo "       pwt rm <slug>         remove it (refuses on an open window or ignored files)"
-            echo "       pwt here <label>      a workstream in THIS checkout, no worktree"
-            echo "       pwt ls                list workstreams (the C-w panel's rows, in order)"
-            echo "       pwt jump <dir>        go to the pi window whose cwd is <dir>"
-            echo "Docs: docs/PWT.md · panel: tmux prefix then C-w"
+            echo "Usage: pwt <slug> [base] | pwt <verb> …   (docs/PWT.md)"
+            printf '  %-26s %s\n' 'pwt <slug> [base]' 'worktree + tmux window + pinned pi session'
+            printf '  %-26s %s\n' 'pwt rm [--stash] <slug>' 'end it; --stash closes the window and keeps the work'
+            printf '  %-26s %s\n' 'pwt close <dir>' 'end a live workstream: close its pi window'
+            printf '  %-26s %s\n' 'pwt here <label>' 'a workstream in THIS checkout, no worktree'
+            printf '  %-26s %s\n' 'pwt ls' 'list workstreams (the C-w panel rows, in order)'
+            printf '  %-26s %s\n' 'pwt jump <dir>' 'go to the pi window whose cwd is <dir>'
+            echo '  panel: tmux prefix then C-w'
         case jump
             # Used by the C-w panel for rows that are live pi sessions rather
             # than worktrees: there is nothing to create, only a window to find.
