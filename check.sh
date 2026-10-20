@@ -887,6 +887,24 @@ for _wf in work-login work-status; do
         fish -n "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
 done
 
+# The probe helpers must be their OWN files. fish autoloads a function only from
+# a file NAMED after it, so while these lived inside work-status.fish, work-login
+# called them as unknown commands in any shell where work-status had not run —
+# and because work-login's gates treat an empty probe as "nothing to do", it
+# reported success while probing nothing (user hit this 2026-10-20). `functions -q`
+# triggers the same autoload path a call would, without running anything.
+_work_fn_dir="$DOTFILES/hosts/mbpm3/fish/.config/fish/functions"
+for _wf in __work_aws_sso_profile __work_fly_targets __work_exec_contexts; do
+    check "hosts/mbpm3: $_wf has its own file" \
+        test -f "$_work_fn_dir/$_wf.fish"
+
+    check "hosts/mbpm3: $_wf parses" \
+        fish -n "$_work_fn_dir/$_wf.fish"
+
+    check "hosts/mbpm3: $_wf autoloads in a fresh fish" \
+        fish -N -c "set fish_function_path '$_work_fn_dir'; functions -q $_wf"
+done
+
 # Rev 5: az joined the work toolchain. Assert the wiring rather than just the
 # presence of the word, so the two functions cannot drift apart: work-login must
 # offer az by default, and both must probe it the same way — otherwise one
@@ -2941,6 +2959,48 @@ check_has "conf.d/mise.fish: not gitignored (fish allowlist negation present)" \
 # than `completions/*`, so the negation below it did nothing.
 check "fish: no own function, conf.d or completion file is untracked or ignored (allowlist trap)" \
     bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/ base/fish/.config/fish/completions/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/ base/fish/.config/fish/completions/)\""
+
+# fish autoloads a function ONLY from a file named after it. A helper defined
+# inside another function's file is therefore an unknown command until that file
+# happens to be sourced — how work-login called three helpers that existed only
+# after work-status had run in the same shell, silently probing nothing. Any
+# `__helper` a functions/ file calls must be defined in that file, or have its own
+# <helper>.fish somewhere in a functions dir.
+_autoload_bad="$(python3 - "$DOTFILES" <<'PY'
+import os, re, subprocess, sys
+root = sys.argv[1]
+tracked = [f for f in subprocess.run(['git', '-C', root, 'ls-files', '*/functions/*.fish'],
+           capture_output=True, text=True).stdout.split('\n') if f]
+
+def strip_comments(t):
+    out, q, c = [], None, False
+    for ch in t:
+        if c:
+            if ch == '\n':
+                c = False; out.append(ch)
+        elif q:
+            if ch == q: q = None
+            out.append(ch)
+        elif ch in '\'"': q = ch; out.append(ch)
+        elif ch == '#': c = True
+        else: out.append(ch)
+    return ''.join(out)
+
+body = {f: strip_comments(open(os.path.join(root, f), errors='ignore').read()) for f in tracked}
+defined = {f: set(re.findall(r'^[ \t]*function[ \t]+([^ \t\r\n;]+)', b, re.M)) for f, b in body.items()}
+where = {n: f for f, ns in defined.items() for n in ns}
+autoloadable = {os.path.basename(f)[:-5] for f in tracked}
+for f, b in body.items():
+    for name in sorted(set(re.findall(r'(?<![\w./-])(__[A-Za-z0-9_]+)(?![\w./-])', b))):
+        if name in defined[f] or name in autoloadable:
+            continue
+        owner = where.get(name)
+        print(f"{f}: calls '{name}'" + (f" — defined only in {owner}, so it is missing until that file is sourced" if owner else " — defined nowhere in a functions dir"))
+PY
+)"
+[[ -n "$_autoload_bad" ]] && printf '      %s\n' "$_autoload_bad"
+check "fish: every cross-file __helper is autoloadable (one function per file)" \
+    test -z "$_autoload_bad"
 
 # SUMMARY
 # =============================================================================

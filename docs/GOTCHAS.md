@@ -212,3 +212,14 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   shell. `bootstrap.sh` does this on a fresh machine; an existing one needs
   `stow --restow --no-folding -d base -t ~ fish`. No test can catch it: the repo copy
   is fine, only the `$HOME` link is missing.
+- **fish autoloads a function only from a file NAMED after it.** Three probe helpers
+  (`__work_aws_sso_profile`, `__work_fly_targets`, `__work_exec_contexts`) lived inside
+  `work-status.fish`, so `work-login` resolved them to "Unknown command" in any shell
+  where `work-status` had not already run — the same shell worked, a fresh terminal did
+  not. It stayed hidden because `work-login`'s gates treat an empty probe as "nothing to
+  do": it reported "all tools live" while silently checking only az and argocd. One
+  function per file; `check.sh` now asserts it statically (a cross-file `__helper` must
+  be autoloadable) and dynamically (`functions -q` in a fresh `fish -N`). Note the
+  inverse case it does NOT forbid: helpers defined and used inside one file
+  (`pwt.fish`'s fourteen `__pwt_*`) are fine, because autoloading that file defines
+  them before the entry point runs.
