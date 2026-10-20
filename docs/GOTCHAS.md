@@ -169,3 +169,10 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   false "would be skipped" that was nearly acted on. When a probe's answer changes what
   happens next, write it to a file and run it with an explicit interpreter
   (`bash /tmp/probe.sh`), the way the `ensure_sudo` unit harness does.
+- **`fzf --preview` runs under `$SHELL`, which is fish here.** A multi-line POSIX
+  preview (`n=$(git rev-list …); [ "$n" -gt 0 ] && …`) is a fish *syntax error*, and its
+  output lands in the preview pane — so the panel looks broken rather than the snippet
+  ("fish: Unsupported use of '='." with the offending line echoed under it). Keep a
+  preview to one line that sh, fish and zsh all parse, or put it in a script with its
+  own shebang (`base/tmux/bin/pwt-preview`). fzf's shell is inherited, never chosen
+  deliberately; the same applies to `execute(...)`.

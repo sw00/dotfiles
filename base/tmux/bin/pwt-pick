@@ -291,17 +291,16 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     # exist on NO remote. `status --branch` cannot answer the second half — a pwt
     # branch made from HEAD has no upstream, so it prints `## slug` and says nothing
     # about whether the work has landed. Showing only; merging stays yours.
-    preview_cmd='git -C {2} status --short --branch 2>/dev/null | head -12
-n=$(git -C {2} rev-list --count HEAD --not --remotes 2>/dev/null)
-[ "${n:-0}" -gt 0 ] && printf "\n· %s commit(s) on no remote\n" "$n"
-git -C {2} log --oneline HEAD --not --remotes --no-merges 2>/dev/null | head -8'
+    #
+    # It lives in pwt-preview, NOT inline: fzf runs a preview with `$SHELL -c`, and
+    # $SHELL is fish here, so `n=$(…)` is a fish syntax error printed into the pane.
     out="$(printf '%s\n' "${rows[@]}" \
         | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
             --border-label ' pwt ' \
             --header "$panel_header" \
             --expect=ctrl-t,ctrl-x,ctrl-r \
             --print-query \
-            --preview "$preview_cmd" \
+            --preview "$HOME/bin/pwt-preview {2}" \
             --preview-window 'down:40%')" || exit 0
 
     [[ -n "$out" ]] || exit 0

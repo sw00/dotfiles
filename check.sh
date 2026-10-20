@@ -1890,9 +1890,30 @@ check_has "pwt-pick: offers the typed query as the default workstream name" \
 check_has "pwt-pick: an empty answer accepts that default" \
     'slug="\$query"' "$_PWT_PICK"
 # "Do I still need this?" — status --branch cannot answer it for a branch with no
-# upstream, so the preview also shows the commits that exist on no remote.
-check_has "pwt-pick: the preview shows commits on no remote" \
-    '\-\-not \-\-remotes' "$_PWT_PICK"
+# upstream, so the preview also shows the commits that exist on no remote. It is a
+# SCRIPT, not an inline snippet: fzf runs previews with `$SHELL -c` and $SHELL is fish,
+# where `n=$(…)` is a syntax error printed into the pane. Pinned here so an inline
+# snippet cannot creep back.
+_PWT_PREVIEW="$DOTFILES/base/tmux/bin/pwt-preview"
+check "pwt-preview: helper exists in base/tmux/bin" test -f "$_PWT_PREVIEW"
+check "pwt-preview: is executable" test -x "$_PWT_PREVIEW"
+check "pwt-preview: shellcheck clean" shellcheck -S warning "$_PWT_PREVIEW"
+check_has "pwt-preview: shows commits on no remote" \
+    '\-\-not \-\-remotes' "$_PWT_PREVIEW"
+check_has "pwt-pick: the preview is a script, not a shell snippet" \
+    'pwt-preview \{2\}' "$_PWT_PICK"
+check_not "pwt-pick: no inline preview snippet" \
+    'rev-list' "$_PWT_PICK"
+# Behaviour through the shell that broke it: fish. A script with a shebang is
+# unaffected by $SHELL; the same snippet inline was not.
+check "pwt-preview: renders correctly when invoked from fish" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+        git config user.email t@t; git config user.name t; echo x > f; git add f
+        git -c commit.gpgsign=false commit -qm init
+        out=$(fish -c "\"$1\" \"$PWD\"" 2>&1)
+        grep -q "^## " <<<"$out" && grep -q "commit(s) on no remote" <<<"$out" &&
+        ! grep -q "Unsupported use" <<<"$out"' \
+    _ "$_PWT_PREVIEW"
 # ...and neither list format may ever emit an EMPTY field: `read` collapses one and
 # shifts every later column, so the tap would skip exactly the panes that have no
 # state yet — the untapped ones, i.e. the whole point of the adoption. grep -F: the

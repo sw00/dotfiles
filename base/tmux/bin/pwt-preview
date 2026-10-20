@@ -1,0 +1,27 @@
+#!/bin/bash
+# pwt-preview — the C-w panel's preview for one workstream: "do I still need this?"
+#
+# Usage: pwt-preview <path>
+#
+# A SCRIPT, not an inline `--preview` string, and that is the whole point: fzf runs
+# preview commands with `$SHELL -c`, and $SHELL is fish on this machine, so a POSIX
+# snippet (`n=$(…)`) is a syntax error printed into the preview pane instead of a
+# preview. Anything with shell syntax belongs here, where the shebang decides.
+#
+# Output: `git status --short --branch`, then the commits that exist on NO remote.
+# The second half is what the status line cannot answer — a pwt branch is created
+# from HEAD and has no upstream, so `--branch` reports `## slug` and says nothing
+# about whether the work has landed. Showing only; merging stays the operator's.
+set -uo pipefail
+
+path="${1:-}"
+[ -n "$path" ] || exit 0
+
+git -C "$path" status --short --branch 2>/dev/null | head -12
+
+n="$(git -C "$path" rev-list --count HEAD --not --remotes 2>/dev/null || true)"
+case "$n" in ''|*[!0-9]*) n=0 ;; esac
+if [ "$n" -gt 0 ]; then
+    printf '\n· %s commit(s) on no remote\n' "$n"
+    git -C "$path" log --oneline HEAD --not --remotes --no-merges 2>/dev/null | head -8
+fi
