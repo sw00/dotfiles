@@ -183,7 +183,7 @@ osc_send() { # <title> <body>
 
 osc_notify() { # <pane> <state> <kind> <msg-b64>
     local pane="$1" state="$2" kind="$3" msg="$4"
-    local last now name cwd detail
+    local last now name cwd wdir repo src detail
     # Mute switch, live-controllable with `tmux set -g @pwt_notify 0` and visible
     # from any window because the option walk is window → session → global. Only an
     # explicit off mutes: an unset option reads as empty, which means on, so the
@@ -199,12 +199,28 @@ osc_notify() { # <pane> <state> <kind> <msg-b64>
     if [ "$((now - last))" -lt "$COOLDOWN_SECONDS" ]; then
         return 0
     fi
-    # The workstream's own name — the label the user typed, which the C-w panel
-    # shows too — else its directory: an ad-hoc pi session is still a thing that
-    # can want you. Rendering `org/repo/slug` is deliberately NOT duplicated here;
-    # that lives in pwt-pick, and a second copy would drift from the first.
+    # The workstream's own name, the way the panel describes it: the label the user
+    # typed, QUALIFIED BY ITS REPO — a push whose title is just "audit — blocked"
+    # cannot be acted on when two repos hold an `audit`, and being actionable from
+    # another app is the only job a push has. @pwt_dir is the workstream's own dir
+    # (the worktree, or the checkout for `here`), so a worktree's repo is two levels
+    # up from __worktrees, and $PWT_SRC is stripped where it applies so the title
+    # reads like the panel's `org/repo/slug`. Else the directory: an ad-hoc pi session
+    # is still a thing that can want you.
     name="$(osc_window_opt "$pane" @pwt_label)"
-    if [ -z "$name" ]; then
+    wdir="$(osc_window_opt "$pane" @pwt_dir)"
+    if [ -n "$name" ] && [ -n "$wdir" ]; then
+        repo="$wdir"
+        case "$repo" in
+            */__worktrees/*) repo="$(dirname -- "$(dirname -- "$repo")")" ;;
+        esac
+        src="${PWT_SRC:-$HOME/src}"
+        case "$repo" in
+            "$src"/*) repo="${repo#"$src"/}" ;;
+            *)        repo="$(basename -- "$repo")" ;;
+        esac
+        name="$repo/$name"
+    elif [ -z "$name" ]; then
         cwd="$(osc_window_opt "$pane" pane_current_path)"
         [ -n "$cwd" ] && name="$(basename -- "$cwd")"
     fi

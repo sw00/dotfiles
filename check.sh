@@ -1851,7 +1851,7 @@ check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
 # Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
 # defined until this point in the file, and grep against an empty filename fails.
 check_has "pwt-pick: reserves the new verb as a slug too" \
-    'rm\|remove\|jump\|here\|help' "$_PWT_PICK"
+    'rm\|remove\|jump\|here\|help\|ls' "$_PWT_PICK"
 check_has "pwt-pick: labels a row from the window marker when present" \
     '@pwt_label' "$_PWT_PICK"
 # A repo with no workstreams has no row, so the list cannot reach it; and not every
@@ -1882,6 +1882,17 @@ check_not "pwt-pick: no longer steals the fzf navigation keys" \
 # because the command string passes through strftime before tmux expands formats.
 check_has "pwt-pick: adopts every live pi pane when the panel opens" \
     'pwt-osc #\{pane_id\}' "$_PWT_PICK"
+# The query is offered as the default name, which is the whole point of
+# --print-query: you typed the name while filtering, so the prompt must not make you
+# type it twice.
+check_has "pwt-pick: offers the typed query as the default workstream name" \
+    '\-\-print-query' "$_PWT_PICK"
+check_has "pwt-pick: an empty answer accepts that default" \
+    'slug="\$query"' "$_PWT_PICK"
+# "Do I still need this?" — status --branch cannot answer it for a branch with no
+# upstream, so the preview also shows the commits that exist on no remote.
+check_has "pwt-pick: the preview shows commits on no remote" \
+    '\-\-not \-\-remotes' "$_PWT_PICK"
 # ...and neither list format may ever emit an EMPTY field: `read` collapses one and
 # shifts every later column, so the tap would skip exactly the panes that have no
 # state yet — the untapped ones, i.e. the whole point of the adoption. grep -F: the
@@ -1909,6 +1920,38 @@ check "pwt: uses the same pi window-title prefix as pwt-pick" \
 # validation error has to hold the popup open or it is unreadable.
 check_has "pwt-pick: holds the popup open when pwt fails" \
     'press enter' "$_PWT_PICK"
+
+# `pwt ls` is the shell-side half of the panel: same rows, same order, ONE
+# implementation (pwt-pick --list). Outside tmux every marker is blank, which is
+# what makes it usable from a script.
+check_has "pwt: exposes a shell-side listing verb" \
+    'case ls' "$_PWT"
+if command -v fish >/dev/null 2>&1; then
+    _pwt_ls_tmp="$(mktemp -d)"
+    mkdir -p "$_pwt_ls_tmp/org/repo/__worktrees/demo"
+    check "pwt: ls prints the panel's rows outside tmux" \
+        bash -c 'out=$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent PWT_PICK="$2" "$3" -N -c "source $4; pwt ls")
+            grep -qF "org/repo/demo" <<<"$out"' \
+        _ "$_pwt_ls_tmp" "$_PWT_PICK" "$(command -v fish)" "$_PWT"
+    rm -rf "$_pwt_ls_tmp"
+fi
+
+# Completions live in base/fish/completions, which the fish .gitignore ignores by
+# default: the allowlist negation is the load-bearing part, same trap as functions/.
+_PWT_COMP="$DOTFILES/base/fish/.config/fish/completions/pwt.fish"
+check "pwt completions: file exists in base/fish" test -f "$_PWT_COMP"
+check_has "pwt completions: not gitignored (allowlist negation present)" \
+    '^!completions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+if command -v fish >/dev/null 2>&1; then
+    check "pwt completions: parses (fish -n)" fish -n "$_PWT_COMP"
+    # Behaviour, not text: complete -C is the same engine TAB uses.
+    check "pwt completions: offer verbs and this repo's workstream slugs" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            mkdir -p __worktrees/demo
+            out=$(fish -N -c "source $1; complete -C \"pwt \"; complete -C \"pwt rm \"")
+            grep -q "^ls" <<<"$out" && grep -q "^demo" <<<"$out"' \
+        _ "$_PWT_COMP"
+fi
 
 # End-to-end listing: a fabricated worktree must surface as org/repo/slug behind a
 # two-column marker (▸ window open / ● pi history). With no tmux and a missing
@@ -2285,6 +2328,7 @@ display-message)
     # window — the trap. A tap that gates on this must fail the checks below.
     *window_active*)     printf '%s\n' "${PWT_STUB_ACTIVE:-1}" ;;
     *@pwt_label*)        printf '%s\n' "${PWT_STUB_LABEL:-}" ;;
+    *@pwt_dir*)          printf '%s\n' "${PWT_STUB_DIR:-}" ;;
     *pane_current_path*) printf '%s\n' "${PWT_STUB_CWD:-}" ;;
     *@pwt_notify*)       printf '%s\n' "${PWT_STUB_NOTIFY:-}" ;;
     *@pi_notified_at*)   cat "$PWT_STUB_OPT/@pi_notified_at" 2>/dev/null ;;
@@ -2305,11 +2349,12 @@ OSTUB
 printf '%s|%s\n' "$1" "$2" >> "$PWT_NOTIFY_LOG"
 OREC
     chmod +x "$_osc_stub_dir/tmux" "$_osc_stub_dir/rec"
-    # <payload> [looking] [label] [cwd]. `looking` is what the CLIENT list says, not
-    # what `window_active` says: 0 nobody attached (which is also what a client on
+    # <payload> [looking] [label] [cwd] [dir]. `looking` is what the CLIENT list says,
+    # not what `window_active` says: 0 nobody attached (which is also what a client on
     # another session's window amounts to), 1 a client whose current window IS this
     # one, 2 a client attached somewhere else. Defaults use - not :- so a case can
-    # pass an empty label.
+    # pass an empty label. PWT_SRC is pinned so the title's $PWT_SRC-relative form is
+    # deterministic.
     _osc_raw() {
         local clients='' cwin=''
         case "${2-0}" in
@@ -2321,15 +2366,16 @@ OREC
                   PWT_STUB_CLIENTS="$clients" PWT_STUB_CLIENT_WIN="$cwin" \
                   PWT_STUB_LABEL="${3-audit}" \
                   PWT_STUB_CWD="${4-/src/org/repo/__worktrees/audit}" \
+                  PWT_STUB_DIR="${5-}" PWT_SRC=/src \
                   PWT_STUB_NOTIFY="${_osc_mute:-}" \
                   PWT_NOTIFY_CMD="$_osc_stub_dir/rec" PWT_NOTIFY_LOG="$_osc_nlog" "$_PWT_OSC" %99
     }
-    # <state> [kind] [msg-b64] [looking] [label] [cwd]
+    # <state> [kind] [msg-b64] [looking] [label] [cwd] [dir]
     _osc_shot() {
         local payload="state=$1:app=pi"
         [[ -n "${2:-}" ]] && payload="$payload:kind=$2"
         [[ -n "${3:-}" ]] && payload="$payload:msg=$3"
-        _osc_raw "$payload" "${4-0}" "${5-audit}" "${6-/src/org/repo/__worktrees/audit}"
+        _osc_raw "$payload" "${4-0}" "${5-audit}" "${6-/src/org/repo/__worktrees/audit}" "${7-}"
     }
     _osc_clear() { rm -f "$_osc_opt"/*; : > "$_osc_nlog"; }
     _osc_mute=''   # 0 stands in for `tmux set -g @pwt_notify 0`
@@ -2346,6 +2392,22 @@ OREC
         test "$(_osc_n)" = "1"
     check "pwt-osc: it names the workstream and repeats what pi said" \
         grep -qF 'audit — blocked|Waiting for approval: run the tests?' "$_osc_nlog"
+    # A push has exactly one job: send you to the right window. So the title carries
+    # the workstream's repo — "audit — blocked" cannot be acted on when two repos
+    # hold an audit. @pwt_dir is the workstream's OWN directory, so the title is the
+    # panel's label: $PWT_SRC-relative when that applies, repo basename otherwise.
+    _osc_clear
+    _osc_shot blocked auth "$_osc_head" 0 audit '' /src/org/repo/__worktrees/audit /src/org/repo/__worktrees/audit
+    check "pwt-osc: a push qualifies the workstream with its repo" \
+        grep -qF 'org/repo/audit — blocked|' "$_osc_nlog"
+    _osc_clear
+    _osc_shot 'done' '' '' 0 audit '' /elsewhere/repo/__worktrees/audit /elsewhere/repo/__worktrees/audit
+    check "pwt-osc: a worktree outside \$PWT_SRC falls back to its repo name" \
+        grep -qF 'repo/audit — done|' "$_osc_nlog"
+    _osc_clear
+    _osc_shot 'done' '' '' 0 audit '' /src/org/repo /src/org/repo
+    check "pwt-osc: an in-place workstream is named by its checkout" \
+        grep -qF 'org/repo/audit — done|' "$_osc_nlog"
     # The stub answers window_active=1, exactly as a detached server does for a
     # session's current window, and no client is attached: the flag must go up anyway,
     # because nothing is looking at it.
@@ -2699,12 +2761,14 @@ check_has "conf.d/mise.fish: not gitignored (fish allowlist negation present)" \
     '^!conf\.d/mise\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
 
 # Generic form of the same trap, so the next new own-file cannot slip through.
-# Covers conf.d/ as well as functions/: the .gitignore is an ALLOWLIST, so
-# a new own-file in either directory is silently ignored and never committed.
-# This test was on functions/ only until conf.d/mise.fish fell straight into
-# it — same trap, one directory over.
-check "fish: no own function or conf.d file is untracked or ignored (allowlist trap)" \
-    bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/)\""
+# Covers completions/ as well as conf.d/ and functions/: the .gitignore is an
+# ALLOWLIST, so a new own-file in any of them is silently ignored and never
+# committed. This test was on functions/ only until conf.d/mise.fish fell straight
+# into it — same trap, one directory over — and completions/ was the third: its
+# pattern was `completions/` (a DIRECTORY, which git cannot re-include from) rather
+# than `completions/*`, so the negation below it did nothing.
+check "fish: no own function, conf.d or completion file is untracked or ignored (allowlist trap)" \
+    bash -c "cd '$DOTFILES' && test -z \"\$(git ls-files --others --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/ base/fish/.config/fish/completions/; git ls-files --others --ignored --exclude-standard base/fish/.config/fish/functions/ base/fish/.config/fish/conf.d/ base/fish/.config/fish/completions/)\""
 
 # SUMMARY
 # =============================================================================

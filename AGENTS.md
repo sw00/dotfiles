@@ -83,10 +83,10 @@ Key config paths:
   up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
 - Parallel agent workstreams: `pwt <slug>` pairs a git worktree, a tmux window and
-  a pinned pi session; `C-w` in tmux is the state-sorted panel (`ctrl-t` new,
-  `ctrl-x` remove, `ctrl-r` other repo). Read `docs/PWT.md` before changing `pwt`,
-  `pwt-pick` or `pwt-osc` — the identity, ignore and tap rules there are
-  load-bearing.
+  a pinned pi session; `pwt ls` lists them from a shell, and `C-w` in tmux is the
+  state-sorted panel (`ctrl-t` new, `ctrl-x` remove, `ctrl-r` other repo). Read
+  `docs/PWT.md` before changing `pwt`, `pwt-pick` or `pwt-osc` — the identity,
+  ignore and tap rules there are load-bearing.
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
 - pi settings drift: sessions write runtime state into the stowed

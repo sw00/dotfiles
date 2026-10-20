@@ -17,6 +17,7 @@ pins a session id, and this is it.
 | `pwt here <label>` | a workstream in the CURRENT checkout, no worktree (see below) |
 | `pwt rm <slug>` | remove worktree + branch; refuses while a window holds it or ignored files are present |
 | `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>` |
+| `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
 | `pwt help` | usage |
 
 Re-running `pwt <slug>` is the resume path: an existing window is reused, never
@@ -43,14 +44,23 @@ window is open on it, `●` means it has session history.
 | `ctrl-r` | pick any other repo (worktree, or a workstream in place) |
 | `ctrl-x` | remove — prints what would be lost, asks `y/N` |
 
+The preview is the "do I still need this?" panel: `git status --short --branch`, then
+the commits that exist on **no remote**. The second half matters because `--branch`
+only reports ahead/behind against an upstream, and a worktree branch made from `HEAD`
+has none — so merged-and-pushed is visible, local-only work is visible, and landing is
+your call. Nothing here merges.
+
 Those three are keys fzf's own line editor does not use. `--expect` *takes* a key
 away from the editor, so binding `ctrl-n`/`ctrl-d` (fzf's next-match and
 delete-char) made navigation asymmetric and fired a name prompt on the
 muscle-memory key. An action closes the panel; that is the price of keeping the
 selected row and the typed query out of a shell command string.
 
-Typing a slug is prompted after the panel closes. `pwt` re-validates it (the panel
-only reserves its own verb names), so a refusal keeps the popup open to be read.
+Typing a slug is prompted after the panel closes, with what you typed as a filter
+offered as the default (`--print-query`): filter to the name, `ctrl-t`, Enter. An
+empty answer accepts the suggestion, anything you type replaces it, and `ctrl-c`
+aborts. `pwt` re-validates it (the panel only reserves its own verb names), so a
+refusal keeps the popup open to be read.
 
 ## Worktree vs in-place
 
@@ -108,6 +118,9 @@ it and mirrors the state into window options:
 - A desktop notification for the same three states, at most once per workstream per
   5 minutes — a live agent settles 7–22 times on one task, so without a cooldown one
   stuck agent is a notification storm. Never for a window you are already looking at.
+  The title is `org/repo/<name> — state` (repo-relative to `$PWT_SRC` when the path is
+  under it), because a push that says only `<name>` cannot be acted on when two repos
+  hold a workstream of that name.
 
 `tmux set -g @pwt_notify 0` mutes the pushes; the flag and the panel are unaffected.
 The tap is attached by `pwt` when it opens a window, by `pwt jump`, and to every live
@@ -127,8 +140,8 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 - Session ids are `<repo basename>-<slug>`, so they are not unique across repos. pi
   namespaces transcripts by project directory, so that is only a window-handle
   concern — which is why windows carry `@pwt_dir` too.
-- Nothing here is clickable, mergeable, or automatic. Merging is a git operation
-  you run yourself.
+- Nothing here is clickable or automatic. The preview shows what has not reached a
+  remote; merging is a git operation you run yourself.
 
 ## Not built, on purpose
 

@@ -6,6 +6,7 @@
 #        pwt rm <slug>       # remove the worktree and its local branch
 #        pwt jump <dir>      # go to the window whose cwd is <dir> (C-w panel)
 #        pwt here <label>    # a workstream in THIS checkout, no worktree
+#        pwt ls              # list workstreams (the C-w panel's rows)
 #
 # Why a worktree: several pi sessions in ONE checkout share a working tree, so
 # parallel mutating agents collide at the file level. Sessions alone do not fix
@@ -369,10 +370,25 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             echo "pwt: worktree removed; branch '$slug' kept (not fully merged)." >&2
             echo "     merge it, then: git -C '$root' branch -d '$slug'" >&2
             return 1
+        case ls
+            # Shell-side listing: which workstreams exist, in the panel's own order and
+            # rendering. Delegated to pwt-pick's --list so the two cannot drift — a
+            # second implementation is exactly the drift this file keeps catching.
+            # Works outside tmux (every marker is then simply blank), and PWT_PICK is
+            # overridable the way pwt-pick overrides PWT_REPO_LIST.
+            set -l picker ''
+            set -q PWT_PICK; and set picker $PWT_PICK
+            test -n "$picker"; or set picker "$HOME/bin/pwt-pick"
+            test -x "$picker"; or begin
+                echo "pwt: no picker at $picker" >&2
+                return 1
+            end
+            command "$picker" --list
         case help ''
             echo "Usage: pwt <slug> [base]    worktree + tmux window + pinned pi session"
             echo "       pwt rm <slug>         remove it (refuses on an open window or ignored files)"
             echo "       pwt here <label>      a workstream in THIS checkout, no worktree"
+            echo "       pwt ls                list workstreams (the C-w panel's rows, in order)"
             echo "       pwt jump <dir>        go to the pi window whose cwd is <dir>"
             echo "Docs: docs/PWT.md · panel: tmux prefix then C-w"
         case jump

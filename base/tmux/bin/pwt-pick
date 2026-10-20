@@ -287,31 +287,35 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     panel_header="$(printf '%s\n%s' \
         'enter open · ctrl-t new worktree · ctrl-r other repo · ctrl-x remove' \
         '◐ working · ⚑ blocked · ✓ done · ✗ error')"
-    # The selection is never cancelled on a non-zero fzf status other than a real
-    # abort: `|| true` keeps `set -e` from turning fzf's exit into a trace.
+    # The preview answers "do I still need this?": branch state, then the commits that
+    # exist on NO remote. `status --branch` cannot answer the second half — a pwt
+    # branch made from HEAD has no upstream, so it prints `## slug` and says nothing
+    # about whether the work has landed. Showing only; merging stays yours.
+    preview_cmd='git -C {2} status --short --branch 2>/dev/null | head -12
+n=$(git -C {2} rev-list --count HEAD --not --remotes 2>/dev/null)
+[ "${n:-0}" -gt 0 ] && printf "\n· %s commit(s) on no remote\n" "$n"
+git -C {2} log --oneline HEAD --not --remotes --no-merges 2>/dev/null | head -8'
     out="$(printf '%s\n' "${rows[@]}" \
         | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
             --border-label ' pwt ' \
             --header "$panel_header" \
             --expect=ctrl-t,ctrl-x,ctrl-r \
-            --preview 'git -C {2} status --short --branch 2>/dev/null | head -20' \
+            --print-query \
+            --preview "$preview_cmd" \
             --preview-window 'down:40%')" || exit 0
 
     [[ -n "$out" ]] || exit 0
 
-    # --expect prints the key as the first line (empty for enter) then the selection.
-    # Parsed by shape rather than by position so a change in that contract degrades
-    # to "no key" instead of acting on the wrong row: no row can ever be exactly
-    # "ctrl-t"/"ctrl-x", and every row contains a tab.
-    while IFS= read -r _line; do
-        case "$_line" in
-            ctrl-t|ctrl-x|ctrl-r) key="$_line"; continue ;;
-        esac
-        [[ -n "$_line" ]] || continue
-        sel="$_line"
-    done <<< "$out"
+    # --print-query puts the query on line 1 and --expect the key on line 2 (empty for
+    # enter), then the selected row. Parsed POSITIONALLY, not by shape: with a query in
+    # the stream, shape parsing would read a query of "ctrl-t" as a key and act on it.
+    query="$(printf '%s\n' "$out" | sed -n 1p)"
+    key="$(printf '%s\n' "$out" | sed -n 2p)"
+    case "$key" in ctrl-t|ctrl-x|ctrl-r) ;; *) key='' ;; esac
+    sel="$(printf '%s\n' "$out" | sed -n 3p)"
 else
     key=ctrl-r
+    query=''
 fi
 
 if [[ -z "$sel" && "$key" != "ctrl-r" ]]; then
@@ -344,22 +348,30 @@ run_pwt() {
 }
 
 # pwt's first argument is a verb switch, so these would never become a workstream.
-# `here` and `jump` are reachable only from a shell, but a workstream named after one
-# would still be unusable, so they are reserved the same way.
+# `ls`, `here` and `jump` are reachable only from a shell, but a workstream named
+# after one would still be unusable, so they are reserved the same way.
 reject_reserved() {
     case "$1" in
-        rm|remove|jump|here|help)
+        rm|remove|jump|here|help|ls)
             echo "pwt: '$1' is a pwt verb, not a workstream name" >&2
             exit 2 ;;
     esac
 }
 
-# Prompt for and validate a new workstream name. Prompted here rather than taken from
-# the fzf query, and never interpolated into an fzf command string: a query is free
-# text, which is the injection this design exists to avoid. pwt validates it again.
+# Prompt for and validate a new workstream name. The fzf QUERY is offered as the
+# default: it is usually the name you already typed while filtering, and making you
+# retype it was pure friction. Typing anything replaces it; an empty line accepts it.
+# Prompted here rather than taken from the query directly, and never interpolated
+# into an fzf command string: a query is free text, which is the injection this
+# design exists to avoid — it reaches pwt as argv, and pwt validates it again.
 read_label() {
-    printf 'new %s — name: ' "$1"
-    read -r slug || slug=''
+    local suggestion=''
+    [[ -n "${query:-}" ]] && suggestion=" [$query]"
+    printf 'new %s — name%s: ' "$1" "$suggestion"
+    # A failed read is NOT an empty answer: ctrl-c, ctrl-d and a closed stdin all land
+    # here, and falling back to the query would create a workstream on an abort.
+    read -r slug || { echo "aborted"; exit 0; }
+    [[ -n "$slug" ]] || slug="$query"
     [[ -n "$slug" ]] || { echo "aborted"; exit 0; }
     reject_reserved "$slug"
 }
@@ -376,10 +388,13 @@ ctrl-r)
     picked="$("$repo_bin" | fzf --prompt 'repo> ' --reverse --no-preview \
         --border-label ' pwt · repo ' \
         --header 'enter worktree in it · ctrl-o workstream in place' \
+        --print-query \
         --expect=ctrl-o)" || exit 0
     [[ -n "$picked" ]] || exit 0
-    rk="$(printf '%s\n' "$picked" | head -1)"
-    repo="$(printf '%s\n' "$picked" | tail -1)"
+    # Same contract as the panel: query, key, then the row.
+    query="$(printf '%s\n' "$picked" | sed -n 1p)"
+    rk="$(printf '%s\n' "$picked" | sed -n 2p)"
+    repo="$(printf '%s\n' "$picked" | sed -n 3p)"
     [[ -n "$repo" ]] || exit 0
     if [[ "$rk" == "ctrl-o" ]]; then
         read_label "in-place workstream in $(label "$repo")"
