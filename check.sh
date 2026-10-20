@@ -1912,6 +1912,15 @@ _PWT_PREVIEW="$DOTFILES/base/tmux/bin/pwt-preview"
 check "pwt-preview: helper exists in base/tmux/bin" test -f "$_PWT_PREVIEW"
 check "pwt-preview: is executable" test -x "$_PWT_PREVIEW"
 check "pwt-preview: shellcheck clean" shellcheck -S warning "$_PWT_PREVIEW"
+# A popup's PATH can resolve to macOS's bash 3.2, and this runs from a keypress.
+check "pwt-preview: runs under /bin/bash (3.2 on macOS)" \
+    /bin/bash "$_PWT_PREVIEW" "$DOTFILES"
+# A live row can be a pi started in $HOME or /tmp: no repo, so say so instead of
+# rendering an empty preview that reads as broken.
+check "pwt-preview: names a non-repository row instead of rendering nothing" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+        out=$("$1" "$d" 2>&1); [[ "$out" == *"not a git work tree"* ]]' \
+    _ "$_PWT_PREVIEW"
 check_has "pwt-preview: shows commits on no remote" \
     '\-\-not \-\-remotes' "$_PWT_PREVIEW"
 check_has "pwt-pick: the preview is a script, not a shell snippet" \

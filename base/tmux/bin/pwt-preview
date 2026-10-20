@@ -17,6 +17,14 @@ set -uo pipefail
 path="${1:-}"
 [ -n "$path" ] || exit 0
 
+# The panel lists live pi panes anywhere, including a session started in $HOME or
+# /tmp. Those have no status to show; say so rather than rendering an empty pane that
+# reads as a broken preview.
+if ! git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then
+    echo "not a git work tree — no workstream state to show"
+    exit 0
+fi
+
 git -C "$path" status --short --branch 2>/dev/null | head -12
 
 n="$(git -C "$path" rev-list --count HEAD --not --remotes 2>/dev/null || true)"

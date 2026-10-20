@@ -20,6 +20,9 @@ pins a session id, and this is it.
 | `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
 | `pwt help` | usage |
 
+`pwt ls` prints `<label>\t<path>\t<wt|live>`, the panel's `--list` contract, so a
+script and the panel cannot disagree about what exists.
+
 Re-running `pwt <slug>` is the resume path: an existing window is reused, never
 duplicated. Duplicating would be worse than untidy — two pi processes on one
 `--session-id` open the SAME transcript JSONL and each rewrites it from its own
