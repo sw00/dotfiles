@@ -86,14 +86,15 @@ removed — full implementation history lives in git. Shared-core behavior
   browser, and it is org-configured); decide whether the ARO break-glass
   credential and the AKS kubeconfig contexts stay machine-local (they need a
   `$HOME` backup to survive a rebuild).
-- [ ] **workmux trial — deferred (2026-10-11).** Higher-order pi session/agent
-  management: git worktrees + tmux windows with per-agent status, prompt injection,
-  merge/cleanup lifecycle, and a dashboard. Deferred because the acute bottleneck was
-  solved without a new tool — `pi --session-id` gives per-workstream session handles
-  and the `pwt` fish function covers parallel mutating work — so the only remaining
-  gap is agent *status* inside tmux (pi emits working/blocked/done over OSC 7501, which
-  tmux does not forward). Revisit only if manual bookkeeping costs >10 min/week, or if
-  >=3 parallel mutating agents per repo become routine. If revisited:
+- [ ] **workmux trial — deferred; the status gap it named is now closed (2026-10-11,
+  status 2026-10-20).** Higher-order pi session/agent management: git worktrees + tmux
+  windows with per-agent status, prompt injection, merge/cleanup lifecycle, and a
+  dashboard. Deferred because the acute bottleneck was solved without a new tool —
+  `pi --session-id` per workstream, `pwt` for worktrees, and now the OSC 7501 tap +
+  `C-w` panel + pushes for status (`docs/PWT.md`). What is still workmux-only: prompt
+  injection, merge automation and the dashboard. Revisit only if manual bookkeeping
+  costs >10 min/week, or if >=3 parallel mutating agents per repo become routine. If
+  revisited:
   `mise use -g github:raine/workmux` (prebuilt binary — no rust toolchain, no
   Brewfile/check.sh parity work), mbpm3 first, window mode, and it must displace
   tmux-window-name plus its `libtmux` Python dependency to be net-negative surface. It

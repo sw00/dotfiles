@@ -82,20 +82,15 @@ Key config paths:
   session that will end in commit+push, inventory the interactive prerequisites
   up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
-- Parallel agent workstreams: `pwt <slug>` pairs a git worktree, a tmux window and
-  a pinned pi session; `pwt ls` lists them from a shell, and `C-w` in tmux is the
-  state-sorted panel (`ctrl-t` new, `ctrl-x` remove, `ctrl-r` other repo). Read
-  `docs/PWT.md` before changing `pwt`, `pwt-pick` or `pwt-osc` — the identity,
-  ignore and tap rules there are load-bearing.
-- Multi-file behaviour changes: get a `reviewer` pass on the diff before committing,
-  and prove each new test FAILS on the unfixed code — a fixture that happens to
-  satisfy the fix passes either way. Contract docs drift when written mid-change, so
-  re-read them (`docs/PWT.md` for pwt) against the final diff, last. Tests that make
-  commits in a fixture pass `git -c commit.gpgsign=false commit`: a locked signing
-  agent otherwise turns a green suite into a hang.
-- Adding a file to a stowed package: it is not live in `$HOME` until
-  `stow --restow --no-folding -d base -t ~ <pkg>` (bootstrap does this on a fresh
-  machine, an existing one does not) — see `GOTCHAS`.
+- Parallel agent workstreams: `pwt <slug>` (worktree + tmux window + pinned pi
+  session), `pwt ls` from a shell, `C-w` for the state-sorted panel. Read
+  `docs/PWT.md` before changing `pwt`, `pwt-pick` or `pwt-osc`.
+- Multi-file behaviour changes: `reviewer` on the diff before committing; prove each
+  new test fails on the unfixed code; re-read any contract doc against the final diff,
+  last. Fixture commits pass `git -c commit.gpgsign=false` — a locked signing agent
+  hangs the suite instead of failing.
+- Adding a file to a stowed package is not live until
+  `stow --restow --no-folding -d base -t ~ <pkg>` (`GOTCHAS`).
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
 - pi settings drift: sessions write runtime state into the stowed

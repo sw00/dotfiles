@@ -23,12 +23,10 @@ pins a session id, and this is it.
 Re-running `pwt <slug>` is the resume path: an existing window is reused, never
 duplicated. Duplicating would be worse than untidy — two pi processes on one
 `--session-id` open the SAME transcript JSONL and each rewrites it from its own
-memory, so turns are silently lost. That is why the window records the workstream
-identity (`@pwt_sid` + `@pwt_dir`) instead of relying on a cwd guess. The cwd is
-only a secondary signal, in two places: the tier for windows that predate the marker,
-and `__pwt_open_window`'s fallback that adopts a pi already sitting exactly at the
-worktree root. (`__pwt_window_for` uses it too, for "is this directory in use" —
-that is how `pwt rm` decides.)
+memory, so turns are silently lost. That is why the window records `@pwt_sid` +
+`@pwt_dir`; the cwd is only a fallback, for windows that predate the marker and for a
+pi adopted at the worktree root. (`__pwt_window_for` also matches on it — that is how
+`pwt rm` decides a worktree is in use.)
 
 ## The panel: tmux prefix then `C-w`
 
@@ -50,11 +48,10 @@ only reports ahead/behind against an upstream, and a worktree branch made from `
 has none — so merged-and-pushed is visible, local-only work is visible, and landing is
 your call. Nothing here merges.
 
-Those three are keys fzf's own line editor does not use. `--expect` *takes* a key
-away from the editor, so binding `ctrl-n`/`ctrl-d` (fzf's next-match and
-delete-char) made navigation asymmetric and fired a name prompt on the
-muscle-memory key. An action closes the panel; that is the price of keeping the
-selected row and the typed query out of a shell command string.
+The three verbs sit on keys fzf's line editor leaves alone; `--expect` *takes*
+whatever it is given, so `ctrl-n`/`ctrl-p` (its next/previous match) stay navigation.
+An action closes the panel — the price of keeping the row and the query out of a
+shell command string.
 
 Typing a slug is prompted after the panel closes, with what you typed as a filter
 offered as the default (`--print-query`): filter to the name, `ctrl-t`, Enter. An
@@ -140,8 +137,6 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 - Session ids are `<repo basename>-<slug>`, so they are not unique across repos. pi
   namespaces transcripts by project directory, so that is only a window-handle
   concern — which is why windows carry `@pwt_dir` too.
-- Nothing here is clickable or automatic. The preview shows what has not reached a
-  remote; merging is a git operation you run yourself.
 
 ## If you change this
 
@@ -154,11 +149,10 @@ rule.
   worktree. The pre-marker fallback is restricted to unmarked windows whose pane cwd is
   inside the tree; an unconditional sid match silently teleports into the other
   workstream.
-- **`list-panes`, never `list-windows`**, for anything about where a workstream is —
-  the window formats report the ACTIVE pane's cwd (`GOTCHAS`).
-- **`__worktrees/` goes to `info/exclude`, never `.gitignore`** (that would force a
-  commit into every target repo), written with a real trailing newline. Its parent-dir
-  rule is in `GOTCHAS`.
+- **`list-panes`, never `list-windows`** for "where is this workstream" — window
+  formats report the ACTIVE pane's cwd (`GOTCHAS`).
+- **`info/exclude`, never `.gitignore`** — see "What pwt leaves on disk" for why and
+  the trailing-newline rule; the parent-directory rule is in `GOTCHAS`.
 - **`pipe-pane` without `-o`**, and **`#{pane_id}` never a literal pane id**: `-o`
   detaches the tap on a re-attach, and the command string passes through strftime
   first, where `%3` becomes `3`.
