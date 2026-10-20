@@ -63,6 +63,20 @@ removed — full implementation history lives in git. Shared-core behavior
   `oracle` brief carrying interpretation but no verbatim artifact, a `reviewer`
   spawn on a doc-only diff. The n=10 baseline favours the slim text; this is the
   check that it holds in real use.
+- [ ] **Scaffolding review follow-ups (2026-10-20).** A read-only review of the agent
+  scaffold (`~/.pi/agent` + this repo's `AGENTS.md`), second-opinioned by `oracle`.
+  Landed from it: per-layer word budgets (500/185/1200, enforced in `check.sh`) and a
+  `> **Status:**` line on every plan. Left, in value order:
+  (a) spawn `worker` with `--no-context-files` — measured: every subagent pays ~1,346
+  words of repo+global context, and `worker`'s contract already says "rely entirely on
+  your briefing". Gate on a `pi-smoke` comparison, not on intuition.
+  (b) a repeated-call watchdog in `hypa_shell` — the `loop` bug above is the prompt's
+  stopping rules failing after two prompt-side fixes, so the next fix belongs in code;
+  do it only after that bug's harness-vs-model split.
+  (c) global `AGENTS.md` 178 → its recorded 138 target. A prompt edit, so it owes a
+  `docs/PROMPT-EVAL.md` run on both sides; the 185 budget holds the line meanwhile.
+  (d) trim the repo `Workflows` block (~60-100 words) — only when the 1,200 ratchet
+  bites. The 11 words of headroom are deliberate, not a squeeze to relieve.
 - [ ] **etckeeper config cleanup.** `base/git/.gitconfig-etckeeper` (disables
   GPG signing for `/etc` commits) is only useful on a native Linux host; none
   exists under `hosts/` today (mbpm3 = macOS, x13yg2/x1eg2 = WSL). Remove it
