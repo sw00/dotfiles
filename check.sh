@@ -912,12 +912,34 @@ check "hosts/mbpm3: work-status probes az with account show" \
 # Catches SHAPES: a cloud SSO start URL, an EKS endpoint, an AKS/ARO host, an
 # account-id key, a JWT. Employer *names* are not sensitive; infrastructure
 # resource names, IDs and URLs/IPs are, and those live in secrets/leak-patterns.
+#
+# `--cached`, never the worktree: git-crypt paths are DECRYPTED on disk, so a
+# worktree scan reads plaintext that is not published and reports encrypted
+# content as a leak (it flagged base/ssh/.ssh/config.d/work.conf, whose every
+# blob has been ciphertext since 2025). Index content is what gets pushed.
 _leak_shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J'
 check "leak scan: no cloud/SSO identifiers tracked outside secrets/" \
-    bash -c "! git -C '$DOTFILES' grep -IE '$_leak_shapes' -- ':(exclude)secrets/**'"
+    bash -c "! git -C '$DOTFILES' grep --cached -IE '$_leak_shapes' -- ':(exclude)secrets/**'"
 
 check "leak scan: the guard's own files are immune to its shape list" \
     bash -c "! grep -aqE '$_leak_shapes' '$DOTFILES/check.sh' '$DOTFILES/.githooks/pre-commit'"
+
+# ── Leak guard: the whole published tree (the backstop the hook cannot be) ──
+# The pre-commit hook only sees lines a commit ADDS, so an identifier that
+# predates its stem — or a commit made with --no-verify — is invisible to it.
+# CI cannot take over: it checks out a LOCKED clone and cannot read the stems at
+# all. This runs the identifier scan over the whole index, which is exactly the
+# set of bytes that gets pushed, and says so out loud when it cannot run.
+if head -c 10 "$DOTFILES/secrets/leak-patterns" 2>/dev/null | grep -aq GITCRYPT; then
+    _skip "leak scan: no identifier stems in published content" \
+        "locked clone (CI has no git-crypt key)"
+else
+    _stem_re="$(grep -vE '^[[:space:]]*(#|$)' "$DOTFILES/secrets/leak-patterns" | paste -sd'|' -)"
+    _stem_hits="$(git -C "$DOTFILES" grep --cached -lIE "$_stem_re" -- ':(exclude)secrets/**' || true)"
+    # Prints offending PATHS only — never the matched text, which is the secret.
+    [[ -n "$_stem_hits" ]] && printf '      %s\n' $_stem_hits
+    check "leak scan: no identifier stems in published content" test -z "$_stem_hits"
+fi
 
 # ── Leak guard: the pre-commit hook ─────────────────────────────────────────
 # CI cannot run the identifier scan (locked clone, no key), so that half of the
@@ -942,6 +964,19 @@ check_has "hook: never reports green when the pattern file is locked" \
 
 check "leak-patterns: git-crypt filter applies (asserted without reading it)" \
     bash -c "git -C '$DOTFILES' check-attr filter secrets/leak-patterns | grep -q git-crypt"
+
+# Every path a .gitattributes rule routes through git-crypt must really hold
+# ciphertext in HEAD. This is the CI-side half of the hook's encryption check:
+# the hook only ever samples what a commit touches, so a path that slipped a
+# `**/...` rule keeps publishing plaintext forever and no commit re-checks it.
+_cipher_not=""
+while IFS= read -r _p; do
+    [[ "$(git -C "$DOTFILES" check-attr filter -- "$_p" | awk '{print $NF}')" == git-crypt ]] || continue
+    git -C "$DOTFILES" cat-file blob "HEAD:$_p" 2>/dev/null | head -c 10 | grep -aq GITCRYPT \
+        || _cipher_not="$_cipher_not $_p"
+done < <(git -C "$DOTFILES" ls-files)
+[[ -n "$_cipher_not" ]] && printf '      not encrypted in HEAD:%s\n' "$_cipher_not"
+check "git-crypt: every filtered path is ciphertext in HEAD" test -z "$_cipher_not"
 
 # fly refuses to talk to a mismatched server API, so its version must be pinned
 # rather than floated on mise's `latest`.

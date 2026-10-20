@@ -45,29 +45,36 @@ fi
 
 fail=0
 while IFS= read -r -d '' p; do
+    filt="$(git check-attr filter -- "$p" | awk '{print $NF}')"
+
+    # 1. Encryption verification. Anything under secrets/ must ALWAYS be filtered;
+    #    any other path that opts in via .gitattributes must actually BE encrypted.
+    #    Path-agnostic on purpose: a `**/...` rule that misses a path, or a
+    #    `git add -f`, publishes plaintext from anywhere, not just from secrets/.
     case "$p" in
         secrets/*)
-            # 1. Encryption coverage — the highest-value check in this hook. One
-            #    path that misses the .gitattributes glob, or one `git add -f`,
-            #    publishes plaintext to a public repo.
-            if [[ "$(git check-attr filter -- "$p" | awk '{print $NF}')" != git-crypt ]]; then
+            if [[ "$filt" != git-crypt ]]; then
                 echo "pre-commit: BLOCKED  $p is under secrets/ but is not git-crypt filtered" >&2
                 fail=1
                 continue
             fi
-            if ! git cat-file blob ":$p" 2>/dev/null | head -c 10 | grep -aq GITCRYPT; then
-                echo "pre-commit: BLOCKED  $p is staged as PLAINTEXT (git-crypt did not encrypt it)" >&2
-                fail=1
-            fi
-            ;;
-        *)
-            # 2. Identifier scan over what this commit ADDS (or renames in).
-            if git diff --cached -U0 -- "$p" | grep -aE '^\+' | grep -aqE "$patterns"; then
-                echo "pre-commit: BLOCKED  $p adds content matching a sensitive pattern" >&2
-                fail=1
-            fi
             ;;
     esac
+    if [[ "$filt" == git-crypt ]]; then
+        if ! git cat-file blob ":$p" 2>/dev/null | head -c 10 | grep -aq GITCRYPT; then
+            echo "pre-commit: BLOCKED  $p is staged as PLAINTEXT (git-crypt did not encrypt it)" >&2
+            fail=1
+        fi
+        # Ciphertext: the identifier scan below would only read noise.
+        continue
+    fi
+
+    # 2. Identifier scan over what this commit ADDS (or renames in). Never sees
+    #    lines that predate a stem — check.sh's whole-tree scan is that backstop.
+    if git diff --cached -U0 -- "$p" | grep -aE '^\+' | grep -aqE "$patterns"; then
+        echo "pre-commit: BLOCKED  $p adds content matching a sensitive pattern" >&2
+        fail=1
+    fi
 done < <(git diff --cached --name-only --diff-filter=ACMR -z)
 
 if [[ $fail -ne 0 ]]; then
