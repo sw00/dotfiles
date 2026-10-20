@@ -176,3 +176,29 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   preview to one line that sh, fish and zsh all parse, or put it in a script with its
   own shebang (`base/tmux/bin/pwt-preview`). fzf's shell is inherited, never chosen
   deliberately; the same applies to `execute(...)`.
+- **tmux's window formats answer with the ACTIVE pane.** `#{pane_current_path}` in
+  `list-windows`, and in `display-message -t <window>`, is the cwd of that window's
+  active pane — so a window whose pi sits in a non-active split is invisible to any
+  window-keyed lookup. Ask `list-panes -a` and look at every pane. This cost two bugs
+  in one session in pwt (the panel's ▸ marker, and the window-identity lookup, where
+  the miss would open a second pi on one session id) even though
+  `__pwt_window_for` had documented it for months: the lesson is a checklist item, not
+  a fact to rediscover.
+- **`read` collapses an empty field.** `read -r a b c d` treats a run of IFS whitespace
+  as one separator, so a tab-separated record whose middle field is EMPTY shifts every
+  later field left. Emit a placeholder (`-`) for every optional field, and pin the
+  wire format and the parser together. pwt-pick's pane-id column was appended after a
+  `@pi_state` that can be empty; the tap then silently skipped exactly the panes that
+  had no state yet — the untapped ones the adoption exists for.
+- **git cannot re-include a file from an excluded DIRECTORY.** In an allowlist
+  `.gitignore`, `completions/` hides everything beneath it and `!completions/pwt.fish`
+  does nothing; the pattern has to be `completions/*` (`functions/*` was written that
+  way for the same reason). The fish package has now been bitten three times —
+  `functions/`, `conf.d/`, `completions/` — which is why check.sh's allowlist-trap
+  check covers all three directories instead of one.
+- **A new file in a stowed package is not live until a restow.** `stow` creates links
+  for the files that exist when it runs, so adding `completions/pwt.fish` left
+  `~/.config/fish/completions/` untouched and the completion did not exist in any
+  shell. `bootstrap.sh` does this on a fresh machine; an existing one needs
+  `stow --restow --no-folding -d base -t ~ fish`. No test can catch it: the repo copy
+  is fine, only the `$HOME` link is missing.

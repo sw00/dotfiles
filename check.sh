@@ -5,6 +5,12 @@
 # Usage:  ./check.sh
 # Exit:   0 = all tests passed, 1 = one or more failures
 #
+# A full run takes ~5 minutes. While iterating on one behavioural block, extract it
+# into a scratch script with a `check()` stub instead of re-running everything:
+#   sed -n '/<start marker>/,/<end marker>/p' check.sh > /tmp/block.sh
+# That turns a 5-minute loop into seconds, and a block that hangs shows up as a hang
+# in one place rather than as a suite that "took longer than usual".
+#
 # All tests are regression guards — labelled [GREEN].
 # =============================================================================
 
@@ -101,6 +107,14 @@ check_stow() {
 # 1. SHELL SCRIPT SYNTAX  [GREEN]
 # =============================================================================
 section "Shell script syntax  [GREEN]"
+
+# Fixtures that make commits must disable signing. With a locked GPG agent the suite
+# would sit at a pinentry prompt instead of failing, and nothing would say why — the
+# failure mode is a run that never finishes. Every fixture here passes
+# `-c commit.gpgsign=false`; this keeps it that way. The pattern spells the space as a
+# class so this line cannot match itself.
+check_not "check.sh: fixture commits never sign (a locked agent hangs the suite)" \
+    'git[ ]commit' "$DOTFILES/check.sh"
 
 mapfile -t ALL_SCRIPTS < <(
     find "$DOTFILES" \

@@ -87,6 +87,15 @@ Key config paths:
   state-sorted panel (`ctrl-t` new, `ctrl-x` remove, `ctrl-r` other repo). Read
   `docs/PWT.md` before changing `pwt`, `pwt-pick` or `pwt-osc` — the identity,
   ignore and tap rules there are load-bearing.
+- Multi-file behaviour changes: get a `reviewer` pass on the diff before committing,
+  and prove each new test FAILS on the unfixed code — a fixture that happens to
+  satisfy the fix passes either way. Contract docs drift when written mid-change, so
+  re-read them (`docs/PWT.md` for pwt) against the final diff, last. Tests that make
+  commits in a fixture pass `git -c commit.gpgsign=false commit`: a locked signing
+  agent otherwise turns a green suite into a hang.
+- Adding a file to a stowed package: it is not live in `$HOME` until
+  `stow --restow --no-folding -d base -t ~ <pkg>` (bootstrap does this on a fresh
+  machine, an existing one does not) — see `GOTCHAS`.
 - Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
   flags the eval re-run a version move owes). Never make this a bootstrap step.
 - pi settings drift: sessions write runtime state into the stowed

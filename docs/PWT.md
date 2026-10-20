@@ -143,6 +143,35 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 - Nothing here is clickable or automatic. The preview shows what has not reached a
   remote; merging is a git operation you run yourself.
 
+## If you change this
+
+Five invariants are load-bearing here, and each has already been broken once. Read the
+comment before changing the line: the mechanism is written down there, not just the
+rule.
+
+- **Window identity is `@pwt_sid` + `@pwt_dir` together.** The sid comes from the repo
+  basename, so on its own it is not unique across repos or between `here` and a
+  worktree. The pre-marker fallback is restricted to unmarked windows whose pane cwd is
+  inside the tree; an unconditional sid match silently teleports into the other
+  workstream.
+- **`list-panes`, never `list-windows`**, for anything about where a workstream is —
+  the window formats report the ACTIVE pane's cwd (`GOTCHAS`).
+- **`__worktrees/` goes to `info/exclude`, never `.gitignore`** (that would force a
+  commit into every target repo), written with a real trailing newline. Its parent-dir
+  rule is in `GOTCHAS`.
+- **`pipe-pane` without `-o`**, and **`#{pane_id}` never a literal pane id**: `-o`
+  detaches the tap on a re-attach, and the command string passes through strftime
+  first, where `%3` becomes `3`.
+- **Anything fzf runs — `--preview`, `execute(...)` — runs under `$SHELL`**, which is
+  fish here. Keep it to one line all three shells parse, or put it in a script; the
+  panel's preview is `pwt-preview` for exactly this reason. Tab-separated records need
+  a placeholder for every optional field, because `read` collapses empty ones.
+
+Where the guarantees live: `bash check.sh`. The pwt blocks cover the identity tiers,
+both collision directions, the ignore write, the panel parser (including the
+no-state tap), the push decisions and the preview — several of them against a private
+tmux server and a stub `pi`, so they run without touching your session.
+
 ## Not built, on purpose
 
 A dashboard, prompt injection, merge automation, bulk multi-remove, a persistent
