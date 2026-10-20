@@ -5,11 +5,19 @@
 # Usage:  ./check.sh
 # Exit:   0 = all tests passed, 1 = one or more failures
 #
-# A full run takes ~5 minutes. While iterating on one behavioural block, extract it
-# into a scratch script with a `check()` stub instead of re-running everything:
+# A full run is FAST: measured 15.8-16.6s for 514 assertions on mbpm3 (2026-10-20).
+# The biggest single section is the pwt harness at ~9s; nothing else exceeds 2s. This
+# header used to claim "~5 minutes", and that stale number cost real time — a session
+# slept 300s per run instead of polling. Do not assume a duration: run it in the
+# foreground, or poll for the "── Results" line.
+#
+# While iterating on one behavioural block, extract it into a scratch script with a
+# `check()` stub instead of re-running everything:
 #   sed -n '/<start marker>/,/<end marker>/p' check.sh > /tmp/block.sh
-# That turns a 5-minute loop into seconds, and a block that hangs shows up as a hang
-# in one place rather than as a suite that "took longer than usual".
+# That turns the loop into seconds, and a block that hangs shows up as a hang in one
+# place rather than as a suite that "took longer than usual". A filtered or extracted
+# run is NEVER a gate: only a full run's pass count means anything (a harness bug once
+# hid skipped tests behind a green summary).
 #
 # All tests are regression guards — labelled [GREEN].
 # =============================================================================
