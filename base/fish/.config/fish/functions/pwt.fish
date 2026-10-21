@@ -7,6 +7,7 @@
 #        pwt jump <dir>      # go to the window whose cwd is <dir> (C-w panel)
 #        pwt here <label>    # a workstream in THIS checkout, no worktree
 #        pwt ls              # list workstreams (the C-w panel's rows)
+#        pwt reload [--force] <dir>  # re-exec pi there with the current secrets env
 #
 # Why a worktree: several pi sessions in ONE checkout share a working tree, so
 # parallel mutating agents collide at the file level. Sessions alone do not fix
@@ -272,6 +273,96 @@ function __pwt_need_pi --description 'fail unless pi is on PATH'
     end
 end
 
+# ── the secrets environment ───────────────────────────────────────────────────
+# pwt opens the window with `pi` directly — no shell — so nothing in there re-reads
+# secrets/env.fish, and a RUNNING pi can never be given new variables (there is no
+# portable way to change a live process's env; closing and restarting is the only
+# one). What pwt can do is hand the values to the spawn: tmux's `-e NAME=VALUE` on
+# the commands that create or respawn a process. That keeps the fix inside the
+# workstream it is meant for — `tmux setenv -g` would instead outlive the run and
+# reach every future window on the server, with nothing that ever clears it.
+#
+# The values are read from the FILE at call time, not taken from the calling shell's
+# exports: pwt is normally typed into a pane older than the edit, and `pwt reload`
+# exists precisely to pick an edit up — forwarding the caller's copy would re-inject
+# the stale secret and report success.
+function __pwt_secrets_file --description 'the secrets file config.fish sources'
+    if set -q PWT_SECRETS; and test -n "$PWT_SECRETS"
+        echo $PWT_SECRETS
+        return 0
+    end
+    echo "$HOME/dotfiles/secrets/env.fish"
+end
+
+# Names come from `set -<flags>x NAME` lines. ANCHORED: the live file carries
+# commented-out `set -gx NAME` lines (rotated and retired keys), and an unanchored
+# match cheerfully forwards those stale names. PWT_FORWARD_ENV overrides the scrape
+# wholesale — it is the hatch for a machine whose secrets live somewhere else, and
+# the way the test suite names a fixture.
+function __pwt_forward_names --description 'env names to refresh in a pi window'
+    if set -q PWT_FORWARD_ENV
+        # `string split` on an EMPTY string yields one empty element, not none.
+        test -n "$PWT_FORWARD_ENV"; or return 1
+        string split ' ' -- $PWT_FORWARD_ENV
+        return 0
+    end
+    set -l file (__pwt_secrets_file)
+    test -r "$file"; or return 1
+    set -l names
+    for name in (string match -rg '^[[:space:]]*set[[:space:]]+-[a-zA-Z]*x[a-zA-Z]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)' <"$file")
+        contains -- $name $names; and continue
+        set -a names $name
+    end
+    test (count $names) -gt 0; or return 1
+    printf '%s\n' $names
+end
+
+# Re-source the secrets file, guarded the way config.fish guards it: a git-crypt
+# LOCKED checkout still has a file at that path, just without the values, and
+# sourcing it is at best a no-op. This runs in pwt's own process — the calling
+# shell — so those exports refresh there too. That is deliberate and idempotent: it
+# is the same file, in the same place, that shell sourced at startup.
+function __pwt_source_secrets --description 're-source the secrets file into this shell'
+    set -l file (__pwt_secrets_file)
+    test -r "$file"; or return 1
+    set -l first (command head -n 1 "$file" 2>/dev/null)
+    string match -q 'set*' -- "$first"; or return 1
+    # >/dev/null: `source` runs inside a command substitution at the call site, so a
+    # stray top-level `echo` in the file would otherwise become an argv word for tmux.
+    source "$file" >/dev/null
+end
+
+# The `-e` arguments for tmux: one flag and one NAME=VALUE per name, each its own
+# argv word. A name that is unset (possible only through PWT_FORWARD_ENV, since the
+# default list is sourced just below) or whose value is EMPTY is skipped, never
+# forwarded as empty — `-e NAME=` would CLEAR a secret the window would otherwise have
+# inherited, turning a machine that merely lacks one export into a broken window.
+#
+# Never forwarded: TERM (tmux requires screen/tmux, see tmux(1)), TMUX (the socket of
+# the pane the user is in, not of the window being made), TMUX_PANE (same, and the
+# new pane has its own), PWD/OLDPWD (tmux sets them per pane), HOME, and PATH —
+# tmux.conf seeds the server's PATH with the mise shims, so the caller's copy is the
+# one entry here that is routinely WORSE than what the window would inherit.
+function __pwt_forward_env --description 'tmux -e argv carrying the secrets env'
+    set -l names (__pwt_forward_names); or return 0
+    # PWT_FORWARD_ENV is an explicit name list, so those names keep the caller's
+    # values; the default list is read out of the file (see the note above).
+    set -q PWT_FORWARD_ENV; or __pwt_source_secrets
+    for name in $names
+        test -n "$name"; or continue
+        contains -- $name TERM TMUX TMUX_PANE PWD OLDPWD HOME PATH; and continue
+        set -q $name; or continue
+        # A multi-element value would otherwise become several argv words and spill
+        # its tail onto tmux's command line.
+        set -l value (string join ' ' -- $$name)
+        test -n "$value"; or continue
+        # `printf '%s\n'` and NOT `printf -- '-e…'`: fish's printf builtin consumes
+        # `--` as the FORMAT string and prints it, so the flag would silently
+        # announce itself and never reach tmux.
+        printf '%s\n' '-e' "$name=$value"
+    end
+end
+
 # Open the worktree as a tmux window — or, if one already holds it, go there
 # instead. Reusing is not cosmetic: a second pi on the same --session-id resumes
 # the SAME transcript JSONL (dist: main.js opens the existing session), and pi
@@ -309,7 +400,10 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     # -P -F yields the pane we just made, so marking and tapping it need no racy
     # search (pi has not set its window title yet at this point).
     __pwt_need_pi; or return 1
-    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" pi --session-id "$sid")
+    # The secrets env goes to THIS window only: -e creates no server-wide state, so a
+    # stale value can never be inherited by a window pwt did not open.
+    set -l envargs (__pwt_forward_env)
+    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" $envargs pi --session-id "$sid")
     or return 1
     command tmux select-window -t "$pane" 2>/dev/null
     __pwt_mark "$pane" "$sid" "$label" "$dir"
@@ -430,7 +524,12 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                 #    vanished on its own is fine; one that refuses is not.
                 if test -n "$live"
                     if not command tmux kill-window -t "$live" 2>/dev/null
-                        test -n (command tmux display-message -p -t "$live" '#{window_id}' 2>/dev/null)
+                        # Stored first: `test -n (…empty…)` collapses to a lone `-n`,
+                        # which is a non-empty STRING — so the vacuous form read "the
+                        # window is already gone" as "could not close it" and refused
+                        # the teardown this comment says is fine.
+                        set -l still (command tmux display-message -p -t "$live" '#{window_id}' 2>/dev/null)
+                        test -n "$still"
                         and begin
                             echo "pwt: could not close window $live — worktree left in place" >&2
                             return 1
@@ -485,6 +584,77 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             command tmux kill-window -t "$wid" 2>/dev/null
             or begin; echo "pwt: could not close window $wid" >&2; return 1; end
             echo "pwt: closed window $wid"
+        case reload
+            # Re-exec pi in an existing workstream window against the CURRENT secrets
+            # file. A live process cannot be handed new env, so a reload IS a restart;
+            # respawn-pane is the only restart that keeps the pane id, the window name
+            # and the @pwt_* markers, which is what makes it the same workstream after.
+            set -l rest $argv[2..-1]
+            set -l force 0
+            if test "$rest[1]" = --force
+                set force 1
+                set -e rest[1]
+            end
+            set -l dir "$rest[1]"
+            test -n "$dir"; or begin; echo "usage: pwt reload [--force] <dir>" >&2; return 2; end
+            set -q TMUX; or begin; echo "pwt: not in tmux" >&2; return 1; end
+            # in-tree, like `close`: a pi whose pane has cd'd into a subdirectory of
+            # the workstream is still that workstream's pi.
+            set -l pane (__pwt_window_for "$dir" pi-only in-tree no-worktrees pane-id)
+            test -n "$pane"; or begin; echo "pwt: no pi window at $dir" >&2; return 1; end
+            # The pinned id is the whole reason a reload can resume the transcript, and
+            # only a pwt window has one recorded. A foreign pi has no id to offer, so
+            # say what the caller can do instead of guessing at "most recent session".
+            set -l sid (command tmux display-message -p -t "$pane" '#{@pwt_sid}' 2>/dev/null)
+            test -n "$sid"; or begin
+                echo "pwt: that window records no pwt session id" >&2
+                echo "     close it and re-run the pwt command: pwt close $dir" >&2
+                return 1
+            end
+            set -l label (command tmux display-message -p -t "$pane" '#{@pwt_label}' 2>/dev/null)
+            test -n "$label"; or set label (command basename -- "$dir")
+            set -l home (command tmux display-message -p -t "$pane" '#{@pwt_dir}' 2>/dev/null)
+            test -n "$home"; or set home "$dir"
+            # Killing a mid-turn agent throws that turn away — the transcript resumes,
+            # the work in flight does not. Require --force to say you know.
+            set -l state (command tmux display-message -p -t "$pane" '#{@pi_state}' 2>/dev/null)
+            if test "$state" = working; and test $force -eq 0
+                echo "pwt: '$label' is working — a reload would drop the current turn" >&2
+                echo "     wait for it, or: pwt reload --force $dir" >&2
+                return 1
+            end
+            # A reload re-execs pi, so it needs what the spawn path needs: a pi that
+            # resolves, or the pane exits and tmux takes the window down with it.
+            __pwt_need_pi; or return 1
+            set -l envargs (__pwt_forward_env)
+            command tmux respawn-pane -k -t "$pane" -c "$home" $envargs pi --session-id "$sid"
+            or begin; echo "pwt: could not respawn the window for '$label'" >&2; return 1; end
+            # A respawn whose command cannot exec takes the pane down instead of
+            # failing — the same trap __pwt_mark guards against at open time. The
+            # result must be STORED first: `test -n (cmd)` with an empty output
+            # collapses to a lone `-n`, which is a non-empty string and therefore
+            # true — a check that can never fail. pane_dead too, because with
+            # remain-on-exit a corpse keeps answering with a pane id.
+            set -l alive (command tmux display-message -p -t "$pane" '#{pane_id}' 2>/dev/null)
+            set -l dead (command tmux display-message -p -t "$pane" '#{pane_dead}' 2>/dev/null)
+            test -n "$alive"; and test "$dead" != 1
+            or begin; echo "pwt: the window died on reload — is pi runnable there?" >&2; return 1; end
+            # The dead run's state must not outlive it: the panel would keep showing
+            # 'working' (or an alert) for a process that no longer exists.
+            command tmux set-window-option -t "$pane" -u @pi_state 2>/dev/null
+            command tmux set-window-option -t "$pane" -u @pi_alert 2>/dev/null
+            # Belt and braces: the pipe-pane job survives a respawn (it follows the
+            # pane, not the process) and a plain pipe-pane — never -o — replaces the
+            # pipe with the identical command rather than detaching it.
+            __pwt_tap "$pane"
+            # Say which environment it got: with no readable secrets file nothing was
+            # forwarded, and "reloaded" would then hide that the window is running on
+            # whatever the tmux server was seeded with.
+            if test (count $envargs) -gt 0
+                echo "pwt: reloaded '$label' with the current environment"
+            else
+                echo "pwt: reloaded '$label' — no secrets were forwarded (nothing readable)"
+            end
         case help ''
             echo "Usage: pwt <slug> [base] | pwt <verb> …   (docs/PWT.md)"
             printf '  %-26s %s\n' 'pwt <slug> [base]' 'worktree + tmux window + pinned pi session'
@@ -493,6 +663,7 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             printf '  %-26s %s\n' 'pwt here <label>' 'a workstream in THIS checkout, no worktree'
             printf '  %-26s %s\n' 'pwt ls' 'list workstreams (the C-w panel rows, in order)'
             printf '  %-26s %s\n' 'pwt jump <dir>' 'go to the pi window whose cwd is <dir>'
+            printf '  %-26s %s\n' 'pwt reload [--force] <dir>' 'restart pi there with the current secrets env'
             echo '  panel: tmux prefix then C-w'
         case jump
             # Used by the C-w panel for rows that are live pi sessions rather

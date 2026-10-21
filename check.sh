@@ -1817,6 +1817,60 @@ check_has "pwt: parks ignored files instead of deleting them" \
     'pwt-removed' "$_PWT"
 check_has "pwt: exposes a close verb for live workstreams" \
     'case close' "$_PWT"
+# A workstream's pi runs with no shell around it, so its environment is fixed at
+# exec: pwt hands the secrets to the SPAWN (tmux -e) instead of pushing them into the
+# server, where a value would outlive the command and be inherited by every later
+# window, including ones pwt never opened.
+check_has "pwt: hands the secrets env to the window it spawns" \
+    '\$envargs pi --session-id' "$_PWT"
+# ...read from the FILE at call time, not from the calling shell's exports: pwt is
+# normally typed into a pane older than the edit, and reload exists to pick an edit
+# up — forwarding the caller's copy would re-inject the stale secret and report
+# success.
+check_has "pwt: reads the secrets file instead of the caller's exports" \
+    'source "\$file"' "$_PWT"
+# The live secrets file carries commented-out `set -gx NAME` lines (retired keys), so
+# an unanchored scrape forwards names that were deliberately retired.
+check_has "pwt: anchors the secrets scrape" \
+    '\[\[:space:\]\]\*set' "$_PWT"
+# tmux owns TERM; the server's PATH carries the mise shims via tmux.conf.
+check_has "pwt: never forwards TERM/PATH/TMUX" \
+    'TERM TMUX TMUX_PANE PWD OLDPWD HOME PATH' "$_PWT"
+# `-e NAME=` would CLEAR a secret the window would otherwise inherit.
+check_has "pwt: skips an empty secret instead of clearing it" \
+    'set -q \$name' "$_PWT"
+# remain-on-exit is off in the shipped tmux.conf, but a corpse keeps answering with a
+# pane id, so the survival check has to look at pane_dead too.
+check_has "pwt: a reload that died is not reported as a reload" \
+    'pane_dead' "$_PWT"
+check_has "pwt: exposes a reload verb for a live workstream" \
+    'case reload' "$_PWT"
+# A live process cannot be given new env, so reload IS a restart — and respawn-pane
+# is the only restart that keeps the pane id, the window name and the @pwt_* marks.
+check_has "pwt: reload respawns the pane in place" \
+    'respawn-pane -k' "$_PWT"
+check_has "pwt: reload refuses a window with no recorded session id" \
+    'records no pwt session id' "$_PWT"
+check_has "pwt: reload refuses to kill a working agent" \
+    'a reload would drop the current turn' "$_PWT"
+check_has "pwt: reload clears the dead run's state flags" \
+    '-u @pi_state' "$_PWT"
+check_has "pwt: reload re-attaches the state tap" \
+    '__pwt_tap "\$pane"' "$_PWT"
+check_has "pwt: reload finds a pi that cd'd inside the workstream" \
+    'pi-only in-tree no-worktrees pane-id' "$_PWT"
+# `test -n (tmux display-message …)` collapses to a lone `-n` when the command prints
+# nothing, and `-n` is a non-empty STRING — a survival check that can never fail. The
+# result has to be stored in a variable first. Asserted as a CLASS, because the pattern
+# had already crept into the `rm --stash` window check, where it turned "the window is
+# already gone" into a refusal. Scoped to tmux on purpose: `display-message` really can
+# print nothing, while the `tail -c 1` next to it cannot on a non-empty file (verified
+# — fish yields ZERO elements for empty output and ONE empty element for a stripped
+# newline, and only the former collapses).
+check_not "pwt: never tests a tmux query with test -n (vacuous on empty)" \
+    'test -n \(command tmux' "$_PWT"
+check_has "pwt: stores the reload survival check before testing it" \
+    'set -l alive' "$_PWT"
 check_has "pwt: the doc says what --stash preserves" \
     'pwt-removed' "$DOTFILES/docs/PWT.md"
 
@@ -1831,6 +1885,12 @@ check_has "pwt: the doc states the notification mute switch" \
     '@pwt_notify' "$DOTFILES/docs/PWT.md"
 check_has "pwt: help points at the doc" \
     'docs/PWT' "$_PWT"
+check_has "pwt: the doc states the reload recipe" \
+    'pwt reload --force' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc states the tmux floor for -e" \
+    'tmux 3.2 or newer' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc says the env is deliberately not pushed to the server" \
+    'setenv -g' "$DOTFILES/docs/PWT.md"
 check_has "AGENTS.md: points at docs/PWT.md" \
     'docs/PWT\.md' "$DOTFILES/AGENTS.md"
 
@@ -1869,6 +1929,32 @@ if command -v fish >/dev/null 2>&1; then
             rc=$?
             [[ $rc -ne 0 && ! -d __worktrees/demo && "$out" == *"pi is not on PATH"* ]]' \
         _ "$_no_pi_path" "$(command -v fish)" "$_PWT"
+    # The name list comes from the FILE and its values win over the caller's exports
+    # (a stale pane must not re-inject a rotated secret); the vars tmux owns are never
+    # forwarded (the fixture names them, so that assertion is not vacuous), and a name
+    # with an empty value is skipped rather than sent as `-e NAME=`, which would CLEAR
+    # it. Nothing here asserts the died-on-reload branch: it races the respawn (tmux
+    # returns before the child has exec'd), so the code checks pane_dead and this suite
+    # only asserts that check exists.
+    check "pwt: forwards the file's secrets, not the caller's stale exports" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            printf "%s\n" "set -gx REAL fromfile" "set -gx TERM fromfile-term" \
+                "set -gx PATH fromfile-path" "# set -gx RETIRED nope" > "$d/secrets.fish"
+            out=$(env PWT_SECRETS="$d/secrets.fish" REAL=fromshell RETIRED=stale TERM=xterm \
+                "$1" -N -c "source $2; __pwt_forward_env" 2>&1)
+            [[ "$out" == *"REAL=fromfile"* ]] || exit 1
+            [[ "$out" != *"RETIRED"* ]] || exit 1
+            [[ "$out" != *"TERM="* && "$out" != *"PATH="* ]] || exit 1
+            [[ "$(printf "%s\n" "$out" | grep -c "^-e$")" == "1" ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    check "pwt: PWT_FORWARD_ENV overrides the list, skipping unset names" \
+        bash -c 'out=$(env PWT_FORWARD_ENV="PRESENT ABSENT TERM" PRESENT=yes TERM=xterm \
+                "$1" -N -c "source $2; __pwt_forward_env" 2>&1)
+            [[ "$out" == *"PRESENT=yes"* ]] || exit 1
+            [[ "$out" != *"ABSENT"* && "$out" != *"TERM="* ]] || exit 1
+            blank=$(env PWT_FORWARD_ENV= "$1" -N -c "source $2; __pwt_forward_env" 2>&1)
+            [[ -z "$blank" ]]' \
+        _ "$(command -v fish)" "$_PWT"
 else
     _skip "pwt: __worktrees ignore + pi preflight" "fish not installed"
 fi
@@ -1959,13 +2045,33 @@ check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
 # Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
 # defined until this point in the file, and grep against an empty filename fails.
 check_has "pwt-pick: reserves the new verb as a slug too" \
-    'rm\|remove\|jump\|here\|help\|ls\|close' "$_PWT_PICK"
+    'rm\|remove\|jump\|here\|help\|ls\|close\|reload' "$_PWT_PICK"
 # C-x is one confirmation before the whole teardown, and a live row is closeable —
 # nothing in the panel asks the user to type a command to finish the job.
 check_has "pwt-pick: ctrl-x runs the confirmed teardown" \
     'rmstash' "$_PWT_PICK"
 check_has "pwt-pick: ctrl-x can close a live workstream" \
     'run_pwt close' "$_PWT_PICK"
+# ctrl-s is the reload key: unbound in fzf 0.73 (ctrl-l is clear-screen, ctrl-g/ctrl-q
+# abort), and it reaches fzf through tmux — verified by sending it to a --expect panel
+# on a private socket, because a key the terminal swallows looks like a broken bind.
+check_has "pwt-pick: ctrl-s runs the in-place reload" \
+    'ctrl-s' "$_PWT_PICK"
+check_has "pwt-pick: reload is taken off the editor via --expect" \
+    '--expect=ctrl-t,ctrl-x,ctrl-r,ctrl-s' "$_PWT_PICK"
+check_not "pwt-pick: ctrl-l stays fzf's clear-screen key" \
+    'expect=.*ctrl-l' "$_PWT_PICK"
+# The confirmation mirrors ctrl-x's: the kill is one y/N away, and the semantic guard
+# (a mid-turn agent needs --force) stays in pwt, which keeps the popup open on a
+# refusal — the panel must not re-implement or pre-empt it.
+check_has "pwt-pick: reload asks once before restarting pi" \
+    'Reload the pi at' "$_PWT_PICK"
+check_has "pwt-pick: reload delegates to pwt reload" \
+    'run_pwt reload' "$_PWT_PICK"
+check_has "pwt-pick: the panel header names the reload key" \
+    'ctrl-s reload' "$_PWT_PICK"
+check_has "pwt: the doc lists the panel's reload key" \
+    'ctrl-s' "$DOTFILES/docs/PWT.md"
 check_has "pwt-pick: labels a row from the window marker when present" \
     '@pwt_label' "$_PWT_PICK"
 # A repo with no workstreams has no row, so the list cannot reach it; and not every
@@ -2200,8 +2306,18 @@ if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
     # of PATH, which would silently undo the stub. PATH is restored before the block
     # ends so later sections see the real one.
     _pwt_stub="$(mktemp -d)"
-    printf '#!/bin/sh\nexec sleep 300\n' > "$_pwt_stub/pi"
+    _pwt_envlog="$(mktemp)"
+    # The stub records the RELOAD_PROBE value it was handed, so the reload test can
+    # prove the -e arguments reached the process instead of merely appearing in the
+    # command pwt printed. PWT_STUB_ENV_OUT must be exported BEFORE the server starts:
+    # a respawned command inherits the SERVER's environment, not the caller's.
+    cat > "$_pwt_stub/pi" <<'STUB'
+#!/bin/sh
+[ -n "$PWT_STUB_ENV_OUT" ] && printf '%s' "${RELOAD_PROBE:-}" >> "$PWT_STUB_ENV_OUT"
+exec sleep 300
+STUB
     chmod +x "$_pwt_stub/pi"
+    PWT_STUB_ENV_OUT="$_pwt_envlog"; export PWT_STUB_ENV_OUT
     _pwt_path_saved="$PATH"
     PATH="$_pwt_stub:$PATH"; export PATH
     # pi cd'd into a SUBDIRECTORY of the worktree, in a window whose active pane is
@@ -2247,6 +2363,8 @@ switch $argv[2]
         __pwt_open_window $argv[3] $argv[4] $argv[5] $argv[6]
     case here
         cd $argv[3]; and pwt here $argv[4] $argv[5]
+    case reload
+        pwt reload $argv[3..-1]
 end
 PROBE
 
@@ -2443,9 +2561,60 @@ PROBE
         bash -c '! env TMUX="$1" fish -N "$2" "$3" close /tmp >/dev/null 2>&1' \
         _ "$_pwtsock" "$DOTFILES" "$_pwtprobe"
 
+    # ── reload: restart a live pi in place with a fresh environment ──────────────
+    # What proves this worked is what the STUB actually received (it writes
+    # RELOAD_PROBE into $PWT_STUB_ENV_OUT), not what pwt printed. The pane id and the
+    # @pwt_* markers must survive too, or "the same workstream" is a false claim, and
+    # the dead run's @pi_state must not linger on the window.
+    _pwt_reload_dir="$(mktemp -d)"
+    _pwt_reload_secrets="$(mktemp)"
+    tmux -S "$_pwtsock" new-window -t pwttest -n reloadme -c "$_pwt_reload_dir" "sleep 300" >/dev/null 2>&1
+    _pwt_rp="$(tmux -S "$_pwtsock" list-panes -t reloadme -F '#{pane_id}')"
+    tmux -S "$_pwtsock" select-pane -t "$_pwt_rp" -T 'π - reloadme'
+    tmux -S "$_pwtsock" set-window-option -t "$_pwt_rp" @pwt_sid repo-reload
+    tmux -S "$_pwtsock" set-window-option -t "$_pwt_rp" @pwt_dir "$_pwt_reload_dir"
+    tmux -S "$_pwtsock" set-window-option -t "$_pwt_rp" @pwt_label reloadme
+    tmux -S "$_pwtsock" set-window-option -t "$_pwt_rp" @pi_state working
+    check "pwt: reload refuses to kill a working agent without --force" \
+        bash -c 'env TMUX="$1" fish -N "$2" "$3" reload "$4" >/dev/null 2>&1 && exit 1
+            [[ "$(tmux -S "$1" display -p -t "$5" "#{pane_start_command}")" != *repo-reload* ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_reload_dir" "$_pwt_rp"
+    check "pwt: reload refuses a window pwt did not open" \
+        bash -c 'f=$(mktemp -d); trap "rm -rf \"$f\"" EXIT
+            tmux -S "$1" new-window -t pwttest -n foreign -c "$f" "sleep 300" >/dev/null 2>&1
+            p=$(tmux -S "$1" list-panes -t foreign -F "#{pane_id}")
+            tmux -S "$1" select-pane -t "$p" -T "π - foreign"
+            out=$(env TMUX="$1" fish -N "$2" "$3" reload "$f" 2>&1) && exit 1
+            [[ "$out" == *"records no pwt session id"* ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES"
+    : > "$_pwt_envlog"
+    printf '%s\n' 'set -gx RELOAD_PROBE fromfile' > "$_pwt_reload_secrets"
+    # The caller exports a STALE value on purpose: what must arrive is the file's, or
+    # `pwt reload` would re-inject the secret it exists to refresh and report success.
+    # The tap is dropped first, so re-attaching it is observable (`#{pane_pipe}`).
+    check "pwt: reload replays pi in place with the file's env, not the caller's" \
+        bash -c 'tmux -S "$1" pipe-pane -t "$5"
+            env TMUX="$1" PWT_SECRETS="$7" RELOAD_PROBE=stale \
+                fish -N "$2" "$3" reload --force "$4" >/dev/null 2>&1 || exit 1
+            [[ "$(tmux -S "$1" display -p -t "$5" "#{pane_id}")" == "$5" ]] || exit 1
+            [[ "$(tmux -S "$1" display -p -t "$5" "#{@pwt_sid}")" == "repo-reload" ]] || exit 1
+            [[ -z "$(tmux -S "$1" display -p -t "$5" "#{@pi_state}")" ]] || exit 1
+            [[ "$(tmux -S "$1" display -p -t "$5" "#{pane_start_command}")" == *repo-reload* ]] || exit 1
+            [[ "$(tmux -S "$1" display -p -t "$5" "#{pane_pipe}")" == "1" ]] || exit 1
+            # The stub writes from inside the new process, so poll: asserting on a
+            # single immediate read makes this test depend on scheduler luck.
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                [[ -n "$(cat "$6")" ]] && break; sleep 0.2
+            done
+            [[ "$(cat "$6")" == "fromfile" ]]' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_reload_dir" "$_pwt_rp" "$_pwt_envlog" \
+        "$_pwt_reload_secrets"
+
     tmux -S "$_pwtsock" kill-server >/dev/null 2>&1
     PATH="$_pwt_path_saved"; export PATH
-    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe" "$_pwt_stub"
+    unset PWT_STUB_ENV_OUT
+    rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe" "$_pwt_stub" \
+        "$_pwt_envlog" "$_pwt_reload_dir" "$_pwt_reload_secrets"
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
 fi

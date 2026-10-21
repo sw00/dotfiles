@@ -15,6 +15,7 @@
 #   ctrl-t   new    — create a worktree in the highlighted row's repo
 #   ctrl-x   remove — `pwt rm`, which refuses on ignored files or an open window
 #   ctrl-r   repos  — pick any other repo (a worktree, or a workstream in place)
+#   ctrl-s   reload — restart the row's pi against the current secrets env
 #
 # Why --expect rather than ctrl-t:execute(...): an execute bind
 # interpolates the selected row and the typed query into a COMMAND STRING that a
@@ -29,9 +30,13 @@
 # preference, because --expect takes a key AWAY from the editor. ctrl-n/ctrl-p are
 # fzf's down-match/up-match pair and ctrl-d is delete-char/eof, so binding them made
 # ctrl-p navigate while ctrl-n exited the panel: an asymmetric pair that fired a
-# "new … name:" prompt on the muscle-memory key for "next match". ctrl-t, ctrl-x and
-# ctrl-r are unbound in fzf 0.73, so navigation stays arrows/ctrl-j/ctrl-k/ctrl-n/
-# ctrl-p and ctrl-d keeps meaning "delete a character, or abort on an empty query".
+# "new … name:" prompt on the muscle-memory key for "next match". ctrl-t, ctrl-x,
+# ctrl-r and ctrl-s are unbound in fzf 0.73, so navigation stays arrows/ctrl-j/ctrl-k/
+# ctrl-n/ctrl-p and ctrl-d keeps meaning "delete a character, or abort on an empty
+# query". ctrl-s is the reload key because the obvious ctrl-l is fzf's clear-screen
+# and ctrl-g/ctrl-q are abort (verified in the 0.73 man page, and ctrl-s reaches fzf
+# through tmux on a private socket — a --expect key that the terminal swallowed would
+# look exactly like a broken binding).
 #
 # Lifecycle stays in pwt (base/fish/.config/fish/functions/pwt.fish): this script
 # decides WHAT to act on and delegates, so the panel and `pwt <slug>` typed in a
@@ -285,7 +290,7 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     # Two header lines: fzf truncates a long one, and the glyphs are meaningless
     # without a legend.
     panel_header="$(printf '%s\n%s' \
-        'enter open · ctrl-t new worktree · ctrl-r other repo · ctrl-x end it' \
+        'enter open · ctrl-t new · ctrl-r repo · ctrl-s reload · ctrl-x end' \
         '◐ working · ⚑ blocked · ✓ done · ✗ error')"
     # The preview answers "do I still need this?": branch state, then the commits that
     # exist on NO remote. `status --branch` cannot answer the second half — a pwt
@@ -298,7 +303,7 @@ if [[ ${#rows[@]} -gt 0 ]]; then
         | fzf --prompt 'workstream> ' --reverse --delimiter='\t' --with-nth=1 \
             --border-label ' pwt ' \
             --header "$panel_header" \
-            --expect=ctrl-t,ctrl-x,ctrl-r \
+            --expect=ctrl-t,ctrl-x,ctrl-r,ctrl-s \
             --print-query \
             --preview "$HOME/bin/pwt-preview {2}" \
             --preview-window 'down:40%')" || exit 0
@@ -310,7 +315,7 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     # the stream, shape parsing would read a query of "ctrl-t" as a key and act on it.
     query="$(printf '%s\n' "$out" | sed -n 1p)"
     key="$(printf '%s\n' "$out" | sed -n 2p)"
-    case "$key" in ctrl-t|ctrl-x|ctrl-r) ;; *) key='' ;; esac
+    case "$key" in ctrl-t|ctrl-x|ctrl-r|ctrl-s) ;; *) key='' ;; esac
     sel="$(printf '%s\n' "$out" | sed -n 3p)"
 else
     key=ctrl-r
@@ -329,7 +334,8 @@ path="$(printf '%s' "$sel" | cut -f2)"
 # the moment the command exits, so a refusal ("window @N still holds …") or a
 # validation error would otherwise flash and vanish before it could be read.
 # <verb> is new (cd + pwt <name>), rm, jump (pwt jump <dir>), rmstash (the confirmed
-# teardown), close (end a live workstream), or here (cd + pwt here).
+# teardown), close (end a live workstream), reload (restart a live pi), or here
+# (cd + pwt here).
 run_pwt() {
     local verb="$1" a="$2" b="${3:-}" rc=0
     case "$verb" in
@@ -337,6 +343,7 @@ run_pwt() {
         rm)   fish -c 'cd $argv[1]; and pwt rm $argv[2]' "$a" "$b" || rc=$? ;;
         rmstash) fish -c 'cd $argv[1]; and pwt rm --stash $argv[2]' "$a" "$b" || rc=$? ;;
         close) fish -c 'pwt close $argv[1]' "$a" || rc=$? ;;
+        reload) fish -c 'pwt reload $argv[1]' "$a" || rc=$? ;;
         jump) fish -c 'pwt jump $argv[1]' "$a" || rc=$? ;;
         here) fish -c 'cd $argv[1]; and pwt here $argv[2]' "$a" "$b" || rc=$? ;;
         *)    echo "pwt-pick: unknown verb '$verb'" >&2; rc=2 ;;
@@ -350,11 +357,11 @@ run_pwt() {
 }
 
 # pwt's first argument is a verb switch, so these would never become a workstream.
-# `ls`, `here` and `jump` are reachable only from a shell, but a workstream named
-# after one would still be unusable, so they are reserved the same way.
+# `ls`, `here`, `jump` and `reload` are reachable only from a shell, but a workstream
+# named after one would still be unusable, so they are reserved the same way.
 reject_reserved() {
     case "$1" in
-        rm|remove|jump|here|help|ls|close)
+        rm|remove|jump|here|help|ls|close|reload)
             echo "pwt: '$1' is a pwt verb, not a workstream name" >&2
             exit 2 ;;
     esac
@@ -413,6 +420,25 @@ ctrl-t)
         *)  repo="$path" ;;
     esac
     run_pwt new "$repo" "$slug"
+    ;;
+ctrl-s)
+    # Restart the highlighted workstream's pi against the current secrets file. Only a
+    # LIVE row has a process to restart, and only pwt knows the session id it has to
+    # resume, so the semantic guard stays there: this asks once (a reload throws the
+    # turn in flight away) and then delegates. A pi that is mid-turn is refused by
+    # pwt itself, which keeps the popup open with the `--force` spelling — that
+    # refusal is not second-guessed here.
+    if [[ "$kind" != "live" ]]; then
+        printf 'pwt-pick: %s has no live window to reload\n' "$(label "$path")" >&2
+        printf '  reload restarts a running pi; open it first (enter)\n\n[press enter to close] '
+        read -r _ || true
+        exit 0
+    fi
+    echo "── $(label "$path")"
+    printf 'Reload the pi at %s with the current secrets env? [y/N] ' "$path"
+    read -r ans || ans=''
+    case "$ans" in [yY]*) ;; *) echo "aborted"; exit 0 ;; esac
+    run_pwt reload "$path"
     ;;
 ctrl-x)
     # One confirmation, then pwt does the WHOLE teardown: close the window, stash

@@ -18,6 +18,7 @@ pins a session id, and this is it.
 | `pwt rm [--stash] <slug>` | remove worktree + branch. Bare: refuses while a window holds it or ignored files are present. `--stash`: closes the window, stashes changes, parks ignored files, then removes (see below) |
 | `pwt close <dir>` | end a LIVE workstream: close the pi window at `<dir>` |
 | `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>` |
+| `pwt reload [--force] <dir>` | restart the pi window at `<dir>` against the current `secrets/env.fish` (see below) |
 | `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
 | `pwt help` | usage |
 
@@ -45,6 +46,7 @@ window is open on it, `●` means it has session history.
 | `ctrl-t` | new worktree in the highlighted row's repo |
 | `ctrl-r` | pick any other repo (worktree, or a workstream in place) |
 | `ctrl-x` | end it — one `y/N`: closes the window; a worktree is stashed and removed |
+| `ctrl-s` | reload it — one `y/N`: restart the row's pi with the current secrets env (live rows only; a mid-turn agent is still refused, see above) |
 
 The preview is the "do I still need this?" panel: `git status --short --branch`, then
 the commits that exist on **no remote**. The second half matters because `--branch`
@@ -52,10 +54,11 @@ only reports ahead/behind against an upstream, and a worktree branch made from `
 has none — so merged-and-pushed is visible, local-only work is visible, and landing is
 your call. Nothing here merges.
 
-The three verbs sit on keys fzf's line editor leaves alone; `--expect` *takes*
+The four verbs sit on keys fzf's line editor leaves alone; `--expect` *takes*
 whatever it is given, so `ctrl-n`/`ctrl-p` (its next/previous match) stay navigation.
-An action closes the panel — the price of keeping the row and the query out of a
-shell command string.
+That is why reload is `ctrl-s` and not the obvious `ctrl-l` — fzf binds that to
+clear-screen. An action closes the panel — the price of keeping the row and the query
+out of a shell command string.
 
 Typing a slug is prompted after the panel closes, with what you typed as a filter
 offered as the default (`--print-query`): filter to the name, `ctrl-t`, Enter. An
@@ -76,6 +79,55 @@ workstreams share one working tree, so parallel edits WILL collide. Nothing warn
 the first time — that is the rule, not an oversight. It warns rather than refuses
 because refusing would delete the rung's reason to exist. Use it for read-mostly
 work, or one agent at a time.
+
+## Changing the environment
+
+A workstream window runs `pi --session-id <sid>` directly — there is no shell in it —
+so nothing re-reads `secrets/env.fish` for the pi's lifetime, and a running process can
+never be handed new variables (the env is fixed at exec; only a restart changes it).
+pwt therefore hands the values to the spawn itself, as tmux `-e NAME=VALUE` arguments:
+
+- **Names** come from the `set -gx NAME …` lines of `~/dotfiles/secrets/env.fish`
+  (`PWT_SECRETS` points at a different file; `PWT_FORWARD_ENV` replaces the list
+  outright, and those names keep the calling shell's values — one it does not export
+  is skipped). Only anchored lines count — the file carries commented-out `set -gx`
+  lines for retired keys — and a name whose value is empty is skipped rather than
+  forwarded as empty, because `-e NAME=` would CLEAR it.
+- **Values** are read from that file at the moment of the call, not from the calling
+  shell's exports, which are routinely older than the edit.
+- `TERM`, `TMUX`, `TMUX_PANE`, `PWD`, `OLDPWD`, `HOME` and `PATH` are never forwarded:
+  tmux requires its own `TERM`, and `tmux.conf` seeds the server's `PATH` with the
+  mise shims.
+
+So an edit needs no new shell for the pi — only a restart:
+
+```
+pwt reload <dir>            # re-exec pi in that workstream's window
+pwt reload --force <dir>    # ...even while it is mid-turn
+```
+
+`pwt reload` is a restart, not a patch: the in-flight turn is lost, the transcript is
+resumed by the re-run `--session-id`, and the window keeps its name, its pane and its
+`@pwt_*` markers. It restarts in the workstream's OWN directory, so a pi that had
+`cd`'d somewhere inside it (or the shell tab you opened next to it) is not where the
+new pi starts. It refuses a window pwt did not open (there is no session id to
+resume — use `pwt close <dir>` and the usual pwt command instead) and a pane whose
+agent is `working` unless `--force`.
+
+Side effect to know: re-reading the file happens in pwt's own process, so the shell
+that ran `pwt` or `pwt reload` also gets the refreshed exports (fish 4.9.3 propagates
+`set -gx` out of the command substitution pwt builds the arguments in) — the same file,
+at the same path, that it sourced at startup, so it is idempotent. The values are
+deliberately NOT pushed into the tmux server (`tmux setenv -g`): such a value outlives
+the command and is inherited by every later window on the server, including ones pwt
+did not open, with nothing that ever clears it.
+
+Requires tmux 3.2 or newer for `-e` (WSL's apt tmux 3.4 is above that); below it the
+spawn is rejected rather than degraded. Secrets therefore appear in the tmux command
+line for a moment (`ps`), which is fine on a single-user machine but worth knowing.
+pi's own session tools inherit the environment too, so a rotated token needs the same
+reload before they see it. The panel's `ctrl-s` is that same verb for the highlighted
+row; `enter` still reuses a window without restarting it.
 
 ## What pwt leaves on disk
 
