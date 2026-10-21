@@ -58,9 +58,9 @@ pwt never creates a session: that stays sesh's job (`C-f`/`C-o`/`C-j`), and a se
 creator would be a second session manager. "No project session" is a normal outcome,
 not an error. Both sides are canonicalised before comparing, because tmux reports
 `session_path` as given (`/tmp` where git says `/private/tmp` on macOS) — the same
-lesson as `__pwt_window_for`, but done with `path resolve` rather than
-`__pwt_realpath`: canonicalising once per SESSION by `cd`ing would fire a PWD-change
-event that direnv hooks on, for every session on the server.
+lesson as `__pwt_window_for`. The canonicaliser is a `path resolve` call: doing it with
+`cd …; pwd -P` would fire a PWD-change event (which direnv hooks on) once per session
+on the server, and the shell then has to be put back.
 
 The session is TARGETED by id, and the name tier is matched with `=` (exact): tmux
 rewrites `.` and `:` in a session name, cannot reach a name beginning with `$` at all,

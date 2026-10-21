@@ -1746,15 +1746,13 @@ check_has "pwt: resolves that session from the recorded session_path" \
     'session_path' "$_PWT"
 check_has "pwt: reads sessions for it, not pane paths" \
     'list-sessions -F' "$_PWT"
-# `path resolve`, NOT __pwt_realpath: this canonicalises once per SESSION, and
-# __pwt_realpath cds there and back in the CALLER's process, so every session on the
-# server would fire a PWD-change event — which direnv hooks on. Same reasoning as
-# __pwt_window_for canonicalising its target once and never each pane. Asserted on the
-# FUNCTION BODY (delimited by the next `function`, since a fish function's body also
-# ends in `end`): a bare grep for `path resolve` would match the comment that explains
-# it and pass on a revert.
-check "pwt: the parent-session resolver never canonicalises by cd'ing" \
-    bash -c '! awk "/^function __pwt_parent_session /{f=1} f && /^function / && !/^function __pwt_parent_session /{exit} f" "$1" | grep -v "^[[:space:]]*#" | grep -q __pwt_realpath' \
+# ONE canonicaliser, not two: the resolver must ask for the same canonical form as the
+# window lookups, or the same checkout can compare unequal to itself and pwt opens a
+# second pi on one transcript. (Why it is not a `cd` is asserted on __pwt_realpath
+# itself, above.) Bodies are delimited by the next `function`, since a fish function's
+# body also ends in `end`.
+check "pwt: the parent-session resolver reuses the shared canonicaliser" \
+    bash -c 'awk "/^function __pwt_parent_session /{f=1} f && /^function / && !/^function __pwt_parent_session /{exit} f" "$1" | grep -v "^[[:space:]]*#" | grep -q __pwt_realpath' \
     _ "$_PWT"
 # Ordering, not presence: the client has to be in the target session BEFORE the
 # source can be destroyed by the move (detach-on-destroy is on by default), and a
@@ -1819,12 +1817,17 @@ check "pwt: never creates a session to snap into" \
 # and find hand back the path as given, so a checkout behind any symlinked parent
 # would never match and pwt would spawn the duplicate after all.
 check_has "pwt: compares window paths canonically" \
-    'command pwd -P' "$_PWT"
-# ...and must not leave the caller's shell where the lookup cd'd to: fish runs a
-# command substitution in the same process, so `pwt rm` would otherwise strand the
-# shell inside the directory it just deleted.
-check_has "pwt: puts the shell back after canonicalising" \
-    'cd -- "\$here"' "$_PWT"
+    'path resolve' "$_PWT"
+# ...with a BUILTIN, never a `cd …; pwd -P` round trip. A fish function runs in the
+# caller's process, so cd'ing there fires a PWD-change event on every comparison (direnv
+# hooks PWD), and the shell had to be put back afterwards — bookkeeping whose failure
+# mode was a shell left inside a directory pwt had just deleted. Asserted on the
+# FUNCTION BODY: a bare grep would match the comment explaining why it is not done.
+check "pwt: canonicalises without cd'ing the caller's shell" \
+    bash -c 'body=$(awk "/^function __pwt_realpath /{f=1} f && /^function / && !/^function __pwt_realpath /{exit} f" "$1" | grep -v "^[[:space:]]*#")
+             printf "%s\n" "$body" | grep -q "path resolve" \
+               && ! printf "%s\n" "$body" | grep -qE "(^|[[:space:]])cd([[:space:]]|\$)|pwd -P"' \
+    _ "$_PWT"
 # A live window means the worktree is in use: removing it pulls the directory out
 # from under a running pi, so the ignored-file guard is not the only one. This one
 # is deliberately NOT gated on $TMUX — `pwt rm` from a plain terminal while pi

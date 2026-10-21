@@ -47,23 +47,17 @@ end
 # back a canonical toplevel, so a checkout reached through any symlinked parent
 # would compare unequal to itself — and pwt would open a SECOND pi on the same
 # transcript. repo-list carries the same lesson for the same reason.
+#
+# `path resolve` and NOT a `cd …; pwd -P` round trip. A fish function runs in the
+# CALLER's process, so cd'ing here fired a PWD-change event on every comparison (direnv
+# hooks PWD) and the shell then had to be put back — bookkeeping whose failure mode was
+# a shell stranded in a deleted directory. The builtin also leaves a nonexistent path
+# as given and prints nothing for an empty one, which is what the hand-written guard
+# was there to do. It resolves `..` lexically after following links, so a caller passing
+# `..` behind a symlink can disagree with the kernel; every real caller hands over an
+# absolute path from tmux or git, where the two agree.
 function __pwt_realpath --description 'canonical path for comparison'
-    if not test -d "$argv[1]"
-        echo "$argv[1]"
-        return 0
-    end
-    # `cd` inside a command substitution runs in THIS shell (fish does not fork
-    # for it), so the caller must be put back: otherwise `pwt rm` strands the
-    # shell inside the directory it just deleted, and `pwt <slug>` drags it into
-    # whatever path was compared last.
-    set -l here $PWD
-    set -l resolved ''
-    cd -- "$argv[1]"; and set resolved (command pwd -P)
-    # Guarded: `cd` to a directory that has since vanished would otherwise print a
-    # stray error to the caller's terminal.
-    test -d "$here"; and cd -- "$here"
-    test -n "$resolved"; or set resolved "$argv[1]"
-    echo $resolved
+    path resolve -- "$argv[1]"
 end
 
 # pi titles its window "<APP_TITLE> - [<session name> - ]<cwd basename>" (dist:
@@ -290,11 +284,10 @@ end
 # Returns a session ID, not a name: tmux rewrites '.'/':' in names and cannot target
 # a name beginning with '$' at all, so only the id is a dependable handle.
 function __pwt_parent_session --description 'session id owning <repo root>; opts: path-only'
-    # `path resolve`, NOT __pwt_realpath: this runs once per session on the server, and
-    # __pwt_realpath canonicalises by cd'ing — a fish function runs in the CALLER's
-    # process, so every session would fire a PWD-change event that direnv hooks on.
-    # __pwt_window_for canonicalises its target once for exactly this reason.
-    set -l root (path resolve -- "$argv[1]")
+    # One canonicaliser for the whole file: __pwt_realpath is a builtin call now, not
+    # a cd, so asking it once per session costs no PWD-change events (which direnv
+    # hooks on) and there is no second definition of "same path" to drift.
+    set -l root (__pwt_realpath "$argv[1]")
     test -n "$root"; or return 1
     # A repo called foo.nvim can only ever be found under foo_nvim: tmux rewrites '.'
     # and ':' in a session NAME to '_'.
@@ -310,7 +303,7 @@ function __pwt_parent_session --description 'session id owning <repo root>; opts
         # that never got one) would reach test with no right-hand operand and print
         # "test: Missing argument" into the caller's terminal.
         test -n "$parts[3]"; or continue
-        test (path resolve -- "$parts[3]") = "$root"; or continue
+        test (__pwt_realpath "$parts[3]") = "$root"; or continue
         # A session NAMED after the repo is the one the user's own switchers pick
         # (sesh names a session after the directory), so it wins a tie.
         if test "$parts[2]" = "$want"
