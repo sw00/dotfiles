@@ -212,6 +212,16 @@ check_has "claude: cloud/Remote-Control session URL omitted" \
     '"sessionUrl": false' "$DOTFILES/base/claude/.claude/settings.json"
 check_has "bootstrap: base stow list includes claude" \
     'stow_dir.*DOTFILES/base.*claude' "$DOTFILES/bootstrap.sh"
+# A runtime notice flag is per-machine state, not config: the dotfile sets
+# provider.plan so the bridge's first-run notice never fires, and
+# askClaudeDeprecationShown is written when the extension shows a deprecation notice
+# (one was committed this way on 2026-10-21 and reverted). Committing either makes the
+# next host inherit "already seen" for a notice it never saw, and tests nothing — the
+# keys that DO belong here are asserted above. Which stowed files can be dirtied, and
+# why only a stowed file can be, is in docs/GOTCHAS.md ("stow lifecycle").
+check_not "pi: claude-bridge.json carries no runtime notice flags" \
+    '"(startupNoticeShown|askClaudeDeprecationShown)"' \
+    "$DOTFILES/base/pi/.pi/agent/claude-bridge.json"
 
 # ── Linux stack: base → os/linux ───
 section "Stow integrity — Linux stack  [GREEN]"

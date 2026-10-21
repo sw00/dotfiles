@@ -92,7 +92,8 @@ paths live in `docs/TILING.md` — read it before changing either config.
 - pi settings drift: sessions write runtime state into the stowed
   `base/pi/.pi/agent/settings.json`, so run `pi-settings-reset` before committing
   pi config (reverts to HEAD, keeps `packages`/`lastChangelogVersion` and reports
-  them; `--all` discards those too, `-n` only reports).
+  them; `--all` discards those too, `-n` only reports). Same class:
+  `claude-bridge.json` flags, see `GOTCHAS`.
 - Adding a WSL host: `hosts/<hostname>/.wslconfig` is usually all you need;
   bootstrap discovers it by live hostname. Don't add stow packages there.
 - Windows-side changes from WSL: write a `.ps1` to a Windows path, run
