@@ -195,9 +195,23 @@ stow_begin
 # the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
 # base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
 # are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
-check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry" \
-    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh
+check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry claude" \
+    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh claude
 stow_end
+
+# Claude Code's defaults are the origin of the "🤖 Generated with [Claude Code]"
+# PR footer and the `Co-Authored-By: <model>` commit trailer. Both are hidden by
+# empty strings here; the object form is deliberate — `"attribution": false`
+# hides the same things but older releases reject the whole settings file that
+# holds it (docs: v2.1.281+), and this file is stowed to every host.
+check_has "claude: PR footer attribution disabled" \
+    '"pr": ""' "$DOTFILES/base/claude/.claude/settings.json"
+check_has "claude: commit trailer attribution disabled" \
+    '"commit": ""' "$DOTFILES/base/claude/.claude/settings.json"
+check_has "claude: cloud/Remote-Control session URL omitted" \
+    '"sessionUrl": false' "$DOTFILES/base/claude/.claude/settings.json"
+check_has "bootstrap: base stow list includes claude" \
+    'stow_dir.*DOTFILES/base.*claude' "$DOTFILES/bootstrap.sh"
 
 # ── Linux stack: base → os/linux ───
 section "Stow integrity — Linux stack  [GREEN]"

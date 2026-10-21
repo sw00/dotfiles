@@ -1,0 +1,9 @@
+{
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "theme": "dark-ansi",
+  "tui": "fullscreen"
+}

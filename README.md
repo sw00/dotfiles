@@ -22,8 +22,8 @@ hosts/
 secrets/        → git-crypt encrypted (SSH keys, env.fish)
 ```
 
-`base/` packages: `alacritty`, `bash`, `fish`, `git`, `mise`, `nvim`, `pi`,
-`sesh`, `ssh`, `tmux`. (`bash` is tracked but not stowed — stock `.profile`
+`base/` packages: `alacritty`, `bash`, `claude`, `fish`, `git`, `mise`, `nvim`,
+`pi`, `sesh`, `ssh`, `tmux`. (`bash` is tracked but not stowed — stock `.profile`
 boilerplate; PATH is handled by fish. `gnupg` is stowed per-OS instead —
 macOS and WSL use different pinentry wrappers.)
 
