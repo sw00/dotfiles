@@ -24,11 +24,16 @@
 # (~/.pi/agent/trust.json trusts the source-tree prefix) and can be filtered out
 # of the sesh/zoxide picker (see the C-f binding in tmux.conf).
 
+# An ARGUMENT is a directory to resolve instead of the caller's cwd: __pwt_open_window
+# holds the workstream's own path, not a cwd. `git -C` keeps the common-dir rule
+# identical for both callers, so a worktree still resolves to the MAIN repo.
 function __pwt_main_root
+    set -l where
+    test -n "$argv[1]"; and set where -C "$argv[1]"
     # --show-toplevel returns the WORKTREE when called from inside one, so a
     # nested pwt would build __worktrees/<a>/__worktrees/<b> and mis-key the
     # session id. The common git dir always points at the main repository.
-    set -l common (command git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+    set -l common (command git $where rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
     or begin; echo "pwt: not inside a git repository" >&2; return 1; end
     command dirname "$common"
 end
@@ -248,14 +253,137 @@ end
 
 # select-window only moves within the current session; a worktree window in
 # another session needs the client moved first, or the jump looks like a no-op.
+# Both lookups ask for the session ID: tmux rewrites '.' and ':' in a session NAME,
+# and a name starting with '$' cannot be reached by a name target at all — while the
+# id is also what __pwt_parent_session hands out, and survives a rename between the
+# two commands.
 function __pwt_jump_to --description 'select <window id>, moving session if needed'
     set -l wid $argv[1]
-    set -l target (command tmux display-message -p -t "$wid" '#{session_name}' 2>/dev/null)
-    set -l current (command tmux display-message -p '#{session_name}' 2>/dev/null)
+    set -l target (command tmux display-message -p -t "$wid" '#{session_id}' 2>/dev/null)
+    set -l current (command tmux display-message -p '#{session_id}' 2>/dev/null)
     if test -n "$target"; and test "$target" != "$current"
         command tmux switch-client -t "$target" 2>/dev/null
     end
     command tmux select-window -t "$wid"
+end
+
+# The session a workstream window belongs to: the one that already owns this repo's
+# MAIN checkout. Sessions are not pwt's to create — sesh makes them from a path
+# (`new-session -c <path>`) and tmux RECORDS that starting directory as
+# `session_path`, so the answer is read rather than observed.
+#
+# Observed (pane cwd, or "a path inside the tree") re-creates the very bug this
+# fixes: panes cd, and a scratch session is routinely the one hosting worktree panes
+# (session `0` on this machine), so an in-tree match would resolve that session as the
+# PARENT of the repo whose worktree it holds. __pwt_window_for carries the same
+# lesson under `no-worktrees`.
+#
+# Compared canonically on BOTH sides: tmux reports `session_path` AS GIVEN (/tmp where
+# git hands back /private/tmp on macOS), and a repo reached through a symlinked parent
+# would otherwise never match its own session.
+#
+# Empty output means "no project session", and the caller then keeps the old
+# behaviour: open in the CALLER's session. pwt never creates one — sessions are
+# sesh's, and a second creator would be a second session manager competing with
+# C-f/C-o/C-j for the same names.
+#
+# Returns a session ID, not a name: tmux rewrites '.'/':' in names and cannot target
+# a name beginning with '$' at all, so only the id is a dependable handle.
+function __pwt_parent_session --description 'session id owning <repo root>; opts: path-only'
+    # `path resolve`, NOT __pwt_realpath: this runs once per session on the server, and
+    # __pwt_realpath canonicalises by cd'ing — a fish function runs in the CALLER's
+    # process, so every session would fire a PWD-change event that direnv hooks on.
+    # __pwt_window_for canonicalises its target once for exactly this reason.
+    set -l root (path resolve -- "$argv[1]")
+    test -n "$root"; or return 1
+    # A repo called foo.nvim can only ever be found under foo_nvim: tmux rewrites '.'
+    # and ':' in a session NAME to '_'.
+    set -l want (string replace -a -r '[.:]' '_' -- (string replace -r '.*/' '' -- $root))
+    set -l fallback
+    # ':' separates the fields and -m 2 keeps the tail intact: tmux forbids ':' in a
+    # session name and a session id ($N) has none either, so the first two fields are
+    # exact while the PATH — which may legitimately hold ':' or '|' — stays whole.
+    for line in (command tmux list-sessions -F '#{session_id}:#{session_name}:#{session_path}' 2>/dev/null)
+        set -l parts (string split -m 2 ':' -- $line)
+        test (count $parts) -eq 3; or continue
+        # Skipped, not compared: an empty session_path (a tmux without it, or a session
+        # that never got one) would reach test with no right-hand operand and print
+        # "test: Missing argument" into the caller's terminal.
+        test -n "$parts[3]"; or continue
+        test (path resolve -- "$parts[3]") = "$root"; or continue
+        # A session NAMED after the repo is the one the user's own switchers pick
+        # (sesh names a session after the directory), so it wins a tie.
+        if test "$parts[2]" = "$want"
+            echo $parts[1]
+            return 0
+        end
+        test -n "$fallback"; or set fallback $parts[1]
+    end
+    test -n "$fallback"; and begin
+        echo $fallback
+        return 0
+    end
+    # Tier 2: a session named after the repo whose start directory has since
+    # wandered. Strictly AFTER the path tier — two repos can share a basename, so a
+    # name alone is never proof. `=` makes the target exact: a bare name is a PREFIX
+    # match, and `foo` would then happily hit `foobar`. Callers that MOVE an existing
+    # window pass `path-only` and stop at the line above: a name is enough to create
+    # beside, not enough to drag an existing workstream across sessions.
+    test "$argv[2]" = path-only; and return 1
+    command tmux has-session -t "=$want" 2>/dev/null; or return 1
+    command tmux display-message -p -t "=$want:" '#{session_id}' 2>/dev/null
+end
+
+# Move a workstream window into the session that owns its repo NOW. Placement is a
+# property pwt MAINTAINS, not a one-shot at creation: a window opened before its
+# project session existed sat in the caller's session, and the moment you go to it
+# again (reuse through `pwt <slug>`, or `pwt jump`) is the moment the right session
+# is known to exist. That is why this rides those verbs instead of growing a snap
+# verb of its own — the panel's `enter` already reaches both.
+#
+# Silent on the two normal non-events: nowhere to go (no project session) and
+# already home. A "nothing to do" line on every reuse would be noise.
+#
+# Callers pass a window they already resolved, and `pwt jump` checks @pwt_sid first:
+# a pi someone started by hand is not pwt's to relocate.
+function __pwt_snap_home --description 'move <window id> into the session owning <repo root>'
+    set -l wid $argv[1]
+    # Only a window pwt OPENED is pwt's to move. The gate lives HERE, not in the
+    # callers: __pwt_open_window's path fallback can match a pi someone started by
+    # hand inside the worktree (titled but unmarked), and that window is not a
+    # workstream — relocating it would drag a stranger's pane across sessions.
+    set -l own (command tmux display-message -p -t "$wid" '#{@pwt_sid}' 2>/dev/null)
+    test -n "$own"; or return 0
+    # path-only: a MOVE needs the recorded path, never just a name. Tier 2 is fair
+    # evidence when CREATING (nothing better is known and the window has to go
+    # somewhere), but not for dragging an existing workstream: another repo with the
+    # same basename may own the session that shares the name.
+    set -l sess (__pwt_parent_session "$argv[2]" path-only)
+    test -n "$sess"; or return 0
+    set -l here (command tmux display-message -p -t "$wid" '#{session_id}' 2>/dev/null)
+    test -n "$here"; or return 1
+    test "$here" = "$sess"; and return 0
+    set -l label (command tmux display-message -p -t "$wid" '#{@pwt_label}' 2>/dev/null)
+    # The window's own name before the REPO's: announcing a workstream as its repo is
+    # how a message stops being useful.
+    test -n "$label"; or set label (command tmux display-message -p -t "$wid" '#{window_name}' 2>/dev/null)
+    test -n "$label"; or set label (command basename -- "$argv[2]")
+    # detach-on-destroy is ON by default (this repo does not change it), so moving a
+    # session's LAST window out of it destroys that session and DETACHES any client
+    # sitting in it. Move the client first, while the source still exists — the same
+    # reason __pwt_jump_to switches before selecting.
+    set -l windows (command tmux list-windows -t "$here" -F '#{window_id}' 2>/dev/null)
+    if test (count $windows) -eq 1
+        echo "pwt: '$label' is the only window in its session, so this move ends that session" >&2
+    end
+    command tmux switch-client -t "$sess" 2>/dev/null
+    command tmux move-window -s "$wid" -t "$sess:"
+    or begin
+        echo "pwt: could not move '$label' into its repo's session" >&2
+        return 1
+    end
+    set -l where (command tmux display-message -p -t "$sess" '#{session_name}' 2>/dev/null)
+    echo "pwt: moved '$label' to $where"
 end
 
 # pi must resolve before a window is SPAWNED — a missing pi makes the pane exit at
@@ -391,6 +519,10 @@ function __pwt_open_window --description 'jump to a workstream window, else open
         set wid (__pwt_window_for "$dir" pi-only)
     end
     if test -n "$wid"
+        # A window that landed elsewhere (its project session did not exist yet) moves
+        # home the next time you go to it — placement is maintained, not one-shot.
+        set -l home (__pwt_main_root "$dir" 2>/dev/null)
+        test -n "$home"; and __pwt_snap_home "$wid" "$home"
         # Say so: `pwt foo` that creates nothing looks like it failed.
         __pwt_jump_to "$wid"
         or begin; echo "pwt: could not select window $wid for $label" >&2; return 1; end
@@ -403,9 +535,40 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     # The secrets env goes to THIS window only: -e creates no server-wide state, so a
     # stale value can never be inherited by a window pwt did not open.
     set -l envargs (__pwt_forward_env)
-    set -l pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" $envargs pi --session-id "$sid")
-    or return 1
-    command tmux select-window -t "$pane" 2>/dev/null
+    # Where it opens: the session that owns the repo's MAIN checkout (see
+    # __pwt_parent_session), so a workstream lands beside the project it belongs to
+    # instead of in whichever session happened to be on screen. `here` resolves the
+    # same way — its dir IS the root — and an unresolvable root means the caller's.
+    set -l sess
+    set -l root (__pwt_main_root "$dir" 2>/dev/null)
+    test -n "$root"; and set sess (__pwt_parent_session "$root")
+    set -l pane
+    if test -n "$sess"
+        # 2>/dev/null: the session can be gone by now, and the retry below is the
+        # answer — its stderr would only announce a failure already handled.
+        set pane (command tmux new-window -P -F '#{pane_id}' -t "$sess:" -n "$label" -c "$dir" $envargs pi --session-id "$sid" 2>/dev/null)
+    end
+    if test -z "$pane"
+        # Before falling back, rule out the one bad outcome: a window for this sid that
+        # EXISTS but whose id we lost. Spawning again would put a SECOND pi on the same
+        # --session-id, and the two would clobber one transcript — the hazard this
+        # whole function is built around. Not behaviourally covered: reproducing it
+        # needs a tmux shim that creates the window and prints nothing, and a shim is
+        # likelier to be wrong than this race is to happen.
+        set -l made (__pwt_workstream_window "$sid" "$dir")
+        if test -n "$made"
+            __pwt_jump_to "$made" 2>/dev/null
+            echo "pwt: the window for $label already exists — jumped to it" >&2
+            return 0
+        end
+        # No project session, or it vanished between the listing and this command:
+        # open in the CALLER's session rather than leave a fresh worktree windowless.
+        set pane (command tmux new-window -P -F '#{pane_id}' -n "$label" -c "$dir" $envargs pi --session-id "$sid")
+        or return 1
+    end
+    # NOT select-window: that only moves within the CURRENT session, and this window
+    # may have just been opened in another one — the same reason __pwt_jump_to exists.
+    __pwt_jump_to "$pane" 2>/dev/null
     __pwt_mark "$pane" "$sid" "$label" "$dir"
     or begin
         echo "pwt: the window for '$label' died at birth — is pi runnable there?" >&2
@@ -662,7 +825,7 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             printf '  %-26s %s\n' 'pwt close <dir>' 'end a live workstream: close its pi window'
             printf '  %-26s %s\n' 'pwt here <label>' 'a workstream in THIS checkout, no worktree'
             printf '  %-26s %s\n' 'pwt ls' 'list workstreams (the C-w panel rows, in order)'
-            printf '  %-26s %s\n' 'pwt jump <dir>' 'go to the pi window whose cwd is <dir>'
+            printf '  %-26s %s\n' 'pwt jump <dir>' 'go to its pi window (moving a pwt window home)'
             printf '  %-26s %s\n' 'pwt reload [--force] <dir>' 'restart pi there with the current secrets env'
             echo '  panel: tmux prefix then C-w'
         case jump
@@ -674,6 +837,12 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             set -l pane (__pwt_window_for "$dir" pi-only pane-id)
             set -l wid (__pwt_window_for "$dir" pi-only)
             test -n "$wid"; or begin; echo "pwt: no pi window with cwd $dir" >&2; return 1; end
+            # Where it belongs, if that is now known: a window that had to fall back to
+            # the caller's session (no project session existed then) moves home the next
+            # time you go to it. __pwt_snap_home checks @pwt_sid itself, so a hand-started
+            # pi found by the path fallback above is never relocated.
+            set -l home (__pwt_main_root "$dir" 2>/dev/null)
+            test -n "$home"; and __pwt_snap_home "$wid" "$home"
             # Arriving at a session from the panel ADOPTS it, so state coverage
             # grows by use rather than needing a `pi` wrapper — which subagent would
             # trip, since it spawns pi as a child and would re-tap the parent pane.

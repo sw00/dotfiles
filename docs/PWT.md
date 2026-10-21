@@ -13,11 +13,11 @@ pins a session id, and this is it.
 
 | verb | what it does |
 |---|---|
-| `pwt <slug> [base]` | worktree at `<repo>/__worktrees/<slug>`, tmux window named after the slug, `pi --session-id <repo>-<slug>` |
+| `pwt <slug> [base]` | worktree at `<repo>/__worktrees/<slug>`, tmux window named after the slug in the repo's own session (the caller's, if the repo has no session), `pi --session-id <repo>-<slug>` |
 | `pwt here <label>` | a workstream in the CURRENT checkout, no worktree (see below) |
 | `pwt rm [--stash] <slug>` | remove worktree + branch. Bare: refuses while a window holds it or ignored files are present. `--stash`: closes the window, stashes changes, parks ignored files, then removes (see below) |
 | `pwt close <dir>` | end a LIVE workstream: close the pi window at `<dir>` |
-| `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>` |
+| `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>`, moving a pwt window back into its repo's session on the way (see below) |
 | `pwt reload [--force] <dir>` | restart the pi window at `<dir>` against the current `secrets/env.fish` (see below) |
 | `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
 | `pwt help` | usage |
@@ -32,6 +32,59 @@ memory, so turns are silently lost. That is why the window records `@pwt_sid` +
 `@pwt_dir`; the cwd is only a fallback, for windows that predate the marker and for a
 pi adopted at the worktree root. (`__pwt_window_for` also matches on it — that is how
 `pwt rm` decides a worktree is in use.)
+
+## Where the window opens
+
+A workstream window lands in the tmux session that owns the repo's **main checkout**,
+not in whichever session you happened to be sitting in — so a worktree appears beside
+the project it belongs to, and creating a workstream behaves like reusing one (which
+has always teleported to its window).
+
+The session is resolved from `session_path`, which tmux records when the session is
+created (`sesh connect <path>` runs `new-session -c <path>`). It is READ, never
+guessed from live pane cwds: panes `cd`, and a scratch session is routinely the one
+holding worktree panes — so a match on any path *inside* the tree would resolve that
+session as the parent of the very repo whose worktree it holds. Order:
+
+1. a session whose recorded path is the repo root — ANY session started at the root
+   claims the workstream, sesh-made or hand-made (one *named* after the repo wins a
+   tie, since that is the one your own switchers pick);
+2. a session named exactly the repo basename (catches a session whose start
+   directory has wandered, or one made by hand);
+3. otherwise the session you are in — the pre-existing behaviour, and the answer when
+   a repo has no project session at all.
+
+pwt never creates a session: that stays sesh's job (`C-f`/`C-o`/`C-j`), and a second
+creator would be a second session manager. "No project session" is a normal outcome,
+not an error. Both sides are canonicalised before comparing, because tmux reports
+`session_path` as given (`/tmp` where git says `/private/tmp` on macOS) — the same
+lesson as `__pwt_window_for`, but done with `path resolve` rather than
+`__pwt_realpath`: canonicalising once per SESSION by `cd`ing would fire a PWD-change
+event that direnv hooks on, for every session on the server.
+
+The session is TARGETED by id, and the name tier is matched with `=` (exact): tmux
+rewrites `.` and `:` in a session name, cannot reach a name beginning with `$` at all,
+and treats a bare name as a prefix — `foo` would answer from `foobar`.
+
+When the window does land elsewhere, pwt moves your client with it
+(`switch-client`, then `select-window`): a bare `select-window` cannot cross sessions,
+and the command would look like it did nothing at all.
+
+Placement is also **maintained**, not decided once. A workstream that had to fall back
+to the caller's session (its project session did not exist yet) moves home the next
+time you go to it — re-running `pwt <slug>`, or `pwt jump <dir>`; the panel's `enter`
+is both of those, so it is the usual trigger. That is why there is no "snap" verb: the
+verbs that reach a workstream are already the ones that know where it belongs. Windows
+pwt did not open are never moved — the `@pwt_sid` check sits in the one place both
+verbs go through, so the pane-cwd fallback that can find a hand-started pi inside a
+worktree never drags it across sessions — and a move that would change nothing says
+nothing. A move also insists on the recorded path rather than a matching session name:
+tier 2 below is fair evidence when CREATING (the window has to go somewhere), but
+another repo can share a basename, and that is not worth stealing a window for.
+
+One consequence: if the moved window is the only one in its session, that session ends
+with it. `detach-on-destroy` is on by default, so pwt moves your client first and says
+which session is going away.
 
 ## The panel: tmux prefix then `C-w`
 
@@ -205,12 +258,22 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 - Session ids are `<repo basename>-<slug>`, so they are not unique across repos. pi
   namespaces transcripts by project directory, so that is only a window-handle
   concern — which is why windows carry `@pwt_dir` too.
+- A workstream window now lives in its project's session, so it dies with that
+  session: prefix then `C-x` (the sesh kill-session popup — not the panel's `ctrl-x`)
+  ends the project's workstream agents too. The transcript survives (pi persists per
+  entry), so `pwt <slug>` resumes — but an in-flight turn is lost. That is also the
+  point: the project owns its workstreams. Note resurrect brings the WINDOW back, not
+  the pi process (`@resurrect-processes` lists no `pi`), so a restored window comes
+  back with a shell, not an agent.
+- With more than one client attached, the client that moves is the one pwt was run from
+  (`switch-client` is not given `-c`): any other client keeps what it was showing, and
+  loses its place only if its own session is the one a move empties.
 
 ## If you change this
 
-Five invariants are load-bearing here, and each has already been broken once. Read the
-comment before changing the line: the mechanism is written down there, not just the
-rule.
+Six invariants are load-bearing here: none of them is obvious from the line it
+constrains. Read the comment before changing the line — the mechanism is written down
+there, not just the rule.
 
 - **Window identity is `@pwt_sid` + `@pwt_dir` together.** The sid comes from the repo
   basename, so on its own it is not unique across repos or between `here` and a
@@ -228,11 +291,20 @@ rule.
   fish here. Keep it to one line all three shells parse, or put it in a script; the
   panel's preview is `pwt-preview` for exactly this reason. Tab-separated records need
   a placeholder for every optional field, because `read` collapses empty ones.
+- **The parent session is read from `session_path`, never from a pane cwd or any path
+  inside the tree.** sesh records it at session creation; an observed tier resolves a
+  session that merely HOSTS worktree panes as the parent of the repo whose worktree it
+  holds, which puts the window in a scratch session — the placement this feature
+  exists to end (and what `no-worktrees` prevents in `__pwt_window_for`). Target it by
+  session ID with `=name` on the name tier: a bare name is a prefix match, and tmux
+  rewrites `.`/`:` in names.
 
 Where the guarantees live: `bash check.sh`. The pwt blocks cover the identity tiers,
-both collision directions, the ignore write, the panel parser (including the
-no-state tap), the push decisions and the preview — several of them against a private
-tmux server and a stub `pi`, so they run without touching your session.
+both collision directions, the ignore write, the window's session placement (against a
+private server whose sessions stand in a repo root, elsewhere, and inside a worktree),
+the panel parser (including the no-state tap), the push decisions and the preview —
+several of them against a private tmux server and a stub `pi`, so they run without
+touching your session.
 
 ## Not built, on purpose
 

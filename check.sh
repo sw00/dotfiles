@@ -1719,6 +1719,88 @@ check_has "pwt: reuses an open window instead of spawning a second pi" \
     'tmux select-window -t' "$_PWT"
 check_has "pwt: finds that window by pane cwd" \
     'list-panes -a' "$_PWT"
+# A workstream window belongs to the session that owns the repo's MAIN checkout, not
+# to whichever session the user happened to be sitting in — otherwise a project's
+# worktrees pile up in a scratch session. The signal is `session_path`: RECORDED at
+# creation by whoever made the session (sesh runs `new-session -c <path>`), never the
+# pane's live cwd. Panes cd, and a scratch session routinely hosts worktree panes (this
+# machine's session `0` does), so a cwd or in-tree match would resolve THAT session as
+# the parent of the very repo whose worktree it holds — the bug this feature fixes.
+check_has "pwt: opens the window in the session that owns the repo" \
+    '__pwt_parent_session' "$_PWT"
+check_has "pwt: resolves that session from the recorded session_path" \
+    'session_path' "$_PWT"
+check_has "pwt: reads sessions for it, not pane paths" \
+    'list-sessions -F' "$_PWT"
+# `path resolve`, NOT __pwt_realpath: this canonicalises once per SESSION, and
+# __pwt_realpath cds there and back in the CALLER's process, so every session on the
+# server would fire a PWD-change event — which direnv hooks on. Same reasoning as
+# __pwt_window_for canonicalising its target once and never each pane. Asserted on the
+# FUNCTION BODY (delimited by the next `function`, since a fish function's body also
+# ends in `end`): a bare grep for `path resolve` would match the comment that explains
+# it and pass on a revert.
+check "pwt: the parent-session resolver never canonicalises by cd'ing" \
+    bash -c '! awk "/^function __pwt_parent_session /{f=1} f && /^function / && !/^function __pwt_parent_session /{exit} f" "$1" | grep -v "^[[:space:]]*#" | grep -q __pwt_realpath' \
+    _ "$_PWT"
+# Ordering, not presence: the client has to be in the target session BEFORE the
+# source can be destroyed by the move (detach-on-destroy is on by default), and a
+# headless test cannot observe a detach.
+check "pwt: the client moves before the window leaves its session" \
+    bash -c 'body=$(awk "/^function __pwt_snap_home /{f=1} f && /^function / && !/^function __pwt_snap_home /{exit} f" "$1" | grep -v "^[[:space:]]*#")
+             n=$(printf "%s\\n" "$body" | grep -n switch-client | head -1 | cut -d: -f1)
+             m=$(printf "%s\\n" "$body" | grep -n move-window | head -1 | cut -d: -f1)
+             [[ -n "$n" && -n "$m" && "$n" -lt "$m" ]]' \
+    _ "$_PWT"
+# A session ID, not a name: tmux rewrites '.'/':' in a session NAME, and a name
+# starting with '$' cannot be targeted by name at all.
+check_has "pwt: targets the window by session id" \
+    '\-t "\$sess:"' "$_PWT"
+check_has "pwt: asks tmux for session ids" \
+    '#\{session_id\}' "$_PWT"
+# `=` is load-bearing on the name tier: a bare session target is a PREFIX match, so a
+# repo `foo` would be answered by `foobar`'s session the moment its own is gone.
+check_has "pwt: the name tier matches exactly, never as a prefix" \
+    'has-session -t "=\$want"' "$_PWT"
+# ...and tmux's '.'-to-'_' rewrite means a dotted repo has to be looked up under the
+# rewritten name, or that whole tier is dead for it.
+check_has "pwt: the name tier allows for tmux rewriting '.'" \
+    "replace -a -r '\[.:\]' '_'" "$_PWT"
+# select-window cannot cross sessions: without the jump the window opens in the parent
+# session and the command looks like it did nothing at all.
+check_has "pwt: follows the window into the parent session" \
+    '__pwt_jump_to "\$pane"' "$_PWT"
+check_not "pwt: never places the new window with a bare select-window" \
+    'select-window -t "\$pane"' "$_PWT"
+# The session can vanish between that listing and the spawn. Falling back to the
+# caller's session beats leaving a freshly created worktree with no window at all —
+# but not before ruling out a window for this sid that exists with its id lost, since
+# respawning there would put TWO pis on one --session-id and clobber one transcript.
+# That guard is asserted textually only: forcing `new-window` to create a window and
+# then lose its id needs a tmux shim, and a shim is more likely to be wrong than the
+# race is to happen (same reasoning as the died-on-reload branch below).
+check_has "pwt: falls back to the caller's session when the target is gone" \
+    'test -z "\$pane"' "$_PWT"
+check_has "pwt: refuses a second pi when the window exists but its id was lost" \
+    'already exists — jumped to it' "$_PWT"
+# Placement is MAINTAINED, not one-shot: a window that landed in the caller's session
+# because its project session did not exist yet moves home the next time you go to it
+# (reuse through `pwt <slug>`, or `pwt jump`). Those two verbs rather than a snap verb of
+# its own, because the panel's `enter` already reaches both.
+check_has "pwt: re-homes a reused window into its repo's session" \
+    'move-window -s' "$_PWT"
+# Only windows pwt opened are relocated (the gate covers BOTH callers, including the
+# path fallback that can match a pi started by hand inside the worktree), and a MOVE
+# needs the recorded path rather than a matching session name.
+check_has "pwt: relocates only windows that carry a pwt session id" \
+    'display-message -p -t "\$wid" .#\{@pwt_sid\}' "$_PWT"
+check_has "pwt: a move requires the recorded path, not a matching name" \
+    'path-only' "$_PWT"
+# The whole design says sessions are sesh's to create. A snap that created one to
+# move into would be a second session manager, and it must stay impossible. Comments
+# are stripped: the resolver's own comment names `new-session -c <path>` to explain
+# where session_path comes from, and a plain grep would match that instead of a call.
+check "pwt: never creates a session to snap into" \
+    bash -c '! grep -v "^[[:space:]]*#" "$1" | grep -q new-session' _ "$_PWT"
 # tmux reports the RESOLVED path (a window at /tmp shows /private/tmp) while git
 # and find hand back the path as given, so a checkout behind any symlinked parent
 # would never match and pwt would spawn the duplicate after all.
@@ -1891,6 +1973,15 @@ check_has "pwt: the doc states the tmux floor for -e" \
     'tmux 3.2 or newer' "$DOTFILES/docs/PWT.md"
 check_has "pwt: the doc says the env is deliberately not pushed to the server" \
     'setenv -g' "$DOTFILES/docs/PWT.md"
+# Where the window lands is a stated contract, not an implementation detail: the
+# resolver's signal and the fact that pwt creates no session are what a future editor
+# is most likely to "simplify" back into the cwd-matching bug.
+check_has "pwt: the doc states where the window opens" \
+    'Where the window opens' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc names the recorded session_path signal" \
+    'session_path' "$DOTFILES/docs/PWT.md"
+check_has "pwt: the doc warns the project session takes its workstreams with it" \
+    'dies with that' "$DOTFILES/docs/PWT.md"
 check_has "AGENTS.md: points at docs/PWT.md" \
     'docs/PWT\.md' "$DOTFILES/AGENTS.md"
 
@@ -1955,6 +2046,142 @@ if command -v fish >/dev/null 2>&1; then
             blank=$(env PWT_FORWARD_ENV= "$1" -N -c "source $2; __pwt_forward_env" 2>&1)
             [[ -z "$blank" ]]' \
         _ "$(command -v fish)" "$_PWT"
+    # Where a workstream window LANDS, behaviourally. The sessions stand in for the
+    # real thing: `project` was created AT the repo root — what sesh's
+    # `new-session -c <path>` sets in session_path — `scratch` elsewhere, and `wt`
+    # INSIDE the worktree pwt makes, which is the session a cwd-based resolver would
+    # hand the window to. `-f /dev/null` keeps the user's tmux.conf out of the test, so
+    # no plugin renames the window and no hook fires; the stub `pi` holds the pane open
+    # so the @pwt_* mark can land (a window that dies cannot take window options).
+    if command -v tmux >/dev/null 2>&1; then
+        _ps_dir="$(mktemp -d)"
+        _ps_sock="$_ps_dir/sock"
+        mkdir -p "$_ps_dir/stub" "$_ps_dir/elsewhere"
+        printf '#!/bin/sh\nexec sleep 300\n' > "$_ps_dir/stub/pi"
+        chmod +x "$_ps_dir/stub/pi"
+        git init -q "$_ps_dir/repo"
+        git -C "$_ps_dir/repo" config user.email t@t
+        git -C "$_ps_dir/repo" config user.name t
+        echo x > "$_ps_dir/repo/f"
+        git -C "$_ps_dir/repo" add f
+        git -C "$_ps_dir/repo" -c commit.gpgsign=false commit -qm init
+        # PATH is given to the tmux SERVER (it resolved `pi` from the environment it
+        # was started with) and to the fish that runs pwt — never exported here, so no
+        # later check can find the stub on its own PATH.
+        _ps_path="$_ps_dir/stub:$PATH"
+        _ps_t() { tmux -S "$_ps_sock" "$@"; }
+        _ps_run() { env TMUX="$_ps_sock" PATH="$_ps_path" PWT_FORWARD_ENV= \
+            fish -N -c "source $_PWT; cd '$_ps_dir/repo'; pwt $1" >"$_ps_dir/out-$1" 2>&1; }
+        env PATH="$_ps_path" tmux -S "$_ps_sock" -f /dev/null \
+            new-session -d -s project -c "$_ps_dir/repo" 'sleep 300'
+        _ps_t new-session -d -s scratch -c "$_ps_dir/elsewhere" 'sleep 300'
+        _ps_run demo
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes1"
+        _ps_t list-sessions -F '#{session_name}' > "$_ps_dir/sess1"
+        # Now a session standing IN that worktree. Its session_path is inside the tree,
+        # so only an EXACT root match keeps it from claiming the next window. Named
+        # `aaa` on purpose: `list-sessions` sorts by name, so a mutation that matched
+        # in-tree would reach this session BEFORE the project one and the check would
+        # catch it (named `wt` it sorted after, and the mutant still passed).
+        _ps_t new-session -d -s aaa -c "$_ps_dir/repo/__worktrees/demo" 'sleep 300'
+        _ps_run demo2
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes2"
+        # Tier 2: a session NAMED after the repo whose recorded start directory is
+        # elsewhere. The caller's session is recreated LAST (see below) so that a
+        # resolver with no name tier lands in `scratch` and this check notices — with
+        # `repo` created last it was also the caller, and the check passed either way.
+        _ps_t kill-session -t project
+        _ps_t kill-session -t aaa
+        _ps_t new-session -d -s repo -c "$_ps_dir/elsewhere" 'sleep 300'
+        # No client is attached to this server, so tmux's "current" session is the one
+        # most recently made active. Recreating the caller LAST is what makes that
+        # deterministic — and both remaining checks depend on it, so if this ever
+        # stops holding they fail loudly rather than pass quietly.
+        _ps_t kill-session -t scratch
+        _ps_t new-session -d -s scratch -c "$_ps_dir/elsewhere" 'sleep 300'
+        _ps_run demo3
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes3"
+        # The prefix trap: with no session named `repo`, a bare (unanchored) name
+        # target would answer from `repo2` instead of falling through to the caller.
+        _ps_t kill-session -t repo
+        _ps_t new-session -d -s repo2 -c "$_ps_dir/elsewhere" 'sleep 300'
+        _ps_t kill-session -t scratch
+        _ps_t new-session -d -s scratch -c "$_ps_dir/elsewhere" 'sleep 300'
+        _ps_run demo4
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes4"
+        _ps_t list-sessions -F '#{session_name}' > "$_ps_dir/sess4"
+        check "pwt: opens the workstream window in the repo's own session" \
+            grep -qx 'project|demo' "$_ps_dir/panes1"
+        check "pwt: leaves the caller's session alone" \
+            bash -c '! grep -q "^scratch|demo$" "$1"' _ "$_ps_dir/panes1"
+        check "pwt: creates no session of its own" \
+            test "$(wc -l < "$_ps_dir/sess1" | tr -d ' ')" = 2
+        check "pwt: a session sitting in the worktree never claims the window" \
+            bash -c 'grep -qx "project|demo2" "$1" && ! grep -q "^aaa|demo2$" "$1"' \
+            _ "$_ps_dir/panes2"
+        check "pwt: a session named after the repo is the fallback home" \
+            grep -qx 'repo|demo3' "$_ps_dir/panes3"
+        check "pwt: falls back to the caller's session, not to a longer name" \
+            bash -c 'grep -qx "scratch|demo4" "$1" && ! grep -q "^repo2|demo4$" "$1"' \
+            _ "$_ps_dir/panes4"
+        check "pwt: created no session anywhere along the way" \
+            test "$(wc -l < "$_ps_dir/sess4" | tr -d ' ')" = 2
+        # Snap-on-reuse, the scenario the feature exists for: spawn while NO session
+        # owns the repo root (the window lands in the caller's), then bring that session
+        # into existence and go to the workstream again. `zlast` is created LAST so the
+        # client-less "current" session is NOT the project — otherwise a mutant that
+        # moved the window to the current session instead of the resolved parent would
+        # land in the right place and pass.
+        _ps_t kill-session -t repo2
+        _ps_run demo5
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes5"
+        _ps_t new-session -d -s proj -c "$_ps_dir/repo" 'sleep 300'
+        _ps_t new-session -d -s zlast -c "$_ps_dir/elsewhere" 'sleep 300'
+        _ps_t list-panes -a -F '#{window_name}|#{pane_id}' > "$_ps_dir/pane5before"
+        _ps_run demo5
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes6"
+        _ps_t list-sessions -F '#{session_name}' > "$_ps_dir/sess6"
+        _ps_t list-panes -a -F '#{window_name}|#{@pwt_sid}|#{@pwt_dir}|#{pane_pipe}' \
+            > "$_ps_dir/meta6"
+        _ps_t list-panes -a -F '#{window_name}|#{pane_id}' > "$_ps_dir/pane5after"
+        _ps_run demo5
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes7"
+        # A pi started BY HAND inside a worktree carries no markers, so it is not a
+        # workstream and must never be dragged across sessions — the reuse path finds
+        # it through the pane-cwd fallback, which is exactly the dangerous door.
+        git -C "$_ps_dir/repo" worktree add -q -b demo6 "$_ps_dir/repo/__worktrees/demo6"
+        _ps_t new-window -dP -F '#{pane_id}' -t zlast: -n hand \
+            -c "$_ps_dir/repo/__worktrees/demo6" \
+            "printf '\\033]2;π - hand\\007'; exec sleep 300"
+        _ps_run demo6
+        _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes8"
+        check "pwt: a spawn with no project session falls back to the caller's" \
+            grep -qx 'scratch|demo5' "$_ps_dir/panes5"
+        check "pwt: going back to it afterwards moves it into the project session" \
+            grep -qx 'proj|demo5' "$_ps_dir/panes6"
+        check "pwt: the move does not go to the current session instead" \
+            bash -c '! grep -q "^zlast|demo5$" "$1" && ! grep -q "^scratch|demo5$" "$1"' \
+            _ "$_ps_dir/panes6"
+        check "pwt: the moved window is the same workstream, tap intact" \
+            grep -qE '^demo5\|repo-demo5\|.+\|1$' "$_ps_dir/meta6"
+        # ...and the same PANE: a mutant that killed the window and reopened it with the
+        # same markers would resume the transcript but drop the live pi.
+        check "pwt: the move relocates the window, never respawns it" \
+            bash -c 'a=$(grep "^demo5|" "$1"); b=$(grep "^demo5|" "$2"); [[ -n "$a" && "$a" = "$b" ]]' \
+            _ "$_ps_dir/pane5before" "$_ps_dir/pane5after"
+        check "pwt: moving created no session either" \
+            test "$(wc -l < "$_ps_dir/sess6" | tr -d ' ')" = 3
+        check "pwt: going to it again moves nothing and spawns nothing" \
+            bash -c '[[ "$(grep -cx "proj|demo5" "$1")" = 1 && "$(grep -c demo5 "$1")" = 1 ]]' \
+            _ "$_ps_dir/panes7"
+        check "pwt: never drags a hand-started pi into the project session" \
+            bash -c 'grep -q "^zlast|hand$" "$1" && ! grep -q "^proj|hand$" "$1"' \
+            _ "$_ps_dir/panes8"
+        _ps_t kill-server >/dev/null 2>&1
+        rm -rf "$_ps_dir"
+    else
+        _skip "pwt: window placement (behavioural)" "tmux not installed"
+    fi
 else
     _skip "pwt: __worktrees ignore + pi preflight" "fish not installed"
 fi
