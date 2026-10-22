@@ -20,6 +20,12 @@
     503
   ],
   "rateLimitFallbackRecoveryCooldownSec": 120,
+  "providerFallbacks": {
+    "opencode-go": {
+      "to": "opencode",
+      "match": ["active OpenCode Go subscription"]
+    }
+  },
   "packages": [
     "npm:pi-claude-bridge",
     "npm:@hypabolic/pi-hypa",

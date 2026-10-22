@@ -311,9 +311,44 @@ can be reached manually via `/use`, but they are **excluded from** `enabledModel
 Trigger set is config-driven and validated by `check.sh`; 403 is opt-in only
 (permission/region 403s are not fixed by a same-gateway twin).
 
+### Provider fallback (text-driven)
+
+`providerFallbacks` covers the other failure shape: a provider that is unusable as
+a whole, and fails **before a response streams**. `after_provider_response` is only
+emitted once a response streams, so the status machinery above cannot see it —
+measured on `opencode-go` with a lapsed subscription, where every request 403s
+("An active OpenCode Go subscription is required to use Go models") and the error
+text appears only on `turn_end`.
+
+```json
+"providerFallbacks": {
+  "opencode-go": { "to": "opencode", "match": ["active OpenCode Go subscription"] }
+}
+```
+
+On a match the session switches to the **same model id** on the target provider
+(Zen shares `OPENCODE_API_KEY` and carries 19 of Go's 32 ids; the 13 with no
+twin — Go's contributor/preview models plus `mimo-*`, `qwen3.7-plus`, `hy*` and
+`longcat-2.0` — leave the model alone and say so). Because the switch happens on the failed
+attempt, pi's own retry finishes the same turn on the twin; where pi classifies the
+error as non-retryable (its list names OpenCode Go's usage-limit errors) one
+continuation is forced at `agent_before_settle` instead. No cascades: a session
+already on a target provider is never re-hopped.
+
 ### Recovery
 
-Fallbacks are **sticky** (pi persists `defaultModel`), so two recovery paths:
+An extension's `pi.setModel()` does **not** persist `defaultModel` (corrected
+2026-10-22: `agent-session.js` writes it only for `options.persist`, which the
+extension-facing wrapper does not pass) — but it DOES append a `model_change` to the
+session, and a resumed session (`pi -c`, `--resume`, a pwt re-run `--session-id`)
+restores from that. So a fallback survives a resume, which is why the extension
+re-probes the primary on `session_start`: a lapsed subscription is re-tested once per
+session, and when it comes back the session returns to it by itself. The cost while
+it is still lapsed is one failed attempt on the next turn. `/use` onto a twin is
+never overridden.
+
+What remains sticky is a twin recorded in a *session* — by a hop, or by a
+`/use`/Ctrl+P — hence two recovery paths:
 
 1. `session_start` — if the persisted model is a fallback twin and its primary
    is authed again, switch back. Skipped when the user explicitly picked the
@@ -332,6 +367,7 @@ Fallbacks are **sticky** (pi persists `defaultModel`), so two recovery paths:
 ```bash
 cd base/pi/.pi/agent/extensions
 node --experimental-strip-types --test lib/mutation-guard.test.ts
+node --experimental-strip-types --test lib/provider-fallback.test.ts
 pi -p --no-session "Reply OK"   # smoke: extensions parse and load
 ```
 

@@ -16,10 +16,23 @@
  *      rate-limits. This map is per-profile config, owned by each host's
  *      settings.json — never hardcoded here.
  *
- * STICKY caveat: pi.setModel() persists defaultModel to settings.json, so a
- * fallback survives turns/sessions/restarts. To avoid getting stuck on the
- * metered twin, we switch BACK to the primary on session_start whenever the
- * current model is a fallback twin and its primary's provider is authed again.
+ * STICKY, CORRECTED 2026-10-22: pi.setModel() from an extension does NOT persist
+ * to settings — `agent-session.js` writes defaultModel only for
+ * `options.persist`, which the extension-facing wrapper does not pass. It DOES
+ * append a `model_change` to the session, and a continued or resumed session
+ * restores from that, so a hop can outlive the process it happened in. Both
+ * recovery paths below therefore matter: session_start re-probes the primary for
+ * BOTH maps (rate-limit twins and provider-fallback twins, each with its own
+ * provenance check) and a 2xx can switch back mid-session for a rate-limit twin.
+ *
+ *   3. PROVIDER FALLBACK = `providerFallbacks` in settings.json: a per-provider
+ *      map for failures that arrive WITHOUT a streamed response, where
+ *      `after_provider_response` never fires (measured: a 403 from opencode-go
+ *      while its subscription is inactive). Detected on the error TEXT at
+ *      `turn_end`, switched immediately so pi's own retry finishes the same turn
+ *      on the twin, plus one forced continuation at `agent_before_settle` for
+ *      the shapes pi calls non-retryable. Pure logic in
+ *      ./lib/provider-fallback.ts.
  *
  * Manual (TUI):
  *   /use <query>     — switch to a model by fuzzy id match (any authed model)
@@ -36,6 +49,13 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+
+import {
+  parseProviderFallbacks,
+  planProviderHop,
+  shouldReprobePrimary,
+} from "./lib/provider-fallback.ts";
+import type { ProviderFallbackMap } from "./lib/provider-fallback.ts";
 
 type MiniModel = { provider: string; id: string };
 
@@ -78,6 +98,39 @@ function readFallbackMap(cwd: string): Record<string, string> {
           if (typeof v === "string") merged[k.toLowerCase()] = v.toLowerCase();
         }
       }
+    } catch {
+      /* missing / unreadable — ignore */
+    }
+  }
+  return merged;
+}
+
+/**
+ * Read the `providerFallbacks` block (see ./lib/provider-fallback.ts for the
+ * shape and why it exists next to `rateLimitFallbacks`). Same merge rule as the
+ * other readers: global then project, and a malformed entry is DROPPED. An
+ * absent block yields {} — no provider fallback, i.e. the previous behaviour.
+ */
+function branchModelFacts(ctx: {
+  sessionManager?: { getBranch?: () => unknown[] };
+}): { lastModelChange?: string; messageCount: number } {
+  const branch = ctx.sessionManager?.getBranch?.() ?? [];
+  let lastModelChange: string | undefined;
+  let messageCount = 0;
+  for (const raw of branch) {
+    const e = raw as { type?: string; provider?: string; modelId?: string };
+    if (e?.type === "model_change" && e.provider && e.modelId)
+      lastModelChange = `${e.provider}/${e.modelId}`.toLowerCase();
+    else if (e?.type === "message") messageCount++;
+  }
+  return { lastModelChange, messageCount };
+}
+function readProviderFallbacks(cwd: string): ProviderFallbackMap {
+  const merged: ProviderFallbackMap = {};
+  for (const p of settingsPaths(cwd)) {
+    try {
+      const json = JSON.parse(readFileSync(p, "utf8"));
+      Object.assign(merged, parseProviderFallbacks(json.providerFallbacks));
     } catch {
       /* missing / unreadable — ignore */
     }
@@ -304,9 +357,9 @@ export default function (pi: ExtensionAPI) {
 
   // ── User-chosen twin tracking ───────────────────────────────────────────────
   // If the user explicitly picks a fallback twin (via /use or Ctrl+P), mark it
-  // so neither 2xx recovery nor session_start yanks them back. "restore"
-  // (session resume of a persisted defaultModel) is NOT a user pick — a twin
-  // persisted across restarts should still recover at session_start.
+  // so neither 2xx recovery nor session_start yanks them back. The declared
+  // "restore" source is never emitted in 1.3.0, and an automatic hop arrives as
+  // "set" — which is why automatic hops set pendingHopTwinId to suppress it.
   pi.on("model_select", (event, ctx) => {
     const pickedId = normId(event.model);
     if (pendingHopTwinId) {
@@ -314,7 +367,12 @@ export default function (pi: ExtensionAPI) {
       pendingHopTwinId = null; // a different selection supersedes the pending hop
     }
     const map = readFallbackMap(ctx.cwd);
-    const isTwin = Object.values(map).includes(pickedId);
+    // A deliberate /use or Ctrl+P onto a provider-fallback twin counts too: the
+    // recovery handler below must not drag the user back off a model they chose.
+    const pf = readProviderFallbacks(ctx.cwd);
+    const isTwin =
+      Object.values(map).includes(pickedId) ||
+      Object.values(pf).some((entry) => pickedId.startsWith(`${entry.to}/`));
     userPickedTwin = isTwin && (event.source === "set" || event.source === "cycle");
   });
 
@@ -367,6 +425,7 @@ export default function (pi: ExtensionAPI) {
       if (!primaryId) return; // not on a fallback twin
       const primary = parseId(primaryId);
       if (!primary || !isAuthed(primary, ctx)) return; // primary still unavailable
+      if (downProviders.has(primary.provider)) return; // a provider that failed whole
 
       inProgress = true;
       lastRecoveryAt = now;
@@ -424,15 +483,156 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
-  // ── Switch-back: recover from a sticky fallback on session start ───────────
-  // pi.setModel() persists defaultModel, so a prior fallback survives restarts.
-  // If the active model is a fallback TWIN and its PRIMARY is authed again,
-  // switch back so the box returns to its subscription default. Skipped when
-  // the user deliberately chose the twin this session (/use, Ctrl+P) and
-  // deduped against a same-tick 2xx recovery. NOTE: userPickedTwin resets on a
-  // fresh process, so a twin persisted from a previous session (by hop or /use)
-  // is recovered here — cross-restart /use choice is not preserved (documented).
-  pi.on("session_start", async (_event, ctx) => {
+  // ── Provider fallback: failures that never stream ──────────────────────────
+  // A provider that refuses BEFORE a response streams produces no
+  // after_provider_response event at all, so the status-driven machinery above
+  // cannot see it (measured: opencode-go's subscription 403). The error text on
+  // `turn_end` is the only signal, and acting there is enough — pi re-issues the
+  // request after a model change, so its retry lands on the twin.
+  //   `hopArmed` covers the OTHER shape: pi classifies some of these errors as
+  // non-retryable (its own list names OpenCode Go's usage-limit errors), and then
+  // no retry follows and the turn would die with the hop already made. It also
+  // survives a turn in which the TWIN fails with an unrelated error, forcing one
+  // request on the twin anyway — bounded, because the twin has no entry and so
+  // nothing can re-arm.
+  // `agent_before_settle` is the documented boundary for asking for exactly one
+  // more model request, and it fires once per run — after the retries have run
+  // out. A successful turn clears the flag, so a turn that recovered through
+  // pi's retry does not also get a spurious extra request.
+  let hopArmed = false;
+  // Providers this process has seen fail as a whole. The rate-limit 2xx recovery
+  // below must not switch back into one of these: with both maps populated it would
+  // flip to the dead primary on the next success and bounce straight back (one 403
+  // per step). Cleared with the process, which is also when the re-probe runs.
+  const downProviders = new Set<string>();
+
+  pi.on("turn_end", async (event, ctx) => {
+    const msg = event.message as { stopReason?: string; errorMessage?: string } | undefined;
+    if (msg?.stopReason !== "error") {
+      hopArmed = false; // this turn is answering — nothing left to rescue
+      return;
+    }
+    const cur = ctx.model;
+    if (!cur || inProgress) return;
+    const hop = planProviderHop({
+      provider: cur.provider,
+      id: cur.id,
+      errorText: msg.errorMessage,
+      map: readProviderFallbacks(ctx.cwd),
+    });
+    if (!hop) return;
+    const twin = ctx.modelRegistry.find(hop.to, hop.id);
+    if (!twin) {
+      // Fail soft: 13 of Go's 32 ids have no Zen twin (its contributor/preview
+      // models, plus mimo-*/qwen3.7-plus/hy*/longcat-2.0), and those must leave
+      // the session where it is rather than throw.
+      ctx.ui.notify(
+        `Provider ${cur.provider} failed but ${hop.to}/${hop.id} is not in the registry — leaving model unchanged.`,
+        "error",
+      );
+      return;
+    }
+    inProgress = true;
+    pendingHopTwinId = `${hop.to}/${hop.id}`.toLowerCase(); // our own hop, not a user pick
+    downProviders.add(cur.provider);
+    try {
+      const ok = await pi.setModel(twin);
+      if (!ok) {
+        ctx.ui.notify(`No usable auth for ${hop.to} — leaving model unchanged`, "error");
+        return;
+      }
+      hopArmed = true; // one forced continuation, for the non-retryable shapes
+      ctx.ui.notify(
+        `Provider ${cur.provider} unavailable — model → ${hop.to}/${hop.id} (metered twin)`,
+        "info",
+      );
+    } finally {
+      pendingHopTwinId = null;
+      inProgress = false;
+    }
+  });
+
+  // ONE more model request when a hop could not be rescued by pi's own retry.
+  // `continue: true` ALONE IS NOT ENOUGH and is rejected at runtime — measured:
+  // "agent_before_settle requested continuation without runnable model context".
+  // A continuation is valid only when the projection does not END on an assistant
+  // message (`contextCanContinue = hasNonSystemContext && finalRole !== "assistant"`,
+  // agent-session.js:_buildBoundaryContext), and a failed attempt is exactly an
+  // assistant message with an error and no content. So the handler chains a
+  // custom_message entry, which both satisfies the contract and tells the model why
+  // its previous answer is missing. Guarded by a flag a successful turn clears, so
+  // this can never loop.
+  pi.on("agent_before_settle", async () => {
+    if (!hopArmed) return;
+    hopArmed = false;
+    return {
+      entries: [
+        {
+          type: "custom_message" as const,
+          customType: "provider-fallback",
+          content:
+            "An earlier attempt in this conversation failed because its provider was unavailable, and was retried on an alternate provider.",
+          display: false, // context for the retry, not a user-facing message
+        },
+      ],
+      continue: true,
+    };
+  });
+
+  // ── Switch-back: recover from a deliberate /use onto a rate-limit twin ────
+  // Corrected 2026-10-22: an automatic hop does NOT persist (extension-facing
+  // pi.setModel passes no `persist`), so this is not about hops at all — it is
+  // about a twin PERSISTED by a deliberate /use or Ctrl+P. Fires only when the
+  // active model is a VALUE of `rateLimitFallbacks`; the provider fallback below
+  // keeps its own map and is deliberately absent here.
+  // Provider fallback: a hop does not persist in SETTINGS, but pi.setModel()
+  // appends a `model_change` to the SESSION, and a resumed session (`pi -c`,
+  // `--resume`, or pwt's re-run `--session-id`) restores from it. Without this a
+  // session that once hopped would stay on the metered twin forever, and a lapsed
+  // subscription that comes back would never be picked up again. The cost while it
+  // is still lapsed is one failed attempt on the next turn — the hop immediately
+  // returns to the twin, and for the non-retryable shapes the continuation above
+  // rescues that turn.
+  //   Provenance decides, via ./lib/provider-fallback.ts:shouldReprobePrimary —
+  // the twin must have come from the SESSION (a hop's leftover), not from an
+  // explicit `--model` on this invocation, which is the user's own choice. Gating
+  // on the start REASON cannot do this: pwt re-runs `pi --session-id <sid>` for
+  // every workstream window and pi reports that as "startup", not "resume".
+  // `reload` is skipped outright — the extension is re-imported with its guards
+  // reset, so acting there would silently undo a deliberate `/use`.
+  pi.on("session_start", async (event, ctx) => {
+    if (event.reason === "reload") return;
+    if (inProgress || userPickedTwin) return;
+    const cur = ctx.model;
+    if (!cur) return;
+    const rateMap = readFallbackMap(ctx.cwd);
+    if (Object.values(rateMap).includes(normId(cur))) return; // handler below owns it
+    const pf = readProviderFallbacks(ctx.cwd);
+    const primaryProvider = Object.keys(pf).find((k) => pf[k].to === cur.provider);
+    if (!primaryProvider) return; // not on a provider-fallback twin
+    const primary = ctx.modelRegistry.find(primaryProvider, cur.id);
+    if (!primary) return; // this id has no counterpart on the primary provider
+    if (!shouldReprobePrimary({ current: normId(cur), ...branchModelFacts(ctx) })) return;
+    inProgress = true;
+    try {
+      const ok = await pi.setModel(primary);
+      if (ok)
+        ctx.ui.notify(
+          `Provider fallback: re-trying ${primaryProvider}/${cur.id} (was on ${cur.provider})`,
+          "info",
+        );
+      else
+        ctx.ui.notify(
+          `No usable auth for ${primaryProvider} — staying on ${cur.provider}`,
+          "error",
+        );
+    } finally {
+      inProgress = false;
+    }
+  });
+
+  pi.on("session_start", async (event, ctx) => {
+    if (event.reason === "reload") return; // guards reset on reload — see the handler above
     if (inProgress) return;
     if (userPickedTwin) return; // user asked for this twin — don't override
     if (Date.now() - lastRecoveryAt < 2000) return; // dedupe a same-tick 2xx recovery

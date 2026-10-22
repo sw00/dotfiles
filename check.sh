@@ -1238,6 +1238,20 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # infra-safety + /check mode correctly classify mutations vs. reads when the
 # shell arrives through the native tool (mutation-guard is now hypa-only).
 if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
+    # The provider fallback is TEXT-driven because a pre-stream HTTP error never
+    # produces after_provider_response: measured on opencode-go's subscription
+    # 403, which the status allowlist cannot see. Pure decision logic -> tested.
+    check "pi: provider-fallback tests pass" \
+        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/provider-fallback.test.ts"
+    check_has "pi: provider fallback resolves the error text at turn_end" \
+        'pi.on\("turn_end"' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
+    # pi classifies some of these errors as non-retryable (its list names OpenCode
+    # Go's usage-limit errors), so the hop alone can leave the turn dead: this is
+    # the one-continuation guard that makes the first turn survive either way.
+    check_has "pi: a hop forces one continuation when pi will not retry" \
+        'agent_before_settle' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
+    check_has "pi: the provider hop can never loop on itself" \
+        'entry.to === provider' "$DOTFILES/base/pi/.pi/agent/extensions/lib/provider-fallback.ts"
     check "pi: mutation-guard tests pass" \
         bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
 else
@@ -1394,6 +1408,31 @@ if len({d, w, m}) != 1:
     sys.stderr.write('daily driver forked: settings=%r worker=%r summary=%r\\n' % (d, m, w))
     sys.exit(1)
 \""
+
+# The provider-fallback map must point a real provider at a DIFFERENT one, and
+# the committed default must not be a twin — an automatic hop does not persist
+# (extension-facing pi.setModel passes no `persist`), so a twin sitting in
+# defaultModel means either a deliberate /use or a pi upgrade that started
+# persisting; both deserve a human look, not a silent commit.
+check "pi: provider fallback maps a provider to a different one" \
+    bash -c "python3 -c \"
+import json, sys
+s = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.json'))
+pf = s.get('providerFallbacks') or {}
+if not pf:
+    sys.exit(1)
+twins = set()
+for prov, entry in pf.items():
+    to = entry.get('to')
+    if not to or to == prov or not entry.get('match'):
+        sys.stderr.write('bad providerFallbacks entry: %r -> %r\\n' % (prov, entry))
+        sys.exit(1)
+    twins.add(to)
+default = s.get('defaultModel', '')
+if default.split('/')[0] in twins:
+    sys.stderr.write('defaultModel %r is a fallback twin, not a primary\\n' % default)
+    sys.exit(1)
+\"" 
 
 # Every agent pins a model, and the roster table documents each role. A pin
 # swapped in an agent file but not reflected in the README — or a row left
