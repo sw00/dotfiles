@@ -8,6 +8,17 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Open — active bug
 
+- [ ] **pwt workstream windows do not survive a tmux-resurrect restore (found
+  2026-10-22).** `C-r` brings the sessions, windows and layout back, but a worktree
+  window is a bare shell: resurrect records no command for a pane whose pid IS pi
+  (its save strategy reads the pane pid's CHILDREN), no `@user` options are saved, and
+  the `π -` pane title it does restore is a lie that `pi-only` currently believes — so
+  `C-w` → enter either jumps to the shell or opens a second window and orphans the
+  first. Identity is recoverable from the path (`<root>/__worktrees/<slug>`).
+  Design, gates, mutant table and the open scope question (explicit `pwt revive` only,
+  vs also `@resurrect-hook-post-restore-all`) are in `.pi/plans/pwt-tmux-restore.md`.
+  Next action: the user's call on the hook, then implement.
+
 - [ ] **`loop` smoke scenario no longer stops inside its signature (found
   2026-10-14, pi 1.2.0).** The eval's loop scenario should show <= 2 shell attempts
   and a stop quoting the verbatim error. Every run of the 2026-10-14 re-run took
