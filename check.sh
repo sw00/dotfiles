@@ -219,9 +219,14 @@ check_has "bootstrap: base stow list includes claude" \
 # next host inherit "already seen" for a notice it never saw, and tests nothing — the
 # keys that DO belong here are asserted above. Which stowed files can be dirtied, and
 # why only a stowed file can be, is in docs/GOTCHAS.md ("stow lifecycle").
-check_not "pi: claude-bridge.json carries no runtime notice flags" \
-    '"(startupNoticeShown|askClaudeDeprecationShown)"' \
-    "$DOTFILES/base/pi/.pi/agent/claude-bridge.json"
+# NOT "git show -- :path": with the -- it is a PATHSPEC and git prints the commit that
+# last touched the file, so a staged flag passed the check. `git show :path` is the
+# staged blob, and a path absent from the index must FAIL (rc=128) rather than pass
+# vacuously through a silenced error.
+check "pi: no runtime notice flag is staged in claude-bridge.json" \
+    bash -c 'blob=$(git -C "$1" show ":base/pi/.pi/agent/claude-bridge.json") || exit 1
+             ! grep -qE "(startupNoticeShown|askClaudeDeprecationShown)" <<<"$blob"' \
+    _ "$DOTFILES"
 
 # ── Linux stack: base → os/linux ───
 section "Stow integrity — Linux stack  [GREEN]"
