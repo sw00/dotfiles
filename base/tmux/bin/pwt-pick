@@ -338,6 +338,12 @@ path="$(printf '%s' "$sel" | cut -f2)"
 # (cd + pwt here).
 run_pwt() {
     local verb="$1" a="$2" b="${3:-}" rc=0
+    # The popup is NOT the pane the user is sitting in. `display-popup` exports TMUX_PANE
+    # naming the client's ACTIVE pane (measured on tmux 3.6b), so pwt would read that
+    # pane as "the pane pwt runs in" and REFUSE to respawn it — exactly when the user is
+    # looking at a restored bare shell and pressed enter to revive it. Cleared here so
+    # `enter` can adopt it. Safe: the popup's own pane holds pwt-pick, never the pwt.
+    export TMUX_PANE=
     case "$verb" in
         new)  fish -c 'cd $argv[1]; and pwt $argv[2]' "$a" "$b" || rc=$? ;;
         rm)   fish -c 'cd $argv[1]; and pwt rm $argv[2]' "$a" "$b" || rc=$? ;;
@@ -357,11 +363,11 @@ run_pwt() {
 }
 
 # pwt's first argument is a verb switch, so these would never become a workstream.
-# `ls`, `here`, `jump` and `reload` are reachable only from a shell, but a workstream
-# named after one would still be unusable, so they are reserved the same way.
+# `ls`, `here`, `jump`, `reload` and `revive` are reachable only from a shell, but a
+# workstream named after one would still be unusable, so they are reserved the same way.
 reject_reserved() {
     case "$1" in
-        rm|remove|jump|here|help|ls|close|reload)
+        rm|remove|jump|here|help|ls|close|reload|revive)
             echo "pwt: '$1' is a pwt verb, not a workstream name" >&2
             exit 2 ;;
     esac

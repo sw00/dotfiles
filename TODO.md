@@ -8,16 +8,40 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Open — active bug
 
+- [ ] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it
+  landed).** `check.sh`'s "pwt: the post-restore hook revives a pane whose SAVED title
+  was pi's" passed, then failed, then passed again across three consecutive runs of
+  UNCHANGED code (`651 passed / 0 failed` ↔ `650 passed / 1 failed`); the only edit
+  between runs was doc-only. So the suite's green summary is a coin-flip on this
+  assertion, which is worse than no assertion (AGENTS.md warns about exactly this).
+  Hypothesis (UNVERIFIED): a fixture race — the demo8 pane is created and the hook run
+  immediately after, and `__pwt_revive_panes` requires a SETTLED idle shell
+  (`ps -o comm=` is a shell with no children), while `_rv_hook` also points
+  `XDG_CONFIG_HOME` at an empty temp dir, so `fish -c 'pwt revive …'` may not autoload
+  `pwt` at all in some runs. The flake is in the ASSERTION, not the product code, so
+  the change set ships with it open — but characterize it before trusting a green
+  summary: run the block under `bash -x` a few times, capture the hook's `hook-out`,
+  and either settle the pane deterministically before the hook or make the assertion
+  poll a bounded interval. Next action: reproduce with `_rv_hook`'s output preserved.
+
 - [ ] **pwt workstream windows do not survive a tmux-resurrect restore (found
   2026-10-22).** `C-r` brings the sessions, windows and layout back, but a worktree
   window is a bare shell: resurrect records no command for a pane whose pid IS pi
   (its save strategy reads the pane pid's CHILDREN), no `@user` options are saved, and
-  the `π -` pane title it does restore is a lie that `pi-only` currently believes — so
-  `C-w` → enter either jumps to the shell or opens a second window and orphans the
+  the `π -` pane title it does restore is a lie that `pi-only` believed — so
+  `C-w` → enter either jumped to the shell or opened a second window and orphaned the
   first. Identity is recoverable from the path (`<root>/__worktrees/<slug>`).
-  Design, gates, mutant table and the open scope question (explicit `pwt revive` only,
-  vs also `@resurrect-hook-post-restore-all`) are in `.pi/plans/pwt-tmux-restore.md`.
-  Next action: the user's call on the hook, then implement.
+  **Landed** (owner chose the auto-hook ON): `pwt revive [--dry-run] <dir>…` +
+  `__pwt_revive`/`__pwt_revive_panes` in `base/fish/.config/fish/functions/pwt.fish`,
+  adoption on the `pwt <slug>` path (panel `enter` runs it), the resurrect hook script
+  `base/tmux/bin/pwt-revive-restored` wired via `@resurrect-hook-post-restore-all` with
+  `@pwt_revive` as a kill switch, docs in `docs/PWT.md`, and behavioural + static
+  assertions in `check.sh` (private socket, stub pi, restored panes built with
+  `new-window -d -c` and no command). Design and mutant table:
+  `.pi/plans/pwt-tmux-restore.md`. Open until a REAL `C-r` on a live server has been
+  seen to revive: the suite drives the hook with a fabricated save file, so the
+  save-file parse, the hook value (reproduced through resurrect's own `eval`) and the
+  tmux wiring are covered, but the live restore is not.
 
 - [ ] **`loop` smoke scenario no longer stops inside its signature (found
   2026-10-14, pi 1.2.0).** The eval's loop scenario should show <= 2 shell attempts
@@ -58,6 +82,20 @@ removed — full implementation history lives in git. Shared-core behavior
   the pushes meanwhile — the ⚑ flag and the C-w panel are independent of them.
 
 ## Deferred — judgment, not blocked
+
+- [ ] **`git-prune-merged` is not wired into anything (2026-10-23).** It exists, is
+  tested (dry-run default; `--apply` deletes merged locals; never gates on `[gone]`),
+  and nothing calls it — so local branches whose PRs landed keep accumulating, which is
+  the state that motivated it (dozens of `[gone]`/merged locals across the four lelapa
+  repos). Next action: choose the rung (a `pwt`-adjacent habit, an `agents-update`-style
+  alias, or a periodic prompt) and call it; keep the dry-run default.
+
+- [ ] **`pwt <slug>` refuses inside a bare shell at a worktree root (2026-10-23,
+  judgment).** Deliberate: a resurrect-restored pane and a shell merely `cd`'d into the
+  worktree are indistinguishable, and respawning the pane `pwt` runs in would kill pwt —
+  so it refuses loudly instead of opening a second window (`docs/PWT.md` §After a
+  tmux-resurrect restore). Revisit if the `cd`-into-worktree flow proves common; the
+  alternative is to open the window there and accept the duplicate on a restore.
 
 - [ ] **MCP re-enable + credential rotation (2026-10-20).** `~/.pi/agent/mcp.json.disabled`
   holds a read-only Grafana + Linear config (Keychain-backed, write tools hidden,

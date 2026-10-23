@@ -6,6 +6,7 @@
 #           functions/tt.fish, functions/pi-prune-sessions.fish,
 #           functions/pi-settings-reset.fish,
 #           functions/pwt.fish, functions/agents-update.fish,
+#           functions/git-prune-merged.fish,
 #           completions/pwt.fish
 # Ignored:  everything fisher owns (functions/, completions/, conf.d/plugin-*)
 
@@ -15,6 +16,7 @@ functions/*
 !functions/pi-settings-reset.fish
 !functions/pwt.fish
 !functions/agents-update.fish
+!functions/git-prune-merged.fish
 # `completions/*`, not `completions/`: git cannot re-include a file whose PARENT
 # directory is excluded, so the directory form would silently ignore pwt.fish
 # regardless of the negation below (the functions/ pattern is a glob for the same

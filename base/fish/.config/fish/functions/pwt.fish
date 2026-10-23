@@ -8,6 +8,7 @@
 #        pwt here <label>    # a workstream in THIS checkout, no worktree
 #        pwt ls              # list workstreams (the C-w panel's rows)
 #        pwt reload [--force] <dir>  # re-exec pi there with the current secrets env
+#        pwt revive [--dry-run] <dir>...  # re-open pi in a worktree a restore left bare
 #
 # Why a worktree: several pi sessions in ONE checkout share a working tree, so
 # parallel mutating agents collide at the file level. Sessions alone do not fix
@@ -17,8 +18,8 @@
 # directory" races as soon as a repo holds more than one session. <repo>-<slug>
 # is a stable handle, so closing pi (to authenticate or export vars) and
 # re-running pwt lands back in the same transcript. Caveat: pi-prune-sessions
-# drops transcripts untouched for 30 days, so a workstream left idle longer than
-# that starts fresh.
+# (MANUAL only — never scheduled) drops transcripts untouched for 90 days, so a
+# workstream left idle longer than that starts fresh once you actually run it.
 #
 # Worktrees live under __worktrees/ so they stay inside the trusted path prefix
 # (~/.pi/agent/trust.json trusts the source-tree prefix) and can be filtered out
@@ -394,6 +395,165 @@ function __pwt_need_pi --description 'fail unless pi is on PATH'
     end
 end
 
+# Is <pid> a plain shell — the shape a resurrect restore leaves at the end of its
+# `cat <pane contents>; exec <shell>`? comm's BASENAME, with the leading '-' a login
+# shell carries (tmux starts its default shell as one: measured, a restored pane's
+# pid reports `-sh`). `pane_current_command` cannot answer this: tmux reports a shell
+# for a pane whose real command it has wrapped, so it says `fish` for a pane running
+# `cat`, while pane_pid tells the truth.
+function __pwt_is_shell --description 'comm of <pid> is a shell'
+    set -l raw (command ps -o comm= -p "$argv[1]" 2>/dev/null)
+    test -n "$raw"; or return 1
+    set -l bare (string replace -r '^-' '' -- (command basename -- "$raw" 2>/dev/null))
+    contains -- $bare sh bash zsh fish dash ksh ksh93 mksh ash
+end
+
+# Panes that are a bare, IDLE shell sitting exactly at <dir>: resurrect's leftover for
+# a pwt window, since a pwt pane runs pi directly and its saved command is empty.
+#
+# One candidate per line as `<pane id>|<window id>`. The caller decides what to do
+# with more than one; this is the predicate, so it never prints, mutates or guesses.
+#
+# `ps`/`pgrep`, NOT pane_current_command (see __pwt_is_shell). comm(pane_pid) is a
+# shell AND it has no children: a live pi's pid is `node` (excluded by comm) and a
+# hand-started pi is that shell's CHILD (excluded by pgrep).
+function __pwt_revive_panes --description 'idle-shell panes at worktree <dir>'
+    set -l want (__pwt_realpath "$argv[1]")
+    for line in (command tmux list-panes -a -F '#{pane_id}|#{window_id}|#{@pwt_sid}|#{pane_current_path}|#{pane_pid}' 2>/dev/null)
+        set -l parts (string split -m4 '|' -- $line)
+        test (count $parts) -eq 5; or continue
+        test "$parts[4]" = "$want"; or continue
+        # Never a live workstream: pwt marks every window it opens, and a restored one
+        # lost the mark — so an EMPTY @pwt_sid is exactly the "restored" state.
+        test -z "$parts[3]"; or continue
+        # Respawning the pane pwt itself runs in kills pwt mid-command.
+        test "$parts[1]" != "$TMUX_PANE"; or continue
+        __pwt_is_shell "$parts[5]"; or continue
+        set -l kids (command pgrep -P "$parts[5]" 2>/dev/null)
+        test (count $kids) -eq 0; or continue
+        echo $parts[1]'|'$parts[2]
+    end
+end
+
+# Is the pane pwt is RUNNING IN the restored bare shell for <dir>? __pwt_revive_panes
+# deliberately excludes $TMUX_PANE (respawning it would kill pwt mid-command), so from
+# inside that very shell the candidate count is 0 and the slug path would open a
+# SECOND window — the exact reported symptom. This re-applies the same idle-shell
+# evidence to the caller's own pane. A marked workstream needs no separate gate here:
+# a live pwt window's pane pid is pi (`node`), which __pwt_is_shell already rejects.
+function __pwt_revive_self --description 'is the pane pwt runs in the bare shell at <dir>'
+    test -n "$TMUX_PANE"; or return 1
+    set -l want (__pwt_realpath "$argv[1]")
+    # display-message resolves the pane against the same server $TMUX names, so no
+    # `-S` is needed. `|` is a literal in a tmux format; -m2 keeps a path with one in it.
+    set -l parts (string split -m2 '|' -- (command tmux display-message -p -t "$TMUX_PANE" '#{pane_current_path}|#{pane_pid}' 2>/dev/null))
+    test (count $parts) -eq 2; or return 1
+    test "$parts[1]" = "$want"; or return 1
+    __pwt_is_shell "$parts[2]"; or return 1
+    set -l kids (command pgrep -P "$parts[2]" 2>/dev/null)
+    test (count $kids) -eq 0
+end
+
+# Re-exec pi INTO an existing pane, keeping its id, window name and the layout around
+# it. This is the whole of a restart: `pwt reload` runs it on a live workstream and
+# `pwt revive` on a restored bare shell. The respawn command appears exactly once in
+# this file (check.sh asserts it) because a second copy would drift.
+#
+# <envargs> is the `-e NAME=VALUE` argv from __pwt_forward_env; the caller passes it in
+# so it can also count it for the "no secrets forwarded" message.
+function __pwt_respawn_pi --description 're-exec pi into <pane>, keeping its layout'
+    set -l pane $argv[1]
+    set -l dir $argv[2]
+    set -l sid $argv[3]
+    command tmux respawn-pane -k -t "$pane" -c "$dir" $argv[4..-1] pi --session-id "$sid"
+    or return 1
+    # A respawn whose command cannot exec takes the pane down instead of failing — the
+    # same trap __pwt_mark guards against at open time. The result must be STORED
+    # first: `test -n (cmd)` with an empty output collapses to a lone `-n`, which is a
+    # non-empty string and therefore true — a check that can never fail. pane_dead too,
+    # because with remain-on-exit a corpse keeps answering with a pane id.
+    set -l alive (command tmux display-message -p -t "$pane" '#{pane_id}' 2>/dev/null)
+    set -l dead (command tmux display-message -p -t "$pane" '#{pane_dead}' 2>/dev/null)
+    test -n "$alive"; and test "$dead" != 1
+    or return 1
+    # The dead run's state must not outlive it: the panel would keep showing 'working'
+    # (or an alert) for a process that no longer exists.
+    command tmux set-window-option -t "$pane" -u @pi_state 2>/dev/null
+    command tmux set-window-option -t "$pane" -u @pi_alert 2>/dev/null
+    # Belt and braces: the pipe-pane job survives a respawn (it follows the pane, not
+    # the process) and a plain pipe-pane — never -o — replaces the pipe with the
+    # identical command rather than detaching it.
+    __pwt_tap "$pane"
+end
+
+# Bring ONE restored worktree window back as pi. The explicit `pwt revive <dir>` verb
+# and the adoption `pwt <slug>` does after a restore share this.
+#
+# <dir> is a worktree path, whose shape IS the identity: sid = <repo basename>-<slug>,
+# because resurrect preserves the cwd and nothing else. Anything that is not a bare,
+# idle shell at that exact path is refused — a live pi (comm node), a pane with a child
+# (a hand-started pi), a marked workstream and the pane pwt runs in are all never
+# touched. <dry> = 1 reports what it would do and changes nothing.
+function __pwt_revive --description 'respawn pi into a restored bare shell at <dir>'
+    set -l raw "$argv[1]"
+    set -l dry 0
+    test "$argv[2]" = 1; and set dry 1
+    set -l dir (__pwt_realpath "$raw")
+    set -l parent (command dirname -- "$dir")
+    # The `*/` before the name is load-bearing twice over: it is the shape test
+    # (<root>/__worktrees/<slug>), and it keeps a bare `__worktrees` token out of the
+    # fish-autoload grep check.sh runs over every function file.
+    string match -q -- '*/__worktrees' "$parent"; or begin
+        echo "pwt: not a worktree: $raw" >&2
+        return 1
+    end
+    test -d "$dir"; or begin
+        echo "pwt: no such worktree: $raw" >&2
+        return 1
+    end
+    set -l root (command dirname -- "$parent")
+    set -l slug (command basename -- "$dir")
+    set -l sid (command basename -- "$root")-$slug
+    set -l panes (__pwt_revive_panes "$dir")
+    if test (count $panes) -eq 0
+        # The pane pwt is in is excluded from the candidates above, so from inside the
+        # restored shell the count is 0 for a reason worth naming, not the generic miss.
+        if __pwt_revive_self "$dir"
+            echo "pwt: the pane pwt runs in IS the bare shell at $dir — run pwt from another pane, or: pwt revive $dir" >&2
+        else
+            echo "pwt: nothing to revive at $dir" >&2
+        end
+        return 1
+    end
+    # Two candidates could mean two pis on one --session-id, which silently clobbers
+    # one transcript. Refuse and name them instead of guessing.
+    if test (count $panes) -gt 1
+        echo "pwt: "$dir" has "(count $panes)" idle panes — refusing to pick one" >&2
+        for cand in $panes
+            echo "     "(string replace -r '\|.*' '' -- $cand) >&2
+        end
+        return 1
+    end
+    set -l pane (string replace -r '\|.*' '' -- $panes[1])
+    if test $dry -eq 1
+        echo "pwt: would revive '$slug' at $dir"
+        return 0
+    end
+    __pwt_need_pi; or return 1
+    set -l envargs (__pwt_forward_env)
+    __pwt_respawn_pi "$pane" "$dir" "$sid" $envargs
+    or begin
+        echo "pwt: could not revive the window at $dir — is pi runnable there?" >&2
+        return 1
+    end
+    __pwt_mark "$pane" "$sid" "$slug" "$dir"
+    or begin
+        echo "pwt: revived the pane at $dir but could not mark it" >&2
+        return 1
+    end
+    echo "pwt: revived '$slug'"
+end
+
 # ── the secrets environment ───────────────────────────────────────────────────
 # pwt opens the window with `pi` directly — no shell — so nothing in there re-reads
 # secrets/env.fish, and a RUNNING pi can never be given new variables (there is no
@@ -509,6 +669,35 @@ function __pwt_open_window --description 'jump to a workstream window, else open
     # never exist as a workstream at all — silently, since the jump succeeds. So
     # in-place is identity or nothing.
     if test -z "$wid"; and test "$argv[4]" != identity-only
+        # A resurrect restore brings a worktree window back as a bare shell: its saved
+        # command is empty (a pwt pane's pid IS pi, and the save strategy reads the
+        # pid's CHILDREN), @pwt_* options are not saved, and the `π -` title is
+        # overwritten by the shell. Identity and the pi-title fallback therefore BOTH
+        # miss, and re-running pwt would spawn a second pi on the same transcript and
+        # orphan the restored pane. Adopt it first — and only then trust the pi title,
+        # which is a prefix a shell can carry: a spoofed one must not win over a pane
+        # that is demonstrably an idle shell (comm is a shell, no children).
+        set -l cands (__pwt_revive_panes "$dir")
+        set -l ncand (count $cands)
+        if test $ncand -gt 1
+            # Two idle panes on one worktree could be two pis on one --session-id, and
+            # picking one would silently clobber the other's transcript. Refuse and
+            # name them; the explicit repair is `pwt revive <dir>`.
+            echo "pwt: $dir has $ncand idle panes — refusing to pick one" >&2
+            for cand in $cands
+                echo "     "(string replace -r '\|.*' '' -- $cand) >&2
+            end
+            echo "     repair explicitly: pwt revive $dir" >&2
+            return 1
+        else if test $ncand -eq 1
+            __pwt_revive "$dir" 0 >/dev/null 2>&1
+            and set wid (__pwt_workstream_window "$sid" "$dir")
+        end
+    end
+    # The pi-title fallback runs BEFORE the self-pane refusal below: an unmarked pi
+    # started by hand in this worktree is reached by its cwd, and a bare shell pwt
+    # happens to be typed into must not steal that jump.
+    if test -z "$wid"; and test "$argv[4]" != identity-only
         set wid (__pwt_window_for "$dir" pi-only)
     end
     if test -n "$wid"
@@ -521,6 +710,15 @@ function __pwt_open_window --description 'jump to a workstream window, else open
         or begin; echo "pwt: could not select window $wid for $label" >&2; return 1; end
         echo "pwt: jumped to the open window for $label"
         return 0
+    end
+    # Nothing to jump to, and the pane pwt was typed into is ITSELF a bare shell at this
+    # worktree root. It is excluded from the candidates (respawning the pane pwt runs in
+    # would kill pwt mid-command) so there is nothing to adopt — and opening a window
+    # HERE would be the very duplicate/orphan this feature exists to end. Refuse, and
+    # name the two paths that do work.
+    if test "$argv[4]" != identity-only; and __pwt_revive_self "$dir"
+        echo "pwt: this pane is a bare shell for '$label' — run pwt from another pane, or C-w then enter" >&2
+        return 1
     end
     # -P -F yields the pane we just made, so marking and tapping it need no racy
     # search (pi has not set its window title yet at this point).
@@ -596,6 +794,100 @@ function __pwt_park --description 'move ignored paths out of <dir> into <dest>'
         command mv -- "$src" "$dst" 2>/dev/null; or set failed 1
     end
     return $failed
+end
+
+# `pwt ls --all` — the DORMANT listing. `pwt ls` is the panel's own rows (live
+# worktrees + open windows); that surface goes blank the moment a workstream is
+# torn down, so the remains — a kept unmerged branch, a pwt stash, a parked
+# `pwt-removed/` dir — have no listing at all. This is that listing: read-only git
+# (no tmux, no mutation), because the whole point is to work AFTER the live surfaces
+# have let go, from a plain terminal.
+#
+# Deliberately a separate flag and never wired into pwt-pick: a dormant row is not a
+# jump target, and the panel's contract is actionable rows only (docs/PWT.md).
+#
+# Repos are found by their `.git` DIRECTORY, not their worktrees: a dormant repo may
+# have no `__worktrees/` left, and a worktree's `.git` is a file whose common dir is
+# the repo that will be reported anyway. node_modules/target/.venv are pruned so a
+# vendored package's own `.git` cannot masquerade as a repo.
+function __pwt_ls_all --description 'list dormant pwt state under $PWT_SRC'
+    set -l src "$HOME/src"
+    if set -q PWT_SRC; and test -n "$PWT_SRC"
+        set src "$PWT_SRC"
+    end
+    test -d "$src"; or begin
+        echo "pwt: no such source root: $src" >&2
+        return 1
+    end
+    set -l roots
+    for gitdir in (command find "$src" -maxdepth 4 \( -name node_modules -o -name target -o -name .venv \) -prune -o -name .git -type d -print 2>/dev/null)
+        set -a roots (command dirname -- "$gitdir")
+    end
+    set -l printed 0
+    for root in $roots
+        # The common dir, exactly as the info/exclude write resolves it: a worktree
+        # reports its own path from --show-toplevel, but pwt-removed/ and the stash
+        # list live on the MAIN repo. `git -C` so the rule is identical here.
+        set -l common (command git -C "$root" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+        test -n "$common"; or continue
+        # A branch checked out anywhere is not dormant — it is a tree you are in, and
+        # pwt cannot check it out a second time. This is what keeps the repo's own
+        # main branch (and worktrees outside __worktrees/) out of the listing.
+        set -l checked
+        for line in (command git -C "$root" worktree list --porcelain 2>/dev/null)
+            if string match -q 'branch refs/heads/*' -- $line
+                set -a checked (string replace 'branch refs/heads/' '' -- $line)
+            end
+        end
+        set -l branches
+        for b in (command git -C "$root" for-each-ref --format='%(refname:short)' refs/heads/ 2>/dev/null)
+            # A branch with a live worktree dir is a LIVE workstream, shown by plain
+            # `pwt ls`; this verb is only the remains.
+            test -d "$root/__worktrees/$b"; and continue
+            contains -- $b $checked; and continue
+            set -a branches "$b"
+        end
+        # -i because `pwt rm --stash` writes `pwt: removed <slug> <stamp>`; the shared
+        # stash list is routinely congested, so the remains are named, not everything.
+        set -l stashes (command git -C "$root" stash list 2>/dev/null | string match -i '*pwt*')
+        set -l parked
+        if test -d "$common/pwt-removed"
+            set parked (command ls -1 "$common/pwt-removed" 2>/dev/null)
+        end
+        # A section is printed only when it has rows, and a repo with none of the
+        # three is skipped entirely — otherwise the listing is mostly empty headers.
+        if test (count $branches) -eq 0; and test (count $stashes) -eq 0; and test (count $parked) -eq 0
+            continue
+        end
+        if test $printed -eq 0
+            echo "pwt: dormant state under $src"
+            set printed 1
+        end
+        echo ''
+        echo (string replace "$src/" '' -- "$root")
+        if test (count $branches) -gt 0
+            echo '  branches with no worktree (pwt <slug> re-checks one out):'
+            for b in $branches
+                echo "    $b"
+            end
+        end
+        if test (count $stashes) -gt 0
+            echo '  pwt stashes:'
+            for s in $stashes
+                echo "    $s"
+            end
+        end
+        if test (count $parked) -gt 0
+            echo '  parked ignored files:'
+            for p in $parked
+                echo "    $p"
+            end
+        end
+    end
+    if test $printed -eq 0
+        echo "pwt: no dormant state under $src"
+    end
+    return 0
 end
 
 function pwt --description 'pi git-worktree helper (tmux window + pinned session)'
@@ -719,6 +1011,16 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             # second implementation is exactly the drift this file keeps catching.
             # Works outside tmux (every marker is then simply blank), and PWT_PICK is
             # overridable the way pwt-pick overrides PWT_REPO_LIST.
+            #
+            # `--all` adds the one thing those rows cannot show: the dormant remains a
+            # teardown leaves behind (a kept branch, a pwt stash, a parked pwt-removed/
+            # dir) vanish with the worktree and its window. A separate flag, never wired
+            # into pwt-pick, because the panel's rows must stay jump targets.
+            set -l args $argv[2..-1]
+            if test "$args[1]" = --all
+                __pwt_ls_all
+                return $status
+            end
             set -l picker ''
             set -q PWT_PICK; and set picker $PWT_PICK
             test -n "$picker"; or set picker "$HOME/bin/pwt-pick"
@@ -742,9 +1044,10 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             echo "pwt: closed window $wid"
         case reload
             # Re-exec pi in an existing workstream window against the CURRENT secrets
-            # file. A live process cannot be handed new env, so a reload IS a restart;
-            # respawn-pane is the only restart that keeps the pane id, the window name
-            # and the @pwt_* markers, which is what makes it the same workstream after.
+            # file. A live process cannot be handed new env, so a reload IS a restart,
+            # and re-exec'ing pi in the SAME pane is the only restart that keeps the
+            # pane id, the window name and the @pwt_* markers, which is what makes it
+            # the same workstream after. That re-exec lives in __pwt_respawn_pi.
             set -l rest $argv[2..-1]
             set -l force 0
             if test "$rest[1]" = --force
@@ -783,26 +1086,13 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             # resolves, or the pane exits and tmux takes the window down with it.
             __pwt_need_pi; or return 1
             set -l envargs (__pwt_forward_env)
-            command tmux respawn-pane -k -t "$pane" -c "$home" $envargs pi --session-id "$sid"
-            or begin; echo "pwt: could not respawn the window for '$label'" >&2; return 1; end
-            # A respawn whose command cannot exec takes the pane down instead of
-            # failing — the same trap __pwt_mark guards against at open time. The
-            # result must be STORED first: `test -n (cmd)` with an empty output
-            # collapses to a lone `-n`, which is a non-empty string and therefore
-            # true — a check that can never fail. pane_dead too, because with
-            # remain-on-exit a corpse keeps answering with a pane id.
-            set -l alive (command tmux display-message -p -t "$pane" '#{pane_id}' 2>/dev/null)
-            set -l dead (command tmux display-message -p -t "$pane" '#{pane_dead}' 2>/dev/null)
-            test -n "$alive"; and test "$dead" != 1
-            or begin; echo "pwt: the window died on reload — is pi runnable there?" >&2; return 1; end
-            # The dead run's state must not outlive it: the panel would keep showing
-            # 'working' (or an alert) for a process that no longer exists.
-            command tmux set-window-option -t "$pane" -u @pi_state 2>/dev/null
-            command tmux set-window-option -t "$pane" -u @pi_alert 2>/dev/null
-            # Belt and braces: the pipe-pane job survives a respawn (it follows the
-            # pane, not the process) and a plain pipe-pane — never -o — replaces the
-            # pipe with the identical command rather than detaching it.
-            __pwt_tap "$pane"
+            __pwt_respawn_pi "$pane" "$home" "$sid" $envargs
+            or begin
+                # The pane can die instead of exec'ing when pi does not resolve there;
+                # say that plainly rather than the generic respawn wording.
+                echo "pwt: could not reload '$label' — the window died on reload" >&2
+                return 1
+            end
             # Say which environment it got: with no readable secrets file nothing was
             # forwarded, and "reloaded" would then hide that the window is running on
             # whatever the tmux server was seeded with.
@@ -811,6 +1101,30 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             else
                 echo "pwt: reloaded '$label' — no secrets were forwarded (nothing readable)"
             end
+        case revive
+            # Repair a window a tmux-resurrect restore left as a bare shell: the SAME
+            # pane and window come back, with pi respawned into them. Identity is
+            # recovered from the path (<root>/__worktrees/<slug>), because resurrect
+            # saves none of the @pwt_* options and no command for a pane whose pid IS
+            # pi. Bulk by design — one dir per restored window, as the post-restore
+            # hook passes them — so it must never jump or snap a window.
+            set -l rest $argv[2..-1]
+            set -l dry 0
+            if test "$rest[1]" = --dry-run
+                set dry 1
+                set -e rest[1]
+            end
+            test (count $rest) -gt 0; or begin
+                echo "usage: pwt revive [--dry-run] <dir>…" >&2
+                return 2
+            end
+            set -q TMUX; or begin; echo "pwt: not in tmux" >&2; return 1; end
+            set -l rc 0
+            for dir in $rest
+                __pwt_revive "$dir" $dry
+                or set rc 1
+            end
+            return $rc
         case help ''
             echo "Usage: pwt <slug> [base] | pwt <verb> …   (docs/PWT.md)"
             printf '  %-26s %s\n' 'pwt <slug> [base]' 'worktree + tmux window + pinned pi session'
@@ -818,8 +1132,10 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             printf '  %-26s %s\n' 'pwt close <dir>' 'end a live workstream: close its pi window'
             printf '  %-26s %s\n' 'pwt here <label>' 'a workstream in THIS checkout, no worktree'
             printf '  %-26s %s\n' 'pwt ls' 'list workstreams (the C-w panel rows, in order)'
+            printf '  %-26s %s\n' 'pwt ls --all' 'also list dormant state: kept branches, stashes, parked files'
             printf '  %-26s %s\n' 'pwt jump <dir>' 'go to its pi window (moving a pwt window home)'
             printf '  %-26s %s\n' 'pwt reload [--force] <dir>' 'restart pi there with the current secrets env'
+            printf '  %-26s %s\n' 'pwt revive [--dry-run] <dir>' 're-open pi in a worktree a tmux restore left bare'
             echo '  panel: tmux prefix then C-w'
         case jump
             # Used by the C-w panel for rows that are live pi sessions rather

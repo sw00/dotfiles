@@ -33,7 +33,9 @@ complete -c pwt -n __fish_use_subcommand -a here -d 'a workstream in THIS checko
 complete -c pwt -n __fish_use_subcommand -a jump -d 'go to the pi window at a directory'
 complete -c pwt -n __fish_use_subcommand -a close -d 'end a live workstream: close its pi window'
 complete -c pwt -n __fish_use_subcommand -a reload -d 'restart a workstream\'s pi with the current secrets env'
+complete -c pwt -n __fish_use_subcommand -a revive -d 're-open pi in a worktree a tmux restore left bare'
 complete -c pwt -n __fish_use_subcommand -a '(__fish_pwt_worktrees)' -d workstream
 
 complete -c pwt -n '__fish_seen_subcommand_from rm' -a '(__fish_pwt_worktrees)' -d workstream
-complete -c pwt -n '__fish_seen_subcommand_from jump close reload' -F
+complete -c pwt -n '__fish_seen_subcommand_from ls' -l all -d 'also list dormant state: kept branches, pwt stashes, parked files'
+complete -c pwt -n '__fish_seen_subcommand_from jump close reload revive' -F

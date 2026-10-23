@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# pwt-revive-restored — tmux-resurrect's post-restore hook: turn restored pwt
+# worktree windows back into pi windows.
+#
+# WHY THIS EXISTS. A pwt window runs `pi --session-id <sid>` with no shell, so
+# resurrect's default save strategy (the CHILDREN of the pane pid) records NO command
+# for it — pane_pid IS pi. @user options are not saved either, and the `π - <slug>`
+# title resurrect restores is overwritten by the shell. So C-r brings back a bare
+# shell sitting in the worktree, `C-w` → enter and `pwt <slug>` would open a SECOND
+# window, and the restored one is orphaned.
+#
+# THE EVIDENCE. The save file DOES carry each pane's saved title and cwd. pi's title
+# prefix (`π - `, PWT_PI_TITLE) is the record of "this pane WAS pi at save time"; a
+# shell merely cd'd into a worktree at save time carries the shell's own title, so it
+# is never given a pi it never had.
+#
+# `pwt revive` does the work: same pane, same window, pi respawned, marked and
+# re-tapped. This script only reads the save and hands it directories.
+#
+# NEVER switch-client or snap: post-restore-all fires LAST, after
+# restore_active_and_alternate_sessions (restore.sh:382), so moving a client from a
+# run-shell job undoes the session resurrect just chose. `pwt revive` deliberately
+# does neither.
+#
+# Kill switch: `@pwt_revive` (unset = on; 0/off/false/no = disabled). Read HERE and
+# only here, so the explicit `pwt revive <dir>` verb keeps working while the hook
+# sleeps. tmux.conf seeds `set -g @pwt_revive 1`.
+set -uo pipefail
+
+case "$(tmux show-option -gqv @pwt_revive 2>/dev/null)" in
+    0|off|false|no) exit 0 ;;
+esac
+
+# Same directory resurrect resolves (helpers.sh:1-6), in the same precedence: an
+# explicit `@resurrect-dir` wins, else ~/.tmux/resurrect when that legacy directory
+# exists, else $XDG_DATA_HOME/tmux/resurrect. `last` there is a symlink to the newest
+# save. PWT_RESURRECT_DIR is the test seam and takes precedence over all three.
+#
+# @resurrect-dir must be honoured: resurrect itself reads it, so a user who sets it
+# would otherwise have this hook read a directory that is not the one being saved to
+# — a silent no-op, which is the worst failure mode for an auto-hook.
+resurrect_dir="${PWT_RESURRECT_DIR:-}"
+if [ -z "$resurrect_dir" ]; then
+    # Encoded for sed: resurrect expands $HOME, $HOSTNAME and ~ in this value, so a
+    # literal $HOME here must survive the shell before sed sees it.
+    _opt="$(tmux show-option -gqv @resurrect-dir 2>/dev/null)" || _opt=''
+    if [ -n "$_opt" ]; then
+        resurrect_dir="$(printf '%s' "$_opt" | sed "s,\$HOME,$HOME,g; s,\$HOSTNAME,$(hostname 2>/dev/null || echo ''),g; s,~,$HOME,g")"
+    fi
+fi
+if [ -z "$resurrect_dir" ]; then
+    if [ -d "$HOME/.tmux/resurrect" ]; then
+        resurrect_dir="$HOME/.tmux/resurrect"
+    else
+        resurrect_dir="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/resurrect"
+    fi
+fi
+save="$resurrect_dir/last"
+[ -r "$save" ] || exit 0
+
+pi_title="${PWT_PI_TITLE:-π - }"
+
+# Pane lines are TAB-separated (resurrect's pane_format): field 1 the record type,
+# field 7 the saved pane_title, field 8 ":" + the saved cwd. `read` gives the last
+# variable the remainder, so the fields after cwd are absorbed by _rest.
+dirs=()
+while IFS=$'\t' read -r kind _session _window _active _flags _pane title dir _rest; do
+    [ "$kind" = "pane" ] || continue
+    case "$title" in "$pi_title"*) ;; *) continue ;; esac
+    case "$dir" in
+        :/*) dir="${dir#:}" ;;
+        *) continue ;;
+    esac
+    dirs+=("$dir")
+done < <(grep -E '^pane' "$save" 2>/dev/null)
+
+# `pwt revive` tolerates an unrevivable dir (it is not a worktree, or nothing idle is
+# there), but there is no reason to start a fish for an empty list.
+[ ${#dirs[@]} -gt 0 ] || exit 0
+
+exec fish -c 'pwt revive $argv' -- "${dirs[@]}"

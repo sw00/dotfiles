@@ -10,9 +10,9 @@
 # deleting them must stay an explicit, deliberate act. A conf.d scheduler was
 # added and removed on 2026-10-11; check.sh now tombstones its absence.
 #
-# Usage: pi-prune-sessions [days]      # default 30
+# Usage: pi-prune-sessions [days]      # default 90
 function pi-prune-sessions --description 'Prune pi session transcripts older than N days'
-    set -l days 30
+    set -l days 90
     if test (count $argv) -ge 1
         set days $argv[1]
     end
@@ -28,15 +28,22 @@ function pi-prune-sessions --description 'Prune pi session transcripts older tha
     end
 
     set -l before (du -sh "$dir" 2>/dev/null | awk '{print $1}')
+
     set -l doomed (find "$dir" -type f -name '*.jsonl' -mtime +$days)
     set -l n (count $doomed)
 
     if test $n -eq 0
+        # Nothing is old enough, but the run still cleans up directories already left
+        # empty (by an earlier prune, or by check.sh's own fixture probes). Only empty
+        # DIRECTORIES are removed, so a transcript can never be touched.
+        find "$dir" -mindepth 1 -type d -empty -delete 2>/dev/null
         echo "pi-prune-sessions: nothing older than $days days (sessions: $before)"
         return 0
     end
 
     find "$dir" -type f -name '*.jsonl' -mtime +$days -delete
+    # Sweep AFTER the delete too: a project dir emptied BY this run must go now, not
+    # survive until the next invocation. Exactly one sweep per branch, never both.
     find "$dir" -mindepth 1 -type d -empty -delete 2>/dev/null
     set -l after (du -sh "$dir" 2>/dev/null | awk '{print $1}')
     echo "pi-prune-sessions: deleted $n transcript(s) older than $days days ($before -> $after)"

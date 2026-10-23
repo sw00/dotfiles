@@ -1620,6 +1620,44 @@ check_has "pi-prune-sessions: keeps the -mtime age gate" \
     '[[:space:]]-mtime' "$_PI_PRUNE"
 check "pi-prune-sessions: every -delete is guarded (-mtime or -empty)" \
     bash -c "! grep -- '-delete' '$_PI_PRUNE' | grep -qvE -- '-mtime|-empty'"
+check_has "pi-prune-sessions: default retention is 90 days" \
+    'set -l days 90' "$_PI_PRUNE"
+# The empty-dir sweep must run even when nothing is old enough: it used to sit
+# AFTER the "nothing older" early return, so empty project dirs accumulated. The
+# fresh transcript pins the other half — a sweep that ran `find` without -empty
+# (or with a wider -type) would eat it.
+if command -v fish >/dev/null 2>&1; then
+    check "pi-prune-sessions: sweeps empty project dirs, keeps a fresh transcript" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            mkdir -p "$d/.pi/agent/sessions/emptyproj" "$d/.pi/agent/sessions/freshproj"
+            : > "$d/.pi/agent/sessions/freshproj/fresh.jsonl"
+            env HOME="$d" fish -N -c "source \"$1\"; pi-prune-sessions" >/dev/null 2>&1
+            test ! -d "$d/.pi/agent/sessions/emptyproj" &&
+            test -f "$d/.pi/agent/sessions/freshproj/fresh.jsonl"' \
+        _ "$_PI_PRUNE"
+    # The OTHER branch: a directory emptied BY this run (its only transcript was old
+    # enough to delete) must be swept in the same run, not survive until the next.
+    check "pi-prune-sessions: removes a dir emptied by THIS run" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            mkdir -p "$d/.pi/agent/sessions/oldproj"
+            : > "$d/.pi/agent/sessions/oldproj/old.jsonl"
+            touch -t 200001010000 "$d/.pi/agent/sessions/oldproj/old.jsonl"
+            env HOME="$d" fish -N -c "source \"$1\"; pi-prune-sessions" >/dev/null 2>&1
+            test ! -d "$d/.pi/agent/sessions/oldproj"' \
+        _ "$_PI_PRUNE"
+    # A fresh transcript in its own dir must survive the post-delete sweep too: a
+    # sweep that lost its -empty guard (or ran without -type d) would eat it.
+    check "pi-prune-sessions: the post-delete sweep keeps a fresh transcript" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            mkdir -p "$d/.pi/agent/sessions/oldproj" "$d/.pi/agent/sessions/freshproj"
+            : > "$d/.pi/agent/sessions/oldproj/old.jsonl"
+            touch -t 200001010000 "$d/.pi/agent/sessions/oldproj/old.jsonl"
+            : > "$d/.pi/agent/sessions/freshproj/fresh.jsonl"
+            env HOME="$d" fish -N -c "source \"$1\"; pi-prune-sessions" >/dev/null 2>&1
+            test ! -d "$d/.pi/agent/sessions/oldproj" &&
+            test -f "$d/.pi/agent/sessions/freshproj/fresh.jsonl"' \
+        _ "$_PI_PRUNE"
+fi
 
 # ── pi settings drift ────────────────────────────────────────────────────────
 # pi persists runtime state (selected model, theme, thinking level,
@@ -2026,6 +2064,14 @@ check_has "pwt: stores the reload survival check before testing it" \
     'set -l alive' "$_PWT"
 check_has "pwt: the doc says what --stash preserves" \
     'pwt-removed' "$DOTFILES/docs/PWT.md"
+# The dormant listing is a stated contract, not an implementation detail: a future
+# editor must not quietly fold it back into `pwt ls` and lose the panel's guarantee.
+check_has "pwt: the doc lists the dormant listing" \
+    'pwt ls --all' "$DOTFILES/docs/PWT.md"
+# The dormant state is a SEPARATE helper, not folded into `case ls`, and reads the
+# repo's common dir the same way the info/exclude write does.
+check_has "pwt: ls --all has its own read-only helper" \
+    '__pwt_ls_all' "$_PWT"
 
 # The written contract. pwt's design lives in code comments and this suite; a real
 # tool ships the parts a user has to know.
@@ -2224,6 +2270,11 @@ if command -v fish >/dev/null 2>&1; then
         _ps_t new-window -dP -F '#{pane_id}' -t zlast: -n hand \
             -c "$_ps_dir/repo/__worktrees/demo6" \
             "printf '\\033]2;π - hand\\007'; exec sleep 300"
+        # `printf` sets the title BEFORE the `exec`, so until that exec lands the pane
+        # pid is still the shell — which the revive predicate would read as resurrect's
+        # leftover and respawn. Wait for the steady state a real hand-started pi is in
+        # (a shell WITH a pi child, which revive's child check excludes).
+        sleep 0.3
         _ps_run demo6
         _ps_t list-panes -a -F '#{session_name}|#{window_name}' > "$_ps_dir/panes8"
         check "pwt: a spawn with no project session falls back to the caller's" \
@@ -2250,6 +2301,256 @@ if command -v fish >/dev/null 2>&1; then
             _ "$_ps_dir/panes8"
         _ps_t kill-server >/dev/null 2>&1
         rm -rf "$_ps_dir"
+
+        # ── pwt revive: a resurrect restore leaves a worktree window bare ──────
+        # resurrect saves NO command for a pwt pane (its strategy reads the pane
+        # pid's CHILDREN, and pane_pid IS pi), no @user options and no durable title,
+        # so C-r brings back a bare shell in the worktree. `pwt <slug>` (and the
+        # panel's enter, which runs it) must ADOPT that pane rather than open a
+        # second window, and `pwt revive` must repair one explicitly. Every pane
+        # here is built the way resurrect builds it — `new-window -d -c <wt>` with NO
+        # command — because a command would leave tmux's shell wrapper on the pane
+        # pid and the idle-shell predicate would see the wrapper, not pi.
+        _rv_dir="$(mktemp -d)"
+        _rv_sock="$_rv_dir/sock"
+        mkdir -p "$_rv_dir/stub" "$_rv_dir/xdg/fish/functions" "$_rv_dir/res"
+        printf '#!/bin/sh\nexec sleep 300\n' > "$_rv_dir/stub/pi"
+        chmod +x "$_rv_dir/stub/pi"
+        # pwt must be reachable the way the HOOK reaches it (fish autoload of the
+        # function name), so the hook test drives the real command, not a `source`
+        # shortcut that could hide a broken autoload.
+        ln -s "$_PWT" "$_rv_dir/xdg/fish/functions/pwt.fish"
+        git init -q "$_rv_dir/repo"
+        git -C "$_rv_dir/repo" config user.email t@t
+        git -C "$_rv_dir/repo" config user.name t
+        echo x > "$_rv_dir/repo/f"
+        git -C "$_rv_dir/repo" add f
+        git -C "$_rv_dir/repo" -c commit.gpgsign=false commit -qm init
+        for _rv_s in demo demo2 demo3 demo4 demo5 demo6 demo7 demo8 demo9 demo10 \
+            demo11 demo12 demo13 demo14 demo15 demo16; do
+            git -C "$_rv_dir/repo" worktree add -q -b "$_rv_s" \
+                "$_rv_dir/repo/__worktrees/$_rv_s"
+        done
+        # PATH reaches BOTH the tmux server (a respawn resolves `pi` there) and the
+        # fish that runs pwt — never exported, so later checks cannot find the stub.
+        _rv_path="$_rv_dir/stub:$PATH"
+        _rv_t() { tmux -S "$_rv_sock" "$@"; }
+        _rv_wt() { printf '%s' "$_rv_dir/repo/__worktrees/$1"; }
+        _rv_run() {
+            # $3 is an optional TMUX_PANE override. Every other test empties it (see
+            # the note below), but the item-3 fixture must prove the gate fires when
+            # pwt runs INSIDE the restored shell, which is the only way it can.
+            env TMUX="$_rv_sock" TMUX_PANE="$3" PATH="$_rv_path" PWT_FORWARD_ENV= \
+                fish -N -c "source $_PWT; cd '$_rv_dir/repo'; pwt $1" >"$_rv_dir/out-$2" 2>&1
+            echo $? >"$_rv_dir/rc-$2"
+        }
+        _rv_pane() { _rv_t list-panes -a -F '#{window_name}|#{pane_id}' | awk -F'|' -v w="$1" '$1==w{print $2}'; }
+        _rv_marked() { _rv_t list-panes -a -F '#{window_name}|#{pane_id}|#{@pwt_sid}|#{pane_pipe}' >"$_rv_dir/marked"; }
+        # TMUX_PANE is EMPTIED, never inherited: check.sh may be running inside a
+        # tmux pane, and pane ids are small per-server integers, so an inherited
+        # `%5` would collide with the test server's fifth pane and silently gate it
+        # out of the revive predicate — a mutant would then look killed when it was
+        # merely hidden. The real caller's TMUX_PANE is covered by the static check
+        # in the revive-wiring block below.
+        env PATH="$_rv_path" tmux -S "$_rv_sock" -f /dev/null \
+            new-session -d -s project -c "$_rv_dir/repo" 'sleep 300'
+        _rv_t set -g default-shell /bin/sh
+
+        # Adoption: one window, the SAME pane, now marked and tapped.
+        _rv_t new-window -d -t project: -n demo -c "$(_rv_wt demo)"
+        _rv_p1="$(_rv_pane demo)"
+        _rv_run demo a1
+        _rv_marked
+        check "pwt: pwt <slug> adopts the restored pane instead of opening a second" \
+            bash -c '[[ "$(grep -c "^demo|" "$1")" = 1 ]] && grep -qF "demo|$2|" "$1"' \
+            _ "$_rv_dir/marked" "$_rv_p1"
+        check "pwt: the adopted window records the session id recovered from the path" \
+            bash -c 'grep -qF "demo|$2|repo-demo|" "$1"' _ "$_rv_dir/marked" "$_rv_p1"
+        check "pwt: the adopted window re-attaches the state tap" \
+            bash -c 'grep -qF "demo|$2|repo-demo|1" "$1"' _ "$_rv_dir/marked" "$_rv_p1"
+
+        # The false friend: a shell can carry pi's title prefix (measured persistent
+        # on a fish that never sets its own title), so if pi-only wins over the
+        # idle-shell evidence pwt JUMPS to the shell and never revives it.
+        _rv_t new-window -d -t project: -n demo2 -c "$(_rv_wt demo2)"
+        _rv_p2="$(_rv_pane demo2)"
+        _rv_t select-pane -t "$_rv_p2" -T 'π - demo2'
+        _rv_run demo2 a2
+        _rv_marked
+        check "pwt: a spoofed pi title on an idle shell is revived, not jumped to" \
+            bash -c 'grep -qF "demo2|$2|repo-demo2|1" "$1"' _ "$_rv_dir/marked" "$_rv_p2"
+
+        # A shell WITH a child is a command running in that shell — a hand-started pi,
+        # not resurrect's leftover. Never respawn over it.
+        _rv_t new-window -d -t project: -n demo3 -c "$(_rv_wt demo3)" 'sleep 300 & wait'
+        _rv_p3="$(_rv_pane demo3)"
+        _rv_run demo3 a3
+        check "pwt: never revives a shell that has a child (a hand-started pi)" \
+            bash -c '[[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pwt_sid}")" ]] && \
+                     [[ "$(tmux -S "$1" display-message -p -t "$2" "#{pane_id}")" = "$2" ]]' \
+            _ "$_rv_sock" "$_rv_p3"
+
+        # A pane whose process is not a shell (a bare `cat`) is not resurrect's
+        # leftover either — pane_current_command would lie here, pane_pid does not.
+        _rv_t new-window -d -t project: -n demo4 -c "$(_rv_wt demo4)" 'exec cat'
+        _rv_p4="$(_rv_pane demo4)"
+        _rv_t select-pane -t "$_rv_p4" -T 'π - demo4'
+        _rv_run demo4 a4
+        check "pwt: never revives a pane that is not a shell (a cat pane)" \
+            bash -c '[[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pwt_sid}")" ]] && \
+                     [[ "$(ps -o comm= -p "$(tmux -S "$1" display-message -p -t "$2" "#{pane_pid}")")" = cat ]]' \
+            _ "$_rv_sock" "$_rv_p4"
+
+        # Two idle panes on one worktree could be two pis on one --session-id. Refuse
+        # and name them rather than pick one.
+        _rv_t new-window -d -t project: -n demo5 -c "$(_rv_wt demo5)"
+        _rv_t new-window -d -t project: -n demo5b -c "$(_rv_wt demo5)"
+        _rv_run "revive $(_rv_wt demo5)" a5
+        check "pwt: refuses to guess between two idle panes at one worktree" \
+            bash -c '[[ "$(cat "$1")" -ne 0 ]] && \
+                     ! tmux -S "$2" list-panes -a -F "#{@pwt_sid}" | grep -q "repo-demo5"' \
+            _ "$_rv_dir/rc-a5" "$_rv_sock"
+        # The SAME two-candidate fixture on the `pwt <slug>` path: it must refuse too
+        # (item 2), not fall through to `pi-only` and `new-window` and orphan both
+        # shells. A refusal that still spawned would leave the window count up by one.
+        _rv_wb5="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        _rv_run demo5 a5b
+        _rv_wa5="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        check "pwt: pwt <slug> refuses two idle panes and creates no third window" \
+            bash -c '[[ "$(cat "$1")" -ne 0 ]] && [[ "$2" = "$3" ]]' \
+            _ "$_rv_dir/rc-a5b" "$_rv_wb5" "$_rv_wa5"
+
+        # Item 3: pwt typed INSIDE the restored shell. __pwt_revive_panes excludes
+        # $TMUX_PANE (respawning it would kill pwt mid-command), so the count is 0 and
+        # without __pwt_revive_self the slug path would open a SECOND window. Setting
+        # TMUX_PANE to the candidate pane id is the only way the gate can fire.
+        _rv_t new-window -d -t project: -n demo12 -c "$(_rv_wt demo12)"
+        _rv_p12="$(_rv_pane demo12)"
+        _rv_wb12="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        _rv_run demo12 a12 "$_rv_p12"
+        _rv_wa12="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        check "pwt: pwt <slug> typed inside the restored shell refuses, no second window" \
+            bash -c '[[ "$(cat "$1")" -ne 0 ]] && [[ "$2" = "$3" ]] && \
+                     [[ -z "$(tmux -S "$4" display-message -p -t "$5" "#{@pwt_sid}")" ]]' \
+            _ "$_rv_dir/rc-a12" "$_rv_wb12" "$_rv_wa12" "$_rv_sock" "$_rv_p12"
+
+        # Item 6: the @pwt_sid gate. A marked window is a LIVE workstream, and even a
+        # bare shell sitting there must never be revived. (a) `pwt <slug>` must find it
+        # through the identity tier and jump, creating nothing; (b) `pwt revive <dir>`
+        # must refuse — deleting the `test -z "$parts[3]"` gate would respawn it.
+        _rv_t new-window -d -t project: -n demo13 -c "$(_rv_wt demo13)"
+        _rv_p13="$(_rv_pane demo13)"
+        _rv_t set-window-option -t "$_rv_p13" @pwt_sid repo-demo13
+        # The RECORDED path is compared against __pwt_realpath, so store the resolved
+        # form: _rv_dir comes from mktemp -d under /var, a symlink to /private/var.
+        _rv_t set-window-option -t "$_rv_p13" @pwt_dir "$(cd "$(_rv_wt demo13)" && pwd -P)"
+        _rv_wb13="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        _rv_run demo13 a13
+        _rv_wa13="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        check "pwt: pwt <slug> jumps to a marked workstream, creates no window" \
+            bash -c '[[ "$2" = "$3" ]] && \
+                     [[ "$(tmux -S "$1" display-message -p -t project: "#{window_name}")" = "demo13" ]]' \
+            _ "$_rv_sock" "$_rv_wb13" "$_rv_wa13" "$_rv_p13"
+        _rv_run "revive $(_rv_wt demo13)" a13b
+        check "pwt: revive never touches a marked workstream window" \
+            bash -c '[[ "$(cat "$1")" -ne 0 ]] && \
+                     [[ "$(tmux -S "$2" display-message -p -t "$3" "#{@pwt_sid}")" = "repo-demo13" ]]' \
+            _ "$_rv_dir/rc-a13b" "$_rv_sock" "$_rv_p13"
+
+        # Ordering: the pi-title fallback must WIN over the self-pane refusal. An
+        # unmarked pi started by hand in this worktree is reached by its cwd, and a bare
+        # shell pwt happens to be typed into must not steal that jump. Kills the mutant
+        # that hoists the self refusal above `__pwt_window_for … pi-only`.
+        _rv_t new-window -d -t project: -n demo15 -c "$(_rv_wt demo15)" 'sleep 300'
+        _rv_t select-pane -t "$(_rv_pane demo15)" -T 'π - demo15'
+        _rv_t new-window -d -t project: -n demo15shell -c "$(_rv_wt demo15)"
+        _rv_p14="$(_rv_pane demo15shell)"
+        _rv_wb14="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        _rv_run demo15 a14 "$_rv_p14"
+        _rv_wa14="$(_rv_t list-windows -a -F '#{window_id}' | wc -l | tr -d ' ')"
+        check "pwt: a hand-started pi in the worktree wins over the self-pane refusal" \
+            bash -c '[[ "$2" = "$3" ]] && \
+                     [[ "$(tmux -S "$1" display-message -p -t project: "#{window_name}")" = "demo15" ]] && \
+                     ! grep -q "is a bare shell for" "$4"' \
+            _ "$_rv_sock" "$_rv_wb14" "$_rv_wa14" "$_rv_dir/out-a14"
+
+        # Bulk revive (the hook's path) must only respawn + mark + tap: a jump/snap
+        # would undo the session resurrect chose moments before the hook fires.
+        _rv_t new-session -d -s other -c "$_rv_dir/repo" 'sleep 300'
+        _rv_t new-window -d -t other: -n demo6 -c "$(_rv_wt demo6)"
+        _rv_active_before="$(_rv_t display-message -p -t other: '#{window_id}')"
+        _rv_run "revive $(_rv_wt demo6)" a6
+        _rv_active_after="$(_rv_t display-message -p -t other: '#{window_id}')"
+        check "pwt: bulk revive never jumps (the active window is unchanged)" \
+            test "$_rv_active_before" = "$_rv_active_after"
+        check "pwt: bulk revive never snaps (the window keeps its session)" \
+            bash -c 'tmux -S "$1" list-panes -a -F "#{window_name}|#{session_name}|#{@pwt_sid}" | grep -q "^demo6|other|repo-demo6$"' \
+            _ "$_rv_sock"
+
+        # Dry run reports and changes nothing.
+        _rv_t new-window -d -t project: -n demo7 -c "$(_rv_wt demo7)"
+        _rv_p7="$(_rv_pane demo7)"
+        _rv_run "revive --dry-run $(_rv_wt demo7)" a7
+        check "pwt: revive --dry-run mutates nothing" \
+            bash -c '[[ "$(cat "$3")" = 0 ]] && \
+                     [[ -z "$(tmux -S "$1" display-message -p -t "$2" "#{@pwt_sid}")" ]] && \
+                     [[ "$(tmux -S "$1" display-message -p -t "$2" "#{pane_pipe}")" != 1 ]]' \
+            _ "$_rv_sock" "$_rv_p7" "$_rv_dir/rc-a7"
+
+        # The post-restore hook: the SAVED pane title is the evidence that a pane WAS
+        # pi. A shell merely left in a worktree at save time must not gain a pi.
+        _rv_t new-window -d -t project: -n demo8 -c "$(_rv_wt demo8)"
+        _rv_t new-window -d -t project: -n demo9 -c "$(_rv_wt demo9)"
+        {
+            printf 'pane\tproject\t8\t1\t:-\t1\tπ - demo8\t:%s\t1\tfish\t9001\t0\n' "$(_rv_wt demo8)"
+            printf 'pane\tproject\t9\t0\t:-\t1\tdemo9 - fish\t:%s\t1\tfish\t9002\t0\n' "$(_rv_wt demo9)"
+        } > "$_rv_dir/res/save"
+        ln -sf "$_rv_dir/res/save" "$_rv_dir/res/last"
+        _rv_hook() {
+            env TMUX="$_rv_sock" TMUX_PANE= PATH="$_rv_path" PWT_FORWARD_ENV= \
+                PWT_RESURRECT_DIR="$_rv_dir/res" XDG_CONFIG_HOME="$_rv_dir/xdg" \
+                "$DOTFILES/base/tmux/bin/pwt-revive-restored" >"$_rv_dir/hook-out" 2>&1
+        }
+        _rv_hook
+        sleep 0.5
+        _rv_marked
+        check "pwt: the post-restore hook revives a pane whose SAVED title was pi's" \
+            bash -c 'grep -qF "|repo-demo8|" "$1"' _ "$_rv_dir/marked"
+        check "pwt: the hook leaves a shell merely left in a worktree alone" \
+            bash -c '! grep -qF "|repo-demo9|" "$1"' _ "$_rv_dir/marked"
+        # Kill switch: read by the HOOK only (the explicit verb keeps working).
+        _rv_t new-window -d -t project: -n demo10 -c "$(_rv_wt demo10)"
+        printf 'pane\tproject\t10\t1\t:-\t1\tπ - demo10\t:%s\t1\tfish\t9003\t0\n' \
+            "$(_rv_wt demo10)" > "$_rv_dir/res/save"
+        _rv_t set -g @pwt_revive 0
+        _rv_hook
+        sleep 0.3
+        _rv_marked
+        check "pwt: @pwt_revive 0 mutes the post-restore hook" \
+            bash -c '! grep -qF "|repo-demo10|" "$1"' _ "$_rv_dir/marked"
+        _rv_t set -g @pwt_revive 1
+
+        # Item 7: save-dir resolution with NO seam. Every hook test above sets
+        # PWT_RESURRECT_DIR, so the @resurrect-dir branch — which resurrect itself
+        # honours, and which a user who sets it expects the hook to honour too — was
+        # unexercised. Set the option on the server and run the hook without the seam.
+        _rv_t new-window -d -t project: -n demo14 -c "$(_rv_wt demo14)"
+        mkdir -p "$_rv_dir/resopt"
+        printf 'pane\tproject\t14\t1\t:-\t1\tπ - demo14\t:%s\t1\tfish\t9004\t0\n' \
+            "$(_rv_wt demo14)" > "$_rv_dir/resopt/save"
+        ln -sf "$_rv_dir/resopt/save" "$_rv_dir/resopt/last"
+        _rv_t set -g @resurrect-dir "$_rv_dir/resopt"
+        env TMUX="$_rv_sock" TMUX_PANE= PATH="$_rv_path" PWT_FORWARD_ENV= \
+            XDG_CONFIG_HOME="$_rv_dir/xdg" HOME="$_rv_dir/nohome" \
+            "$DOTFILES/base/tmux/bin/pwt-revive-restored" >"$_rv_dir/hook-opt-out" 2>&1
+        sleep 0.5
+        _rv_marked
+        check "pwt: the hook honours @resurrect-dir (no PWT_RESURRECT_DIR seam)" \
+            bash -c 'grep -qF "|repo-demo14|" "$1"' _ "$_rv_dir/marked"
+        _rv_t set -g -u @resurrect-dir
+
+        _rv_t kill-server >/dev/null 2>&1
+        rm -rf "$_rv_dir"
     else
         _skip "pwt: window placement (behavioural)" "tmux not installed"
     fi
@@ -2277,6 +2578,61 @@ check_has "tmux.conf: the flag decays on a window switch" \
     "set-hook -g after-select-window 'set-window-option -u @pi_alert'" "$_TMUXCONF"
 check_not "tmux.conf: the decay hooks spawn no tmux client" \
     'run-shell .*@pi_alert' "$_TMUXCONF"
+
+# ── pwt revive wiring ────────────────────────────────────────────────────────
+# A respawn is the SAME operation as a reload, so it has exactly one implementation:
+# a second copy drifts (an env flag, the pane_dead survival check, the tap re-attach).
+_RV_HOOK="$DOTFILES/base/tmux/bin/pwt-revive-restored"
+check "pwt: the pi respawn has one implementation (reload and revive share it)" \
+    test "$(grep -c 'respawn-pane' "$_PWT")" = 1
+check_has "pwt: revive reaches pi by the shared respawn helper" \
+    '__pwt_respawn_pi' "$_PWT"
+check_has "pwt: revives by rescuing identity from the worktree path" \
+    '__pwt_revive_panes' "$_PWT"
+# comm/pgrep, never pane_current_command: tmux wraps a window command in a shell, so
+# pane_current_command says `fish` for a pane running `cat`.
+check_has "pwt: the idle-shell predicate reads ps comm" 'ps -o comm=' "$_PWT"
+check_has "pwt: the idle-shell predicate requires no children" 'pgrep -P' "$_PWT"
+check "pwt: revive never respawns the pane pwt itself runs in" \
+    grep -qF -- '!= "$TMUX_PANE"' "$_PWT"
+check "pwt: the revive hook exists in base/tmux/bin" test -f "$_RV_HOOK"
+check "pwt: the revive hook is executable" test -x "$_RV_HOOK"
+check "pwt: the revive hook is shellcheck clean" shellcheck -S warning "$_RV_HOOK"
+check "pwt: the revive hook parses under /bin/bash (3.2 on macOS)" \
+    /bin/bash -n "$_RV_HOOK"
+# The kill switch belongs to the hook ALONE, so `pwt revive <dir>` stays usable for
+# explicit repair while the ambient hook is muted.
+check_has "pwt: the hook reads the @pwt_revive kill switch" '@pwt_revive' "$_RV_HOOK"
+check_not "pwt: the revive verb itself ignores the kill switch" '@pwt_revive' "$_PWT"
+check_has "tmux.conf: seeds the revive kill switch on" \
+    'set -g @pwt_revive 1' "$_TMUXCONF"
+# The hook VALUE is a SHELL command, not a tmux command: resurrect's execute_hook
+# runs `eval "$hook $args"` in bash (helpers.sh:143-158), and resurrect launches the
+# restore through tmux run-shell, so the value reaches BASH, not tmux. A
+# `run-shell -b …` value is therefore `bash: run-shell: command not found`, and a
+# run-shell job's output is discarded — the hook dies SILENTLY. Reproduce resurrect's
+# eval with a stub script reachable on PATH; the old run-shell form cannot run it and
+# fails this test.
+_rv_hook_is_shell_command() {
+    local conf="$1" d hook rc
+    d=$(mktemp -d) || return 1
+    hook=$(grep -E '^set -g @resurrect-hook-post-restore-all ' "$conf" | tail -1 | cut -d"'" -f2)
+    # Point the leading `~` at the temp dir explicitly, so the assertion does not depend
+    # on this shell's HOME. The old `run-shell …` form does not start with `~`, so it is
+    # left intact and eval fails on it — which is the point.
+    hook=${hook/#\~/$d}
+    mkdir -p "$d/bin"
+    printf '#!/bin/sh\ntouch "%s/ran"\n' "$d" > "$d/bin/pwt-revive-restored"
+    chmod +x "$d/bin/pwt-revive-restored"
+    eval "$hook" >/dev/null 2>&1
+    test -f "$d/ran"; rc=$?
+    rm -rf "$d"
+    return $rc
+}
+check "tmux.conf: the post-restore hook is a shell command that actually runs" \
+    _rv_hook_is_shell_command "$_TMUXCONF"
+check_has "pwt: the doc lists the revive verb" \
+    'pwt revive' "$DOTFILES/docs/PWT.md"
 # Live (non-worktree) sessions are reached through the same window-finding code.
 check_has "pwt: exposes a jump verb for live sessions" \
     'case jump' "$_PWT"
@@ -2343,7 +2699,16 @@ check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
 # Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
 # defined until this point in the file, and grep against an empty filename fails.
 check_has "pwt-pick: reserves the new verb as a slug too" \
-    'rm\|remove\|jump\|here\|help\|ls\|close\|reload' "$_PWT_PICK"
+    'rm\|remove\|jump\|here\|help\|ls\|close\|reload\|revive' "$_PWT_PICK"
+# A dormant row is not a jump target, so the `ls --all` listing stays a shell verb:
+# the panel's rows must remain actionable, and it never grows a dead-end entry.
+check_not "pwt-pick: never prints the dormant listing" \
+    'dormant' "$_PWT_PICK"
+# The popup is not the user's pane: display-popup exports TMUX_PANE naming the client's
+# active pane, so pwt would refuse to respawn it exactly when the user is looking at a
+# restored bare shell and pressed enter. The panel clears it before running any verb.
+check_has "pwt-pick: the panel clears TMUX_PANE (a popup is not the user's pane)" \
+    'export TMUX_PANE=' "$_PWT_PICK"
 # C-x is one confirmation before the whole teardown, and a live row is closeable —
 # nothing in the panel asks the user to type a command to finish the job.
 check_has "pwt-pick: ctrl-x runs the confirmed teardown" \
@@ -2484,6 +2849,62 @@ if command -v fish >/dev/null 2>&1; then
     rm -rf "$_pwt_ls_tmp"
 fi
 
+# `pwt ls --all` is the DORMANT half of the listing: plain `pwt ls` is the panel's
+# rows and goes blank the moment a workstream is torn down, so the remains — a kept
+# branch, a pwt stash, a parked pwt-removed/ dir — get their own read-only verb.
+# Asserted on a FABRICATED repo, never the developer's: the fixture spells out all
+# three remains plus a live worktree and a quiet repo, so inclusion and omission are
+# both pinned. TMUX is unset because the verb must be pure git (a plain terminal).
+if command -v fish >/dev/null 2>&1; then
+    _pwt_dorm_tmp="$(mktemp -d)"
+    _pwt_dorm_src="$_pwt_dorm_tmp/src"
+    _pwt_dorm_repo="$_pwt_dorm_src/repo"
+    git init -q -b main "$_pwt_dorm_repo"
+    git -C "$_pwt_dorm_repo" config user.email t@t
+    git -C "$_pwt_dorm_repo" config user.name t
+    echo x > "$_pwt_dorm_repo/f"
+    git -C "$_pwt_dorm_repo" add f
+    git -C "$_pwt_dorm_repo" -c commit.gpgsign=false commit -qm init
+    # 1. a kept, unmerged branch: no `__worktrees/` dir, exactly what `pwt rm` leaves
+    git -C "$_pwt_dorm_repo" branch keepme
+    # 2. a live worktree, which plain `pwt ls` owns and --all must not repeat
+    git -C "$_pwt_dorm_repo" worktree add -q -b live "$_pwt_dorm_repo/__worktrees/live"
+    echo change >> "$_pwt_dorm_repo/f"
+    git -C "$_pwt_dorm_repo" stash push -q -m "pwt: removed gone 20260101T000000Z"
+    echo other >> "$_pwt_dorm_repo/f"
+    git -C "$_pwt_dorm_repo" stash push -q -m "unrelated work"
+    # 3. a parked-ignored-files dir under the MAIN repo's common dir
+    mkdir -p "$_pwt_dorm_repo/.git/pwt-removed/gone-20260101T000000Z"
+    # a repo with nothing dormant must not appear at all (non-empty sections only)
+    git init -q -b main "$_pwt_dorm_src/quiet"
+    git -C "$_pwt_dorm_src/quiet" config user.email t@t
+    git -C "$_pwt_dorm_src/quiet" config user.name t
+    echo q > "$_pwt_dorm_src/quiet/q"
+    git -C "$_pwt_dorm_src/quiet" add q
+    git -C "$_pwt_dorm_src/quiet" -c commit.gpgsign=false commit -qm init
+    env -u TMUX PWT_SRC="$_pwt_dorm_src" HOME=/nonexistent fish -N \
+        -c "source $_PWT; pwt ls --all" > "$_pwt_dorm_tmp/all.out" 2>&1
+    env -u TMUX PWT_SRC="$_pwt_dorm_src" HOME=/nonexistent PWT_PICK="$_PWT_PICK" fish -N \
+        -c "source $_PWT; pwt ls" > "$_pwt_dorm_tmp/ls.out" 2>&1
+    check "pwt: ls --all lists a kept branch with no worktree" \
+        grep -qx '    keepme' "$_pwt_dorm_tmp/all.out"
+    check "pwt: ls --all omits the branch of a LIVE worktree" \
+        bash -c '! grep -qx "    live" "$1"' _ "$_pwt_dorm_tmp/all.out"
+    check "pwt: ls --all omits the checked-out main branch" \
+        bash -c '! grep -qx "    main" "$1"' _ "$_pwt_dorm_tmp/all.out"
+    check "pwt: ls --all shows pwt stashes and nothing else" \
+        bash -c 'grep -qF "pwt: removed gone" "$1" && ! grep -qF "unrelated work" "$1"' \
+        _ "$_pwt_dorm_tmp/all.out"
+    check "pwt: ls --all shows the parked ignored-files dir" \
+        grep -qx '    gone-20260101T000000Z' "$_pwt_dorm_tmp/all.out"
+    check "pwt: ls --all prints no repo that has nothing dormant" \
+        bash -c '! grep -q quiet "$1"' _ "$_pwt_dorm_tmp/all.out"
+    check "pwt: plain ls is unchanged (the panel's rows, no dormant section)" \
+        bash -c 'grep -qF "repo/live" "$1" && ! grep -qi dormant "$1"' \
+        _ "$_pwt_dorm_tmp/ls.out"
+    rm -rf "$_pwt_dorm_tmp"
+fi
+
 # Completions live in base/fish/completions, which the fish .gitignore ignores by
 # default: the allowlist negation is the load-bearing part, same trap as functions/.
 _PWT_COMP="$DOTFILES/base/fish/.config/fish/completions/pwt.fish"
@@ -2498,6 +2919,17 @@ if command -v fish >/dev/null 2>&1; then
             mkdir -p __worktrees/demo
             out=$(fish -N -c "source $1; complete -C \"pwt \"; complete -C \"pwt rm \"")
             grep -q "^ls" <<<"$out" && grep -q "^demo" <<<"$out"' \
+        _ "$_PWT_COMP"
+    check "pwt completions: --all is offered for the ls verb" \
+        bash -c 'out=$(fish -N -c "source $1; complete -C \"pwt ls --\""); grep -q "^--all" <<<"$out"' \
+        _ "$_PWT_COMP"
+    # `revive` is a first-class verb (pwt help, reject_reserved, docs/PWT.md), so it
+    # must complete at the verb position AND keep file completion for its <dir> arg.
+    check "pwt completions: revive is offered and takes a directory" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; : > "$d/markerfile"
+            out=$(cd "$d" && fish -N -c "source $1; complete -C \"pwt rev\"")
+            fout=$(cd "$d" && fish -N -c "source $1; complete -C \"pwt revive \"")
+            grep -q "^revive" <<<"$out" && grep -q "^markerfile" <<<"$fout"' \
         _ "$_PWT_COMP"
 fi
 
@@ -3256,6 +3688,97 @@ check "pi-prune: no conf.d auto-prune (sessions are kept, not deleted)" \
     test ! -e "$_PI_PRUNE_SCHED"
 check_has "pi-prune-sessions: documents that it is manual-only" \
     'MANUAL ONLY' "$_PI_PRUNE"
+
+# ── git-prune-merged ─────────────────────────────────────────────────────────
+# The branch-hygiene half of the manual tooling. Only `--merged` is a safe gate:
+# an abandoned PR's branch shows a [gone] upstream but its commits are NOT in the
+# base, so a [gone]-driven prune would throw them away. The fixture spells out all
+# four cases — merged+checked-out, merged+deletable, unmerged, and unmerged with a
+# gone upstream — and proves dry-run is inert and --apply removes exactly one.
+# Fabricated repo ONLY: never the developer's.
+section "git-prune-merged"
+
+_GIT_PRUNE="$DOTFILES/base/fish/.config/fish/functions/git-prune-merged.fish"
+check "git-prune-merged: function exists in base/fish" test -f "$_GIT_PRUNE"
+check_has "git-prune-merged: not gitignored (fish allowlist negation present)" \
+    '!functions/git-prune-merged\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+check_has "git-prune-merged: candidates come from --merged" \
+    'branch --merged' "$_GIT_PRUNE"
+check_has "git-prune-merged: excludes branches held by worktrees" \
+    'worktree list --porcelain' "$_GIT_PRUNE"
+check_has "git-prune-merged: --apply uses branch -d" \
+    'branch -d' "$_GIT_PRUNE"
+check_not "git-prune-merged: never force-deletes (no branch -D)" \
+    'branch -D' "$_GIT_PRUNE"
+check_has "git-prune-merged: --fetch runs git fetch --prune" \
+    'fetch --prune' "$_GIT_PRUNE"
+if command -v fish >/dev/null 2>&1; then
+    check "git-prune-merged: parses (fish -n)" fish -n "$_GIT_PRUNE"
+
+    _gp="$(mktemp -d)"
+    _gp_repo="$_gp/repo"
+    _gp_bare="$_gp/origin.git"
+    git init -q -b main "$_gp_repo"
+    git -C "$_gp_repo" config user.email t@t
+    git -C "$_gp_repo" config user.name t
+    echo base > "$_gp_repo/f"; git -C "$_gp_repo" add f
+    git -C "$_gp_repo" -c commit.gpgsign=false commit -qm base
+    # merged-worktree: merged into main but held by a LINKED worktree. HEAD stays
+    # on main so `git branch -d` can succeed at all — it merges against HEAD, not
+    # the base — which is exactly why the deletable branch must NOT be checked out.
+    git -C "$_gp_repo" checkout -q -b merged-worktree
+    echo w > "$_gp_repo/w"; git -C "$_gp_repo" add w
+    git -C "$_gp_repo" -c commit.gpgsign=false commit -qm w
+    git -C "$_gp_repo" checkout -q main
+    git -C "$_gp_repo" merge -q --ff-only merged-worktree
+    git -C "$_gp_repo" worktree add -q "$_gp/wt" merged-worktree
+    # merged-deletable: merged into main, checked out nowhere (must be deleted)
+    git -C "$_gp_repo" checkout -q -b merged-deletable
+    echo d > "$_gp_repo/d"; git -C "$_gp_repo" add d
+    git -C "$_gp_repo" -c commit.gpgsign=false commit -qm d
+    git -C "$_gp_repo" checkout -q main
+    git -C "$_gp_repo" merge -q --ff-only merged-deletable
+    # unmerged: a commit absent from main (must survive the merge gate)
+    git -C "$_gp_repo" checkout -q -b unmerged
+    echo u > "$_gp_repo/u"; git -C "$_gp_repo" add u
+    git -C "$_gp_repo" -c commit.gpgsign=false commit -qm u
+    # gone-unmerged: unmerged AND its upstream was deleted — [gone] is NOT a merge
+    # signal, so it must survive too.
+    git init -q --bare "$_gp_bare"
+    git -C "$_gp_repo" remote add origin "$_gp_bare"
+    git -C "$_gp_repo" checkout -q -b gone-unmerged
+    echo g > "$_gp_repo/g"; git -C "$_gp_repo" add g
+    git -C "$_gp_repo" -c commit.gpgsign=false commit -qm g
+    git -C "$_gp_repo" push -q -u origin gone-unmerged
+    git -C "$_gp_repo" push -q origin --delete gone-unmerged
+    git -C "$_gp_repo" update-ref -d refs/remotes/origin/gone-unmerged
+    git -C "$_gp_repo" checkout -q main
+    # Sanity: the fixture must really show [gone] and really hold a worktree, or
+    # those two exclusion cases are vacuous.
+    check "git-prune-merged fixture: [gone] branch is unmerged and a worktree holds one" \
+        bash -c 'git -C "$1" branch -vv | grep -q "\[origin/gone-unmerged: gone\]" &&
+            ! git -C "$1" branch --merged main --format="%(refname:short)" | grep -qxF gone-unmerged &&
+            git -C "$1" worktree list --porcelain | grep -qxF "branch refs/heads/merged-worktree"' \
+        _ "$_gp_repo"
+    check "git-prune-merged: dry-run lists only the deletable merge, deletes nothing" \
+        bash -c 'out=$(cd "$1" && fish -N -c "source $2; git-prune-merged" 2>&1)
+            grep -qxF "  merged-deletable" <<<"$out" || exit 1
+            ! grep -qxF "  main" <<<"$out" || exit 1
+            ! grep -qxF "  merged-worktree" <<<"$out" || exit 1
+            ! grep -qxF "  unmerged" <<<"$out" || exit 1
+            ! grep -qxF "  gone-unmerged" <<<"$out" || exit 1
+            git -C "$1" show-ref --verify --quiet refs/heads/merged-deletable' \
+        _ "$_gp_repo" "$_GIT_PRUNE"
+    check "git-prune-merged: --apply deletes exactly the deletable merge" \
+        bash -c 'cd "$1" && fish -N -c "source $2; git-prune-merged --apply" >/dev/null 2>&1
+            ! git -C "$1" show-ref --verify --quiet refs/heads/merged-deletable || exit 1
+            git -C "$1" show-ref --verify --quiet refs/heads/merged-worktree || exit 1
+            git -C "$1" show-ref --verify --quiet refs/heads/unmerged || exit 1
+            git -C "$1" show-ref --verify --quiet refs/heads/gone-unmerged || exit 1
+            git -C "$1" show-ref --verify --quiet refs/heads/main' \
+        _ "$_gp_repo" "$_GIT_PRUNE"
+    rm -rf "$_gp"
+fi
 
 # ── pi installation method ───────────────────────────────────────────────────
 # pi is deliberately NOT mise-managed (AGENTS.md: self-updating apps with their

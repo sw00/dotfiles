@@ -19,14 +19,28 @@ pins a session id, and this is it.
 | `pwt close <dir>` | end a LIVE workstream: close the pi window at `<dir>` |
 | `pwt jump <dir>` | go to the pi window whose pane cwd is `<dir>`, moving a pwt window back into its repo's session on the way (see below) |
 | `pwt reload [--force] <dir>` | restart the pi window at `<dir>` against the current `secrets/env.fish` (see below) |
+| `pwt revive [--dry-run] <dir>…` | re-open pi in a worktree window a tmux-resurrect restore left as a bare shell (see below) |
 | `pwt ls` | list workstreams from a shell — the panel's own rows, in its order |
+| `pwt ls --all` | read-only dormant listing per repo under `$PWT_SRC`: kept branches, `pwt` stashes, parked `pwt-removed/` dirs |
 | `pwt help` | usage |
 
 `pwt ls` prints `<label>\t<path>\t<wt|live>`, the panel's `--list` contract, so a
 script and the panel cannot disagree about what exists.
 
+`pwt ls --all` is the counterpart for what a teardown leaves behind, and is the one
+listing the panel deliberately does NOT print — a dormant row is not a jump target.
+It is read-only git (no tmux, so it works from a plain terminal) and walks the repos
+under `$PWT_SRC`, printing a repo only when at least one section is non-empty: local
+branches that have no `__worktrees/<slug>` worktree (any of which re-running
+`pwt <slug>` checks back out), `git stash list` entries whose message contains
+`pwt`, and the entries under `<git-common-dir>/pwt-removed/`.
+
 Re-running `pwt <slug>` is the resume path: an existing window is reused, never
-duplicated. Duplicating would be worse than untidy — two pi processes on one
+duplicated — **unless a tmux-resurrect restore left it as a bare shell**, which has
+neither the `@pwt_sid` marker nor a durable pi title, so `pwt <slug>` cannot recognise
+it and must ADOPT it by path instead of opening a second window (see “After a
+tmux-resurrect restore”). Duplicating would be worse than untidy — two pi processes
+on one
 `--session-id` open the SAME transcript JSONL and each rewrites it from its own
 memory, so turns are silently lost. That is why the window records `@pwt_sid` +
 `@pwt_dir`; the cwd is only a fallback, for windows that predate the marker and for a
@@ -119,6 +133,47 @@ empty answer accepts the suggestion, anything you type replaces it, and `ctrl-c`
 aborts. `pwt` re-validates it (the panel only reserves its own verb names), so a
 refusal keeps the popup open to be read.
 
+## After a tmux-resurrect restore
+
+`C-r` brings sessions, windows and layout back, but a pwt workstream window comes back
+as a **bare shell**: resurrect's default save strategy records the CHILDREN of the pane
+pid, and a pwt pane runs `pi --session-id <sid>` with no shell, so its saved command is
+empty; `@user` options (`@pwt_sid`, `@pwt_dir`, the OSC tap) are not saved either; and
+the `π - <slug>` title resurrect restores is overwritten by the shell. Left alone,
+`C-w` → enter and `pwt <slug>` would open a SECOND window and orphan the restored one.
+
+Two surfaces repair it:
+
+- **`pwt <slug>` / the panel's `enter`** adopt a restored window: same pane, same
+  window, `pi` respawned into it and the identity re-marked. The worktree PATH carries
+  the identity (`<root>/__worktrees/<slug>` → `<repo basename>-<slug>`).
+- **`pwt revive <dir>…`** is the same repair as an explicit verb; `--dry-run` reports
+  what it would do and changes nothing.
+
+By default `C-r` also triggers a post-restore hook (`@resurrect-hook-post-restore-all`
+→ `~/bin/pwt-revive-restored`) that reads the save file's **saved pane titles** and
+revives only the paths a pane that WAS pi occupied — a shell merely `cd`'d into a
+worktree at save time is left alone. `tmux set -g @pwt_revive 0` mutes the hook; the
+`pwt revive` verb keeps working (the switch is read only by the hook). The hook never
+`switch-client`s or moves windows, because `post-restore-all` fires last and a jump
+there would undo the session resurrect just chose.
+
+A revive only ever touches a pane that is a bare, IDLE shell whose cwd is exactly the
+worktree path: a live pi (`node`), a shell with a child (a hand-started pi), a marked
+workstream, the pane `pwt` runs in, and a worktree with more than one idle pane are all
+refused. `comm(pane_pid)` + no children is the discriminator — `pane_current_command`
+lies, because tmux wraps a window command in a shell. See `TODO.md`.
+
+Two consequences worth knowing. **Adoption outranks the title**: the `π - ` prefix is
+what a restored shell can spoof, so demonstrable idle-shell evidence at the worktree
+path is trusted FIRST and the pane title only decides what is left — that is why a
+restored pane is revived rather than jumped to. And **the pane `pwt` is typed into is
+refused, never duplicated**: a bare shell sitting in the worktree root cannot be
+respawned without killing the `pwt` running in it, so `pwt <slug>` says so rather than
+opening a second window. A shell that merely `cd`'d into a worktree root is
+indistinguishable from a restored one and is refused the same way — get in through the
+panel's `enter` (a popup, so it has no such pane) or from another pane.
+
 ## Worktree vs in-place
 
 `pwt here` exists for repos a fresh checkout cannot serve: a git-crypt repo fails
@@ -197,7 +252,8 @@ row; `enter` still reuses a window without restarting it.
 - The branch named after the slug.
 - After `pwt rm --stash`: one stash entry per removed worktree (`git stash list`) and
   `<git-common-dir>/pwt-removed/<slug>-<stamp>/` holding whatever was ignored. Both are
-  yours to delete once you are sure.
+  yours to delete once you are sure. `pwt ls --all` lists all three — the kept branch
+  included — so a recovery surface exists after the worktree and window are gone.
 
 ## Removal
 
@@ -253,8 +309,9 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 - `$PWT_SRC` is both the panel's worktree scan and the `C-f` picker's zoxide scope.
   A worktree created outside it (reachable through `ctrl-r`) is not a panel row once
   its window closes; `pwt rm <slug>` still works.
-- `pi-prune-sessions` drops transcripts untouched for 30 days, so a workstream idle
-  longer than that starts fresh.
+- `pi-prune-sessions` drops transcripts untouched for 90 days, so a workstream idle
+  longer than that starts fresh. It is MANUAL ONLY — never schedule or auto-run it:
+  the transcripts are the only source for session review and the `/usage` dashboard.
 - Session ids are `<repo basename>-<slug>`, so they are not unique across repos. pi
   namespaces transcripts by project directory, so that is only a window-handle
   concern — which is why windows carry `@pwt_dir` too.
@@ -264,16 +321,26 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
   entry), so `pwt <slug>` resumes — but an in-flight turn is lost. That is also the
   point: the project owns its workstreams. Note resurrect brings the WINDOW back, not
   the pi process (`@resurrect-processes` lists no `pi`), so a restored window comes
-  back with a shell, not an agent.
+  back with a shell, not an agent: re-running `pwt <slug>` or `pwt revive <dir>` — or
+  the post-restore hook — respawns the agent in it (see “After a tmux-resurrect
+  restore”).
 - With more than one client attached, the client that moves is the one pwt was run from
   (`switch-client` is not given `-c`): any other client keeps what it was showing, and
   loses its place only if its own session is the one a move empties.
 
 ## If you change this
 
-Six invariants are load-bearing here: none of them is obvious from the line it
+Eight invariants are load-bearing here: none of them is obvious from the line it
 constrains. Read the comment before changing the line — the mechanism is written down
 there, not just the rule.
+
+- **One `respawn-pane`, in `__pwt_respawn_pi`.** `pwt reload` and `pwt revive` are the
+  same restart (same pane, same env flag, same `pane_dead` survival check, same tap
+  re-attach); a second copy drifts, and `check.sh` asserts the count is one.
+- **A restored pane is adopted only when it is an IDLE shell** — `comm(pane_pid)` is a
+  shell (login `-sh` included) and it has no children. The `π -` title is a prefix a
+  shell can carry, so it must never outrank that evidence; and a pane with a child, a
+  marked workstream, a non-shell, or the pane `pwt` runs in is never respawned.
 
 - **Window identity is `@pwt_sid` + `@pwt_dir` together.** The sid comes from the repo
   basename, so on its own it is not unique across repos or between `here` and a
