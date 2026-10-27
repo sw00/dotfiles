@@ -1213,7 +1213,7 @@ check "pi shared core: no telegram/agentbox/tg-* references (deployment leakage)
         '$DOTFILES/base/pi/.pi/agent/agents' \
         '$DOTFILES/base/pi/.pi/agent/APPEND_SYSTEM.md' \
         '$DOTFILES/base/pi/.pi/agent/AGENTS.md' \
-        '$DOTFILES/base/pi/.pi/agent/settings.json'"
+        '$DOTFILES/base/pi/.pi/agent/settings.desired.json'"
 
 # Public documentation must remain deployment-blind. Host-specific details
 # belong in the deployment repository, not this general-purpose public repo.
@@ -1306,7 +1306,7 @@ with open('$DOTFILES/base/pi/.pi/web-search.json') as f:
     ws = json.load(f)
 bail_free([ws.get('summaryModel', '')], 'web-search.json:summaryModel')
 
-with open('$DOTFILES/base/pi/.pi/agent/settings.json') as f:
+with open('$DOTFILES/base/pi/.pi/agent/settings.desired.json') as f:
     s = json.load(f)
 bail_free([s.get('defaultModel', '')], 'settings.json:defaultModel')
 bail_free(s.get('enabledModels', []), 'settings.json:enabledModels')
@@ -1343,13 +1343,13 @@ if cd is not None and not (isinstance(cd, int) and cd > 0):
 # auth. pi's native `/login` route is third-party-repriced and keeps no
 # credential (docs/GOTCHAS.md), so nothing here may pin `anthropic/*`.
 check_not "pi settings: pi-claude-auth package removed (migrated to claude-bridge)" \
-    'pi-claude-auth' "$DOTFILES/base/pi/.pi/agent/settings.json"
+    'pi-claude-auth' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
 check_has "pi settings: claude-bridge declared as a package" \
-    'npm:pi-claude-bridge' "$DOTFILES/base/pi/.pi/agent/settings.json"
+    'npm:pi-claude-bridge' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
 check_has "pi settings: premium roster routes through claude-bridge" \
-    'claude-bridge/claude-opus-5-5' "$DOTFILES/base/pi/.pi/agent/settings.json"
+    'claude-bridge/claude-opus-5-5' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
 # pi-claude-bridge records `startupNoticeShown` in claude-bridge.json the first
 # time it shows its settings notice — writing through the stowed symlink and
@@ -1369,7 +1369,7 @@ check_has "pi: /check mode hides indirect write paths (AskClaude, subagent)" \
 # entries (`opencode-go/kimi-k2.6`) no longer existed, so every pi start warned
 # "No models match pattern". Tombstone both so they cannot creep back.
 check_not "pi settings: kimi removed from the cycle set" \
-    'kimi' "$DOTFILES/base/pi/.pi/agent/settings.json"
+    'kimi' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
 # /chat must ride the bridge. pi's native OAuth direct route is third-party
 # repriced whenever the request carries pi's harness system prompt, which every
@@ -1397,7 +1397,7 @@ check_not "pi models: orphaned kimi OpenRouter twin removed" \
 check "pi: daily driver is one id (settings, worker agent, web-search summary)" \
     bash -c "python3 -c \"
 import json, sys
-d = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.json'))['defaultModel']
+d = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.desired.json'))['defaultModel']
 w = json.load(open('$DOTFILES/base/pi/.pi/web-search.json'))['summaryModel']
 m = None
 for line in open('$DOTFILES/base/pi/.pi/agent/agents/worker.md'):
@@ -1417,7 +1417,7 @@ if len({d, w, m}) != 1:
 check "pi: provider fallback maps a provider to a different one" \
     bash -c "python3 -c \"
 import json, sys
-s = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.json'))
+s = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.desired.json'))
 pf = s.get('providerFallbacks') or {}
 if not pf:
     sys.exit(1)
@@ -1659,145 +1659,201 @@ if command -v fish >/dev/null 2>&1; then
         _ "$_PI_PRUNE"
 fi
 
-# ── pi settings drift ────────────────────────────────────────────────────────
+# ── pi settings: tracked template vs host-local live file ────────────────────
 # pi persists runtime state (selected model, theme, thinking level,
-# lastChangelogVersion, package list) into ~/.pi/agent/settings.json, which this
-# repo owns as a stowed symlink into base/pi/.pi/agent/settings.json — so every
-# session writes into a TRACKED file. pi 1.3.0 locks those writes and merges them
-# per top-level key, so concurrent sessions do not lose each other's *unrelated*
-# keys; what remains is file-vs-HEAD drift. Left alone it gets swept into whatever
-# commit is next, and it can turn the assertions above red (defaultModel,
-# enabledModels, the kimi tombstone all read the live file).
-section "Pi settings drift"
+# lastChangelogVersion, package list) into ~/.pi/agent/settings.json on every
+# change. That path used to be a stow symlink into base/pi, so every session
+# wrote through the link into a TRACKED file: any running session left the tree
+# dirty, a commit made while one ran swept up whatever it had last selected, and
+# hosts pulling the same branch fought over the same bytes. The split below ends
+# the class:
+#   base/pi/.pi/agent/settings.desired.json  tracked INTENT, stowed, never read
+#                                            by pi — the assertions in this
+#                                            section read THIS file, so they
+#                                            stay valid on a CI checkout
+#   ~/.pi/agent/settings.json                host-local live file, never stowed,
+#                                            never tracked, written by pi
+# pi 1.3.0 merges its own writes per top-level key under a lockfile, so
+# concurrent sessions keep each other's UNRELATED keys. The residual upstream
+# races (same-key last-write-wins, the first write to an absent file, a torn
+# non-atomic write) are unchanged by this design — pi-settings-apply's header
+# documents them, and nothing here claims to fix them.
+section "Pi settings: template vs host-local live file"
 
-_PI_SETTINGS_RESET="$DOTFILES/base/fish/.config/fish/functions/pi-settings-reset.fish"
-check "pi-settings-reset: function exists in base/fish" test -f "$_PI_SETTINGS_RESET"
-# The fish .gitignore is an allowlist, so a new own-file silently drops out of the
-# repo without this (the generic class-wide guard is further down too).
-check_has "pi-settings-reset: not gitignored (fish allowlist negation present)" \
-    '!functions/pi-settings-reset\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
-if command -v fish >/dev/null 2>&1; then
-    check "pi-settings-reset: parses (fish -n)" \
-        fish -n "$_PI_SETTINGS_RESET"
+_PI_SETTINGS_APPLY="$DOTFILES/base/fish/.config/fish/functions/pi-settings-apply.fish"
+_PI_SETTINGS_TEMPLATE="$DOTFILES/base/pi/.pi/agent/settings.desired.json"
+
+check "pi settings: template exists in base/pi" test -f "$_PI_SETTINGS_TEMPLATE"
+# Tombstone: the tracked file must not be the live path again. If it returns,
+# stow relinks it and every session dirties the repo — the class this ended.
+check "pi settings: old tracked settings.json is gone (template is the only one)" \
+    test ! -e "$DOTFILES/base/pi/.pi/agent/settings.json"
+# Intent only: lastChangelogVersion is per-host state, so committing it would put
+# a host-specific value back under version control.
+check_not "pi settings: template declares no lastChangelogVersion (per-host state)" \
+    'lastChangelogVersion' "$_PI_SETTINGS_TEMPLATE"
+check "pi settings: template is tracked by git" \
+    git -C "$DOTFILES" ls-files --error-unmatch base/pi/.pi/agent/settings.desired.json
+# The migration must recognise stow's RELATIVE link (../../dotfiles/...): a raw
+# readlink never starts with an absolute $DOTFILES prefix, so a prefix test on it
+# leaves every real host unmigrated while reporting success.
+check_has "bootstrap: pi settings migration resolves the link target first" \
+    'os\.path\.realpath' "$DOTFILES/bootstrap.sh"
+check "bootstrap: pi settings migration runs after the stow block" \
+    bash -c 'm=$(grep -n "^ *migrate_pi_settings_desync$" "$1" | tail -1 | cut -d: -f1)
+        s=$(grep -n "stow_dir \"\$DOTFILES/base\"" "$1" | head -1 | cut -d: -f1)
+        test -n "$m" && test -n "$s" && test "$m" -gt "$s"' _ "$DOTFILES/bootstrap.sh"
+# Functional, through the real function: a relative stow link becomes a regular
+# file holding the target's bytes. Sourcing with main "$@" stripped is the only
+# way to reach an internal bootstrap function; the top-level is pure definition.
+check "bootstrap: pi settings migration de-references a relative stow link" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+        mkdir -p "$d/dotfiles/base/pi/.pi/agent" "$d/.pi/agent"
+        printf "%s" "{\"defaultModel\": \"mig\"}" > "$d/dotfiles/base/pi/.pi/agent/settings.desired.json"
+        ln -s ../../dotfiles/base/pi/.pi/agent/settings.desired.json "$d/.pi/agent/settings.json"
+        sed "/^main \"\$@\"$/d" "$1" > "$d/bootstrap.sh" || exit 1
+        env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; migrate_pi_settings_desync" >/dev/null 2>&1 || exit 1
+        test -f "$d/.pi/agent/settings.json" || exit 1
+        test ! -L "$d/.pi/agent/settings.json" || exit 1
+        grep -q "\"defaultModel\": \"mig\"" "$d/.pi/agent/settings.json" || exit 1
+        exit 0' _ "$DOTFILES/bootstrap.sh"
+# The live file must not be a symlink into this repo. Absent is a LOUD skip: CI
+# has no live pi state, and silence would hide that the check never ran.
+if [[ -e "$HOME/.pi/agent/settings.json" || -L "$HOME/.pi/agent/settings.json" ]]; then
+    # python realpath, not readlink -f: the latter is macOS 12.3+ only and this
+    # suite runs on mbpm3 too (bootstrap avoids it for the same reason).
+    check "pi settings: live settings.json is host-local, not a stow link" \
+        bash -c '[ ! -L "$1" ] || ! python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$1" | grep -qF "$2"' _ \
+        "$HOME/.pi/agent/settings.json" "$DOTFILES"
+else
+    _skip "pi settings: live settings.json is host-local, not a stow link" \
+        "no live pi settings on this host (CI)"
 fi
-# The two keys whose LIVE value must survive the revert, because each marks a
-# deliberate act: the upgrade marker this repo records on purpose, and
-# `pi install` / `pi remove` (reverting those would silently undo them). The
-# assertion matches the whole keep-set expression, not the bare key name — the
-# name appears in the header comment too, so a bare match would pass after the
-# key was dropped from KEEP.
-check_has "pi-settings-reset: keep set is the marker plus packages" \
-    'KEEP = .*"lastChangelogVersion", "packages"' "$_PI_SETTINGS_RESET"
-# The whole mechanism rests on the live file BEING the tracked file. When it is
-# not stowed, pi writes host-local settings and reconciling would overwrite a file
-# nothing reads — so that case must refuse, not proceed.
-check_has "pi-settings-reset: refuses when the live file is not stowed" \
-    'is not stowed to' "$_PI_SETTINGS_RESET"
-# Our write does not take pi's lock, so it has to verify exact bytes (kept keys
-# included, or a `pi install` landing mid-run is clobbered) and retry a bounded
-# number of times instead of assuming the replace landed.
-check_has "pi-settings-reset: writes atomically (os.replace)" \
-    'os\.replace\(tmp, tracked\)' "$_PI_SETTINGS_RESET"
-check_has "pi-settings-reset: verifies exact bytes after writing" \
-    'if read_bytes\(\) == out\.encode\("utf-8"\)' "$_PI_SETTINGS_RESET"
-check_has "pi-settings-reset: bounds the retry loop" \
-    'for attempt in range\(3\)' "$_PI_SETTINGS_RESET"
-# A torn pi write can leave invalid JSON, invalid UTF-8, or a non-object; all
-# three are states this exists to repair, and only HEAD has to parse.
-check_has "pi-settings-reset: treats a torn write as recoverable, not an error" \
-    'except json\.JSONDecodeError' "$_PI_SETTINGS_RESET"
-check_has "pi-settings-reset: an unreadable file is archived, not silently replaced" \
-    'settings\.json\.unparsable-' "$_PI_SETTINGS_RESET"
-check_has "pi-settings-reset: rejects non-object JSON too" \
-    'isinstance\(live, dict\)' "$_PI_SETTINGS_RESET"
-# A revert that still shows as modified is a revert that gets committed anyway.
-check_has "pi-settings-reset: restores HEAD verbatim when the values match" \
-    'head_raw if same else' "$_PI_SETTINGS_RESET"
+
+check "pi-settings-apply: function exists in base/fish" test -f "$_PI_SETTINGS_APPLY"
+check "pi-settings-reset: the old function does not reappear" \
+    test ! -e "$DOTFILES/base/fish/.config/fish/functions/pi-settings-reset.fish"
+# The fish .gitignore is an allowlist, so a new own-file silently drops out of the
+# repo without this.
+check_has "pi-settings-apply: not gitignored (fish allowlist negation present)" \
+    '!functions/pi-settings-apply\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+if command -v fish >/dev/null 2>&1; then
+    check "pi-settings-apply: parses (fish -n)" \
+        fish -n "$_PI_SETTINGS_APPLY"
+fi
+# The merge policy is asserted on the code as well as behaviourally: the
+# functional tests below can only pin one case each.
+check_has "pi-settings-apply: template wins per top-level key" \
+    'for k in template:' "$_PI_SETTINGS_APPLY"
+# ...except packages, where a live `pi install` / `pi remove` must survive
+# (silently reverting a deliberate act is the bug the old keep-set existed for).
+check_has "pi-settings-apply: packages is live-wins (a pi install is deliberate)" \
+    'if k == "packages" and k in live:' "$_PI_SETTINGS_APPLY"
+# ...while live-only keys survive by default, which is what makes the per-host
+# lastChangelogVersion safe with no keep-list in the function.
+check_has "pi-settings-apply: live-only keys are preserved unless --prune" \
+    'if not PRUNE:' "$_PI_SETTINGS_APPLY"
+# A stow symlink would put the write in the repo — the exact failure this exists
+# to end — so a real write refuses it; a dry run may still read through it.
+check_has "pi-settings-apply: refuses to write through a stow symlink" \
+    'a stow link puts the write in the repo' "$_PI_SETTINGS_APPLY"
+# The keep-set is gone on purpose: preservation-by-default replaced it, so its
+# return would be a design regression, not a feature.
+check_not "pi-settings-apply: no keep-set reappears (preservation made it moot)" \
+    'KEEP = ' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: writes atomically (os.replace)" \
+    'os\.replace\(tmp, live_path\)' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: verifies exact bytes after writing" \
+    'if now == out:' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: bounds the retry loop" \
+    'for attempt in range\(3\)' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: treats a torn write as recoverable, not an error" \
+    'except json\.JSONDecodeError' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: an unreadable file is archived, not silently replaced" \
+    'settings\.json\.unparsable-' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: rejects non-object JSON too" \
+    'JSON but not an object' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: a retry-path torn write is archived, not dropped" \
+    'torn_backup = archive_bytes\(raw2\)' "$_PI_SETTINGS_APPLY"
+check_has "pi-settings-apply: a missing live file is created from the template (code)" \
+    'fresh = not os\.path\.lexists\(live_path\)' "$_PI_SETTINGS_APPLY"
 
 if command -v fish >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
-    # Functional, against a throwaway git repo and through the helper, so the real
-    # agent dir is never touched. Policy under test: repo wins, undeclared keys go,
-    # deliberate acts stay — and the rewrite keeps pi's no-trailing-newline format.
-    # commit.gpgsign=false: this host signs by default, and a throwaway repo has no
-    # signing key, so an inherited config would fail the fixture, not the code.
-    check "pi-settings-reset: reverts drift, drops undeclared keys, keeps deliberate acts" \
+    # Functional, through the helper with explicit paths, so the real agent dir is
+    # never touched. Policy under test: template wins, packages live-wins,
+    # live-only preserved, --prune drops, -n writes nothing, the rewrite stays in
+    # pi's format (no trailing newline), and a torn file is archived then rebuilt.
+    check "pi-settings-apply: template wins, packages live-wins, live-only preserved" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-            mkdir -p "$d/base/pi/.pi/agent"; f="$d/base/pi/.pi/agent/settings.json"
-            printf "%s" "{\"defaultModel\": \"a\", \"lastChangelogVersion\": \"1.0.0\", \"packages\": [\"npm:x\"]}" > "$f"
-            git -C "$d" init -q; git -C "$d" add -A
-            git -C "$d" -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -qm head
-            printf "%s" "{\"defaultModel\": \"b\", \"lastChangelogVersion\": \"1.1.0\", \"packages\": [\"npm:x\", \"npm:y\"], \"theme\": \"light\"}" > "$f"
-            fish -c "source \"$1\"; __pi_settings_reset_apply \"$d\" base/pi/.pi/agent/settings.json 0 0" >/dev/null 2>&1
-            grep -q "\"defaultModel\": \"a\"" "$f" &&
-            ! grep -q theme "$f" &&
-            grep -q "npm:y" "$f" &&
-            grep -q "1\.1\.0" "$f" &&
-            test -n "$(tail -c 1 "$f")"' _ "$_PI_SETTINGS_RESET"
-    # --all must land byte-for-byte on HEAD (git diff catches a reformat that a
-    # value comparison would not), and --dry-run must not write at all.
-    check "pi-settings-reset: --all lands byte-identical on HEAD; --dry-run writes nothing" \
+            t="$d/template.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\", \"packages\": [\"npm:x\"]}" > "$t"
+            printf "%s" "{\"defaultModel\": \"live\", \"packages\": [\"npm:x\", \"npm:y\"], \"lastChangelogVersion\": \"9\"}" > "$l"
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 0" >/dev/null 2>&1 || exit 1
+            grep -q "\"defaultModel\": \"tpl\"" "$l" &&
+            grep -q "npm:y" "$l" &&
+            grep -q "lastChangelogVersion" "$l" &&
+            test -n "$(tail -c 1 "$l")"' _ "$_PI_SETTINGS_APPLY"
+    check "pi-settings-apply: --prune drops live-only keys" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-            mkdir -p "$d/base/pi/.pi/agent"; f="$d/base/pi/.pi/agent/settings.json"
-            printf "%s" "{\"defaultModel\": \"a\", \"packages\": [\"npm:x\"]}" > "$f"
-            git -C "$d" init -q; git -C "$d" add -A
-            git -C "$d" -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -qm head
-            printf "%s" "{\"defaultModel\": \"b\", \"packages\": [\"npm:x\", \"npm:y\"]}" > "$f"
-            h=$(shasum "$f")
-            fish -c "source \"$1\"; __pi_settings_reset_apply \"$d\" base/pi/.pi/agent/settings.json 0 1" >/dev/null 2>&1
-            test "$(shasum "$f")" = "$h" || exit 1
-            fish -c "source \"$1\"; __pi_settings_reset_apply \"$d\" base/pi/.pi/agent/settings.json 1 0" >/dev/null 2>&1
-            git -C "$d" diff --quiet -- base/pi/.pi/agent/settings.json' _ "$_PI_SETTINGS_RESET"
-    # Two states that are drift without a value difference, so a value-only
-    # comparison would report "no drift" and leave the repo dirty (reordered keys,
-    # stray newline); plus the torn write it is meant to repair, which must hand
-    # the unreadable bytes back instead of dropping them.
-    check "pi-settings-reset: repairs formatting-only drift and an unparsable file" \
+            t="$d/template.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\"}" > "$t"
+            printf "%s" "{\"defaultModel\": \"live\", \"hostOnly\": true}" > "$l"
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 1" >/dev/null 2>&1 || exit 1
+            ! grep -q hostOnly "$l" &&
+            grep -q "\"defaultModel\": \"tpl\"" "$l"' _ "$_PI_SETTINGS_APPLY"
+    # -n is the promote worklist, so its exit code has to be a faithful predictor
+    # of "apply would change something" while writing nothing itself.
+    check "pi-settings-apply: -n exits 1 on drift, 0 when identical, writes nothing" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-            mkdir -p "$d/base/pi/.pi/agent"; f="$d/base/pi/.pi/agent/settings.json"
-            rel=base/pi/.pi/agent/settings.json
-            printf "%s" "{\"defaultModel\": \"a\", \"packages\": [\"npm:x\"]}" > "$f"
-            git -C "$d" init -q; git -C "$d" add -A
-            git -C "$d" -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -qm head
-            printf "%s\n" "{\"packages\": [\"npm:x\"], \"defaultModel\": \"a\"}" > "$f"
-            fish -c "source \"$1\"; __pi_settings_reset_apply \"$d\" $rel 0 0 \"$d/backups\"" >/dev/null 2>&1
-            git -C "$d" diff --quiet -- $rel || exit 1
-            printf "%s" "{\"defaultModel\": \"a\", \"packa" > "$f"
-            fish -c "source \"$1\"; __pi_settings_reset_apply \"$d\" $rel 0 0 \"$d/backups\"" >/dev/null 2>&1
+            t="$d/template.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\"}" > "$t"
+            printf "%s" "{\"defaultModel\": \"live\"}" > "$l"
+            h=$(shasum "$l")
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 1 0" >/dev/null 2>&1
             test $? -eq 1 || exit 1
-            git -C "$d" diff --quiet -- $rel || exit 1
-            ls "$d"/backups/settings.json.unparsable-* >/dev/null 2>&1 || exit 1
-            grep -q "packa" "$d"/backups/settings.json.unparsable-*' _ "$_PI_SETTINGS_RESET"
-    # The public function is where the stow guard, the argument handling and the
-    # exit codes live, so it needs exercising too. --no-config plus a sanitised
-    # PATH: the real config.fish prepends mise shims, and a shim cannot start
-    # against a throwaway HOME (a harness artefact, not a function bug). The repo
-    # is committed FIRST so the not-stowed case cannot be satisfied by the earlier
-    # "no HEAD commit" bail — it has to fail on the stow guard itself.
-    check "pi-settings-reset: public function refuses host-local/bad args, reconciles a stowed file" \
+            test "$(shasum "$l")" = "$h" || exit 1
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 0" >/dev/null 2>&1 || exit 1
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 1 0" >/dev/null 2>&1
+            test $? -eq 0' _ "$_PI_SETTINGS_APPLY"
+    # A fresh host has no live file: bootstrap must end with one, without a pi run.
+    check "pi-settings-apply: a missing live file is created from the template" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-            rel=base/pi/.pi/agent/settings.json
-            p=/usr/bin:/bin:/usr/sbin:/sbin
-            mkdir -p "$d/dotfiles/base/pi/.pi/agent" "$d/.pi/agent"
-            printf "%s" "{\"defaultModel\": \"a\", \"packages\": [\"npm:x\"]}" > "$d/dotfiles/$rel"
-            git -C "$d/dotfiles" init -q; git -C "$d/dotfiles" add -A
-            git -C "$d/dotfiles" -c commit.gpgsign=false -c user.email=t@t -c user.name=t commit -qm head
-            # host-local: a regular file, not the stowed symlink
-            printf "%s" "{\"defaultModel\": \"a\"}" > "$d/.pi/agent/settings.json"
-            msg=$(env HOME="$d" PATH=$p "$1" --no-config -c "source \"$2\"; pi-settings-reset" 2>&1)
+            t="$d/template.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\"}" > "$t"
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 0" >/dev/null 2>&1 || exit 1
+            grep -q "\"defaultModel\": \"tpl\"" "$l"' _ "$_PI_SETTINGS_APPLY"
+    # A torn pi write must hand the unreadable bytes back rather than drop them.
+    check "pi-settings-apply: an unparsable live file is archived, then rebuilt" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            t="$d/template.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\"}" > "$t"
+            printf "%s" "{\"defaultModel\": \"tpl\", \"packa" > "$l"
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 0" >/dev/null 2>&1
             test $? -eq 1 || exit 1
-            printf "%s" "$msg" | grep -q "is not stowed to" || exit 1
-            grep -q "defaultModel" "$d/.pi/agent/settings.json" || exit 1
-            env HOME="$d" PATH=$p "$1" --no-config -c "source \"$2\"; pi-settings-reset --bogus" >/dev/null 2>&1
-            test $? -eq 2 || exit 1
-            # now stowed: the same file must reconcile
-            rm "$d/.pi/agent/settings.json"
-            ln -s "$d/dotfiles/$rel" "$d/.pi/agent/settings.json"
-            printf "%s" "{\"defaultModel\": \"b\", \"packages\": [\"npm:x\"]}" > "$d/dotfiles/$rel"
-            env HOME="$d" PATH=$p "$1" --no-config -c "source \"$2\"; pi-settings-reset" >/dev/null 2>&1 || exit 1
-            test -L "$d/.pi/agent/settings.json" || exit 1
-            git -C "$d/dotfiles" diff --quiet -- "$rel"' _ "$(command -v fish)" "$_PI_SETTINGS_RESET"
+            ls "$d"/settings.json.unparsable-* >/dev/null 2>&1 || exit 1
+            grep -q "packa" "$d"/settings.json.unparsable-* || exit 1
+            grep -q "\"defaultModel\": \"tpl\"" "$l"' _ "$_PI_SETTINGS_APPLY"
+    # The pre-migration state: a leftover stow link must be refused as a WRITE
+    # target (that write lands in the repo) while -n still reads through it, so
+    # the delta stays inspectable before the link is replaced.
+    check "pi-settings-apply: write refuses a stow symlink; -n reads through it" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+            t="$d/template.json"; c="$d/canon.json"; r="$d/repo.json"; l="$d/live.json"
+            printf "%s" "{\"defaultModel\": \"tpl\"}" > "$t"
+            # canonical bytes first: -n compares BYTES, so a compact fixture would
+            # report cosmetic drift and mask what this asserts (a read-through).
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$c\" 0 0" >/dev/null 2>&1 || exit 1
+            cp "$c" "$r"; ln -s "$r" "$l"
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 0 0" >/dev/null 2>&1
+            test $? -eq 1 || exit 1
+            test -L "$l" || exit 1
+            fish -c "source \"$1\"; __pi_settings_apply \"$t\" \"$l\" 1 0" >/dev/null 2>&1
+            test $? -eq 0' _ "$_PI_SETTINGS_APPLY"
+    check "pi-settings-apply: public wrapper rejects a bad argument (exit 2)" \
+        bash -c 'fish -c "source \"$1\"; pi-settings-apply --bogus" >/dev/null 2>&1; test $? -eq 2' \
+        _ "$_PI_SETTINGS_APPLY"
 else
-    _skip "pi-settings-reset: functional tests" "fish + python3 not both callable in this env"
+    _skip "pi-settings-apply: functional tests" "fish + python3 not both callable in this env"
 fi
 
 # ── pi worktree helper ───────────────────────────────────────────────────────

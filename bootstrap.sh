@@ -12,6 +12,10 @@
 set -euo pipefail
 
 DOTFILES="${DOTFILES:-$HOME/dotfiles}"
+# Exported: pi-settings-apply is a fish function that resolves the template from
+# the environment, and a plain shell variable would make it fall back to
+# $HOME/dotfiles on a checkout living anywhere else.
+export DOTFILES
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==>\033[0m %s\n' "$*" >&2; }
@@ -370,6 +374,115 @@ migrate_app_trim() {
             colima start || warn "colima start failed — run 'colima start' manually"
         fi
     fi
+}
+
+migrate_pi_settings_desync() {
+    # 2026-10 pi-settings desync migration. The old scheme stowed
+    # ~/.pi/agent/settings.json as a SYMLINK into base/pi/.pi/agent/settings.json,
+    # so every pi session wrote its runtime state straight back into the tracked
+    # file: the working tree went dirty on its own and two hosts pulling the same
+    # branch fought over settings. The live file is now host-local and untracked;
+    # tracked intent lives in settings.desired.json, which pi never reads.
+    #
+    # This de-references the link IN PLACE: the target's bytes are copied to a
+    # temp file in the agent dir first, then moved over the symlink path, so the
+    # bytes the link pointed at (including lastChangelogVersion and any host-local
+    # `packages` edit) are kept, mode included. `mv` replaces the link, never the
+    # repo file behind it. When the target is already gone the link is dropped and
+    # pi-settings-apply rebuilds from the template — which is the normal case,
+    # because the commit that renamed the tracked file also dangles the link. No
+    # state is lost that a pull would not have blocked on: an uncommitted edit to
+    # the tracked settings.json refuses the pull.
+    #
+    # No-op when the live file is already a real file or absent. Idempotent, and
+    # never deletes user data. Delete this function (and its call) once all
+    # machines have bootstrapped past it.
+    local live="$HOME/.pi/agent/settings.json"
+
+    [[ -L "$live" ]] || return 0   # real file, or nothing there: nothing to do
+
+    local target resolved repo_real
+    target="$(readlink "$live" 2>/dev/null || true)"
+    # stow writes RELATIVE links (../../dotfiles/...), so a raw readlink never
+    # starts with the absolute $DOTFILES prefix: resolve both sides first, or
+    # every real host reads as "outside the repo" and the migration silently
+    # no-ops. realpath is non-strict, so a dangling link resolves too (python3
+    # is already a bootstrap dependency, and macOS readlink has no -f).
+    resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$live" 2>/dev/null || true)"
+    repo_real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$DOTFILES" 2>/dev/null || true)"
+    [[ -n "$resolved" ]] || resolved="$target"
+    [[ -n "$repo_real" ]] || repo_real="$DOTFILES"
+    case "$resolved" in
+        "$repo_real"/*) ;;   # the old stowed scheme — ours to fix
+        *)
+            warn "pi settings: $live is a symlink outside the dotfiles repo (→ ${resolved:-?}) — leaving it alone"
+            return 0
+            ;;
+    esac
+
+    local dir tmp
+    dir="$(dirname "$live")"
+
+    if [[ ! -f "$live" ]]; then
+        # Dangling: the package file was renamed to settings.desired.json, so no
+        # bytes are left to preserve — the content lives on as the template.
+        # Drop the stale link; pi-settings-apply rebuilds the live file from it.
+        log "pi settings: removing dangling symlink ~/.pi/agent/settings.json (→ $target)"
+        rm -f "$live"
+        return 0
+    fi
+
+    if ! tmp="$(mktemp "$dir/.settings.json.migrate.XXXXXX" 2>/dev/null)"; then
+        warn "pi settings: cannot create a temp file in $dir — leaving the symlink in place"
+        return 0
+    fi
+    if ! cp -p "$live" "$tmp"; then   # cp follows the symlink: copies the target's bytes AND its mode
+        rm -f "$tmp"
+        warn "pi settings: cannot read through $live — leaving the symlink in place"
+        return 0
+    fi
+
+    if [[ -L "$live" ]]; then      # re-check: nothing may have replaced it meanwhile
+        if mv -f "$tmp" "$live"; then
+            log "pi settings: ~/.pi/agent/settings.json is now host-local (was a stow symlink → $target)"
+        else
+            rm -f "$tmp"
+            warn "pi settings: could not replace the symlink at $live — run 'pi-settings-apply' by hand"
+        fi
+    else
+        rm -f "$tmp"
+    fi
+    return 0
+}
+
+apply_pi_settings() {
+    # 2026-10 pi-settings apply hook (companion to migrate_pi_settings_desync).
+    # The live file is host-local now, so a fresh host has none at all and an
+    # existing host may be behind template edits. Re-sync it from the tracked
+    # template once pi is installed. Non-interactive, no sudo, no scheduler —
+    # pi reads settings at startup, so this is startup-default hygiene.
+    # No-op (never a failure) when the template, fish, or the fish function is
+    # missing, so bootstrap still works on a host that has not pulled the change.
+    local template="$DOTFILES/base/pi/.pi/agent/settings.desired.json"
+
+    if [[ ! -f "$template" ]]; then
+        log "pi settings: no settings.desired.json template yet — skipping apply"
+        return 0
+    fi
+    if ! command -v fish >/dev/null 2>&1; then
+        warn "pi settings: fish not on PATH — skipping pi-settings-apply"
+        return 0
+    fi
+    if ! fish -c 'functions -q pi-settings-apply' >/dev/null 2>&1; then
+        log "pi settings: pi-settings-apply not installed yet — skipping"
+        return 0
+    fi
+
+    log "pi settings: syncing ~/.pi/agent/settings.json to the tracked template"
+    if ! fish -c 'pi-settings-apply'; then
+        warn "pi-settings-apply failed — run it by hand once the cause is clear"
+    fi
+    return 0
 }
 
 ensure_vscodium_extensions() {
@@ -917,6 +1030,14 @@ main() {
         warn "no host-specific configs for '$host' (expected $DOTFILES/hosts/$host)"
     fi
 
+    # 2b-bis. pi settings: the live file must be host-local. This is a FALLBACK,
+    # not the main path: stow -R already drops a dangling legacy link (the commit
+    # that lands this renames the tracked file, so the link dangles), and the apply
+    # step below then rebuilds the live file from the template. It still matters
+    # when a live link survived the restow — converting it here keeps every later
+    # write out of the repo, which is the whole point of the split.
+    migrate_pi_settings_desync
+
     # 2c. Per-platform post-stow setup
     if [[ "$platform" == "macos" ]]; then
         load_macos_launch_agents
@@ -952,6 +1073,10 @@ main() {
             ensure_tmux_plugins
             ;;
     esac
+
+    # 2d-bis. Re-sync the host-local pi settings from the tracked template — runs
+    # on every platform, after ensure_pi in both branches above.
+    apply_pi_settings
 
     if [[ "$platform" == "linux" ]]; then
         ensure_nerd_font

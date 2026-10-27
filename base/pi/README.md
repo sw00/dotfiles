@@ -213,7 +213,8 @@ integration. Query-hygiene rule in `agent/AGENTS.md`.
 
 **Caveat:** OpenCode Go's **free** tier models (suffixed `-free`) explicitly
 permit training. None are in the catalog today, and `check.sh` enforces that
-`summaryModel` and all model entries in `settings.json` are free of `-free`
+`summaryModel` and all model entries in the `settings.desired.json` template are
+free of `-free`
 variants. The summary model here is the paid `deepseek-v4.1-flash` (no suffix)
 — safe.
 
@@ -224,7 +225,8 @@ dashboard is configured for ZDR-only routing with model training disabled.
 
 ## Observability
 
-**pi:** `@tmustier/pi-usage-extension` (installed via `settings.json` packages)
+**pi:** `@tmustier/pi-usage-extension` (installed via the template's `packages`
+list)
 provides a `/usage` command with a full TUI dashboard: braille line-chart
 explorer (cost/tokens/messages over time, per-provider/per-model), sortable
 table with export to CSV, and automated insights (cache-miss alarms, project
@@ -262,7 +264,9 @@ is exercised by `check.sh` to prevent regressions.
 .pi/
 ├── web-search.json              → ~/.pi/web-search.json (pi-web-access config)
 └── agent/                       → ~/.pi/agent/
-    ├── settings.json            LAPTOP profile: provider, default model, cycle set
+    ├── settings.desired.json    tracked INTENT: provider, default model, cycle set
+    │                           (pi never reads this file; the live one is
+    │                            ~/.pi/agent/settings.json, host-local/untracked)
     ├── models.json              OpenRouter provider registration (shared core; env-var key)
     ├── claude-bridge.json       Claude Code bridge provider + AskClaude config
     ├── AGENTS.md                global rules (web search hygiene)
@@ -283,12 +287,15 @@ is exercised by `check.sh` to prevent regressions.
 
 ## Shared core vs. profile
 
-Everything under `agent/` except `settings.json` is the **shared core**:
-generic, host-agnostic, and free of deployment-specific defaults. The laptop
-profile is the `settings.json` in this repo. Other deployments own their own
-`settings.json` and any host-specific overlay extensions in their deployment
-repositories — they are NOT tracked here, and the shared core must stay free of
-references to them. `check.sh` enforces this.
+Everything under `agent/` except `settings.desired.json` is the **shared
+core**: generic, host-agnostic, and free of deployment-specific defaults. The
+laptop profile is the `settings.desired.json` template in this repo — intent
+only, and never written by pi. The file pi actually reads and rewrites is
+`~/.pi/agent/settings.json`: host-local, not stowed, not tracked, refreshed from
+the template by `pi-settings-apply`. Other deployments own their own template
+and any host-specific overlay extensions in their deployment repositories — they
+are NOT tracked here, and the shared core must stay free of references to them.
+`check.sh` enforces this.
 
 ## model-switch
 

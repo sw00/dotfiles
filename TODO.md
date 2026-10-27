@@ -168,20 +168,8 @@ removed — full implementation history lives in git. Shared-core behavior
   revisited:
   `mise use -g github:raine/workmux` (prebuilt binary — no rust toolchain, no
   Brewfile/check.sh parity work), mbpm3 first, window mode, and it must displace
-  tmux-window-name plus its `libtmux` Python dependency to be net-negative surface. It
-  must also be kept from writing through the stowed `settings.json` symlink (see
-  docs/GOTCHAS.md §pi). Rejected outright: herdr, which replaces tmux rather than
+  tmux-window-name plus its `libtmux` Python dependency to be net-negative surface. Rejected outright: herdr, which replaces tmux rather than
   consolidating it.
-
-- [ ] **`settings.json` write-back churn — pick a convention, then encode it.**
-  pi rewrites `lastChangelogVersion` through the stowed symlink on every version
-  change, so `base/pi/.pi/agent/settings.json` is dirty after any upgrade (and a
-  model switch can ride along). There is no setting to suppress it — pi calls
-  `setLastChangelogVersion` → `save()` when it shows a changelog
-  (docs/GOTCHAS.md §pi). Today the rule is "revert before committing", applied by
-  hand every time; the decision to make is whether to commit the value whenever it
-  moves instead. Either way it should live in AGENTS.md so it stops being a
-  per-commit judgement call.
 
 ## Out of scope (deliberate non-goals)
 

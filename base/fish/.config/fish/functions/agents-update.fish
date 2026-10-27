@@ -24,6 +24,14 @@ function agents-update --description 'Update pi and Claude Code, then flag the e
         echo 'agents-update: claude update failed (offline?) — staying on the installed version' >&2
     end
 
+    echo '── pi settings'
+    # The template is tracked in this repo, so a version move is exactly when an
+    # unapplied template edit is likely to be waiting. One line when already in
+    # sync ("no drift"); `pi-settings-apply -n` is the human tool for looking
+    # before it writes.
+    pi-settings-apply
+    or echo 'agents-update: pi-settings-apply needs a look — see its output above' >&2
+
     set -l current (command pi --version 2>/dev/null | string match -r '^[0-9]+\.[0-9]+\.[0-9]+' | head -1)
     test -n "$before"; or set before unknown
     echo
@@ -40,6 +48,7 @@ function agents-update --description 'Update pi and Claude Code, then flag the e
     end
     echo "pi $before -> $current — the harness moved under the prompts this repo ships:"
     echo '    run pi-smoke.sh and compare against docs/PROMPT-EVAL.md before trusting the numbers.'
-    echo '    pi also writes runtime state through the stowed settings.json symlink — check git status.'
+    echo '    pi settings are host-local now (~/.pi/agent/settings.json): the template was applied above,'
+    echo '    so `git status` here is about the repo, not about session drift.'
     return 1
 end
