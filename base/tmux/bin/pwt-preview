@@ -8,10 +8,11 @@
 # snippet (`n=$(…)`) is a syntax error printed into the preview pane instead of a
 # preview. Anything with shell syntax belongs here, where the shebang decides.
 #
-# Output: `git status --short --branch`, then the commits that exist on NO remote.
-# The second half is what the status line cannot answer — a pwt branch is created
-# from HEAD and has no upstream, so `--branch` reports `## slug` and says nothing
-# about whether the work has landed. Showing only; merging stays the operator's.
+# Output: `git status --short --branch`, whether HEAD has landed on the default
+# branch, then the commits that exist on NO remote. The last two answer what the
+# status line cannot: a pwt branch is created from HEAD and has no upstream, so
+# `--branch` reports `## slug` and says nothing about whether the work merged or was
+# pushed. Showing only; merging stays the operator's.
 set -uo pipefail
 
 path="${1:-}"
@@ -26,6 +27,30 @@ if ! git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 git -C "$path" status --short --branch 2>/dev/null | head -12
+
+# "Has this landed?" — the other half of "do I still need this?", and the half the
+# status line cannot answer: a pwt branch is created from HEAD and has no upstream,
+# so `## slug` says nothing, and the rev-list below is 0 once a branch is pushed
+# whether or not the work MERGED. One merge-base call against the default branch.
+#
+# The wording is "already in <ref>", not "merged": HEAD is ancestry-tested, so a
+# fresh worktree sitting on the default branch with nothing committed yet also
+# qualifies — true of HEAD, and the status block above is what says the tree is
+# dirty. It also never claims the branch is removed: a squash-merge is not an
+# ancestor, and `pwt rm` keeps the branch when git says it is unmerged. The ref is
+# the LAST FETCHED one — nothing here fetches, so a merge on the remote reads as
+# unlanded until you do.
+default="$(git -C "$path" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)"
+for cand in "${default:-}" origin/main origin/master; do
+    [ -n "$cand" ] || continue
+    if git -C "$path" rev-parse --verify --quiet "$cand" >/dev/null 2>&1; then
+        default="$cand"
+        break
+    fi
+done
+if [ -n "${default:-}" ] && git -C "$path" merge-base --is-ancestor HEAD "$default" 2>/dev/null; then
+    printf '\n· already in %s\n' "$default"
+fi
 
 n="$(git -C "$path" rev-list --count HEAD --not --remotes 2>/dev/null || true)"
 case "$n" in ''|*[!0-9]*) n=0 ;; esac

@@ -79,7 +79,7 @@ removed — full implementation history lives in git. Shared-core behavior
   <slug>`, switch to another window while an agent settles, and confirm a toast; if
   there is none, the documented escalation is `ubi:joshmedeski/wsl-notify-send` (ubi =
   mise-managed, so no Brewfile/apt parity work). `tmux set -g @pwt_notify 0` mutes
-  the pushes meanwhile — the ⚑ flag and the C-w panel are independent of them.
+  the pushes meanwhile — the `!` alert flag and the C-w panel are independent of them.
 
 ## Deferred — judgment, not blocked
 

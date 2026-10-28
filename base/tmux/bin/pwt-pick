@@ -72,6 +72,22 @@ session_dir_for() {
     printf -- '--%s--' "$(printf '%s' "$1" | sed 's|^/||; s|/|-|g')"
 }
 
+# has_history <path> — is there a TRANSCRIPT for this path? pi creates the project
+# session DIRECTORY whenever it merely RESOLVES a session for a cwd
+# (dist/core/session-manager.js, getDefaultSessionDir -> mkdirSync) and writes
+# nothing until the first turn, so a directory is evidence of a lookup, not of
+# history: most project dirs on this machine exist but are empty (52 of 73 when this
+# was measured). Testing -d made the panel claim history for worktrees that never had
+# a conversation.
+# bash 3.2: no `find -quit`, and a glob that matches nothing stays literal.
+has_history() {
+    local f
+    for f in "$SESSIONS/$(session_dir_for "$1")"/*.jsonl; do
+        [[ -e "$f" ]] && return 0
+    done
+    return 1
+}
+
 # canonical form of a directory, for comparison AND for display. tmux reports the
 # RESOLVED path (a window opened at /tmp shows /private/tmp) while find returns
 # the path as given, so comparing them raw silently drops the ▸ marker on macOS
@@ -119,15 +135,25 @@ live_panes() {
     tmux list-panes -a -F "#{pane_title}	#{pane_current_path}	#{?#{@pwt_label},#{@pwt_label},-}	#{?#{@pi_state},#{@pi_state},-}	#{pane_id}" 2>/dev/null || true
 }
 
-# pi's last reported state as one glyph. Mirrors the window list's ⚑ for "wants a
-# human" and adds the two the window list cannot show, so the panel reads at a
-# glance instead of only when it wants something.
+# pi's last reported state as one glyph. The window list shows `!` for "wants a
+# human", a SUPERSET of this column (it also lights for done/error — `@pi_alert`
+# is set for all three), and adds the distinctions the window list cannot show, so
+# the panel reads at a glance instead of only when it wants something.
+#
+# GLYPHS ARE FONT-CONSTRAINED. Measured against CaskaydiaCove NF Mono (the font on
+# this install, and what os/wsl/up.sh pushes to Windows): ⚑ (U+2691) and ✗ (U+2717)
+# are NOT in it, so the terminal substitutes another typeface for them — the mixed
+# weights that made this column hard to read. `!` and `x` are ASCII and render
+# everywhere, which matters because blocked/done/error are the states that also
+# reach the tmux status bar and desktop notifications. ✓ IS in the font. `◔`
+# (U+25D4) is East-Asian-Neutral while ◐ (U+25D0) is Ambiguous — ambiguous glyphs
+# can render double-width and shift this fixed column.
 state_glyph() {
     case "$1" in
-        blocked) printf '⚑' ;;
+        blocked) printf '!' ;;
         done)    printf '✓' ;;
-        error)   printf '✗' ;;
-        working) printf '◐' ;;
+        error)   printf 'x' ;;
+        working) printf '◔' ;;
         *)       printf ' ' ;;
     esac
 }
@@ -205,19 +231,30 @@ for wt_root in ${WT_ROOTS[@]+"${WT_ROOTS[@]}"}; do
             [[ -n "$_open" ]] || continue
             case "$_open" in "$wt"|"$wt"/*) mk_open='▸'; break ;; esac
         done <<< "$OPEN_CWDS"
-        if [[ -d "$SESSIONS/$(session_dir_for "$wt")" ]]; then mk_hist='●'; fi
+        if has_history "$wt"; then mk_hist='⬤'; fi
         _state="$(state_for_path "$wt")"
-        rows_ranked+=("$(state_rank "$_state")"$'\t'"$mk_open$mk_hist$(state_glyph "$_state") $(label "$wt")"$'\t'"$wt"$'\t'"wt")
+        # ONE SPACE BETWEEN MARKER CELLS. ⬤ (U+2B24) fills its cell edge to edge —
+        # 1200 ink units in a 1200-unit advance — so a jammed block puts two circles
+        # in contact and reintroduces the "can't tell them apart" problem the glyph
+        # choice exists to fix. Fixed cells: open, history, state, then the label.
+        rows_ranked+=("$(state_rank "$_state")"$'\t'"${mk_open} ${mk_hist} $(state_glyph "$_state") $(label "$wt")"$'\t'"$wt"$'\t'"wt")
         EMITTED_WT+="$wt"$'\n'
     done < <(find "$wt_root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
 done
 
 LIVE="$(live_panes)"
+PI_CWDS=''
 if [[ -n "$LIVE" ]]; then
     while IFS=$'\t' read -r _title _path _label _state _pane; do
         [[ -n "$_path" ]] || continue
         case "$_title" in "$PI_TITLE"*) ;; *) continue ;; esac
         _path="$(canon_dir "$_path")"
+        # A pane in a window PWT OPENED (its window carries @pwt_label) is the only
+        # kind `pwt reload` can resume: pwt resolves a pi-titled pane and then demands
+        # @pwt_sid, so a hand-started pi has no id to resume. Collected here, BEFORE
+        # the suppression below — which deliberately hides these panes behind their
+        # worktree row, so this is the only record of them left for ctrl-s.
+        [[ "$_label" == "-" ]] || PI_CWDS+="$_path"$'\n'
         # A window pwt opened names itself; anything else is labelled by its path.
         [[ "$_label" == "-" ]] && _label=''
         [[ -n "$_label" ]] || _label="$(label "$_path")"
@@ -230,7 +267,9 @@ if [[ -n "$LIVE" ]]; then
             case "$_path" in "$_w"|"$_w"/*) _covered=1; break ;; esac
         done <<< "$EMITTED_WT"
         [[ "$_covered" == "0" ]] || continue
-        rows_ranked+=("$(state_rank "$_state")"$'\t'"▸ $(state_glyph "$_state") $_label"$'\t'"$_path"$'\t'"live")
+        # Same cell width as a worktree row (blank history cell), so labels line up
+        # down the panel: `▸   ◔ label` against `▸ ⬤ ◔ label`.
+        rows_ranked+=("$(state_rank "$_state")"$'\t'"▸   $(state_glyph "$_state") $_label"$'\t'"$_path"$'\t'"live")
     done <<< "$LIVE"
 fi
 
@@ -291,7 +330,7 @@ if [[ ${#rows[@]} -gt 0 ]]; then
     # without a legend.
     panel_header="$(printf '%s\n%s' \
         'enter open · ctrl-t new · ctrl-r repo · ctrl-s reload · ctrl-x end' \
-        '◐ working · ⚑ blocked · ✓ done · ✗ error')"
+        '▸ open · ⬤ history · ◔ working · ! blocked · ✓ done · x error')"
     # The preview answers "do I still need this?": branch state, then the commits that
     # exist on NO remote. `status --branch` cannot answer the second half — a pwt
     # branch made from HEAD has no upstream, so it prints `## slug` and says nothing
@@ -434,8 +473,22 @@ ctrl-s)
     # turn in flight away) and then delegates. A pi that is mid-turn is refused by
     # pwt itself, which keeps the popup open with the `--force` spelling — that
     # refusal is not second-guessed here.
+    # A worktree ROW whose window is a pwt pi window can be reloaded too — and that is
+    # the normal case, since a pi inside a listed worktree is suppressed from the live
+    # rows above. Refusing on `kind != live` therefore refused exactly the rows one is
+    # most likely to reload. The evidence is PI_CWDS: panes pwt opened, which is what
+    # `pwt reload` can resume (it resolves a pi-titled pane, then demands @pwt_sid). NOT
+    # OPEN_CWDS: a bare shell sitting in the worktree marks that row open, and
+    # promising a reload there would end in "no pi window".
+    _has_win=0
     if [[ "$kind" != "live" ]]; then
-        printf 'pwt-pick: %s has no live window to reload\n' "$(label "$path")" >&2
+        while IFS= read -r _o; do
+            [[ -n "$_o" ]] || continue
+            case "$_o" in "$path"|"$path"/*) _has_win=1; break ;; esac
+        done <<< "$PI_CWDS"
+    fi
+    if [[ "$kind" != "live" && "$_has_win" == "0" ]]; then
+        printf 'pwt-pick: %s has no open window to reload\n' "$(label "$path")" >&2
         printf '  reload restarts a running pi; open it first (enter)\n\n[press enter to close] '
         read -r _ || true
         exit 0

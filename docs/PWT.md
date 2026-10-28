@@ -104,8 +104,16 @@ which session is going away.
 
 Rows are every worktree under `$PWT_SRC` (default `~/src`) plus every live pi window
 (pi titles itself `π - …`; the prefix is `PWT_PI_TITLE`), sorted so work that wants
-a human comes first: `⚑` blocked, `✓` done, `✗` error, `◐` working. `▸` means a
-window is open on it, `●` means it has session history.
+a human comes first: `!` blocked, `✓` done, `x` error, `◔` working. `▸` means a
+window is open on it, `⬤` means it has a transcript on disk. Cells are separated by a
+space — `▸ ⬤ ◔ label` — because `⬤` fills its cell edge to edge and a jammed block
+put two circles in contact.
+
+The glyphs are chosen for the font, not for taste: `⚑` and `✗` are absent from
+CaskaydiaCove NF Mono, so the terminal substituted another typeface for them, and `●`
+and `◐` are East-Asian-Ambiguous (double-width in some terminals, which shifts this
+fixed column). `!` and `x` are ASCII, which also matters because blocked, done and
+error are the states that reach the tmux status bar and desktop notifications.
 
 | key | action |
 |---|---|
@@ -113,13 +121,20 @@ window is open on it, `●` means it has session history.
 | `ctrl-t` | new worktree in the highlighted row's repo |
 | `ctrl-r` | pick any other repo (worktree, or a workstream in place) |
 | `ctrl-x` | end it — one `y/N`: closes the window; a worktree is stashed and removed |
-| `ctrl-s` | reload it — one `y/N`: restart the row's pi with the current secrets env (live rows only; a mid-turn agent is still refused, see above) |
+| `ctrl-s` | reload it — one `y/N`: restart the row's pi with the current secrets env (an open window of either kind, so a `▸` worktree row works too; a mid-turn agent is still refused, see above) |
 
-The preview is the "do I still need this?" panel: `git status --short --branch`, then
-the commits that exist on **no remote**. The second half matters because `--branch`
-only reports ahead/behind against an upstream, and a worktree branch made from `HEAD`
-has none — so merged-and-pushed is visible, local-only work is visible, and landing is
-your call. Nothing here merges.
+The preview is the "do I still need this?" panel: `git status --short --branch`,
+`· already in <default>` when HEAD is ancestry of the default branch, then the
+commits that exist on **no remote**. The last two matter because `--branch` only
+reports ahead/behind against an upstream, and a worktree branch made from `HEAD` has
+none — so landed work, pushed-but-unmerged work and local-only work are three
+distinguishable states, and landing is your call. Two honest limits: the wording is
+`already in`, not `merged`, because a fresh worktree sitting on the default branch
+qualifies too (the status block above shows whether the tree is dirty), and the ref
+is the last fetched one — nothing here runs `git fetch`, so a merge on the remote
+reads as unlanded until you do. A squash-merge is never an ancestor, so it reads as
+unlanded as well; `pwt rm` keeps such a branch, so nothing is lost. Nothing here
+merges.
 
 The four verbs sit on keys fzf's line editor leaves alone; `--expect` *takes*
 whatever it is given, so `ctrl-n`/`ctrl-p` (its next/previous match) stay navigation.
@@ -286,9 +301,11 @@ OSC, so a `pipe-pane` tap (`pwt-osc`) reads the pane's byte stream before tmux p
 it and mirrors the state into window options:
 
 - `@pi_state` — what pi last said. Shown in the panel.
-- `@pi_alert` — set when that state wants a human, and shown as `⚑` in the window
-  list. It decays when you look at the window (any pane of it), so it reads as an
-  inbox rather than a log.
+- `@pi_alert` — set when that state wants a human, and shown as `!` in the window
+  list. The window list cannot tell the three apart, so its `!` means "wants a
+  human" (blocked **or** done **or** error) while the panel's `!` is blocked only.
+  It decays when you look at the window (any pane of it), so it reads as an inbox
+  rather than a log.
 - A desktop notification for the same three states, at most once per workstream per
   5 minutes — a live agent settles 7–22 times on one task, so without a cooldown one
   stuck agent is a notification storm. Never for a window you are already looking at.
@@ -305,6 +322,20 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 `TODO.md`). `PWT_NOTIFY_CMD` replaces the transport for tests.
 
 ## Limits worth knowing
+
+- `⬤` tests for a *transcript*, never for the session directory. pi creates the
+  project directory whenever it merely RESOLVES a session for a cwd and writes
+  nothing until the first turn, so an empty directory is evidence of a lookup, not of
+  history (52 of 73 when this was measured are empty). The empty directories
+  themselves are swept by `pi-prune-sessions`.
+- A session forked inside a pi — `/new`, `/fork`, `/clone`, or a handoff — is a NEW
+  session id that pwt cannot see: the OSC 7501 tap carries state only, and
+  tmux-resurrect does not save `@user` options. `pwt reload` therefore resumes the
+  pinned id, not the fork. Use pi's own `/resume` inside the window; the panel's
+  row is still the right place to go.
+- Subagents are child processes of the pane's pi (`pi --mode json -p --no-session`,
+  in-memory) — no transcript, no window, and their answer comes back as the parent's
+  tool result. There is nothing for pwt to show, close or merge.
 
 - `$PWT_SRC` is both the panel's worktree scan and the `C-f` picker's zoxide scope.
   A worktree created outside it (reachable through `ctrl-r`) is not a panel row once
@@ -330,7 +361,7 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 
 ## If you change this
 
-Eight invariants are load-bearing here: none of them is obvious from the line it
+Nine invariants are load-bearing here: none of them is obvious from the line it
 constrains. Read the comment before changing the line — the mechanism is written down
 there, not just the rule.
 
@@ -347,6 +378,10 @@ there, not just the rule.
   worktree. The pre-marker fallback is restricted to unmarked windows whose pane cwd is
   inside the tree; an unconditional sid match silently teleports into the other
   workstream.
+- **`⬤` reads a TRANSCRIPT, never a session DIRECTORY.** pi `mkdirSync`s the project
+  session dir on any session *resolve* (`getDefaultSessionDir`) and writes nothing
+  until the first turn, so `-d` claimed history for worktrees that never had a
+  conversation. `has_history` globs `*.jsonl` instead (bash 3.2: no `find -quit`).
 - **`list-panes`, never `list-windows`** for "where is this workstream" — window
   formats report the ACTIVE pane's cwd (`GOTCHAS`).
 - **`info/exclude`, never `.gitignore`** — see "What pwt leaves on disk" for why and

@@ -2622,6 +2622,14 @@ check_has "tmux.conf: pi is told to report without feature detection" \
     'set-environment -g PI_PROGRAM_STATUS 1' "$_TMUXCONF"
 check_has "tmux.conf: the window list carries the alert flag" \
     'window-status-format .*@pi_alert' "$_TMUXCONF"
+# The alert glyph must be `!`, not a flag. ⚑ (U+2691) is not in CaskaydiaCove NF
+# Mono, so the status bar substituted another typeface for it. Scoped to the two
+# window-status lines: an unscoped grep for `!` also matches `awk '!seen'` in this
+# file, which would make the assertion pass on a status bar that never changed.
+check "tmux.conf: the alert glyph matches the panel's (!)" \
+    bash -c '! grep -q "⚑" <<<"$(grep -E "^set -g window-status(-current)?-format" "$1")" &&
+            grep -qE "^set -g window-status-format.*#\[fg=yellow\] !" "$1"' \
+    _ "$_TMUXCONF"
 # A push cannot be un-invented once it has fired, so it needs a switch that does not
 # cost the ambient flag: the tap reads this at push time, so it mutes live.
 check_has "tmux.conf: pushes are muted by one option, not by the flag" \
@@ -2776,6 +2784,8 @@ check_has "pwt-pick: ctrl-x can close a live workstream" \
 # on a private socket, because a key the terminal swallows looks like a broken bind.
 check_has "pwt-pick: ctrl-s runs the in-place reload" \
     'ctrl-s' "$_PWT_PICK"
+# The ctrl-s GUARD is tested behaviourally in the stub harness below (a grep for its
+# variable survives a revert of the guard, measured).
 check_has "pwt-pick: reload is taken off the editor via --expect" \
     '--expect=ctrl-t,ctrl-x,ctrl-r,ctrl-s' "$_PWT_PICK"
 check_not "pwt-pick: ctrl-l stays fzf's clear-screen key" \
@@ -2848,6 +2858,26 @@ check "pwt-preview: names a non-repository row instead of rendering nothing" \
     _ "$_PWT_PREVIEW"
 check_has "pwt-preview: shows commits on no remote" \
     '\-\-not \-\-remotes' "$_PWT_PREVIEW"
+# "Do I still need this?" has a second half the status line cannot answer: a pwt
+# branch is created from HEAD with no upstream, so a pushed branch and a MERGED
+# branch both leave rev-list at 0. One merge-base call against the default branch.
+check "pwt-pick: names the default branch when HEAD has landed on it" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf "$d"" EXIT; cd "$d"; git init -q repo; cd repo
+        git config user.email t@t; git config user.name t; echo x > f; git add f
+        git -c commit.gpgsign=false commit -qm init
+        git update-ref refs/remotes/origin/main HEAD
+        git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+        out=$("$1" "$PWD"); grep -q "already in origin/main" <<<"$out"' \
+    _ "$_PWT_PREVIEW"
+check "pwt-preview: no landed claim for work that is not an ancestor" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf "$d"" EXIT; cd "$d"; git init -q repo; cd repo
+        git config user.email t@t; git config user.name t; echo x > f; git add f
+        git -c commit.gpgsign=false commit -qm init
+        git update-ref refs/remotes/origin/main HEAD
+        git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+        echo y >> f; git -c commit.gpgsign=false commit -qam more
+        out=$("$1" "$PWD"); ! grep -q "already in" <<<"$out"' \
+    _ "$_PWT_PREVIEW"
 check_has "pwt-pick: the preview is a script, not a shell snippet" \
     'pwt-preview \{2\}' "$_PWT_PICK"
 check_not "pwt-pick: no inline preview snippet" \
@@ -2990,12 +3020,14 @@ if command -v fish >/dev/null 2>&1; then
 fi
 
 # End-to-end listing: a fabricated worktree must surface as org/repo/slug behind a
-# two-column marker (▸ window open / ● pi history). With no tmux and a missing
-# HOME both markers are blank, which also pins the column layout.
+# four-cell marker (▸ window open / ⬤ pi transcript / state glyph / space). With no
+# tmux and a missing HOME every marker is blank, which also pins the column layout.
+# Cells are separated by ONE SPACE: ⬤ fills its cell edge to edge, so a jammed block
+# put two circles in contact — the legibility problem the glyph set exists to fix.
 _pwt_tmp="$(mktemp -d)"
 mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/repo/__worktrees/demo/sub" "$_pwt_tmp/org/live"
 check "pwt-pick: lists a worktree as org/repo/slug" \
-    bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "    org/repo/demo" ]]' \
+    bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "      org/repo/demo" ]]' \
     _ "$_pwt_tmp" "$_PWT_PICK"
 
 # Live pi panes and the ▸ marker without a real tmux server: a stub on PATH
@@ -3015,7 +3047,7 @@ check "pwt-pick: marks a worktree whose window is open and lists live pi panes" 
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - main" PWT_STUB_WT="$2/org/repo/__worktrees/demo" \
         PWT_STUB_LIVE="$2/org/live" "$3" --list)
-        grep -qF "▸   org/repo/demo" <<<"$out" && grep -qF "▸   org/live" <<<"$out"' \
+        grep -qF "▸     org/repo/demo" <<<"$out" && grep -qF "▸     org/live" <<<"$out"' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 check "pwt-pick: a pi pane inside a worktree is not listed twice" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
@@ -3027,7 +3059,7 @@ check "pwt-pick: labels a marked window by its workstream, not its directory" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - x" PWT_STUB_WT=/nonexistent-wt PWT_STUB_LIVE="$2/org/live" \
         PWT_STUB_LABEL="audit" "$3" --list)
-        grep -qF "▸   audit" <<<"$out" && ! grep -qF "▸   org/live" <<<"$out"' \
+        grep -qF "▸     audit" <<<"$out" && ! grep -qF "▸     org/live" <<<"$out"' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 # The ▸ marker and the live-row suppression must use the SAME rule (a pane anywhere
 # beneath the worktree), or a pi that cd'd into a subdirectory hides its own row and
@@ -3036,7 +3068,7 @@ check "pwt-pick: a pane in a subdirectory still marks the worktree row open" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - x" PWT_STUB_WT="$2/org/repo/__worktrees/demo/sub" \
         PWT_STUB_LIVE="$2/org/repo/__worktrees/demo/sub" "$3" --list)
-        grep -qF "▸   org/repo/demo" <<<"$out" && [[ "$(grep -c . <<<"$out")" == "1" ]]' \
+        grep -qF "▸     org/repo/demo" <<<"$out" && [[ "$(grep -c . <<<"$out")" == "1" ]]' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 # The adoption itself: an EMPTY state is the untapped pane this exists for, and the
 # panel must still attach to it. The stub answers the row/state queries the way the
@@ -3063,8 +3095,49 @@ check "pwt-pick: shows pi's state and floats a blocked workstream to the top" \
     bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
         PWT_STUB_TITLE="π - x" PWT_STUB_WT="$2/org/repo/__worktrees/demo" PWT_STUB_WTSTATE=blocked \
         PWT_STUB_LIVE="$2/org/live" PWT_STUB_STATE=working "$3" --list)
-        [[ "$(printf "%s\n" "$out" | head -1 | cut -f1)" == "▸ ⚑ org/repo/demo" ]] &&
-        printf "%s\n" "$out" | grep -qF "◐ org/live"' \
+        [[ "$(printf "%s\n" "$out" | head -1 | cut -f1)" == "▸   ! org/repo/demo" ]] &&
+        printf "%s\n" "$out" | grep -qF "◔ org/live"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# The history marker tests a TRANSCRIPT, never a directory. pi mkdirs the project
+# session dir whenever it merely RESOLVES a session for a cwd and writes nothing
+# until the first turn, so 52 of 73 dirs on this machine are empty — and two of them
+# showed `●` for worktrees that had never had a conversation. Canonicalised: the row
+# path is canon_dir'd, so /var/... must be encoded as /private/var/... here too.
+check "pwt-pick: history marks a transcript, not a resolved session directory" \
+    bash -c 'h=$(mktemp -d); trap "rm -rf \"$h\"" EXIT
+        canon=$(cd "$2/org/repo/__worktrees/demo" && pwd -P)
+        sdir="$h/.pi/agent/sessions/$(printf -- "--%s--" "$(printf %s "$canon" | sed "s|^/||; s|/|-|g")")"
+        mkdir -p "$sdir"
+        out=$(env -u TMUX PWT_SRC="$2" HOME="$h" "$1" --list | head -1 | cut -f1)
+        [[ "$out" == "      org/repo/demo" ]] || { echo "empty dir claimed history: $out"; exit 1; }
+        : > "$sdir/x.jsonl"
+        out=$(env -u TMUX PWT_SRC="$2" HOME="$h" "$1" --list | head -1 | cut -f1)
+        [[ "$out" == "  ⬤   org/repo/demo" ]] || { echo "transcript not marked: $out"; exit 1; }' \
+    _ "$_PWT_PICK" "$_pwt_tmp"
+# ctrl-s must be OFFERED for a worktree row whose window is a PWT pi window, and must
+# actually run `pwt reload` — the guard refused every worktree row until now, though a
+# pi inside a listed worktree is suppressed from the live rows, so that row is the
+# only one its pane has. Behavioural, not a grep for the guard's variable (that passes
+# even after the guard is reverted, measured): stub fzf answers query/key/row, stub
+# fish logs the argv it is asked to run, and `y` goes in on stdin.
+check "pwt-pick: ctrl-s on an open worktree row runs pwt reload" \
+    bash -c 'b=$(mktemp -d); log=$(mktemp); trap "rm -rf \"$b\" \"$log\"" EXIT
+        cat > "$b/fzf" <<EOF
+#!/bin/bash
+printf "\\nctrl-s\\n%s\\n" "\$PWT_STUB_ROW"
+EOF
+        cat > "$b/fish" <<EOF
+#!/bin/bash
+printf "%s\\n" "\$*" >> "\$PWT_STUB_LOG"
+EOF
+        chmod +x "$b/fzf" "$b/fish"
+        wt=$(cd "$2/org/repo/__worktrees/demo" && pwd -P)
+        printf "y\n" | env TMUX=stub PATH="$b:$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+            PWT_STUB_ROW="$(printf "▸   ◔ org/repo/demo\t%s\twt" "$wt")" \
+            PWT_STUB_LOG="$log" PWT_STUB_TITLE="π - x" PWT_STUB_WT="$wt" \
+            PWT_STUB_LABEL=demo PWT_STUB_LIVE="$wt" PWT_STUB_STATE=working \
+            "$3" >/dev/null 2>&1
+        grep -qF "pwt reload" "$log" && grep -qF "$wt" "$log"' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 rm -rf "$_pwt_tmp" "$_pwt_bin"
 
