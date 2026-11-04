@@ -80,6 +80,45 @@ Two rules that follow from the table:
   `status` keeps saying `degraded:` while it is active. pig has no prebuilt
   releases; it needs a Go toolchain (`go install github.com/ZoroSpace/pig/cmd/pig@latest`).
 
+## Project trust
+
+A trust store is a flat `{"<canonical abs path>": true|false}`. Resolution walks
+**up** from the cwd to the nearest key (`findNearestTrustEntry`), so a **prefix**
+entry trusts every repo beneath it — present and future. That is why the checkout
+roots are stored as roots, never enumerated per project:
+
+| entry | kind |
+| --- | --- |
+| `~/src/personal` | checkout root — every repo under it |
+| `~/src/lelapa` | checkout root — every repo under it |
+
+Anything narrower (a single repo that ships `.agents/skills`, say) is a *project*
+entry: make it interactively under pi, or seed it by hand, then mirror it into pig.
+
+Two stores, one policy: upstream pi and pi-bolt share `~/.pi/agent/trust.json`;
+pig reads `~/.pig/agent/trust.json` and **nothing seeds it**, so a `pi-use` flip
+re-asks every settled question. pig 1.4.0 has no prompt to ask with — its
+interactive branch is a stub, so a trust-requiring project dies at startup with
+`interactive project trust selection is not available yet` (`pi -p` resolves
+*untrusted* silently instead). Seed both stores:
+
+```sh
+home=$(cd -P "$HOME" && pwd -P)   # a symlinked $HOME must not leak into the keys
+for s in ~/.pi/agent/trust.json ~/.pig/agent/trust.json; do
+    mkdir -p "${s%/*}"; [ -s "$s" ] || printf '{}\n' >"$s"
+    jq -S --arg home "$home" '. + {($home + "/src/personal"): true,
+        ($home + "/src/lelapa"): true}' "$s" >"$s.tmp" && mv "$s.tmp" "$s"
+done
+```
+
+Keys are canonical absolute paths, and matching is exact: the resolver walks up
+from a canonicalised cwd comparing raw keys, so a non-canonical key trusts
+nothing. `check.sh` asserts the set in every store that exists, so changing this
+table means editing `_PI_TRUST_ENTRIES` in `check.sh` too. It is a security
+statement: under pi, anything cloned under a trusted prefix can load that
+project's settings and extensions. pig has no extension system, but trust still
+gates its project settings, skills, prompts, themes and MCP servers.
+
 ## Models
 
 | Model | Role | Rationale |

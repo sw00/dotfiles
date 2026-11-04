@@ -3998,6 +3998,40 @@ if command -v pi-use >/dev/null 2>&1; then
     fi
 fi
 
+# ── pi trust: the deliberate entries, in EVERY variant's store ──────────────
+# A trust store is a flat {"/abs/path": true|false}; resolution walks UP from
+# the cwd to the nearest key, so a PREFIX key covers every repo beneath it —
+# present and future — which is why the checkout roots are stored as roots and
+# never enumerated per project. Both stores must carry the same set: pi and
+# pi-bolt share ~/.pi/agent/trust.json, but pig reads ~/.pig/agent/trust.json
+# and NOTHING seeds it, so a pi-use flip re-asks settled questions (and pig
+# 1.4.0 has no prompt to ask with: it errors at startup in a trust-requiring
+# project). Assert on every store that EXISTS — CI and a fresh host have
+# neither, and a host without pig has no ~/.pig at all.
+_PI_TRUST_ENTRIES="personal lelapa"   # prefix roots only — see README → Project trust
+_PI_TRUST_STORES=("$HOME/.pi/agent/trust.json:pi|pi-bolt" "$HOME/.pig/agent/trust.json:pig")
+for _trust_entry in "${_PI_TRUST_STORES[@]}"; do
+    _trust_store=${_trust_entry%%:*}
+    _trust_variant=${_trust_entry##*:}
+    if [ -e "$_trust_store" ]; then
+        check "pi trust: $_trust_variant store trusts the source roots" \
+            python3 -c '
+import json, os, sys
+store, home, entries = sys.argv[1], sys.argv[2], sys.argv[3].split()
+want = {os.path.realpath(os.path.join(home, "src", e)) for e in entries}
+# Keys are compared RAW on purpose: pig/pi match a CANONICALISED cwd against the
+# stored key, so a non-canonical key (e.g. written through a symlinked $HOME)
+# trusts nothing — realpath-ing the keys here would hide exactly that drift.
+with open(store) as fh:
+    have = {k for k, v in json.load(fh).items() if v is True}
+sys.exit(0 if want <= have else 1)
+' "$_trust_store" "$HOME" "$_PI_TRUST_ENTRIES"
+    else
+        _skip "pi trust: $_trust_variant store trusts the source roots" \
+            "no trust store (fresh host / variant not installed)"
+    fi
+done
+
 # ── Claude Code installation method ──────────────────────────────────────────
 # Same ownership rule as pi, for the same reasons (AGENTS.md): claude is NOT
 # mise-managed.  A mise/aqua copy (2.1.294) shadowed the native install (2.1.193)
