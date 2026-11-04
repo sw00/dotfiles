@@ -12,6 +12,15 @@
 #
 # Usage: agents-update
 function agents-update --description 'Update pi and Claude Code, then flag the eval work that follows'
+    # `pi` may currently BE pi-bolt (pi-use bolt). A compiled binary cannot
+    # self-update, and continuing would compare its "1.4.0" before and after and
+    # report "no harness change, no eval owed" — a lie. Flip back and re-run.
+    if command -v pi-use >/dev/null 2>&1; and test (pi-use current 2>/dev/null) = bolt
+        echo 'agents-update: `pi` is currently pi-bolt, which cannot self-update' >&2
+        echo 'agents-update: run `pi-use pi`, re-run agents-update, then `pi-use bolt` if you still want it' >&2
+        return 1
+    end
+
     set -l before (command pi --version 2>/dev/null | string match -r '^[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 
     echo '── pi'

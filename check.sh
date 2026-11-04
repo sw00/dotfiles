@@ -3966,6 +3966,32 @@ else
         "pi not installed on this machine"
 fi
 
+# ── pi-use: variant switcher between upstream pi and pi-bolt ────────────────
+# Both variants share ~/.pi/agent; pi-use owns only the ~/.local/bin/pi symlink
+# plus a state file, so a flip changes which binary runs, nothing else.  Checks
+# split the way pi's own do: repo-level always, host-level only where the thing
+# is installed (CI runners have neither).
+_PI_USE="$DOTFILES/base/pi/.local/bin/pi-use"
+check "pi-use: exists in the pi stow package" test -f "$_PI_USE"
+check "pi-use: is executable" test -x "$_PI_USE"
+check_not "mise: pi-bolt is NOT mise-managed (npm --prefix + pi-use own it)" \
+    '^pi-bolt[[:space:]]*=' "$MISE_CFG"
+check_has "bootstrap: ensure_pi honours a deliberate pi-bolt flip" \
+    'pi-variant' "$DOTFILES/bootstrap.sh"
+
+if command -v pi-use >/dev/null 2>&1; then
+    check "pi-use: stowed live at ~/.local/bin/pi-use" \
+        bash -c '[[ "$(readlink -f "$HOME/.local/bin/pi-use")" == "$1" ]]' _ "$_PI_USE"
+
+    check "pi-use: no drift between the recorded variant and the pi symlink" \
+        pi-use status
+
+    if [ -e "$HOME/.local/bin/pi-bolt" ]; then
+        check "pi-bolt: npm launcher shape (executable with sibling install.sh)" \
+            bash -c 'r=$(readlink -f "$HOME/.local/bin/pi-bolt"); [[ -x "$r" && -f "${r%/*}/../install.sh" ]]'
+    fi
+fi
+
 # ── Claude Code installation method ──────────────────────────────────────────
 # Same ownership rule as pi, for the same reasons (AGENTS.md): claude is NOT
 # mise-managed.  A mise/aqua copy (2.1.294) shadowed the native install (2.1.193)

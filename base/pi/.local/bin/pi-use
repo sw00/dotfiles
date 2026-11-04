@@ -1,0 +1,117 @@
+#!/bin/sh
+# pi-use — point the `pi` name at upstream pi or at pi-bolt.
+#
+# Both variants read the SAME ~/.pi/agent (config, auth, sessions, extensions,
+# packages): pi-bolt ships pi's own package.json (piConfig.configDir ".pi"), so
+# nothing but the binary differs. This script owns exactly one thing — the
+# ~/.local/bin/pi symlink — and records the choice in ~/.pi/agent/pi-variant so
+# it can tell "chosen" from "reset".
+#
+# No wrapper script on purpose: a shim makes pi's self-updater classify the
+# install as unknown and refuse `pi update --self`; a symlink keeps every
+# binary's real path intact. pi-bolt's launcher resolves itself with readlink -f
+# and runs ../install.sh, so it must be reached through its own
+# ~/.local/bin/pi-bolt entry (same directory, hence the relative target).
+#
+# Drift facts (pi 1.4.0 dist): `pi update --self` never touches
+# ~/.local/bin/pi — it only writes ~/.pi/agent/install/{staging,releases,
+# current-version}. What DOES reset the symlink is re-running pi.dev's
+# install.sh, and bootstrap's ensure_pi when the entrypoint stops resolving
+# inside ~/.pi/agent. ensure_pi reads this script's state file and leaves a
+# deliberate bolt flip alone (see bootstrap.sh).
+#
+# Usage: pi-use [pi|upstream|bolt|current|status]
+
+set -eu
+
+bin_dir=$HOME/.local/bin
+pi_link=$bin_dir/pi
+state_file=$HOME/.pi/agent/pi-variant
+upstream_target=../../.pi/agent/bin/pi   # the relative form install.sh creates
+bolt_target=pi-bolt
+
+die() { printf 'pi-use: %s\n' "$*" >&2; exit 1; }
+
+link_target() {
+    [ -L "$pi_link" ] && readlink "$pi_link" || true
+}
+
+# The variant implied by the link itself — never by `pi --version`, which is
+# human output whose wording can change between releases.
+current_variant() {
+    case "$(link_target)" in
+        "$bolt_target") echo bolt ;;
+        "$upstream_target" | "$HOME/.pi/agent/bin/pi") echo pi ;;
+        *) echo unknown ;;
+    esac
+}
+
+read_state() { [ -r "$state_file" ] && cat "$state_file" || true; }
+
+write_state() {
+    mkdir -p "${state_file%/*}"
+    tmp=$state_file.tmp.$$
+    printf '%s\n' "$1" >"$tmp"
+    mv -f "$tmp" "$state_file"
+}
+
+# Never clobber something that is not our symlink: a real file at that path is
+# somebody else's install, not a variant to flip.
+require_our_link() {
+    if [ -e "$pi_link" ] && [ ! -L "$pi_link" ]; then
+        die "$pi_link is a regular file, not a pi-use symlink — refusing to replace it"
+    fi
+}
+
+set_upstream() {
+    [ -x "$HOME/.pi/agent/bin/pi" ] \
+        || die "upstream launcher $HOME/.pi/agent/bin/pi is missing — run pi.dev's install.sh"
+    require_our_link
+    ln -sfn "$upstream_target" "$pi_link"
+    write_state pi
+    echo "pi-use: pi -> upstream (managed install)"
+}
+
+set_bolt() {
+    # Validate BEFORE flipping: the pi-bolt launcher needs its sibling
+    # install.sh, since it resolves itself and then runs ../install.sh.
+    [ -e "$bin_dir/pi-bolt" ] \
+        || die "$bin_dir/pi-bolt is missing — npm install -g --prefix ~/.local pi-bolt"
+    resolved=$(readlink -f "$bin_dir/pi-bolt") || die "cannot resolve $bin_dir/pi-bolt"
+    [ -x "$resolved" ] || die "$resolved is not executable"
+    [ -f "${resolved%/*}/../install.sh" ] \
+        || die "no install.sh beside the pi-bolt launcher — wrong install shape?"
+    require_our_link
+    ln -sfn "$bolt_target" "$pi_link"
+    write_state bolt
+    echo "pi-use: pi -> pi-bolt (running pi sessions keep their binary; new ones use bolt)"
+}
+
+show_status() {
+    have=$(current_variant)
+    want=$(read_state)
+    target=$(link_target)
+    ver=$(command pi --version 2>/dev/null || echo 'pi not runnable')
+    printf 'link:    %s -> %s\n' "$pi_link" "${target:-MISSING}"
+    printf 'variant: %s\n' "$have"
+    printf 'running: %s\n' "$ver"
+    # First run on a machine nobody recorded a choice on: adopt what is there.
+    if [ -z "$want" ] && [ "$have" != unknown ]; then
+        write_state "$have"
+        want=$have
+        echo "state:    adopted $have (no previous choice recorded)"
+    fi
+    [ "$have" != unknown ] \
+        || die "drift: $pi_link is not a pi-use symlink — fix with: pi-use pi | pi-use bolt"
+    if [ -n "$want" ] && [ "$want" != "$have" ]; then
+        die "drift: choice was $want but the link says $have (install.sh or bootstrap reset it?) — fix with: pi-use $want"
+    fi
+}
+
+case ${1:-status} in
+    pi | upstream) set_upstream ;;
+    bolt) set_bolt ;;
+    current) current_variant ;;
+    status) show_status ;;
+    *) die "usage: pi-use [pi|upstream|bolt|current|status]" ;;
+esac

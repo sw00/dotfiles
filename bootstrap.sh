@@ -665,6 +665,22 @@ ensure_pi() {
     # `pi update` works (see AGENTS.md).  Must run after ensure_mise: the
     # installer installs through npm, which the mise-managed node provides.
     # The marker file, not a version string, is what the updater keys off.
+    #
+    # pi-use (stowed from base/pi/.local/bin) may deliberately point `pi` at
+    # pi-bolt, which shares ~/.pi/agent.  _ensure_self_managed would read that
+    # entrypoint as "not self-managed" (it resolves outside ~/.pi/agent), re-run
+    # the installer, silently flip the machine back to upstream pi AND move its
+    # version with no eval pairing — the thing this repo forbids.  A recorded
+    # bolt choice the link still honours is a state to leave alone, not drift.
+    local variant=""
+    if [[ -r "$HOME/.pi/agent/pi-variant" ]]; then
+        IFS= read -r variant <"$HOME/.pi/agent/pi-variant" || true
+    fi
+    if [[ "$variant" == "bolt" && -L "$HOME/.local/bin/pi" ]] \
+        && [[ "$(readlink "$HOME/.local/bin/pi")" == "pi-bolt" ]]; then
+        log "pi is pi-bolt by choice (pi-use bolt) — entrypoint left alone (flip: pi-use pi)"
+        return 0
+    fi
     _ensure_self_managed pi \
         "$HOME/.pi/agent/install/managed-install.json" \
         "$HOME/.pi/agent" \
