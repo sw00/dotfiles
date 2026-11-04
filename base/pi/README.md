@@ -52,6 +52,34 @@ and, when it did, points at `pi-smoke.sh` and `docs/PROMPT-EVAL.md` (see Tests).
 Nothing needs re-vendoring: the subagent extension loads pi's own example from
 the active release at load time.
 
+## Variants (`pi-use`)
+
+`~/local/bin/pi` is a symlink, and `pi-use` (stowed from
+`base/pi/.local/bin/pi-use`) is what moves it. Every variant reads the same
+config only where the table says so.
+
+| command | runs | config | extensions |
+| --- | --- | --- | --- |
+| `pi-use pi` | upstream managed install | `~/.pi/agent` | all (default) |
+| `pi-use bolt` | pi-bolt 1.x (fork of a pinned pi tag, AOT binary) | `~/.pi/agent` | all, via jiti in JSC's interpreter |
+| `pi-use pig` | pig (Go rewrite) | `~/.pig/agent` | **none** — no extension system exists there |
+
+`pi-use status` reports the link, the variant and what is actually running, and
+fails on drift (a recorded choice that the symlink no longer honours). A flip is
+fully reversible: it changes one symlink and one state file, nothing else.
+
+Two rules that follow from the table:
+
+- **bolt is version-pinned.** It reports `1.4.0 (Pi-Bolt 1.0.x)`; its own
+  version line says nothing about pi API compatibility. `agents-update` refuses
+  to run while bolt is active (a compiled binary cannot self-update) — run
+  `pi-use pi` first, then flip back. A flip is the same harness swap a version
+  move is, so it owes the same `pi-smoke.sh` pass.
+- **pig is not a drop-in.** With no extension system, `infra-safety` does not
+  run, so infra mutations are ungated. `pi-use` says this at flip time and
+  `status` keeps saying `degraded:` while it is active. pig has no prebuilt
+  releases; it needs a Go toolchain (`go install github.com/ZoroSpace/pig/cmd/pig@latest`).
+
 ## Models
 
 | Model | Role | Rationale |

@@ -3986,6 +3986,12 @@ if command -v pi-use >/dev/null 2>&1; then
     check "pi-use: no drift between the recorded variant and the pi symlink" \
         pi-use status
 
+    # pig is a rewrite with no extension system: the flip is allowed, but the
+    # command must say so every time it happens. Assert the warning exists
+    # rather than trusting prose to survive an edit.
+    check_has "pi-use: the pig variant warns that no extensions load (safety gate)" \
+        'infra-safety' "$_PI_USE"
+
     if [ -e "$HOME/.local/bin/pi-bolt" ]; then
         check "pi-bolt: npm launcher shape (executable with sibling install.sh)" \
             bash -c 'r=$(readlink -f "$HOME/.local/bin/pi-bolt"); [[ -x "$r" && -f "${r%/*}/../install.sh" ]]'

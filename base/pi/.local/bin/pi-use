@@ -20,7 +20,12 @@
 # inside ~/.pi/agent. ensure_pi reads this script's state file and leaves a
 # deliberate bolt flip alone (see bootstrap.sh).
 #
-# Usage: pi-use [pi|upstream|bolt|current|status]
+# A third variant, pig, is NOT a drop-in: it is a Go rewrite with no
+# extension system, so flipping to it removes this repo's safety and workflow
+# extensions (see set_pig's warning). It exists because sometimes you want to
+# run the other implementation, not because it is interchangeable.
+#
+# Usage: pi-use [pi|upstream|bolt|pig|current|status]
 
 set -eu
 
@@ -29,6 +34,7 @@ pi_link=$bin_dir/pi
 state_file=$HOME/.pi/agent/pi-variant
 upstream_target=../../.pi/agent/bin/pi   # the relative form install.sh creates
 bolt_target=pi-bolt
+pig_target=pig
 
 die() { printf 'pi-use: %s\n' "$*" >&2; exit 1; }
 
@@ -41,6 +47,7 @@ link_target() {
 current_variant() {
     case "$(link_target)" in
         "$bolt_target") echo bolt ;;
+        "$pig_target") echo pig ;;
         "$upstream_target" | "$HOME/.pi/agent/bin/pi") echo pi ;;
         *) echo unknown ;;
     esac
@@ -87,6 +94,34 @@ set_bolt() {
     echo "pi-use: pi -> pi-bolt (running pi sessions keep their binary; new ones use bolt)"
 }
 
+set_pig() {
+    # pig is a behaviour-compatible *rewrite*, not the same program: no
+    # extension system at all (upstream pi's Node-sidecar API is unimplemented
+    # there), and its own config dir. Allowed, but never quietly.
+    if [ -x "$bin_dir/pig" ]; then
+        pig_bin=$bin_dir/pig
+    else
+        pig_bin=$(command -v pig 2>/dev/null) \
+            || die "pig is not installed — mise use -g go, then: go install github.com/ZoroSpace/pig/cmd/pig@latest"
+    fi
+    [ -x "$pig_bin" ] || die "$pig_bin is not executable"
+    require_our_link
+    ln -sfn "$pig_target" "$pi_link"
+    write_state pig
+    {
+        echo "pi-use: pi -> pig ($pig_bin)"
+        echo "pi-use: WARNING — pig has no extension system. Not loaded under it:"
+        echo "pi-use:   infra-safety (the locked/armed write gate), subagent,"
+        echo "pi-use:   model-switch, usage, hypa, web-search, claude-bridge."
+        echo "pi-use:   Infra mutations are therefore UNGATED while pig is active."
+        echo "pi-use: pig also reads ~/.pig/agent, not ~/.pi/agent: sessions are"
+        echo "pi-use:   JSONL-compatible, settings/models are not shared unless you"
+        echo "pi-use:   link them yourself. Verified providers there: DeepSeek,"
+        echo "pi-use:   Volcengine Ark, Google (partial). Your default is opencode-go."
+        echo "pi-use: flip back with: pi-use pi   (or pi-use bolt)"
+    } >&2
+}
+
 show_status() {
     have=$(current_variant)
     want=$(read_state)
@@ -95,6 +130,11 @@ show_status() {
     printf 'link:    %s -> %s\n' "$pi_link" "${target:-MISSING}"
     printf 'variant: %s\n' "$have"
     printf 'running: %s\n' "$ver"
+    # Degraded variants say so in the status line, not only at flip time.
+    if [ "$have" = pig ]; then
+        printf 'degraded: %s\n' \
+            'pig has no extension system — infra-safety, subagent, model-switch, usage, hypa NOT loaded'
+    fi
     # First run on a machine nobody recorded a choice on: adopt what is there.
     if [ -z "$want" ] && [ "$have" != unknown ]; then
         write_state "$have"
@@ -111,7 +151,8 @@ show_status() {
 case ${1:-status} in
     pi | upstream) set_upstream ;;
     bolt) set_bolt ;;
+    pig) set_pig ;;
     current) current_variant ;;
     status) show_status ;;
-    *) die "usage: pi-use [pi|upstream|bolt|current|status]" ;;
+    *) die "usage: pi-use [pi|upstream|bolt|pig|current|status]" ;;
 esac
