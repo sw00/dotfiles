@@ -1,5 +1,33 @@
 # PRINCIPLES.md — how changes are made here
 
+## Values
+
+These steer; the rules below enforce. Four of them (coherence, lean, reversibility,
+measurement) were also drafted as an always-on prompt and measured as arms A/B/B2 in
+`docs/PROMPT-EVAL.md`: neither candidate landed, because the loop scenario produced more
+runs over the 2-attempt signature than the live prompt (3/10 and 4/10 against 1/10) and an
+interleaved same-window comparison is the only one that counts. They live here instead,
+where they cost nothing per request and still shape how a change is judged.
+
+Optimise for meaning: a reader, human or agent, should understand and safely change the
+system without asking. Complexity is the cost to minimise.
+
+- **Coherence over convenience** — one ontology, one owner per concept. A new name means a
+  new concept.
+- **Lean over complete** — every part earns its place. No speculative layers.
+- **Reversibility over speed** — act freely where undo is easy. Stop for irreversible,
+  production or cost-bearing steps, and ask once with batched options.
+- **Measurement over assertion** — say what was measured, when, and how. Identity and
+  version facts never ship unverified.
+- **Honesty over appearance** — report late, partial or exceptional outcomes as such.
+- **Verified over assumed** — test the designed core; prove plumbing by running it.
+- **Duplication over indirection in configuration** — config is data, and a shared
+  abstraction costs more than it saves. In code, abstract only to remove a second concept.
+- **Guard the class, park the instance** — a violation outside your change gets a check
+  that catches the class, and a recorded note for the instance.
+- **Audience decides form** — short and front-loaded for stakeholders; thorough for
+  internal decisions.
+
 Read this before your first change. It is not taste: every rule below exists
 because breaking it caused a real incident, and each names the mechanism that
 holds it. `AGENTS.md` says what the system should be; this file says how to
