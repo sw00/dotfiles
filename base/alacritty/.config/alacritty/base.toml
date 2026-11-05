@@ -4,13 +4,20 @@
 # Covers everything that is the same across macOS, Linux, and Windows/WSL:
 # font family, colors, window chrome, cursor, scrollback, hints, and bindings.
 #
-# Platform configs (os/<platform>/alacritty) override what the OS forces:
-#   terminal.shell     — tmux on macOS/Linux, wsl.exe on Windows
-#   hints open command — open / xdg-open / cmd.exe /c start
-# Host configs (hosts/<host>/alacritty) override only per-machine differences:
-#   font.size          — DPI / monitor varies per machine
-#   window.decorations — full on macOS/Windows, none under a tiling WM
-#   window.option_as_alt — macOS only
+# THE CHAIN is base → platform → host, and each layer owns what its OS forces:
+#   os/linux, os/wsl   terminal.shell, the hint opener, plus the defaults those
+#                      platforms share (font.size, window.decorations)
+#   hosts/<host>       genuine per-machine facts: font.size for the display,
+#                      window.option_as_alt, a keyboard binding
+# macOS has NO platform layer (there is one macOS host), so hosts/mbpm3 carries
+# the platform facts — terminal.shell, decorations — beside its own. A second
+# macOS host should get os/macos/alacritty FIRST, so the shell chain is written
+# once instead of copied per machine.
+#
+# IMPORT SPELLING differs by layer on purpose, and "normalising" it breaks the
+# Windows copy: `~/.config/alacritty/base.toml` where stow lays both files down
+# in that directory, and a bare `base.toml` under WSL, where os/wsl/up.sh copies
+# the pair into %APPDATA%\Alacritty\ and only the relative form resolves.
 
 # ── Font ─────────────────────────────────────────────────────────────────────
 [font]
@@ -19,7 +26,7 @@ normal      = { family = "CaskaydiaCove Nerd Font Mono", style = "Regular"     }
 bold        = { family = "CaskaydiaCove Nerd Font Mono", style = "Bold"        }
 italic      = { family = "CaskaydiaCove Nerd Font Mono", style = "Italic"      }
 bold_italic = { family = "CaskaydiaCove Nerd Font Mono", style = "Bold Italic" }
-# size is set per-host
+# size set per platform/host
 builtin_box_drawing = true
 
 # ── Window ───────────────────────────────────────────────────────────────────
@@ -29,7 +36,7 @@ dynamic_padding = false
 opacity        = 1.0
 blur           = false
 dynamic_title  = true
-# decorations, option_as_alt set per-host
+# decorations set per platform/host; option_as_alt per host
 
 # ── Scrollback ───────────────────────────────────────────────────────────────
 [scrolling]
