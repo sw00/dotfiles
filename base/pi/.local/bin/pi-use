@@ -42,12 +42,26 @@ link_target() {
     [ -L "$pi_link" ] && readlink "$pi_link" || true
 }
 
+# Pig has no launcher of its own, so its link carries the RESOLVED binary path
+# (see set_pig); identity therefore falls back to the basename for an absolute
+# target. bolt and upstream are same-dir/shallow-relative links and match exactly.
+is_pig_target() {
+    [ "$1" = "$pig_target" ] && return 0
+    case "$1" in
+        /*) [ "${1##*/}" = pig ] ;;
+        *) return 1 ;;
+    esac
+}
+
 # The variant implied by the link itself — never by `pi --version`, which is
 # human output whose wording can change between releases.
 current_variant() {
+    if is_pig_target "$(link_target)"; then
+        echo pig
+        return
+    fi
     case "$(link_target)" in
         "$bolt_target") echo bolt ;;
-        "$pig_target") echo pig ;;
         "$upstream_target" | "$HOME/.pi/agent/bin/pi") echo pi ;;
         *) echo unknown ;;
     esac
@@ -106,7 +120,11 @@ set_pig() {
     fi
     [ -x "$pig_bin" ] || die "$pig_bin is not executable"
     require_our_link
-    ln -sfn "$pig_target" "$pi_link"
+    # Link the RESOLVED path, not the same-dir name: pig comes from `go install`
+    # (~/go/bin, usually not ~/.local/bin), so a relative `pig` target would
+    # dangle and leave `pi` unrunnable. It is a plain binary, not a launcher, so
+    # an absolute target is safe here — unlike bolt, which resolves itself.
+    ln -sfn "$pig_bin" "$pi_link"
     write_state pig
     {
         echo "pi-use: pi -> pig ($pig_bin)"

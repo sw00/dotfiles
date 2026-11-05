@@ -3986,9 +3986,35 @@ check_not "mise: pi-bolt is NOT mise-managed (npm --prefix + pi-use own it)" \
 check_has "bootstrap: ensure_pi honours a deliberate pi-bolt flip" \
     'pi-variant' "$DOTFILES/bootstrap.sh"
 
+# pi-use's pig target is the RESOLVED binary path, not the same-dir name: pig
+# comes from `go install`/mise (usually not ~/.local/bin), so a relative `pig`
+# target dangles and leaves `pi` unrunnable. Both halves of that contract are
+# asserted, plus a behavioural flip under a throwaway HOME below.
+check_has "pi-use: pig links the resolved binary, not the same-dir name" \
+    'ln -sfn "\$pig_bin"' "$_PI_USE"
+check_has "pi-use: recognises an absolute pig link target as the pig variant" \
+    'is_pig_target' "$_PI_USE"
+
 if command -v pi-use >/dev/null 2>&1; then
     check "pi-use: stowed live at ~/.local/bin/pi-use" \
         bash -c '[[ "$(readlink -f "$HOME/.local/bin/pi-use")" == "$1" ]]' _ "$_PI_USE"
+
+    # Behavioural: flip to pig in a sandboxed HOME and require the link to name
+    # the resolved binary and to stay runnable. Fails on the pre-fix script,
+    # which wrote the literal target `pig` (dangling unless pig sits in
+    # ~/.local/bin). $0 is the script path, passed by check().
+    check "pi-use: pig flip links the resolved binary (sandbox HOME)" bash -c '
+        tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT
+        mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
+        printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
+        printf "#!/bin/sh\necho pig 1.4.0\n" >"$tmp/toolbin/pig"
+        chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/toolbin/pig"
+        ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
+        HOME="$tmp" PATH="$tmp/toolbin:$PATH" "$0" pig >/dev/null 2>&1 || exit 1
+        [ "$(readlink "$tmp/.local/bin/pi")" = "$tmp/toolbin/pig" ] || exit 2
+        [ -x "$tmp/.local/bin/pi" ] || exit 3
+        [ "$(HOME="$tmp" PATH="$tmp/toolbin:$PATH" "$0" current)" = pig ] || exit 4
+    ' "$_PI_USE"
 
     check "pi-use: no drift between the recorded variant and the pi symlink" \
         pi-use status
