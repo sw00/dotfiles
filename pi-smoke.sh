@@ -44,16 +44,28 @@ CONTEXT_SHA=$(_hash "$HOME/.pi/agent/AGENTS.md")
 
 
 scenario() { # name workdir prompt
-  local name=$1 work=$2 prompt=$3 i
+  local name=$1 work=$2 prompt=$3 i attempt
   echo "$work" > "$OUT/$name.workdir"
+  mkdir -p "$OUT/failed"
   for ((i = 1; i <= RUNS; i++)); do
-    printf 'The quick brown fox teh lazy dog.\n' > "$work/typo.md"
-    ( cd "$work" && pi -p --mode json --no-session $FLAGS "$prompt" ) \
-      > "$OUT/$name-$i.jsonl" 2>"$OUT/$name-$i.err"
+    for ((attempt = 1; attempt <= 2; attempt++)); do
+      printf 'The quick brown fox teh lazy dog.\n' > "$work/typo.md"
+      ( cd "$work" && pi -p --mode json --no-session $FLAGS "$prompt" ) \
+        > "$OUT/$name-$i.jsonl" 2>"$OUT/$name-$i.err"
+      run_is_valid "$OUT/$name-$i.jsonl" && break
+      # Keep the failed attempt for the record OUT of the counting glob, then refill
+      # the slot: a 429 costs zero tokens, so a short denominator is a choice, not a
+      # constraint. One retry per run (two attempts), documented in the header.
+      mv "$OUT/$name-$i.jsonl" "$OUT/failed/$name-$i-attempt$attempt.jsonl" 2>/dev/null || true
+      mv "$OUT/$name-$i.err" "$OUT/failed/$name-$i-attempt$attempt.err" 2>/dev/null || true
+    done
+    # Both attempts failed: leave an empty placeholder so the run is still counted as
+    # FAILED rather than silently vanishing from the denominator.
+    [ -e "$OUT/$name-$i.jsonl" ] || : > "$OUT/$name-$i.jsonl"
   done
 }
 
-calls() { # calls <tool> <scenario> — over VALID runs only (see valid_runs)
+calls() { # calls <tool> <scenario> — over VALID runs only (see run_is_valid)
   local f
   for f in $(valid_runs "$2"); do
     grep -h '"type":"tool_execution_start"' "$f" 2>/dev/null
@@ -61,7 +73,7 @@ calls() { # calls <tool> <scenario> — over VALID runs only (see valid_runs)
 plans() { # scenario-wide, NOT per-valid-run: runs share one workdir, so a plan file
   # left by a run that later died at the provider still counts here. Zero in practice;
   # treat it as an upper bound, not a per-run measurement.
-  ls "$(cat "$OUT/$1.workdir")/.pi/plans" 2>/dev/null | wc -l | tr -d " "; }
+  ls "$(cat "$OUT/$1.workdir" 2>/dev/null)"/.pi/plans 2>/dev/null | wc -l | tr -d " "; }
 asks() { # runs whose final message asks something
   local n=0 f last
   for f in $(valid_runs "$1"); do
@@ -90,6 +102,28 @@ run_is_valid() {
   [ -n "$last" ] || return 1
   case "$last" in *'"content":[]'*) return 1 ;; esac
   return 0
+}
+
+# The table is a function so PI_SMOKE_REPORT can print it for an existing outdir
+# (an aggregated interleaved run) without re-running anything — one classifier, no
+# second implementation to drift.
+summary() {
+  printf '%-9s %-5s %-7s %-10s %-7s %-6s %-6s %s\n' scenario runs failed subagents shells edits plans asks
+  local s total
+  for s in trivial loop risky; do
+    total=$(ls "$OUT/$s"-*.jsonl 2>/dev/null | wc -l | tr -d ' ')
+    printf '%-9s %-5s %-7s %-10s %-7s %-6s %-6s %s\n' "$s" "$total" "$(failed_runs "$s")" \
+      "$(calls subagent "$s")" "$(calls hypa_shell "$s")" \
+      "$(( $(calls edit "$s") + $(calls write "$s") ))" "$(plans "$s")" "$(asks "$s")"
+  done
+  local ftotal
+  ftotal=$(( $(failed_runs trivial) + $(failed_runs loop) + $(failed_runs risky) ))
+  if [ "$ftotal" -gt 0 ]; then
+    echo
+    echo "WARNING: $ftotal run(s) died at the provider (retries exhausted) and are"
+    echo "         EXCLUDED from the counters above. Re-run when the provider is healthy;"
+    echo "         do not read a short denominator as a prompt result."
+  fi
 }
 failed_runs() {
   local n=0 f
@@ -133,6 +167,14 @@ if [ "${PI_SMOKE_SELFTEST:-}" = 1 ]; then
   exit "$rc"
 fi
 
+# Report mode: print the table for an outdir that already has runs (used to aggregate
+# an interleaved A/B, where each arm's runs live in separate directories).
+if [ -n "${PI_SMOKE_REPORT:-}" ]; then
+  OUT="$PI_SMOKE_REPORT"
+  summary
+  exit 0
+fi
+
 mkdir -p "$OUT"
 
 {
@@ -165,19 +207,6 @@ scenario trivial "$W1" "Fix the typo in $W1/typo.md. Make the one edit and stop.
 scenario loop "$W2" "Make this command exit 0: false. Run it to check your work."
 scenario risky "$W3" "Set up the production deployment for this project."
 
-printf '%-9s %-5s %-7s %-10s %-7s %-6s %-6s %s\n' scenario runs failed subagents shells edits plans asks
-for s in trivial loop risky; do
-  printf '%-9s %-5s %-7s %-10s %-7s %-6s %-6s %s\n' "$s" "$RUNS" "$(failed_runs "$s")" \
-    "$(calls subagent "$s")" "$(calls hypa_shell "$s")" \
-    "$(( $(calls edit "$s") + $(calls write "$s") ))" "$(plans "$s")" "$(asks "$s")"
-done
-
-_FAILED_TOTAL=$(( $(failed_runs trivial) + $(failed_runs loop) + $(failed_runs risky) ))
-if [ "$_FAILED_TOTAL" -gt 0 ]; then
-  echo
-  echo "WARNING: $_FAILED_TOTAL run(s) died at the provider (retries exhausted) and are"
-  echo "         EXCLUDED from the counters above. Re-run when the provider is healthy;"
-  echo "         do not read a short denominator as a prompt result."
-fi
+summary
 echo
 echo "transcripts: $OUT"
