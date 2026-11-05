@@ -219,9 +219,27 @@ at the end); *subagent claim verification* (an `oracle` brief whose returned cla
 wrong: pass is checking it before acting); and the steering scenarios S-dup, S-red-first
 and S-honest.
 
-Sample: n=10 per arm per scenario. Read per-run distributions and medians, never means.
-Each run costs about three model turns, so B on the three existing scenarios is about 90
-turns.
+Sample: n=10 **valid** per arm per scenario. Read per-run distributions and medians, never
+means. Each run costs about three model turns, so one arm on the three existing scenarios
+is about 90 turns.
+
+**Method corrections from the 2026-11-05 review (oracle), not yet implemented:**
+
+1. **No cross-date comparison.** The "A at n=10" row above is from 2026-10-09, under a
+different harness generation and provider state; the arm-B table must not be read against
+it. The only valid comparison is same-window, same-provider, **interleaved** (a-1, b-1,
+a-2, b-2, ...), n=10 valid per arm.
+2. **Re-fill the quota instead of excluding.** A 429 run costs zero tokens (the failed
+runs show `usage: all 0`), so the harness should retry a failed run until `RUNS` valid
+ones exist, capped at 2x attempts, keeping failed attempts in a subdirectory so no counter
+double-counts. Exclusion is a reporting fix; it is not a comparison fix.
+3. **`plans()` is scenario-wide** (runs share a workdir), so it cannot be attributed per
+valid run — read it as an upper bound.
+4. **`asks()` counts any `?` in the final message, including inside thinking.** It is a
+weak proxy; read the transcripts for the runs that matter.
+
+Until (1) and (2) land, no arm result can settle the prompt question, and 90 turns spent
+on a single arm in a degraded window are not recoverable evidence.
 
 ### Arm B result (2026-11-05, n=10 attempted): INCONCLUSIVE, not landed
 
