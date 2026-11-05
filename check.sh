@@ -4374,20 +4374,25 @@ check_has "pi-smoke: stamps the prompt identity (words + hash)" \
     'prompt       APPEND_SYSTEM' "$DOTFILES/pi-smoke.sh"
 
 # Measured 2026-11-05: the provider answered 429/overloaded for 12 of 30 arm-B runs, and
-# the summarizer counted each as an ordinary "0 edits" run — the trivial scenario read as
-# 6/10 when all 6 answered runs made their one edit. A run that never got an answer is an
-# infrastructure failure, not a prompt result: it must be excluded and shouted about,
-# because a silent short denominator is indistinguishable from a regression.
-check_has "pi-smoke: provider failures are detected, not counted as prompt results" \
-    'auto_retry_end' "$DOTFILES/pi-smoke.sh"
-check_has "pi-smoke: warns when runs died at the provider" \
-    'EXCLUDED from the counters' "$DOTFILES/pi-smoke.sh"
+# the summarizer counted each as an ordinary "0 edits" run — trivial read as 6/10 when
+# all six answered runs made their one edit. A run that never got an answer is an
+# infrastructure failure, not a prompt result: excluded, and shouted about.
+#
+# A behavioural self-test, not a grep pin: a pin on the word "auto_retry_end" still
+# passes if both functions are deleted and the comment above them survives. The fixtures
+# cover three classes — retries exhausted, an empty answer with no retry event (the hard
+# error the first cut of this classifier missed), and a valid run — and require the
+# valid run's tool call to be counted exactly once.
+check "pi-smoke: classifier self-test (retries exhausted, empty answer, valid run)" \
+    env PI_SMOKE_SELFTEST=1 bash "$DOTFILES/pi-smoke.sh"
 
 # --append-system-prompt REPLACES discovery of APPEND_SYSTEM.md (pi's resource-loader),
 # so the prompt stamp above names a file the model never saw unless the override is
 # stamped too. Without this, a flagged run's numbers are unattributable.
 check_has "pi-smoke: stamps the override prompt when one is pinned" \
     'override     ' "$DOTFILES/pi-smoke.sh"
+check_has "pi-smoke: a missing override file warns instead of vanishing" \
+    'none of the prompt stamps above describe what ran' "$DOTFILES/pi-smoke.sh"
 
 # The fish .gitignore is an allowlist (functions/* is ignored unless negated), so
 # a new own-file silently drops out of the repo without this — which is exactly
