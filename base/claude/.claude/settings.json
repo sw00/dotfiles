@@ -4,6 +4,13 @@
     "pr": "",
     "sessionUrl": false
   },
+  "tui": "fullscreen",
   "theme": "dark-ansi",
-  "tui": "fullscreen"
+  "pluginConfigs": {
+    "grafana-mcp@inline": {
+      "options": {
+        "grafana_url": "https://grafana.lelapa.ai"
+      }
+    }
+  }
 }
