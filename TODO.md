@@ -42,6 +42,16 @@ removed — full implementation history lives in git. Shared-core behavior
   summary: run the block under `bash -x` a few times, capture the hook's `hook-out`,
   and either settle the pane deterministically before the hook or make the assertion
   poll a bounded interval. Next action: reproduce with `_rv_hook`'s output preserved.
+  **Partial (2026-11-05): the SIBLING assertion — "pwt: the hook honours
+  @resurrect-dir (no PWT_RESURRECT_DIR seam)" — failed deterministically and is
+  fixed; it was not a pane race but a sandboxed `HOME` breaking mise's `tmux` shim
+  (GOTCHAS §pi). Do not conflate the two again: that one failed 100% of runs from this
+  repo's cwd and passed 100% from another, which is the mise signature, while demo8
+  (real `HOME`, so no shims involved) has never been reproduced on demand. Demo8's
+  race hypothesis above still stands and is still unproven — and it is now the only
+  unexplained one in the block. One thing the fix buys: `_rv_path` now carries the
+  real tool dirs into BOTH hooks, so a future demo8 failure categorically exonerates
+  mise (structurally — `_rv_hook` never overrides `HOME` — not merely statistically).**
 
 - [ ] **pwt workstream windows do not survive a tmux-resurrect restore (found
   2026-10-22).** `C-r` brings the sessions, windows and layout back, but a worktree
@@ -101,6 +111,7 @@ removed — full implementation history lives in git. Shared-core behavior
   the pushes meanwhile — the `!` alert flag and the C-w panel are independent of them.
 
 ## Deferred — judgment, not blocked
+
 
 - [ ] **`git-prune-merged` is not wired into anything (2026-10-23).** It exists, is
   tested (dry-run default; `--apply` deletes merged locals; never gates on `[gone]`),

@@ -23,6 +23,27 @@
 # =============================================================================
 
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# A fixture that rewrites $HOME also breaks every MISE SHIM on PATH: mise re-derives
+# its config/state/trust from HOME, decides the user config is untrusted, and exits
+# non-zero — or silently falls back to a system binary. Measured 2026-11-05: from this
+# repo's cwd `tmux list-panes` and `python3 os.path.realpath` returned NOTHING under a
+# throwaway HOME, failing two assertions for reasons unrelated to the code under test
+# (and, from another cwd, passing — a cwd-dependence that made it read as a flake).
+# Resolve the real tool dirs ONCE, with the real HOME, and let those fixtures put them
+# ahead of the shims. Empty where mise is absent (CI), which changes nothing there.
+_MISE_REAL_BINS=""
+if command -v mise >/dev/null 2>&1; then
+    # Resolved from $DOTFILES, not the invoking cwd: mise answers per directory.
+    _MISE_REAL_BINS="$(cd "$DOTFILES" && mise bin-paths 2>/dev/null | tr '\n' ':' | sed 's/:$//')"
+fi
+# The value must never be interpolated bare: an empty `$_MISE_REAL_BINS` would make
+# `PATH=":$PATH"`, whose leading empty element is the CWD — a fake `python3` in the
+# working directory would then answer for the real one. CI installs no mise, so that
+# is the NORMAL case there, not a corner.
+# Exported because the fixtures below are CHILD processes (`bash -c '…'`), where a
+# plain shell variable reads as empty and puts the shims back in front — which is how
+# this fix first looked like it had not worked.
+export _MISE_REAL_BINS
 PASS=0; FAIL=0; SKIP=0
 FAILED=()
 SECTION=""
@@ -123,6 +144,31 @@ section "Shell script syntax  [GREEN]"
 # class so this line cannot match itself.
 check_not "check.sh: fixture commits never sign (a locked agent hangs the suite)" \
     'git[ ]commit' "$DOTFILES/check.sh"
+# ...and a sandboxed-HOME fixture must run REAL tools, never mise shims (see
+# _MISE_REAL_BINS above): under a throwaway HOME a shim exits non-zero or silently
+# substitutes a system binary, which cost two false failures on 2026-11-05.
+check_has "check.sh: the real tool dirs are resolved once (mise bin-paths)" \
+    'mise bin-paths' "$DOTFILES/check.sh"
+# The pins require the ${VAR:+…} form specifically: `${VAR:-}` with an empty value
+# yields `PATH=":…"`, whose leading empty element is the CWD — a planted `sh` would
+# then answer for the real one. (A pin on the bare variable would accept that.)
+check_has "check.sh: the pi-settings migration fixture guards an empty value" \
+    'env HOME="\$d" PATH="\$\{_MISE_REAL_BINS:\+' "$DOTFILES/check.sh"
+check_has "check.sh: the pwt revive fixtures guard an empty value" \
+    '_rv_path="\$_rv_dir/stub:\$\{_MISE_REAL_BINS:\+' "$DOTFILES/check.sh"
+# Behavioural and HOST-INDEPENDENT, because CI is exactly where the value is EMPTY
+# (no mise, so no shims): build the production expression with an empty value, plant
+# a fake `sh` in the cwd, and require the real one to answer. A `${VAR:-…}` form or a
+# bare interpolation fails here; so does a value that never reaches the expression.
+check "check.sh: an empty real-tool value never puts the CWD on PATH" bash -c '
+    d=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+    printf "#!/bin/sh\necho FAKE\n" >"$d/sh"; chmod +x "$d/sh"
+    bins=
+    got=$(cd "$d" && PATH="${bins:+$bins:}/bin:/usr/bin" command -v sh)
+    case "$got" in /bin/sh|/usr/bin/sh) ;; *) exit 1 ;; esac'
+# The two fixtures above are the mechanism guard: if the bin list ever comes back
+# empty, shimmy or unexported, they fail again by name — a dedicated "is the value
+# usable" assertion would only make the diagnosis read faster.
 
 mapfile -t ALL_SCRIPTS < <(
     find "$DOTFILES" \
@@ -1719,7 +1765,7 @@ check "bootstrap: pi settings migration de-references a relative stow link" \
         printf "%s" "{\"defaultModel\": \"mig\"}" > "$d/dotfiles/base/pi/.pi/agent/settings.desired.json"
         ln -s ../../dotfiles/base/pi/.pi/agent/settings.desired.json "$d/.pi/agent/settings.json"
         sed "/^main \"\$@\"$/d" "$1" > "$d/bootstrap.sh" || exit 1
-        env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; migrate_pi_settings_desync" >/dev/null 2>&1 || exit 1
+        env HOME="$d" PATH="${_MISE_REAL_BINS:+$_MISE_REAL_BINS:}$PATH" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; migrate_pi_settings_desync" >/dev/null 2>&1 || exit 1
         test -f "$d/.pi/agent/settings.json" || exit 1
         test ! -L "$d/.pi/agent/settings.json" || exit 1
         grep -q "\"defaultModel\": \"mig\"" "$d/.pi/agent/settings.json" || exit 1
@@ -2396,7 +2442,7 @@ if command -v fish >/dev/null 2>&1; then
         done
         # PATH reaches BOTH the tmux server (a respawn resolves `pi` there) and the
         # fish that runs pwt — never exported, so later checks cannot find the stub.
-        _rv_path="$_rv_dir/stub:$PATH"
+        _rv_path="$_rv_dir/stub:${_MISE_REAL_BINS:+$_MISE_REAL_BINS:}$PATH"
         _rv_t() { tmux -S "$_rv_sock" "$@"; }
         _rv_wt() { printf '%s' "$_rv_dir/repo/__worktrees/$1"; }
         _rv_run() {
