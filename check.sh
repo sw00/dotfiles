@@ -1808,7 +1808,7 @@ check "pi-settings-reset: the old function does not reappear" \
 # The fish .gitignore is an allowlist, so a new own-file silently drops out of the
 # repo without this.
 check_has "pi-settings-apply: not gitignored (fish allowlist negation present)" \
-    '!functions/pi-settings-apply\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '!base/fish/.config/fish/functions/pi-settings-apply\.fish' "$DOTFILES/.gitignore"
 if command -v fish >/dev/null 2>&1; then
     check "pi-settings-apply: parses (fish -n)" \
         fish -n "$_PI_SETTINGS_APPLY"
@@ -2786,7 +2786,7 @@ check_has "pwt: exposes a jump verb for live sessions" \
 # The fish .gitignore is an allowlist: functions/* is ignored unless negated, so
 # a new own-file silently drops out of the repo without this.
 check_has "pwt: not gitignored (fish allowlist negation present)" \
-    '^!functions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '^!base/fish/.config/fish/functions/pwt\.fish' "$DOTFILES/.gitignore"
 
 # repo-list backs the C-f repo half. The rule is subtle enough to have been got
 # wrong twice during development, so each branch is asserted directly.
@@ -3114,7 +3114,7 @@ fi
 _PWT_COMP="$DOTFILES/base/fish/.config/fish/completions/pwt.fish"
 check "pwt completions: file exists in base/fish" test -f "$_PWT_COMP"
 check_has "pwt completions: not gitignored (allowlist negation present)" \
-    '^!completions/pwt\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '^!base/fish/.config/fish/completions/pwt\.fish' "$DOTFILES/.gitignore"
 if command -v fish >/dev/null 2>&1; then
     check "pwt completions: parses (fish -n)" fish -n "$_PWT_COMP"
     # Behaviour, not text: complete -C is the same engine TAB uses.
@@ -3992,7 +3992,7 @@ section "git-prune-merged"
 _GIT_PRUNE="$DOTFILES/base/fish/.config/fish/functions/git-prune-merged.fish"
 check "git-prune-merged: function exists in base/fish" test -f "$_GIT_PRUNE"
 check_has "git-prune-merged: not gitignored (fish allowlist negation present)" \
-    '!functions/git-prune-merged\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '!base/fish/.config/fish/functions/git-prune-merged\.fish' "$DOTFILES/.gitignore"
 check_has "git-prune-merged: candidates come from --merged" \
     'branch --merged' "$_GIT_PRUNE"
 check_has "git-prune-merged: excludes branches held by worktrees" \
@@ -4375,10 +4375,10 @@ check_has "pi-smoke: stamps the prompt identity (words + hash)" \
 # a new own-file silently drops out of the repo without this — which is exactly
 # what happened to agents-update.fish on the first attempt at this commit.
 check_has "agents-update: not gitignored (fish allowlist negation present)" \
-    '!functions/agents-update\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '!base/fish/.config/fish/functions/agents-update\.fish' "$DOTFILES/.gitignore"
 
 check_has "conf.d/mise.fish: not gitignored (fish allowlist negation present)" \
-    '^!conf\.d/mise\.fish' "$DOTFILES/base/fish/.config/fish/.gitignore"
+    '^!base/fish/.config/fish/conf\.d/mise\.fish' "$DOTFILES/.gitignore"
 
 # Generic form of the same trap, so the next new own-file cannot slip through.
 # Covers completions/ as well as conf.d/ and functions/: the .gitignore is an
