@@ -153,7 +153,9 @@ removed — full implementation history lives in git. Shared-core behavior
   signatures to re-check in ordinary sessions: a third attempt at one fix, an
   `oracle` brief carrying interpretation but no verbatim artifact, a `reviewer`
   spawn on a doc-only diff. The n=10 baseline favours the slim text; this is the
-  check that it holds in real use.
+  check that it holds in real use. The next prompt change (values, compaction, examples
+  skill) is evaluated as arms A/B/C in `docs/PROMPT-EVAL.md` before it goes live; the
+  arms are planned and not yet approved to run.
 - [ ] **Scaffolding review follow-ups (2026-10-20).** A read-only review of the agent
   scaffold (`~/.pi/agent` + this repo's `AGENTS.md`), second-opinioned by `oracle`.
   Landed from it: per-layer word budgets (500/185/1200, enforced in `check.sh`) and a

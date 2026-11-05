@@ -196,3 +196,27 @@ heavy run burned 5, that one 6). So an extension-package update that swaps the
 provider bridge and the `/usage` copy does not by itself move prompt behaviour,
 which is the useful negative result: the `pi-smoke` obligation really does hang on
 harness version moves, not on `pi update --extensions`.
+
+## Steering arms (planned, not yet run)
+
+Each arm runs through `pi-smoke` with `PI_SMOKE_FLAGS="--append-system-prompt <file>"`,
+so no stowed file changes during the eval.
+
+- **A**: the live 498-word `APPEND_SYSTEM.md` (measured above).
+- **B**: `.pi/plans/arm-B-APPEND.md`, 440 words. It is the values section (164 words), the
+  compacted rules (263 words), and the emphasis line "Hitting one is a stop, not a signal
+  to try harder", which the compaction had dropped and this arm restores. Pass: trivial
+  stays one edit with no ceremony, loop stays within the 2-attempt signature, risky
+  still asks.
+- **C**: B plus the examples skill, `.pi/plans/examples-SKILL.md`. Not yet verified: that
+  pi-smoke can reach a skill through a flag. Confirm before running C.
+
+Scenarios the existing set cannot see (none exist yet): *multi-file proceed and batch*
+(a three-file change with one bad assumption: pass is proceed, then one batched question
+at the end); *subagent claim verification* (an `oracle` brief whose returned claim is
+wrong: pass is checking it before acting); and the steering scenarios S-dup, S-red-first
+and S-honest.
+
+Sample: n=10 per arm per scenario. Read per-run distributions and medians, never means.
+Each run costs about three model turns, so B on the three existing scenarios is about 90
+turns. **Not yet approved.**
