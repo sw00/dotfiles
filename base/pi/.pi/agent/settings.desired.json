@@ -25,6 +25,9 @@
       "match": ["active OpenCode Go subscription"]
     }
   },
+  "extensions": [
+    "-builtin:usage"
+  ],
   "packages": [
     "npm:pi-claude-bridge",
     "npm:@hypabolic/pi-hypa",

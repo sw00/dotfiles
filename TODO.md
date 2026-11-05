@@ -112,6 +112,17 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Deferred — judgment, not blocked
 
+- [ ] **`extensions` is template-owned, unlike `packages` (2026-11-05).** The
+  template now carries `"extensions": ["-builtin:usage"]`, and `pi-settings-apply`
+  is template-wins for every key except `packages` — so a `pi-bolt config` toggle
+  (pi writes `extensions` itself) is silently reverted by the next bootstrap or
+  `agents-update`. That is documented (README §Variants, GOTCHAS) and consistent
+  with "promote by editing the template", but it is the same class of silent revert
+  the `packages` exception exists to prevent. Decide when a `pi config` toggle is
+  next actually wanted: either leave it (intent stays authoritative across hosts) or
+  widen the live-wins branch to `extensions` — which would then NOT propagate a new
+  disable to hosts whose live file already declares the key, i.e. it trades one silent
+  behaviour for the other. No code change until that call is made.
 
 - [ ] **`git-prune-merged` is not wired into anything (2026-10-23).** It exists, is
   tested (dry-run default; `--apply` deletes merged locals; never gates on `[gone]`),

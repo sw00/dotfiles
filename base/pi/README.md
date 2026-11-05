@@ -84,6 +84,22 @@ Rules that follow from the table:
   same tree but may not resume cleanly across the 1.4.0/1.5.0 gap — resume under
   the variant that wrote the session, and treat a flip (or a pi-bolt rebase) as
   owing the `pi-smoke.sh` pass.
+- **`usage` comes from its package on both pi variants, and bolt's compiled-in copy
+  is switched off.** bolt ships a `usage` extension of its own while
+  `@tmustier/pi-usage-extension` registers the same `/usage`, so bolt skipped its
+  builtin and warned on every start. The package is canonical — it is the only
+  copy that exists under `pi-use pi`, and it is versioned and updated with the
+  rest — so the settings template carries `"extensions": ["-builtin:usage"]`.
+  Under bolt the behaviour is unchanged (the builtin was already the one that
+  stepped aside); the line makes the choice explicit and silences the warning.
+  Upstream pi ignores an unknown `-builtin:<name>` (measured: a `-p` run with the
+  key present warns nothing and the stack loads), so the one shared settings file
+  is right on both. The cost: no automatic fallback — drop the package and
+  `/usage` goes away under bolt instead of falling back to the builtin. And
+  `extensions` is *template-owned* like every key but `packages`: a toggle made in
+  `pi-bolt config` is reverted by the next `pi-settings-apply`, so template first.
+  A bolt upgrade can compile in more extensions; check the compiled-in list in
+  `pi-bolt doctor` rather than waiting for a name collision to warn.
 - **pig is not a drop-in and is deliberately not provisioned.** With no extension
   system, `infra-safety` does not run, so infra mutations are ungated; `pi-use`
   says so at flip time and `status` keeps printing `degraded:`. It has no

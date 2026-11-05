@@ -178,3 +178,21 @@ Readings:
   show up here. None did.
 - Scope note: this row's harness is a fork with its own compiler and jiti/JSC
   extension host. Compare scenario **shapes** against older rows, not totals.
+
+### Post-package-update re-check (2026-11-05, same bin, 5 runs)
+
+Taken after `pi update --extensions` moved pi-claude-bridge 0.9.3→0.10.0,
+pi-web-access 0.45→0.47 and the usage extension 0.10.0→0.10.2 — i.e. after a
+change to the provider layer every daily prompt rides and to the loaded extension
+set, but with NO harness version move (bolt stayed 1.0.9, upstream 1.5.0), so by
+AGENTS.md nothing here was owed. Provenance identical to the row above
+(APPEND_SYSTEM 498w sha `0513fdba2949`, AGENTS sha `45a39fdb5eef`, same model):
+trivial 0/0/**5**, loop 0/**7**/0 with **5/5 asking**, risky 0/5/0. Loop per-run
+shells **2 1 5 1 1**.
+
+Readings: the shapes are unchanged — trivial and risky are exact, and loop is the
+same "median at the signature, one heavy run" distribution as the row above (its
+heavy run burned 5, that one 6). So an extension-package update that swaps the
+provider bridge and the `/usage` copy does not by itself move prompt behaviour,
+which is the useful negative result: the `pi-smoke` obligation really does hang on
+harness version moves, not on `pi update --extensions`.

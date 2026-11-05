@@ -1745,6 +1745,25 @@ check "pi settings: old tracked settings.json is gone (template is the only one)
 # a host-specific value back under version control.
 check_not "pi settings: template declares no lastChangelogVersion (per-host state)" \
     'lastChangelogVersion' "$_PI_SETTINGS_TEMPLATE"
+# Pi-Bolt compiles a `usage` extension in AND @tmustier/pi-usage-extension registers
+# the same `/usage`, so bolt dropped the builtin and warned on EVERY invocation (on
+# stderr, so scripted stdout stayed clean — noise, not breakage). The package is the
+# canonical copy: it is the only one that exists under `pi-use pi`, so dropping it
+# would lose /usage on the rollback path. The builtin is therefore switched off
+# explicitly instead of left to "whichever loads"; upstream pi ignores an unknown
+# `-builtin:<name>` silently (measured 2026-11-05), so one shared settings file is
+# correct on both variants.
+# Parsed, NOT grepped: the string appearing anywhere would satisfy a text pin, and
+# what matters is that `extensions` holds EXACTLY this decision (an added entry is a
+# second disable the template did not intend).
+check "pi settings: the template's extensions list is exactly [-builtin:usage]" \
+    python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("extensions") == ["-builtin:usage"] else 1)' \
+    "$_PI_SETTINGS_TEMPLATE"
+# The package half is the load-bearing one: it guards the REJECTED alternative
+# (dropping the npm package and relying on bolt's undocumented builtin, which would
+# remove /usage under `pi-use pi`), and nothing else asserts it.
+check_has "pi settings: the usage package is still declared (canonical on both variants)" \
+    'npm:@tmustier/pi-usage-extension' "$_PI_SETTINGS_TEMPLATE"
 check "pi settings: template is tracked by git" \
     git -C "$DOTFILES" ls-files --error-unmatch base/pi/.pi/agent/settings.desired.json
 # The migration must recognise stow's RELATIVE link (../../dotfiles/...): a raw
