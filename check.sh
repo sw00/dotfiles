@@ -4373,6 +4373,22 @@ check_has "pi-smoke: stamps harness provenance into the outdir" \
 check_has "pi-smoke: stamps the prompt identity (words + hash)" \
     'prompt       APPEND_SYSTEM' "$DOTFILES/pi-smoke.sh"
 
+# Measured 2026-11-05: the provider answered 429/overloaded for 12 of 30 arm-B runs, and
+# the summarizer counted each as an ordinary "0 edits" run — the trivial scenario read as
+# 6/10 when all 6 answered runs made their one edit. A run that never got an answer is an
+# infrastructure failure, not a prompt result: it must be excluded and shouted about,
+# because a silent short denominator is indistinguishable from a regression.
+check_has "pi-smoke: provider failures are detected, not counted as prompt results" \
+    'auto_retry_end' "$DOTFILES/pi-smoke.sh"
+check_has "pi-smoke: warns when runs died at the provider" \
+    'EXCLUDED from the counters' "$DOTFILES/pi-smoke.sh"
+
+# --append-system-prompt REPLACES discovery of APPEND_SYSTEM.md (pi's resource-loader),
+# so the prompt stamp above names a file the model never saw unless the override is
+# stamped too. Without this, a flagged run's numbers are unattributable.
+check_has "pi-smoke: stamps the override prompt when one is pinned" \
+    'override     ' "$DOTFILES/pi-smoke.sh"
+
 # The fish .gitignore is an allowlist (functions/* is ignored unless negated), so
 # a new own-file silently drops out of the repo without this — which is exactly
 # what happened to agents-update.fish on the first attempt at this commit.
