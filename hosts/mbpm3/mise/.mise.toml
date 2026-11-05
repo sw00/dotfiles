@@ -42,4 +42,14 @@ oc         = "latest"          # OpenShift CLI — ARO/OpenShift work. Registry 
                                # Homebrew's openshift-cli can go (one owner).
 gcloud     = "latest"          # Google Cloud CLI (vfox:mise-plugins/vfox-gcloud). Used on
                                # this machine; was installed undeclared.
+"npm:ntn"  = "latest"          # Notion CLI (`ntn`) — API requests, Workers, file uploads.
+                               # Not in mise's registry and Notion publishes binaries
+                               # only to its own CDN (ntn.dev/releases/…), so ubi: has no
+                               # GitHub release to point at. The npm package is their
+                               # supported non-self-managed channel: its preinstall
+                               # fetches the platform binary, and `npm update -g` (i.e.
+                               # `mise upgrade`) is the documented update path — the
+                               # `curl ntn.dev | bash` installer self-manages via
+                               # `ntn update`, which would leave a mise copy stale.
+                               # Needs Node 22+/npm 10+ (already global in base mise).
 

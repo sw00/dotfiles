@@ -742,6 +742,13 @@ check_has "mbpm3 mise: d2 declared (was Homebrew)" \
 check_has "mbpm3 mise: websocat declared (was Homebrew)" \
     'websocat' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
+# Notion CLI: no mise registry entry and no GitHub releases (binaries come from
+# ntn.dev), so the npm package is the only mise-ownable channel. Pin the spec so
+# a rewrite to the self-managing `curl ntn.dev | bash` install can't slip in —
+# that copy updates itself and mise would silently keep serving the stale one.
+check_has "mbpm3 mise: notion cli declared via npm backend" \
+    '"npm:ntn"' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+
 check "bootstrap: macOS calls ensure_homebrew_bundle" \
     grep -q 'ensure_homebrew_bundle' "$DOTFILES/bootstrap.sh"
 
