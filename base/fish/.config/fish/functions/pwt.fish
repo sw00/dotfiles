@@ -63,17 +63,27 @@ end
 
 # pi titles its window "<APP_TITLE> - [<session name> - ]<cwd basename>" (dist:
 # modes/interactive/interactive-mode.js), which is the only reliable way to say
-# "this pane is pi": pane_current_command is `node` for pi and for every other
-# node program. pwt-pick keeps an identical default, and check.sh asserts the two
-# agree so a rename cannot update one and miss the other.
-function __pwt_pi_title --description 'pi window-title prefix'
-    # -n, not just set: PWT_PI_TITLE="" would otherwise make every window
-    # count as pi.
+# "this pane is pi": pane_current_command is `node` for upstream pi and for every
+# other node program, and `pi-bin` for Pi-Bolt — neither is a cross-variant signal.
+# APP_TITLE is not one either (`π` upstream, `Pi-Bolt` under the default `pi` on
+# PATH), so both prefixes are accepted; see the pwt-pi-titles marker below.
+# pwt-pi-titles: 'π - ' 'Pi-Bolt - '
+# __pwt_is_pi_title <title> — the SET exists because APP_TITLE is a build
+# constant: Pi-Bolt bakes `Pi-Bolt` into a dist its self-update replaces, so it
+# cannot be config'd back to `π`. PWT_PI_TITLE REPLACES the set rather than
+# extending it (a fixture pins ONE title). Byte-identical marker line in pwt-pick
+# and pwt-revive-restored; check.sh asserts all three.
+function __pwt_is_pi_title --description 'is <title> a pi pane title (π upstream, Pi-Bolt)'
+    # -n, not just set: PWT_PI_TITLE="" would otherwise make every window count.
+    # A LITERAL prefix, not a glob: `string match "$PWT_PI_TITLE*"` would treat a `*`
+    # in the override as a wildcard, while bash's `case "$1" in "$PWT_PI_TITLE"*)`
+    # compares it literally — the two must agree on what "exact prefix" means.
     if test -n "$PWT_PI_TITLE"
-        echo $PWT_PI_TITLE
-    else
-        echo 'π - '
+        test (string sub -l (string length -- "$PWT_PI_TITLE") -- "$argv[1]") = "$PWT_PI_TITLE"
+        return $status
     end
+    string match -q -- 'π - *' "$argv[1]"; and return 0
+    string match -q -- 'Pi-Bolt - *' "$argv[1]"
 end
 
 # Attach the OSC 7501 state tap to <pane> (pwt-osc mirrors pi's working/blocked/
@@ -153,7 +163,7 @@ function __pwt_window_for --description 'window (or pane) id at <path>; opts: pi
             # window's ACTIVE pane, which is a different pane whenever pi shares
             # its window with anything else.
             set -l title (command tmux display-message -p -t "$parts[2]" '#{pane_title}' 2>/dev/null)
-            string match -q (__pwt_pi_title)'*' -- "$title"; or continue
+            __pwt_is_pi_title "$title"; or continue
         end
         # ...and return the WINDOW id (what select-window wants), or the PANE id
         # when the caller is going to attach a tap to it.
@@ -415,7 +425,8 @@ end
 # with more than one; this is the predicate, so it never prints, mutates or guesses.
 #
 # `ps`/`pgrep`, NOT pane_current_command (see __pwt_is_shell). comm(pane_pid) is a
-# shell AND it has no children: a live pi's pid is `node` (excluded by comm) and a
+# shell AND it has no children: a live pi's pid is not a shell (`node` upstream,
+# `pi-bin` for Pi-Bolt — the allowlist below is what makes that true either way) and a
 # hand-started pi is that shell's CHILD (excluded by pgrep).
 function __pwt_revive_panes --description 'idle-shell panes at worktree <dir>'
     set -l want (__pwt_realpath "$argv[1]")
@@ -440,7 +451,8 @@ end
 # inside that very shell the candidate count is 0 and the slug path would open a
 # SECOND window — the exact reported symptom. This re-applies the same idle-shell
 # evidence to the caller's own pane. A marked workstream needs no separate gate here:
-# a live pwt window's pane pid is pi (`node`), which __pwt_is_shell already rejects.
+# a live pwt window's pane pid is pi (`node` upstream, `pi-bin` for Pi-Bolt), which
+# __pwt_is_shell already rejects — its SHELL ALLOWLIST, never a blocklist of `node`.
 function __pwt_revive_self --description 'is the pane pwt runs in the bare shell at <dir>'
     test -n "$TMUX_PANE"; or return 1
     set -l want (__pwt_realpath "$argv[1]")
@@ -491,7 +503,8 @@ end
 #
 # <dir> is a worktree path, whose shape IS the identity: sid = <repo basename>-<slug>,
 # because resurrect preserves the cwd and nothing else. Anything that is not a bare,
-# idle shell at that exact path is refused — a live pi (comm node), a pane with a child
+# idle shell at that exact path is refused — a live pi (not a shell, whatever its
+# comm: `node` upstream, `pi-bin` for Pi-Bolt), a pane with a child
 # (a hand-started pi), a marked workstream and the pane pwt runs in are all never
 # touched. <dry> = 1 reports what it would do and changes nothing.
 function __pwt_revive --description 'respawn pi into a restored bare shell at <dir>'

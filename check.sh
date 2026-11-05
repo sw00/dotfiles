@@ -1936,6 +1936,10 @@ fi
 section "pi worktree helper (pwt)"
 
 _PWT="$DOTFILES/base/fish/.config/fish/functions/pwt.fish"
+# An exported PWT_PI_TITLE in the CALLER's environment would REPLACE the shipped set
+# for every check below (the `env` calls do not scrub it), which fails loudly but for
+# a reason that has nothing to do with the code. Clear it once, here.
+unset PWT_PI_TITLE
 check "pwt: function exists in base/fish" test -f "$_PWT"
 if command -v fish >/dev/null 2>&1; then
     check "pwt: parses (fish -n)" \
@@ -2455,7 +2459,7 @@ if command -v fish >/dev/null 2>&1; then
         git -C "$_rv_dir/repo" add f
         git -C "$_rv_dir/repo" -c commit.gpgsign=false commit -qm init
         for _rv_s in demo demo2 demo3 demo4 demo5 demo6 demo7 demo8 demo9 demo10 \
-            demo11 demo12 demo13 demo14 demo15 demo16; do
+            demo11 demo12 demo13 demo14 demo15 demo16 demo17; do
             git -C "$_rv_dir/repo" worktree add -q -b "$_rv_s" \
                 "$_rv_dir/repo/__worktrees/$_rv_s"
         done
@@ -2629,9 +2633,14 @@ if command -v fish >/dev/null 2>&1; then
         # pi. A shell merely left in a worktree at save time must not gain a pi.
         _rv_t new-window -d -t project: -n demo8 -c "$(_rv_wt demo8)"
         _rv_t new-window -d -t project: -n demo9 -c "$(_rv_wt demo9)"
+        _rv_t new-window -d -t project: -n demo17 -c "$(_rv_wt demo17)"
         {
             printf 'pane\tproject\t8\t1\t:-\t1\tπ - demo8\t:%s\t1\tfish\t9001\t0\n' "$(_rv_wt demo8)"
             printf 'pane\tproject\t9\t0\t:-\t1\tdemo9 - fish\t:%s\t1\tfish\t9002\t0\n' "$(_rv_wt demo9)"
+            # The DEFAULT `pi` on PATH is bolt, whose saved titles read `Pi-Bolt - …`.
+            # A hook that only knows `π - ` revives nothing after a restore, which is
+            # the silent half of this bug: the panes come back bare and stay bare.
+            printf 'pane\tproject\t17\t1\t:-\t1\tPi-Bolt - demo17\t:%s\t1\tfish\t9005\t0\n' "$(_rv_wt demo17)"
         } > "$_rv_dir/res/save"
         ln -sf "$_rv_dir/res/save" "$_rv_dir/res/last"
         _rv_hook() {
@@ -2646,6 +2655,8 @@ if command -v fish >/dev/null 2>&1; then
             bash -c 'grep -qF "|repo-demo8|" "$1"' _ "$_rv_dir/marked"
         check "pwt: the hook leaves a shell merely left in a worktree alone" \
             bash -c '! grep -qF "|repo-demo9|" "$1"' _ "$_rv_dir/marked"
+        check "pwt: the hook revives a pane whose SAVED title was Pi-Bolt's" \
+            bash -c 'grep -qF "|repo-demo17|" "$1"' _ "$_rv_dir/marked"
         # Kill switch: read by the HOOK only (the explicit verb keeps working).
         _rv_t new-window -d -t project: -n demo10 -c "$(_rv_wt demo10)"
         printf 'pane\tproject\t10\t1\t:-\t1\tπ - demo10\t:%s\t1\tfish\t9003\t0\n' \
@@ -2979,14 +2990,29 @@ check_has "pwt-pick: identifies pi panes by window title" \
     'pane_title' "$_PWT_PICK"
 check_has "pwt-pick: canonicalises paths before comparing" \
     'pwd -P' "$_PWT_PICK"
-# The prefix is needed in BOTH files — pwt decides whether a window is worth
-# reusing, the panel decides which panes are pi — so a rename must not be able to
-# update one and miss the other. The default is read from pwt-pick and asserted in
-# pwt, which fails if either side moves alone.
-_pi_pref="$(sed -n 's/.*PWT_PI_TITLE:-\(.*\)}.*/\1/p' "$_PWT_PICK" | head -1)"
-check "pwt-pick: declares a default pi window-title prefix" test -n "$_pi_pref"
-check "pwt: uses the same pi window-title prefix as pwt-pick" \
-    grep -qF -- "$_pi_pref" "$_PWT"
+# The title SET is needed in all three consumers — pwt decides whether a window is
+# worth reusing, the panel decides which panes are pi, and the post-restore hook
+# decides which SAVED panes were pi — so a new variant must not be able to update
+# one and miss another. The set lives as one byte-identical marker comment in each
+# file (`pwt-pi-titles:`), which is language-neutral (bash and fish both carry it)
+# and cheap to assert three ways. Why a set at all: Pi-Bolt, the default `pi` on
+# PATH via the pi-use shim, bakes a DIFFERENT app title into its dist
+# (`APP_TITLE = PIBOLT ? "Pi-Bolt" : …`), and `pi update --self` replaces that tree
+# wholesale — so it cannot be config'd back to `π` and both measured prefixes are
+# accepted. Measured 2026-11-05: upstream `π - dotfiles`, bolt `Pi-Bolt - dotfiles`.
+_PWT_REVIVE="$DOTFILES/base/tmux/bin/pwt-revive-restored"
+_ptl_p="$(grep -m1 -F 'pwt-pi-titles:' "$_PWT_PICK")"
+_ptl_f="$(grep -m1 -F 'pwt-pi-titles:' "$_PWT")"
+_ptl_r="$(grep -m1 -F 'pwt-pi-titles:' "$_PWT_REVIVE")"
+check "pwt: declares the accepted pi-title set" test -n "$_ptl_p"
+check "pwt: the same pi-title set as pwt-pick" test -n "$_ptl_p" -a "$_ptl_p" = "$_ptl_f"
+check "pwt-revive-restored: the same pi-title set as pwt-pick" \
+    test -n "$_ptl_p" -a "$_ptl_p" = "$_ptl_r"
+# Both halves of the set, anchored to the CASE ARM rather than to the file: the
+# marker comment above already contains both prefixes, so a check that just looked for
+# the strings would stay green if an arm were deleted.
+check_has "pwt: is_pi_title's case arm covers both prefixes" \
+    "'π - '*|'Pi-Bolt - '*" "$_PWT_PICK"
 # display-popup -E closes as soon as the command exits, so a refusal or a
 # validation error has to hold the popup open or it is unreadable.
 check_has "pwt-pick: holds the popup open when pwt fails" \
@@ -3005,6 +3031,26 @@ if command -v fish >/dev/null 2>&1; then
             grep -qF "org/repo/demo" <<<"$out"' \
         _ "$_pwt_ls_tmp" "$_PWT_PICK" "$(command -v fish)" "$_PWT"
     rm -rf "$_pwt_ls_tmp"
+    # The predicate itself, unit-style, with the titles passed as argv (a title holds
+    # spaces, and the quoting is the thing under test as much as the matching is).
+    _pwt_pred="$(mktemp)"
+    cat > "$_pwt_pred" <<'PRED'
+source $argv[1]
+__pwt_is_pi_title $argv[2]
+PRED
+    check "pwt: is_pi_title accepts both shipped prefixes" \
+        bash -c 'env -u PWT_PI_TITLE "$1" -N "$2" "$3" "π - demo" || exit 1
+            env -u PWT_PI_TITLE "$1" -N "$2" "$3" "Pi-Bolt - demo" || exit 1
+            ! env -u PWT_PI_TITLE "$1" -N "$2" "$3" "demo - fish"' \
+        _ "$(command -v fish)" "$_pwt_pred" "$_PWT"
+    # PWT_PI_TITLE REPLACES the set rather than extending it: a fixture pins ONE
+    # title, and a predicate that also accepted the shipped pair would make every
+    # fixture pass for the wrong reason.
+    check "pwt: PWT_PI_TITLE replaces the shipped set" \
+        bash -c 'PWT_PI_TITLE="zz - " "$1" -N "$2" "$3" "zz - demo" || exit 1
+            ! PWT_PI_TITLE="zz - " "$1" -N "$2" "$3" "π - demo"' \
+        _ "$(command -v fish)" "$_pwt_pred" "$_PWT"
+    rm -f "$_pwt_pred"
 fi
 
 # `pwt ls --all` is the DORMANT half of the listing: plain `pwt ls` is the panel's
@@ -3161,6 +3207,31 @@ check "pwt-pick: --list never attaches a tap" \
             PWT_STUB_PIPELOG="$log" "$3" --list >/dev/null || exit 1
         [[ ! -s "$log" ]]' \
     _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# The DEFAULT set, not the override: these set no PWT_PI_TITLE, so they exercise the
+# prefixes the code actually ships — including Pi-Bolt's, which is what the default
+# `pi` on PATH writes (the shim points it at bolt). Both filter sites are pinned
+# separately: --list builds the rows, --tap-live attaches the state tap, and rewiring
+# one but not the other would show rows with no state at all.
+check "pwt-pick: lists a live pane titled by Pi-Bolt (shipped set)" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="Pi-Bolt - main" PWT_STUB_LIVE="$2/org/live" "$3" --list)
+        grep -qF "▸     org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+check "pwt-pick: --tap-live adopts a Pi-Bolt-titled pane (shipped set)" \
+    bash -c 'log=$(mktemp); trap "rm -f \"$log\"" EXIT
+        env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+            PWT_STUB_TITLE="Pi-Bolt - main" PWT_STUB_LIVE="$2/org/live" \
+            PWT_STUB_PIPELOG="$log" "$3" --tap-live || exit 1
+        grep -qF "pipe-pane -t %9" "$log"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
+# ...and the filter still filters: a non-pi title must not become a LIVE row. This is
+# a CONTROL, not a fix test — it passes on the unfixed code too; it exists so that the
+# two checks above cannot be satisfied by a predicate that accepts everything.
+check "pwt-pick: a non-pi title is still not a live row" \
+    bash -c 'out=$(env TMUX=stub PATH="$1:$PATH" PWT_SRC="$2" HOME=/nonexistent \
+        PWT_STUB_TITLE="nvim - main" PWT_STUB_LIVE="$2/org/live" "$3" --list)
+        ! grep -qF "org/live" <<<"$out"' \
+    _ "$_pwt_bin" "$_pwt_tmp" "$_PWT_PICK"
 # pi's own state, and the ordering that makes the list answer "which one wants me"
 # without reading it: a blocked workstream sorts above a working one.
 check "pwt-pick: shows pi's state and floats a blocked workstream to the top" \
@@ -3316,10 +3387,29 @@ PROBE
             env TMUX="$1" fish -N "$2" "$3" rm "$4" solo >/dev/null 2>&1
             [[ ! -d "$4/__worktrees/solo" ]]' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+    # The active window is moved AWAY first, or the check passes on a jump that never
+    # happened: `select-pane -T` above already made the pi window active, and the
+    # assertion would read the state the fixture set rather than the state jump chose.
     check "pwt: jump picks the pi window, not a shell in the same directory" \
-        bash -c 'env TMUX="$1" fish -N "$2" "$3" jump "$4" >/dev/null 2>&1
-            tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{pane_title}" | grep -q "^1:π - "' \
+        bash -c 'tmux -S "$1" select-window -t otheratroot
+            env TMUX="$1" fish -N "$2" "$3" jump "$4" >/dev/null 2>&1
+            tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{window_name}:#{pane_title}" | grep -q "^1:piatroot:π - "' \
         _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_repo"
+    # ...and the same discrimination for the variant that is actually the default on
+    # PATH: a `Pi-Bolt - ` title must be found, or the panel's enter cannot reach a
+    # workstream whose pi it does not recognise. TWO windows in ONE fresh directory,
+    # so the cwd alone cannot answer: the plain one keeps tmux's default title and
+    # only the pi-only tier separates them.
+    _pwt_boltdir="$(mktemp -d)"
+    tmux -S "$_pwtsock" new-window -t pwttest -n boltother -c "$_pwt_boltdir" "sleep 300" >/dev/null 2>&1
+    tmux -S "$_pwtsock" new-window -t pwttest -n piatbolt -c "$_pwt_boltdir" "sleep 300" >/dev/null 2>&1
+    _pwt_pb="$(tmux -S "$_pwtsock" list-panes -t piatbolt -F '#{pane_id}')"
+    tmux -S "$_pwtsock" select-pane -t "$_pwt_pb" -T 'Pi-Bolt - bolt' >/dev/null 2>&1
+    check "pwt: jump picks a Pi-Bolt-titled window over a shell beside it" \
+        bash -c 'tmux -S "$1" select-window -t boltother
+            env TMUX="$1" fish -N "$2" "$3" jump "$4" >/dev/null 2>&1
+            tmux -S "$1" list-windows -t pwttest -F "#{window_active}:#{window_name}:#{pane_title}" | grep -q "^1:piatbolt:Pi-Bolt - "' \
+        _ "$_pwtsock" "$_pwtprobe" "$DOTFILES" "$_pwt_boltdir"
 
     # TWO in-place workstreams in ONE repo: same directory, different workstreams.
     # Nothing about the cwd separates them, which is exactly why the window carries

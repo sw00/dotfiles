@@ -4,15 +4,16 @@
 #
 # WHY THIS EXISTS. A pwt window runs `pi --session-id <sid>` with no shell, so
 # resurrect's default save strategy (the CHILDREN of the pane pid) records NO command
-# for it — pane_pid IS pi. @user options are not saved either, and the `π - <slug>`
-# title resurrect restores is overwritten by the shell. So C-r brings back a bare
-# shell sitting in the worktree, `C-w` → enter and `pwt <slug>` would open a SECOND
-# window, and the restored one is orphaned.
+# for it — pane_pid IS pi. @user options are not saved either, and the pi title
+# (`π - <slug>` upstream, `Pi-Bolt - <slug>` under the default `pi` on PATH) is
+# overwritten by the shell. So C-r brings back a bare shell sitting in the worktree,
+# `C-w` → enter and `pwt <slug>` would open a SECOND window, and the restored one is
+# orphaned.
 #
-# THE EVIDENCE. The save file DOES carry each pane's saved title and cwd. pi's title
-# prefix (`π - `, PWT_PI_TITLE) is the record of "this pane WAS pi at save time"; a
-# shell merely cd'd into a worktree at save time carries the shell's own title, so it
-# is never given a pi it never had.
+# THE EVIDENCE. The save file DOES carry each pane's saved title and cwd. A pi title
+# (see the pwt-pi-titles set below) is the record of "this pane WAS pi at save time";
+# a shell merely cd'd into a worktree at save time carries the shell's own title, so
+# it is never given a pi it never had.
 #
 # `pwt revive` does the work: same pane, same window, pi respawned, marked and
 # re-tapped. This script only reads the save and hands it directories.
@@ -58,7 +59,20 @@ fi
 save="$resurrect_dir/last"
 [ -r "$save" ] || exit 0
 
-pi_title="${PWT_PI_TITLE:-π - }"
+# pwt-pi-titles: 'π - ' 'Pi-Bolt - '
+# is_pi_title <title> — did this SAVED pane belong to pi? The SET exists because
+# APP_TITLE is a build constant: upstream pi says `π`, Pi-Bolt (the default `pi` on
+# PATH) bakes `Pi-Bolt` in and its self-update replaces the tree, so both are
+# accepted. PWT_PI_TITLE REPLACES the set (fixtures, and a rename). Byte-identical
+# marker line in pwt-pick and pwt.fish; check.sh asserts all three.
+is_pi_title() {
+    if [ -n "${PWT_PI_TITLE:-}" ]; then
+        case "$1" in "$PWT_PI_TITLE"*) return 0 ;; esac
+        return 1
+    fi
+    case "$1" in 'π - '*|'Pi-Bolt - '*) return 0 ;; esac
+    return 1
+}
 
 # Pane lines are TAB-separated (resurrect's pane_format): field 1 the record type,
 # field 7 the saved pane_title, field 8 ":" + the saved cwd. `read` gives the last
@@ -66,7 +80,7 @@ pi_title="${PWT_PI_TITLE:-π - }"
 dirs=()
 while IFS=$'\t' read -r kind _session _window _active _flags _pane title dir _rest; do
     [ "$kind" = "pane" ] || continue
-    case "$title" in "$pi_title"*) ;; *) continue ;; esac
+    is_pi_title "$title" || continue
     case "$dir" in
         :/*) dir="${dir#:}" ;;
         *) continue ;;

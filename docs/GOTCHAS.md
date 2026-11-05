@@ -98,6 +98,8 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 
 ## tmux
 
+- **The `C-w` panel identifies pi panes by TITLE, and Pi-Bolt titles itself `Pi-Bolt - …`, not `π - …`.** Symptom after bolt became the default `pi` on PATH (the pi-use shim): live pi windows vanished from `C-w` entirely (worktree rows survived, because they resolve through `@pwt_sid`/cwd), and the post-restore hook revived nothing, so restored windows came back as bare shells and stayed that way — the silent half, since nothing looks broken until you notice the panel is missing rows. Root cause is a build constant, not a setting: upstream pi's dist has `APP_TITLE = PIBOLT ? "Pi-Bolt" : piConfigName ? APP_NAME : "\u03C0"`, and `pi update --self` replaces bolt's tree wholesale, so it cannot be config'd back to `π`. Measured 2026-11-05 in a real pane: upstream `π - dotfiles` + `pane_current_command=node`; bolt `Pi-Bolt - dotfiles` + `pi-bin`. Fix: the accepted prefixes live as ONE byte-identical `pwt-pi-titles:` marker line in `pwt-pick`, `pwt.fish` and `pwt-revive-restored`, and `check.sh` asserts the three agree and that both halves are present. Two things NOT to "fix" while you are there: `pane_current_command` is not a cross-variant identity (`node` vs `pi-bin`), and `pwt-osc`'s `app=pi` filter is correct for bolt too — the OSC 7501 report carries `app=pi` under both variants (measured), so the state tap, the `!`/`◔`/`x` glyphs and the pushes never broke.
+
 - **A `pipe-pane` shell command is a `strftime(3)` template before it is a format
   string.** tmux runs `format_expand_time` over it (`cmd-pipe-pane.c`), so a literal
   pane id `%3` becomes `3`, and every later `tmux -t 3` silently targets **window

@@ -6,9 +6,11 @@
 #     (default ~/src, matching the C-f picker's zoxide scope);
 #   * live pi windows NOT backed by a worktree — the main-checkout sessions.
 #     pi titles its window "<APP_TITLE> - [<session name> - ]<cwd basename>"
-#     (dist: modes/interactive/interactive-mode.js), so the title prefix is what
-#     identifies a pi pane. pane_current_command cannot: pi runs as `node`, and
-#     so does every other node program.
+#     (dist: modes/interactive/interactive-mode.js), so the title is what
+#     identifies a pi pane. pane_current_command cannot: upstream pi runs as
+#     `node`, as does every other node program, and Pi-Bolt runs as `pi-bin` —
+#     neither is a cross-variant signal. APP_TITLE itself is not one either:
+#     upstream says `π`, Pi-Bolt bakes `Pi-Bolt` in, so both are accepted.
 #
 # Verbs, all of them from inside the list:
 #   enter    open   — go to the window already holding it, else ask pwt for one
@@ -60,10 +62,25 @@ set -euo pipefail
 SRC_RAW="${PWT_SRC:-$HOME/src}"
 SESSIONS="$HOME/.pi/agent/sessions"
 
-# pi's window-title prefix. The app title comes from the pi package's piConfig
-# (`π` on this install); PWT_PI_TITLE exists so the live-session rows can be
-# exercised without a real pi, and so a rename is a one-line change.
-PI_TITLE="${PWT_PI_TITLE:-π - }"
+# pwt-pi-titles: 'π - ' 'Pi-Bolt - '
+# is_pi_title <title> — is this a pi pane's title? The SET exists because
+# APP_TITLE is a build constant, not config: upstream pi titles itself `π`, while
+# Pi-Bolt — the default `pi` on PATH through the pi-use shim — bakes
+# `APP_TITLE = PIBOLT ? "Pi-Bolt" : …` into its dist, and `pi update --self`
+# replaces that tree wholesale, so it cannot be config'd back. Measured
+# 2026-11-05: upstream `π - dotfiles`, bolt `Pi-Bolt - dotfiles`.
+# PWT_PI_TITLE (single prefix) REPLACES the set: fixtures pin one title, and a
+# predicate that also accepted the shipped pair would let them pass for the wrong
+# reason. This marker line is byte-identical in pwt.fish and
+# pwt-revive-restored; check.sh asserts all three.
+is_pi_title() {
+    if [ -n "${PWT_PI_TITLE:-}" ]; then
+        case "$1" in "$PWT_PI_TITLE"*) return 0 ;; esac
+        return 1
+    fi
+    case "$1" in 'π - '*|'Pi-Bolt - '*) return 0 ;; esac
+    return 1
+}
 
 # pi names a project's session directory after the project path: drop the leading
 # slash, turn every / into -, wrap in --. e.g. /Users/x/dotfiles ->
@@ -247,7 +264,7 @@ PI_CWDS=''
 if [[ -n "$LIVE" ]]; then
     while IFS=$'\t' read -r _title _path _label _state _pane; do
         [[ -n "$_path" ]] || continue
-        case "$_title" in "$PI_TITLE"*) ;; *) continue ;; esac
+        is_pi_title "$_title" || continue
         _path="$(canon_dir "$_path")"
         # A pane in a window PWT OPENED (its window carries @pwt_label) is the only
         # kind `pwt reload` can resume: pwt resolves a pi-titled pane and then demands
@@ -298,7 +315,7 @@ tap_live_panes() {
     sock="${TMUX%%,*}"
     while IFS=$'\t' read -r _t _p _l _s _pane; do
         [[ -n "$_pane" ]] || continue
-        case "$_t" in "$PI_TITLE"*) ;; *) continue ;; esac
+        is_pi_title "$_t" || continue
         tmux pipe-pane -t "$_pane" "exec env TMUX=$sock $HOME/bin/pwt-osc #{pane_id}" 2>/dev/null || true
     done <<< "$LIVE"
 }

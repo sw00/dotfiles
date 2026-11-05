@@ -103,7 +103,9 @@ which session is going away.
 ## The panel: tmux prefix then `C-w`
 
 Rows are every worktree under `$PWT_SRC` (default `~/src`) plus every live pi window
-(pi titles itself `π - …`; the prefix is `PWT_PI_TITLE`), sorted so work that wants
+(pi titles itself `<APP_TITLE> - …`; the accepted prefixes are the `pwt-pi-titles`
+set — `π - ` upstream, `Pi-Bolt - ` under the default `pi` on PATH — and
+`PWT_PI_TITLE` overrides the set with one exact prefix), sorted so work that wants
 a human comes first: `!` blocked, `✓` done, `x` error, `◔` working. `▸` means a
 window is open on it, `⬤` means it has a transcript on disk. Cells are separated by a
 space — `▸ ⬤ ◔ label` — because `⬤` fills its cell edge to edge and a jammed block
@@ -154,7 +156,8 @@ refusal keeps the popup open to be read.
 as a **bare shell**: resurrect's default save strategy records the CHILDREN of the pane
 pid, and a pwt pane runs `pi --session-id <sid>` with no shell, so its saved command is
 empty; `@user` options (`@pwt_sid`, `@pwt_dir`, the OSC tap) are not saved either; and
-the `π - <slug>` title resurrect restores is overwritten by the shell. Left alone,
+the `π - <slug>` / `Pi-Bolt - <slug>` title resurrect restores is overwritten by the
+shell. Left alone,
 `C-w` → enter and `pwt <slug>` would open a SECOND window and orphan the restored one.
 
 Two surfaces repair it:
@@ -174,15 +177,20 @@ worktree at save time is left alone. `tmux set -g @pwt_revive 0` mutes the hook;
 there would undo the session resurrect just chose.
 
 A revive only ever touches a pane that is a bare, IDLE shell whose cwd is exactly the
-worktree path: a live pi (`node`), a shell with a child (a hand-started pi), a marked
+worktree path: a live pi (`node` upstream, `pi-bin` under Pi-Bolt), a shell with a
+child (a hand-started pi), a marked
 workstream, the pane `pwt` runs in, and a worktree with more than one idle pane are all
 refused. `comm(pane_pid)` + no children is the discriminator — `pane_current_command`
 lies, because tmux wraps a window command in a shell. See `TODO.md`.
 
-Two consequences worth knowing. **Adoption outranks the title**: the `π - ` prefix is
-what a restored shell can spoof, so demonstrable idle-shell evidence at the worktree
-path is trusted FIRST and the pane title only decides what is left — that is why a
-restored pane is revived rather than jumped to. And **the pane `pwt` is typed into is
+Two consequences worth knowing. **Adoption outranks the title in `pwt <slug>`**: a pi
+title is a prefix any shell can carry, so demonstrable idle-shell evidence at the
+worktree path is trusted FIRST and the pane title only decides what is left — that is
+why a restored pane is revived rather than jumped to. The post-restore hook is the
+other way round by nature: it has only the save file, so the title selects the
+CANDIDATES and `pwt revive` still demands an idle shell at each one (a shell merely
+`cd`'d into a worktree at save time carries the shell's own title and is never given a
+pi it never had). And **the pane `pwt` is typed into is
 refused, never duplicated**: a bare shell sitting in the worktree root cannot be
 respawned without killing the `pwt` running in it, so `pwt <slug>` says so rather than
 opening a second window. A shell that merely `cd`'d into a worktree root is
@@ -296,9 +304,11 @@ tree: it closes the pi window and nothing else.
 
 ## State and notifications
 
-pi reports `working/blocked/done/error/clear` over OSC 7501. tmux consumes unknown
-OSC, so a `pipe-pane` tap (`pwt-osc`) reads the pane's byte stream before tmux parses
-it and mirrors the state into window options:
+pi reports `working/blocked/done/error/clear` over OSC 7501, with `app=pi` in the
+report under BOTH variants (measured 2026-11-05 against Pi-Bolt, which is why
+`pwt-osc` filters on `pi` and needed no change when bolt became the default). tmux
+consumes unknown OSC, so a `pipe-pane` tap (`pwt-osc`) reads the pane's byte stream
+before tmux parses it and mirrors the state into window options:
 
 - `@pi_state` — what pi last said. Shown in the panel.
 - `@pi_alert` — set when that state wants a human, and shown as `!` in the window
@@ -361,17 +371,36 @@ WSL pushes a WinRT toast through `powershell.exe`; the failure mode is silence (
 
 ## If you change this
 
-Nine invariants are load-bearing here: none of them is obvious from the line it
+Ten invariants are load-bearing here: none of them is obvious from the line it
 constrains. Read the comment before changing the line — the mechanism is written down
 there, not just the rule.
+
+- **The pi title is a SET, written once as a `pwt-pi-titles:` marker line.** The same
+  marker is byte-identical in `pwt-pick`, `pwt.fish` and `pwt-revive-restored`;
+  `check.sh` asserts all three agree, pins the `case` arm that carries both prefixes,
+  and exercises each consumer behaviourally against both. It is a set because
+  `APP_TITLE` is a BUILD CONSTANT, not config: upstream pi says `π`, Pi-Bolt — the
+  default `pi` on PATH through the pi-use shim — bakes
+  `APP_TITLE = PIBOLT ? "Pi-Bolt" : …` into a dist that `pi update --self` replaces
+  wholesale, so it cannot be made to say `π`. A third variant means adding its prefix
+  in all three files; miss one and its panes silently vanish from the panel (or come
+  back as bare shells after a restore, which is worse because nothing looks broken).
+  `PWT_PI_TITLE` REPLACES the set with one exact prefix — that is the fixture seam,
+  and a predicate that also accepted the shipped pair would let fixtures pass for the
+  wrong reason. Honest limit of the scheme: a SHELL in a directory literally named
+  `Pi-Bolt` titles itself `Pi-Bolt - fish` and so matches — which is why the title
+  never outranks idle-shell evidence and why the hook still verifies each candidate.
 
 - **One `respawn-pane`, in `__pwt_respawn_pi`.** `pwt reload` and `pwt revive` are the
   same restart (same pane, same env flag, same `pane_dead` survival check, same tap
   re-attach); a second copy drifts, and `check.sh` asserts the count is one.
 - **A restored pane is adopted only when it is an IDLE shell** — `comm(pane_pid)` is a
-  shell (login `-sh` included) and it has no children. The `π -` title is a prefix a
-  shell can carry, so it must never outrank that evidence; and a pane with a child, a
-  marked workstream, a non-shell, or the pane `pwt` runs in is never respawned.
+  shell (login `-sh` included) and it has no children. A pi title is a prefix a
+  shell can carry, so it must never outrank that evidence in `pwt <slug>`; and a pane
+  with a child, a marked workstream, a non-shell, or the pane `pwt` runs in is never
+  respawned. Note what makes a live pi "not a shell" here: `__pwt_is_shell` is a
+  SHELL ALLOWLIST, so `node` (upstream pi) and `pi-bin` (Pi-Bolt) are both excluded
+  without naming either — never convert it to a blocklist of one variant's comm.
 
 - **Window identity is `@pwt_sid` + `@pwt_dir` together.** The sid comes from the repo
   basename, so on its own it is not unique across repos or between `here` and a

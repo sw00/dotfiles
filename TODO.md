@@ -57,7 +57,8 @@ removed — full implementation history lives in git. Shared-core behavior
   2026-10-22).** `C-r` brings the sessions, windows and layout back, but a worktree
   window is a bare shell: resurrect records no command for a pane whose pid IS pi
   (its save strategy reads the pane pid's CHILDREN), no `@user` options are saved, and
-  the `π -` pane title it does restore is a lie that `pi-only` believed — so
+  the pi pane title it does restore (`π -` when this was found; the `pwt-pi-titles`
+  set today, which also carries `Pi-Bolt - `) is a lie that `pi-only` believed — so
   `C-w` → enter either jumped to the shell or opened a second window and orphaned the
   first. Identity is recoverable from the path (`<root>/__worktrees/<slug>`).
   **Landed** (owner chose the auto-hook ON): `pwt revive [--dry-run] <dir>…` +
