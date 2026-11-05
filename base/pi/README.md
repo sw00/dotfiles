@@ -60,25 +60,34 @@ config only where the table says so.
 
 | command | runs | config | extensions |
 | --- | --- | --- | --- |
-| `pi-use pi` | upstream managed install | `~/.pi/agent` | all (default) |
-| `pi-use bolt` | pi-bolt 1.x (fork of a pinned pi tag, AOT binary) | `~/.pi/agent` | all, via jiti in JSC's interpreter |
-| `pi-use pig` | pig (Go rewrite) | `~/.pig/agent` | **none** — no extension system exists there |
+| `pi-use bolt` | pi-bolt 1.0.9 — pi 1.4.0 compiled AOT — **the default** | `~/.pi/agent` | all, via jiti in JSC's interpreter (runtime-verified) |
+| `pi-use pi` | upstream managed install | `~/.pi/agent` | all — the rollback path and the zero-lag option |
+| `pi-use pig` | pig (Go rewrite, **not provisioned**) | `~/.pig/agent` | **none** — no extension system exists there |
 
 `pi-use status` reports the link, the variant and what is actually running, and
 fails on drift (a recorded choice that the symlink no longer honours). A flip is
 fully reversible: it changes one symlink and one state file, nothing else.
 
-Two rules that follow from the table:
+**bolt is the default because parity plus footprint beat version-freshness.**
+It shares `~/.pi/agent` byte-for-byte (settings, auth, trust, models, skills,
+sessions), so the whole extension stack — `infra-safety`, `subagent`,
+`model-switch`, `usage`, `hypa`, web access, the Claude bridge — loads exactly as
+under pi, and no per-variant provisioning exists. It reports `1.4.0 (Pi-Bolt
+1.0.9, …)`: one minor behind upstream, which is the price. `agents-update`
+updates it in place (`pi update --self` rewrites `~/.pi-bolt`); npm installs
+cannot self-update and must run npm themselves. Rollback is `pi-use pi`, and
+`pi-bolt update --rollback` exists for the bolt tree itself.
 
-- **bolt is version-pinned.** It reports `1.4.0 (Pi-Bolt 1.0.x)`; its own
-  version line says nothing about pi API compatibility. `agents-update` refuses
-  to run while bolt is active (a compiled binary cannot self-update) — run
-  `pi-use pi` first, then flip back. A flip is the same harness swap a version
-  move is, so it owes the same `pi-smoke.sh` pass.
-- **pig is not a drop-in.** With no extension system, `infra-safety` does not
-  run, so infra mutations are ungated. `pi-use` says this at flip time and
-  `status` keeps saying `degraded:` while it is active. pig has no prebuilt
-  releases; it needs a Go toolchain (`go install github.com/ZoroSpace/pig/cmd/pig@latest`).
+Rules that follow from the table:
+
+- **A flip is a harness swap.** Sessions written by another variant live in the
+  same tree but may not resume cleanly across the 1.4.0/1.5.0 gap — resume under
+  the variant that wrote the session, and treat a flip (or a pi-bolt rebase) as
+  owing the `pi-smoke.sh` pass.
+- **pig is not a drop-in and is deliberately not provisioned.** With no extension
+  system, `infra-safety` does not run, so infra mutations are ungated; `pi-use`
+  says so at flip time and `status` keeps printing `degraded:`. It has no
+  prebuilt releases (Go toolchain required) and no `update` subcommand.
 
 ## Project trust
 

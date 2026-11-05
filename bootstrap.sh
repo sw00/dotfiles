@@ -660,6 +660,22 @@ _ensure_self_managed() {
     fi
 }
 
+# True when ~/.local/bin/pi honours the recorded pi-use variant $1, using the
+# SAME link shapes pi-use writes: bolt is a same-dir relative name (its launcher
+# and its release binary both live beside ~/.local/bin/pi-bolt), pig is the
+# absolute path of the resolved binary (it has no launcher).
+_pi_use_link_matches() {
+    local want="$1" target
+    [[ -L "$HOME/.local/bin/pi" ]] || return 1
+    target="$(readlink "$HOME/.local/bin/pi")" || return 1
+    case "$want" in
+        bolt) [[ "$target" == "pi-bolt" ]] ;;
+        pig) [[ "$target" == "pig" || "$target" == /*/pig ]] ;;
+        pi) [[ "$target" == "../../.pi/agent/bin/pi" || "$target" == "$HOME/.pi/agent/bin/pi" ]] ;;
+        *) return 1 ;;
+    esac
+}
+
 ensure_pi() {
     # pi owns itself via its managed installer — the one layout where
     # `pi update` works (see AGENTS.md).  Must run after ensure_mise: the
@@ -676,15 +692,66 @@ ensure_pi() {
     if [[ -r "$HOME/.pi/agent/pi-variant" ]]; then
         IFS= read -r variant <"$HOME/.pi/agent/pi-variant" || true
     fi
-    if [[ "$variant" == "bolt" && -L "$HOME/.local/bin/pi" ]] \
-        && [[ "$(readlink "$HOME/.local/bin/pi")" == "pi-bolt" ]]; then
-        log "pi is pi-bolt by choice (pi-use bolt) — entrypoint left alone (flip: pi-use pi)"
+    if [[ "$variant" == "bolt" || "$variant" == "pig" ]] && _pi_use_link_matches "$variant"; then
+        log "pi is $variant by choice (pi-use $variant) — entrypoint left alone (flip: pi-use pi)"
         return 0
     fi
     _ensure_self_managed pi \
         "$HOME/.pi/agent/install/managed-install.json" \
         "$HOME/.pi/agent" \
         https://pi.dev/install.sh sh
+}
+
+ensure_bolt() {
+    # pi-bolt is the default `pi` binary: pi 1.4.0 compiled ahead of time, running
+    # on the SAME ~/.pi/agent as upstream pi (settings, auth, trust, sessions and
+    # the extension stack are shared, which is why no provisioning is needed here).
+    # It owns itself like pi and claude: the curl installer puts a release tree in
+    # ~/.pi-bolt and links ~/.local/bin/pi-bolt, and `pi update --self` replaces
+    # that tree in place. Bootstrap therefore converges "installed at all" only —
+    # never a version, which is the deliberate agents-update pairing.
+    local link="$HOME/.local/bin/pi-bolt" resolved
+    if [[ -e "$link" ]]; then
+        resolved="$(realpath "$link" 2>/dev/null || printf '%s' "$link")"
+        [[ -x "$resolved" ]] && return 0
+    fi
+    command -v curl >/dev/null 2>&1 || { warn "pi-bolt: curl not on PATH — skipping"; return 0; }
+    log "pi-bolt: installing (the default pi variant; ~/.pi-bolt)"
+    # PIBOLT_YES: without it the installer waits for a keypress on a tty, which a
+    # bootstrap run must never do (same rule as pi's "Start pi now?" — GOTCHAS).
+    if curl -fsSL https://pi-bolt.opensec.in/install.sh | PIBOLT_YES=1 sh; then
+        log "pi-bolt: installed"
+    else
+        warn "pi-bolt: install failed (offline?) — the default stays on upstream pi"
+    fi
+    return 0
+}
+
+ensure_variant_default() {
+    # Converge the UNRECORDED case only: a host that has never recorded a pi-use
+    # choice runs pi-bolt. A recorded choice (pi, bolt or pig) is deliberate and is
+    # never overridden — ensure_pi's guard is what stops bootstrap undoing it, and
+    # flipping back is `pi-use pi`. No-ops when either piece is missing, so a host
+    # that has not pulled this change keeps working unchanged.
+    local variant=""
+    if [[ -r "$HOME/.pi/agent/pi-variant" ]]; then
+        IFS= read -r variant <"$HOME/.pi/agent/pi-variant" || true
+    fi
+    if ! command -v pi-use >/dev/null 2>&1; then
+        log "pi variant: pi-use is not stowed yet — leaving the pi entrypoint alone"
+        return 0
+    fi
+    if [[ -n "$variant" ]]; then
+        log "pi variant: recorded choice ($variant) — leaving the pi entrypoint alone (flip: pi-use pi|bolt|pig)"
+        return 0
+    fi
+    if ! command -v pi-bolt >/dev/null 2>&1; then
+        log "pi variant: pi-bolt is not installed — the default stays on upstream pi"
+        return 0
+    fi
+    log "pi variant: no recorded choice — pointing pi at pi-bolt (flip back: pi-use pi)"
+    pi-use bolt || warn "pi variant: pi-use bolt failed — run it by hand once the cause is clear"
+    return 0
 }
 
 ensure_claude() {
@@ -1091,7 +1158,12 @@ main() {
     esac
 
     # 2d-bis. Re-sync the host-local pi settings from the tracked template — runs
-    # on every platform, after ensure_pi in both branches above.
+    # on every platform, after ensure_pi in both branches above. pi-bolt is the
+    # default `pi` binary and shares ~/.pi/agent, so it needs no separate store:
+    # ensure_bolt only converges "installed", and ensure_variant_default only the
+    # never-recorded variant choice.
+    ensure_bolt
+    ensure_variant_default
     apply_pi_settings
 
     if [[ "$platform" == "linux" ]]; then

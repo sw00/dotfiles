@@ -22,8 +22,12 @@
 #
 # A third variant, pig, is NOT a drop-in: it is a Go rewrite with no
 # extension system, so flipping to it removes this repo's safety and workflow
-# extensions (see set_pig's warning). It exists because sometimes you want to
-# run the other implementation, not because it is interchangeable.
+# extensions (see set_pig's warning). It is NOT provisioned by bootstrap or mise:
+# reaching for it means "run the other implementation", never "same setup".
+#
+# Pi-bolt is the DEFAULT: pi 1.4.0 compiled ahead of time, sharing ~/.pi/agent
+# (settings, auth, trust, sessions, extensions), installed by its own curl
+# installer into ~/.pi-bolt. Its `pi update --self` replaces that tree in place.
 #
 # Usage: pi-use [pi|upstream|bolt|pig|current|status]
 
@@ -94,14 +98,20 @@ set_upstream() {
 }
 
 set_bolt() {
-    # Validate BEFORE flipping: the pi-bolt launcher needs its sibling
-    # install.sh, since it resolves itself and then runs ../install.sh.
+    # Two supported shapes, both validated BEFORE flipping:
+    #   installer (recommended): the release tree beside the binary, which is what
+    #     `pi update --self` replaces in place, and which ships version-matched
+    #     examples/extensions/subagent;
+    #   npm (--prefix ~/.local): the launcher resolves itself and runs
+    #     ../install.sh, so that sibling file has to exist.
     [ -e "$bin_dir/pi-bolt" ] \
-        || die "$bin_dir/pi-bolt is missing — npm install -g --prefix ~/.local pi-bolt"
+        || die "$bin_dir/pi-bolt is missing — curl -fsSL https://pi-bolt.opensec.in/install.sh | PIBOLT_YES=1 sh"
     resolved=$(readlink -f "$bin_dir/pi-bolt") || die "cannot resolve $bin_dir/pi-bolt"
     [ -x "$resolved" ] || die "$resolved is not executable"
-    [ -f "${resolved%/*}/../install.sh" ] \
-        || die "no install.sh beside the pi-bolt launcher — wrong install shape?"
+    if [ ! -f "${resolved%/*}/../install.sh" ] \
+        && [ ! -f "${resolved%/*}/examples/extensions/subagent/index.ts" ]; then
+        die "unrecognised pi-bolt layout at $resolved — expected the release tree from the curl installer, or npm's launcher plus ../install.sh"
+    fi
     require_our_link
     ln -sfn "$bolt_target" "$pi_link"
     write_state bolt

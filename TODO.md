@@ -6,6 +6,25 @@ This file tracks only genuine open or deferred work; completed fixes were
 removed — full implementation history lives in git. Shared-core behavior
 (`base/`) is validated by `./check.sh`; run it before committing.
 
+## Open — pi-bolt is the default `pi` binary (landed on mbpm3 2026-11-05)
+
+- [ ] **Migrate x13yg2 and x1eg2.** Both are WSL hosts, unreachable from mbpm3.
+  On each: `git pull` → `bash check.sh` (green) → `bash bootstrap.sh` in a real
+  terminal (it installs pi-bolt and converges the unrecorded variant; non-TTY
+  `sudo -v` aborts, AGENTS.md) → `pi-use status` → `pi -p --no-session "Reply OK"`
+  → `bash check.sh` again.
+- [ ] **Re-baseline the prompt eval under bolt.** `pi-smoke.sh` was last baselined
+  on pi 1.2.0 and mbpm3 now runs pi-bolt 1.0.9 (pi 1.4.0) by default. Record a
+  bolt table in `docs/PROMPT-EVAL.md`, and include one **resume-across-skew**
+  probe (a 1.5.0-written session resumed under bolt) — that is the largest
+  unverified risk of the default.
+- [ ] **Delete the leftover pig state on mbpm3.** `/Users/sett/.pig` was moved to
+  `~/.pig-removed-20261105` and the mise `go:` toolchain + pig install were
+  uninstalled; delete the moved directory once nothing needs it.
+- [ ] **`secrets/env.fish` is uncommitted** (git-crypt'd, 930→1143 bytes): left
+  for the owner to review and commit with the repo unlocked. Never bundle it with
+  code commits.
+
 ## Open — active bug
 
 - [ ] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it

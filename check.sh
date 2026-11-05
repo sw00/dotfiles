@@ -3981,8 +3981,29 @@ fi
 _PI_USE="$DOTFILES/base/pi/.local/bin/pi-use"
 check "pi-use: exists in the pi stow package" test -f "$_PI_USE"
 check "pi-use: is executable" test -x "$_PI_USE"
-check_not "mise: pi-bolt is NOT mise-managed (npm --prefix + pi-use own it)" \
+check_not "mise: pi-bolt is NOT mise-managed (its own installer + pi-use own it)" \
     '^pi-bolt[[:space:]]*=' "$MISE_CFG"
+
+# pi-bolt is the DEFAULT `pi` binary and shares ~/.pi/agent, so it needs no
+# provisioning of its own — only its install and the variant convergence, both
+# asserted. Bootstrap must never move its version (that is agents-update's
+# deliberate, eval-paired act), and must never fight a recorded choice.
+check "bootstrap: ensure_bolt defined" \
+    grep -q '^ensure_bolt()' "$DOTFILES/bootstrap.sh"
+check "bootstrap: ensure_variant_default defined" \
+    grep -q '^ensure_variant_default()' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: pi-bolt install is non-interactive (PIBOLT_YES)" \
+    'PIBOLT_YES=1' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: the variant default is converged after ensure_pi" \
+    '^[[:space:]]*ensure_variant_default$' "$DOTFILES/bootstrap.sh"
+check_has "bootstrap: a recorded variant choice is recognised by link shape" \
+    '_pi_use_link_matches' "$DOTFILES/bootstrap.sh"
+check_has "pi-use: accepts the installer layout (release tree beside the binary)" \
+    'examples/extensions/subagent' "$_PI_USE"
+check_has "pi-use: bolt flip names the non-interactive installer" \
+    'PIBOLT_YES=1' "$_PI_USE"
+check_not "pig: no longer provisioned (no mise go: entry for it)" \
+    'ZoroSpace/pig' "$MISE_CFG"
 check_has "bootstrap: ensure_pi honours a deliberate pi-bolt flip" \
     'pi-variant' "$DOTFILES/bootstrap.sh"
 
@@ -4019,6 +4040,19 @@ if command -v pi-use >/dev/null 2>&1; then
     check "pi-use: no drift between the recorded variant and the pi symlink" \
         pi-use status
 
+    # Under an active pi-bolt default, the pieces that make the flip real are not
+    # optional: a half-wired host must fail here, not at pi's first start.
+    if [ "$(cat "${HOME}/.pi/agent/pi-variant" 2>/dev/null)" = bolt ]; then
+        check "bolt: the pi link is a runnable pi-bolt" \
+            bash -c '[[ -x "$(readlink -f "$HOME/.local/bin/pi")" ]]'
+        check "bolt: upstream pi stays installed as the rollback path" \
+            test -f "$HOME/.pi/agent/install/managed-install.json"
+        check "bolt: the release tree ships version-matched subagent examples" \
+            bash -c '[[ -f "$(dirname "$(readlink -f "$HOME/.local/bin/pi-bolt")")/examples/extensions/subagent/index.ts" ]]'
+        check "bolt: the extension stack still loads (shared ~/.pi/agent)" \
+            test -f "$HOME/.pi/agent/settings.json"
+    fi
+
     # pig is a rewrite with no extension system: the flip is allowed, but the
     # command must say so every time it happens. Assert the warning exists
     # rather than trusting prose to survive an edit.
@@ -4026,8 +4060,11 @@ if command -v pi-use >/dev/null 2>&1; then
         'infra-safety' "$_PI_USE"
 
     if [ -e "$HOME/.local/bin/pi-bolt" ]; then
-        check "pi-bolt: npm launcher shape (executable with sibling install.sh)" \
-            bash -c 'r=$(readlink -f "$HOME/.local/bin/pi-bolt"); [[ -x "$r" && -f "${r%/*}/../install.sh" ]]'
+        # Two supported shapes: the curl installer's release tree (which is what
+        # `pi update --self` rewrites in place and what ships version-matched
+        # examples) and npm's launcher, which needs its sibling install.sh.
+        check "pi-bolt: recognised install shape (release tree or npm launcher)" \
+            bash -c 'r=$(readlink -f "$HOME/.local/bin/pi-bolt"); [[ -x "$r" ]] && [[ -f "${r%/*}/../install.sh" || -f "${r%/*}/examples/extensions/subagent/index.ts" ]]'
     fi
 fi
 
@@ -4146,6 +4183,8 @@ check_has "agents-update: updates pi via its own updater" \
     'pi update --self' "$_AGENTS_UPDATE"
 check_has "agents-update: updates Claude Code via its own updater" \
     'claude update' "$_AGENTS_UPDATE"
+check_has "agents-update: refuses to self-update under pig only (bolt self-updates)" \
+    'test "\$variant" = pig' "$_AGENTS_UPDATE"
 check_not "agents-update: no vendored pin left to compare" \
     '@ pi ' "$_AGENTS_UPDATE"
 check_has "agents-update: names the smoke eval a harness move owes" \
