@@ -3996,6 +3996,14 @@ check_has "bootstrap: pi-bolt install is non-interactive (PIBOLT_YES)" \
     'PIBOLT_YES=1' "$DOTFILES/bootstrap.sh"
 check_has "bootstrap: the variant default is converged after ensure_pi" \
     '^[[:space:]]*ensure_variant_default$' "$DOTFILES/bootstrap.sh"
+# Installing bolt AFTER the flip would leave the host on upstream until the next
+# run, and flipping before it exists makes pi-use bolt fail.
+check_has "bootstrap: pi-bolt is installed after ensure_pi, before the flip" \
+    '^[[:space:]]*ensure_bolt$' "$DOTFILES/bootstrap.sh"
+# The fork-default's one long-term risk is silent drift from upstream pi; the
+# status line must keep saying where bolt sits, so the mechanism is asserted.
+check_has "pi-use: status reports bolt's pi alignment against upstream" \
+    "aligned: pi" "$_PI_USE"
 check_has "bootstrap: a recorded variant choice is recognised by link shape" \
     '_pi_use_link_matches' "$DOTFILES/bootstrap.sh"
 check_has "pi-use: accepts the installer layout (release tree beside the binary)" \
@@ -4051,6 +4059,8 @@ if command -v pi-use >/dev/null 2>&1; then
             bash -c '[[ -f "$(dirname "$(readlink -f "$HOME/.local/bin/pi-bolt")")/examples/extensions/subagent/index.ts" ]]'
         check "bolt: the extension stack still loads (shared ~/.pi/agent)" \
             test -f "$HOME/.pi/agent/settings.json"
+        check "bolt: status reports its pi alignment (drift visibility)" \
+            bash -c 'pi-use status | grep -q "^aligned: pi"'
     fi
 
     # pig is a rewrite with no extension system: the flip is allowed, but the

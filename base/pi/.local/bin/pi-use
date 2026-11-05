@@ -158,6 +158,20 @@ show_status() {
     printf 'link:    %s -> %s\n' "$pi_link" "${target:-MISSING}"
     printf 'variant: %s\n' "$have"
     printf 'running: %s\n' "$ver"
+    # bolt is a fork of a pinned pi tag, so the number that decides whether it is
+    # still a fair substitute is its pi base vs the upstream install. Surface it
+    # every time instead of leaving it buried in docs: a silent drift is the one
+    # long-term risk of running a fork as the default.
+    if [ "$have" = bolt ]; then
+        upstream=$(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null || true)
+        base=$(printf '%s\n' "$ver" | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+        if [ -n "$base" ] && [ -n "$upstream" ] && [ "$base" = "$upstream" ]; then
+            printf 'aligned: pi %s · upstream %s (in step)\n' "$base" "$upstream"
+        else
+            printf 'aligned: pi %s · upstream %s (drifted — bolt tracks pi tags per release)\n' \
+                "${base:-unknown}" "${upstream:-unknown}"
+        fi
+    fi
     # Degraded variants say so in the status line, not only at flip time.
     if [ "$have" = pig ]; then
         printf 'degraded: %s\n' \

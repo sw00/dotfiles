@@ -13,11 +13,11 @@ removed — full implementation history lives in git. Shared-core behavior
   terminal (it installs pi-bolt and converges the unrecorded variant; non-TTY
   `sudo -v` aborts, AGENTS.md) → `pi-use status` → `pi -p --no-session "Reply OK"`
   → `bash check.sh` again.
-- [ ] **Re-baseline the prompt eval under bolt.** `pi-smoke.sh` was last baselined
-  on pi 1.2.0 and mbpm3 now runs pi-bolt 1.0.9 (pi 1.4.0) by default. Record a
-  bolt table in `docs/PROMPT-EVAL.md`, and include one **resume-across-skew**
-  probe (a 1.5.0-written session resumed under bolt) — that is the largest
-  unverified risk of the default.
+- [x] **Re-baselined the prompt eval under bolt (2026-11-05).** Table +
+  readings are in `docs/PROMPT-EVAL.md`; both resume mechanisms (`-c` and
+  `--session-id`, i.e. `pwt` pins) verified across the 1.4.0/1.5.0 skew. Left
+  open as a follow-up: loop's per-run shell tail (2 2 3 6 2) wants n=10 before any
+  prompt tuning — n=5 cannot separate it from the 1.2.0 baseline.
 - [ ] **Delete the leftover pig state on mbpm3.** `/Users/sett/.pig` was moved to
   `~/.pig-removed-20261105` and the mise `go:` toolchain + pig install were
   uninstalled; delete the moved directory once nothing needs it.
