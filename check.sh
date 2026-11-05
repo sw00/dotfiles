@@ -5,7 +5,9 @@
 # Usage:  ./check.sh
 # Exit:   0 = all tests passed, 1 = one or more failures
 #
-# A full run is FAST: measured 15.8-16.6s for 514 assertions on mbpm3 (2026-10-20).
+# A full run is FAST: measured 15.8-16.6s for 514 assertions on mbpm3 (2026-10-20);
+# the assertion count has since passed 700 — re-measure rather than trusting either
+# number, and note that the count grows while the duration has stayed in that band.
 # The biggest single section is the pwt harness at ~9s; nothing else exceeds 2s. This
 # header used to claim "~5 minutes", and that stale number cost real time — a session
 # slept 300s per run instead of polling. Do not assume a duration: run it in the

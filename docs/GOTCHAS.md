@@ -22,7 +22,7 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   - `base/claude/.claude/settings.json` — Claude Code's `/config` rewrites the whole file, attribution block and all.
   pi's `settings.json` was on this list and is now CLOSED: the tracked file is the intent-only template `base/pi/.pi/agent/settings.desired.json`, which pi never opens, and the live `~/.pi/agent/settings.json` is a real host-local file — the template is stowed on purpose, the live file must never be (see the pi section).
   The rest are edited only by an explicit command, so they are commits, not drift: `mise use` (`base/mise`), `git config --global` (`base/git`), `tt update` recording new image digests (`base/tokentelemetry/.config/tokentelemetry/env.tt`). Everything else — nvim, tmux, alacritty, sesh, ssh, bash — never writes its own config.
-- `base/fish/.config/fish/.gitignore` is an **allowlist** (`functions/*`, `conf.d/*`, `completions/` are ignored unless explicitly negated), so a new own-file is silently *untracked*: `git add` stages nothing, warns "The following paths are ignored", and the commit then asserts a file only the author has — CI fails on assertions the author's run cannot see. Negate the path there, re-stow, and let `check.sh` guard it (it covers both the named file and the class: no own file under `fish/functions` may be untracked or ignored).
+- The repo-root `.gitignore` is an **allowlist for the fish package** (`base/fish/.config/fish/functions/*`, `conf.d/*`, `completions/*` are ignored unless explicitly negated), so a new own-file is silently *untracked*: `git add` stages nothing, warns "The following paths are ignored", and the commit then asserts a file only the author has — CI fails on assertions the author's run cannot see. Negate the path there and let `check.sh` guard it (it covers both the named file and the class: no own file under `fish/functions` may be untracked or ignored). It lives at the repo root, not inside the package, because a `.gitignore` inside a stow package gets linked into the live tree.
 
 ## git-crypt / GPG
 
@@ -56,7 +56,8 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 - **`pi-use pig` is a variant, not a replacement — and this repo no longer provisions it.** pig is a Go rewrite aligned to pi 1.4.0 that implements **no extension system**, so a pig flip drops `infra-safety` (the locked/armed infra write gate), `subagent`, `model-switch`, `usage`, `hypa`, web search and the Claude bridge: infra mutations become ungated. It also uses its own `~/.pig/agent` (sessions JSONL-compatible, settings/models not shared) and has no `update` subcommand, so `agents-update` refuses under it. Bootstrap installs nothing for it (no mise entry, no toolchain, no trust seeding) — reaching for pig means you installed it yourself and own it. `pi-use status` keeps printing `degraded:` while it is active.
 - **pig's trust store is separate, unseeded, and pig 1.4.0 cannot prompt.** Trust resolution walks up from the cwd to the nearest key (`findNearestTrustEntry`), so a *prefix* entry trusts every repo beneath it — but pig reads `~/.pig/agent/trust.json` while pi/pi-bolt read `~/.pi/agent/trust.json`. With no entry there and `defaultProjectTrust` unset, pig's interactive trust branch is a stub, so a project that needs trust (`.pig/` `settings.json|extensions|skills|prompts|themes|SYSTEM.md|APPEND_SYSTEM.md|mcp.json`, a root `.mcp.json`, or `.agents/skills` in the cwd or an ancestor) dies at startup with `Error: interactive project trust selection is not available yet (deferred to the UI batch)` — while `pi -p` resolves *untrusted* silently. `pi --approve` is the per-run escape; the durable fix is mirroring the roots into both stores (`base/pi/README.md` → Project trust), which `check.sh` asserts.
 - **pi-bolt is the default `pi` binary and is version-pinned, so "plug-n-play" holds only while the trees line up.** It reports `1.4.0 (Pi-Bolt 1.0.9, …)` — pi 1.4.0 compiled ahead of time while upstream pi is 1.5.0. It shares `~/.pi/agent` byte-for-byte, and the whole extension stack was runtime-verified to load (infra-safety, subagent, hypa, web access, claude-bridge, `usage` from its own package, plus the four npm packages), so no provisioning exists for it: `ensure_bolt()` converges "installed" and `ensure_variant_default()` the never-recorded choice; `ensure_pi`'s guard stops bootstrap from flipping the host back. `pi update --self` DOES update it in place when it came from the curl installer (signed, replaces the `~/.pi-bolt` tree, `--rollback` available); an npm-installed bolt must be updated with npm. Residual skews: sessions written under 1.5.0 may not resume under bolt (resume under the variant that wrote them, and `pwt` pins included), and the subagent loader resolves upstream's example from `install/releases/<ver>/` — verified working under bolt, and bolt ships its own version-matched `examples/` beside the binary if it ever breaks. Rollback: `pi-use pi`.
- Verified live (2026-11-05): `pi update --self` under bolt prints `Pi-Bolt is already up to date (v1.0.9)` and leaves `~/.local/bin/pi` pointing at `pi-bolt` — so do NOT re-add an `agents-update` refusal for bolt (it was there once and was wrong); only pig cannot self-update. `pi-use status` prints an `aligned:` line (bolt's pi base vs the upstream install) on every run, which is the drift tripwire.- `pi-hypa` replace mode disables the native `bash`/`read`/`grep`/`find`/`ls` tools.
+ Verified live (2026-11-05): `pi update --self` under bolt prints `Pi-Bolt is already up to date (v1.0.9)` and leaves `~/.local/bin/pi` pointing at `pi-bolt` — so do NOT re-add an `agents-update` refusal for bolt (it was there once and was wrong); only pig cannot self-update. `pi-use status` prints an `aligned:` line (bolt's pi base vs the upstream install) on every run, which is the drift tripwire.
+- `pi-hypa` replace mode disables the native `bash`/`read`/`grep`/`find`/`ls` tools.
   Safety extensions (`infra-safety`, `/check` mode) intercept `hypa_shell` directly
   and classify the raw command; no wrapper-unwrapping is needed.
 - `pi-web-access` is not redundant — Pi core has no native `web_search`,
@@ -169,12 +170,6 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 ## General
 
 - bash `${var#...}` tolerates no spaces around the operator.
-- `read` with a tab IFS **collapses empty fields**: a tab is IFS *whitespace*, so
-  consecutive tabs are one delimiter and everything after an empty middle field shifts
-  left — `a<TAB>b<TAB><TAB>c` reads as `a b c`. Emit a placeholder for any field that
-  can be empty (a tmux format can: `#{?#{@var},#{@var},-}`), or parse with a
-  non-whitespace separator. This is how a pane's state came to be read as its own
-  label, and then sorted by it.
 - `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` is a plain `grep -qE` against the file, so its pattern must be `^-anchored` (or otherwise tight) whenever the file can contain prose that legitimately mentions the thing — a loose substring turns a passing repo into a false failure. Structured files (JSON) are safe unanchored.
 - Mosh needs system packages (protobuf, utempter, openssl) — no mise/ubi binary.
 - Linux/WSL has no system ssh-agent: `base/fish/.../conf.d/ssh-agent.fish` runs a shared agent on `~/.ssh/agent.sock`. Extend that file, don't add another.
@@ -212,10 +207,13 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   a fact to rediscover.
 - **`read` collapses an empty field.** `read -r a b c d` treats a run of IFS whitespace
   as one separator, so a tab-separated record whose middle field is EMPTY shifts every
-  later field left. Emit a placeholder (`-`) for every optional field, and pin the
-  wire format and the parser together. pwt-pick's pane-id column was appended after a
-  `@pi_state` that can be empty; the tap then silently skipped exactly the panes that
-  had no state yet — the untapped ones the adoption exists for.
+  later field left (`a<TAB>b<TAB><TAB>c` reads as `a b c`). Emit a placeholder for every
+  optional field (a tmux format can: `#{?#{@var},#{@var},-}`), or parse with a
+  non-whitespace separator, and pin the wire format and the parser together. pwt-pick's
+  pane-id column was appended after a `@pi_state` that can be empty; the tap then
+  silently skipped exactly the panes that had no state yet — the untapped ones the
+  adoption exists for. In the panel the same collapse read a pane's state as its own
+  label, and then sorted by it.
 - **git cannot re-include a file from an excluded DIRECTORY.** In an allowlist
   `.gitignore`, `completions/` hides everything beneath it and `!completions/pwt.fish`
   does nothing; the pattern has to be `completions/*` (`functions/*` was written that
