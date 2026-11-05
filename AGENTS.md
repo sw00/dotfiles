@@ -23,7 +23,8 @@ the regression suite (CI runs it on every push).
   WSL platform stow packages live in `os/wsl/`; Windows-side app config is
   pushed by `os/wsl/up.sh` (komorebi, VSCodium, winget list, fonts).
 - Alacritty chain: `base/alacritty/base.toml` → platform config (shell, hint
-  opener) → optional host config (font size only). `up.sh` copies
+  opener) → host config (font size, per-machine keys; macOS has no platform
+  layer, so `hosts/mbpm3` carries the shell). `up.sh` copies
   host-else-platform-else-base to `%APPDATA%\Alacritty\`.
 - gnupg is stowed per-OS, never from `base/` (pinentry differs per platform);
   `gpg-agent.conf` is written by bootstrap/up.sh with `$HOME` expanded.
@@ -87,8 +88,7 @@ paths live in `docs/TILING.md` — read it before changing either config.
   hangs the suite instead of failing.
 - Adding a file to a stowed package is not live until
   `stow --restow --no-folding -d base -t ~ <pkg>` (`GOTCHAS`).
-- Upgrading the agent harnesses: `agents-update` (pi + Claude Code, then it
-  flags the eval re-run a version move owes). Never make this a bootstrap step.
+- Upgrading the agent harnesses: `agents-update` (see the invariant above).
 - pi settings: the repo tracks INTENT only, in the stowed template
   `base/pi/.pi/agent/settings.desired.json` (pi never writes it); the live
   `~/.pi/agent/settings.json` is host-local and untracked. Promote by editing the
@@ -127,6 +127,7 @@ A plan's only required header is `> **Status:** draft | in-progress | landed (<c
 ## Reference material
 
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
+**How changes are made here** (principles): `docs/PRINCIPLES.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
 **Parallel agent workstreams (pwt)**: `docs/PWT.md`
 **Pending work**: `TODO.md`
