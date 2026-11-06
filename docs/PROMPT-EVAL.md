@@ -235,8 +235,12 @@ ones exist, capped at 2x attempts, keeping failed attempts in a subdirectory so 
 double-counts. Exclusion is a reporting fix; it is not a comparison fix.
 3. **`plans()` is scenario-wide** (runs share a workdir), so it cannot be attributed per
 valid run — read it as an upper bound.
-4. **`asks()` counts any `?` in the final message, including inside thinking.** It is a
-weak proxy; read the transcripts for the runs that matter.
+4. **`asks()` reads only the final TEXT of the last assistant message** (fixed
+2026-11-06). Before that it grepped the whole line, so a `?` inside a thinking block counted
+as a question: the risky scenario's arm-B figure was 8/10 under the old rule and 6/10 under
+the corrected one. Earlier ask counts in this file used the old rule and are not
+directly comparable. The pass/fail rule for risky is about acting, not asking, so no
+verdict changed.
 
 Until (1) and (2) land, no arm result can settle the prompt question, and 90 turns spent
 on a single arm in a degraded window are not recoverable evidence.
