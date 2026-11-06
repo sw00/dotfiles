@@ -2239,6 +2239,83 @@ if command -v fish >/dev/null 2>&1; then
             blank=$(env PWT_FORWARD_ENV= "$1" -N -c "source $2; __pwt_forward_env" 2>&1)
             [[ -z "$blank" ]]' \
         _ "$(command -v fish)" "$_PWT"
+    # The usage refusals and the teardown hint were pinned as TEXT, which a comment can
+    # satisfy while the code no longer runs: a stray `return 0`, a guard deleted as
+    # "unreachable" or a reworded message all pass a grep. Each of these runs the real
+    # function and reads its exit status and its own words.
+    # `here` makes NO worktree, so a third word has nothing to base. Accepting it would
+    # silently imply the fresh checkout this rung exists to avoid (a git-crypt repo
+    # fails `worktree add`), so it is a usage error (2), and it says why: `pwt here foo
+    # main` reads like it should work.
+    check "pwt: here refuses a base ref and says why" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            out=$(env -u TMUX "$1" -N -c "source $2; pwt here lab main" 2>&1); rc=$?
+            [[ $rc -eq 2 && "$out" == *"takes no base ref"* ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    # A base ref git would parse as an OPTION is not a commit-ish at all — it changes
+    # what the worktree is based on (`--detach` leaves no branch behind, so the branch
+    # `pwt rm` deletes never exists). Refused as a usage error, before anything is
+    # created on disk, which the `__worktrees` check below covers.
+    check "pwt: refuses a base ref git would parse as an option" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            git config user.email t@t; git config user.name t; echo x > f; git add f
+            git -c commit.gpgsign=false commit -qm init
+            out=$(env -u TMUX "$1" -N -c "source $2; pwt demo --detach" 2>&1); rc=$?
+            [[ $rc -eq 2 && "$out" == *"invalid base ref"* && ! -d __worktrees ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    # The written contract only helps if the tool points at it, and `pwt help` is where
+    # a user looks first: a stale path there is a dead end, and the doc is the only
+    # place the shared-tree caveat, the mute switch and --stash are stated.
+    check "pwt: running help prints the doc path" \
+        bash -c 'out=$(env -u TMUX "$1" -N -c "source $2; pwt help" 2>&1); rc=$?
+            [[ $rc -eq 0 && "$out" == *"docs/PWT.md"* ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    # `branch -d` refusing an unmerged branch is CORRECT (those commits exist nowhere
+    # else), but the tree is already gone by then, so git's own hint reads like pwt
+    # half-failed. The message must be pwt's — naming the kept branch and the follow-up
+    # — which is exactly what `grep not fully merged` on git's error would NOT prove.
+    check "pwt: rm names the branch an unmerged teardown left behind" \
+        bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
+            git config user.email t@t; git config user.name t; echo x > f; git add f
+            git -c commit.gpgsign=false commit -qm init
+            env -u TMUX "$1" -N -c "source $2; pwt demo" >/dev/null 2>&1 || exit 1
+            wt=$d/repo/__worktrees/demo
+            [[ -d "$wt" ]] || exit 1
+            git -C "$wt" -c commit.gpgsign=false commit -q --allow-empty -m unmerged || exit 1
+            out=$(env -u TMUX "$1" -N -c "source $2; pwt rm demo" 2>&1); rc=$?
+            [[ $rc -ne 0 && ! -d "$wt" ]] || exit 1
+            git -C "$d/repo" rev-parse --verify -q refs/heads/demo >/dev/null || exit 1
+            [[ "$out" == *"branch '\''demo'\'' kept (not fully merged)"* ]] || exit 1
+            [[ "$out" == *"merge it, then:"* ]]' \
+        _ "$(command -v fish)" "$_PWT"
+    # Two in-place workstreams share ONE working tree — the collision worktrees exist to
+    # prevent — and the rung still has to work (git-crypt, per-path state), so the rule
+    # is WARN and proceed, never refuse. Both halves are behaviour: the second `pwt here`
+    # exits 0 AND says what it is doing. The squatter is a pane sitting in the checkout
+    # with pi's title, which is the evidence `__pwt_window_for … pi-only` reads; it is
+    # unmarked, so the identity tier cannot answer for it.
+    if command -v tmux >/dev/null 2>&1; then
+        check "pwt: warns (and proceeds) when a second in-place stream shares the tree" \
+            bash -c 'd=$(mktemp -d); sock="$d/sock"
+                trap "tmux -S \"$sock\" kill-server >/dev/null 2>&1; rm -rf \"$d\"" EXIT
+                mkdir -p "$d/bin" "$d/repo"
+                printf "#!/bin/sh\nexec sleep 300\n" > "$d/bin/pi"; chmod +x "$d/bin/pi"
+                git init -q "$d/repo"
+                git -C "$d/repo" config user.email t@t
+                git -C "$d/repo" config user.name t
+                echo x > "$d/repo/f"; git -C "$d/repo" add f
+                git -C "$d/repo" -c commit.gpgsign=false commit -qm init || exit 1
+                root=$(cd "$d/repo" && pwd -P)
+                tmux -S "$sock" -f /dev/null new-session -d -s project -c "$root" "sleep 300" || exit 1
+                tmux -S "$sock" new-window -d -t project: -n one -c "$root" "sleep 300" || exit 1
+                tmux -S "$sock" select-pane -t one -T "π - one" || exit 1
+                out=$(cd "$root" && env TMUX="$sock" PATH="$d/bin:$PATH" PWT_FORWARD_ENV= \
+                    "$1" -N -c "source $2; pwt here two" 2>&1); rc=$?
+                [[ $rc -eq 0 && "$out" == *"parallel edits will collide"* ]]' \
+            _ "$(command -v fish)" "$_PWT"
+    else
+        _skip "pwt: in-place collision warning (behavioural)" "tmux not installed"
+    fi
     # Where a workstream window LANDS, behaviourally. The sessions stand in for the
     # real thing: `project` was created AT the repo root — what sesh's
     # `new-session -c <path>` sets in session_path — `scratch` elsewhere, and `wt`
@@ -3758,6 +3835,67 @@ OREC
         bash -c 'body=${1#*|}; [[ ${#body} -eq 160 ]]' _ "$(tail -1 "$_osc_nlog")"
     check "pwt-osc: control characters and bidi overrides are disarmed" \
         bash -c 'body=${1#*|}; [[ "$body" == "need a decision"* ]]' _ "$(tail -1 "$_osc_nlog")"
+    # The transport switch, behaviourally. A banner is the one place a pane's text
+    # LEAVES the grid, so "the text is DATA, never source" is a claim about the argv a
+    # notifier receives — and only a real invocation can show that. Stub notifiers
+    # record their argv, and a stub `uname` forces each branch of osc_send's platform
+    # switch (it reads `uname -s` plus WSL_DISTRO_NAME), so all three are exercised on
+    # whatever host runs this suite instead of only the one they were written on.
+    # PWT_NOTIFY_CMD is UNSET on purpose here: it short-circuits osc_send before the
+    # switch, which is exactly why the checks above cannot reach these three lines.
+    _osc_trans_dir="$_osc_stub_dir/trans"; mkdir -p "$_osc_trans_dir"
+    _osc_trans_log="$_osc_stub_dir/transport.log"
+    printf '#!/bin/sh\nprintf "%%s\\n" "$PWT_PLATFORM"\n' > "$_osc_trans_dir/uname"
+    cat > "$_osc_trans_dir/osascript" <<'OSAS'
+#!/bin/bash
+printf 'osascript|%s\n' "$@" >> "$PWT_TRANSPORT_LOG"
+OSAS
+    cat > "$_osc_trans_dir/powershell.exe" <<'PWSH'
+#!/bin/bash
+printf 'powershell|%s\n' "$@" >> "$PWT_TRANSPORT_LOG"
+PWSH
+    cat > "$_osc_trans_dir/notify-send" <<'NSND'
+#!/bin/bash
+printf 'notify-send|%s\n' "$@" >> "$PWT_TRANSPORT_LOG"
+NSND
+    chmod +x "$_osc_trans_dir"/*
+    # <platform> <payload> [wsl-distro]: one report through the REAL switch. The log and
+    # the option store are reset first, so a transport call from an earlier case cannot
+    # satisfy a later assertion (and the cooldown cannot silence the next push).
+    _osc_transport() {
+        : > "$_osc_trans_log"; rm -f "$_osc_opt"/*
+        printf '\033]7501;%s\033\\' "$2" \
+            | env PATH="$_osc_trans_dir:$_osc_stub_dir:$PATH" \
+                  PWT_PLATFORM="$1" PWT_TRANSPORT_LOG="$_osc_trans_log" \
+                  PWT_STUB_OPT="$_osc_opt" PWT_STUB_LABEL=audit \
+                  PWT_STUB_CWD=/src/org/repo/__worktrees/audit \
+                  PWT_STUB_CLIENTS= PWT_STUB_CLIENT_WIN= PWT_STUB_NOTIFY= \
+                  PWT_SRC=/src PWT_NOTIFY_CMD= WSL_DISTRO_NAME="${3-}" \
+                  "$_PWT_OSC" %99 >/dev/null 2>&1
+    }
+    # The fixture message carries BOTH a quote and a `$`: building
+    # `display notification "$body"` breaks on the first one, and the second shows
+    # whether the text was ever given to a shell. Whole-line matches below, so the
+    # text arriving welded onto other text (inside the `-e` script, say) is a miss.
+    _osc_msg=$'don\'t run $(rm -rf /)'
+    _osc_msg_b64="$(printf %s "$_osc_msg" | base64 | tr -d '\n')"
+    _osc_lit="'${_osc_msg//\'/\'\'}'"   # a PowerShell single-quoted literal, `'` doubled
+    _osc_transport Darwin "state=blocked:kind=auth:app=pi:msg=$_osc_msg_b64"
+    check "pwt-osc: osascript gets the message as argv, never as script source" \
+        bash -c 'grep -qxF -- "osascript|on run argv" "$1" &&
+                 grep -qxF -- "osascript|audit — blocked" "$1" &&
+                 grep -qxF -- "osascript|$2" "$1"' \
+        _ "$_osc_trans_log" "$_osc_msg"
+    _osc_transport Linux "state=done:app=pi:msg=$_osc_msg_b64" Ubuntu
+    check "pwt-osc: on WSL the toast carries the message as a quoted literal" \
+        bash -c 'grep -qF -- "powershell|" "$1" && grep -qF -- "$2" "$1"' \
+        _ "$_osc_trans_log" "$_osc_lit"
+    _osc_transport Linux "state=error:app=pi:msg=$_osc_msg_b64"
+    check "pwt-osc: the Linux fallback hands notify-send both fields as argv" \
+        bash -c 'grep -qxF -- "notify-send|--" "$1" &&
+                 grep -qxF -- "notify-send|audit — error" "$1" &&
+                 grep -qxF -- "notify-send|$2" "$1"' \
+        _ "$_osc_trans_log" "$_osc_msg"
     rm -rf "$_osc_stub_dir"
 else
     _skip "pwt-osc: push decisions (behavioural)" "perl or base64 not installed"
