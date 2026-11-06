@@ -169,6 +169,12 @@ Reference material — load when debugging a specific issue. Not always-loaded c
 
 ## General
 
+- **A fixed `sleep` in a test is a guess about a race; read the code before keeping it.**
+  The pwt post-restore hook test had `sleep 0.5` after a call that ends in `exec`, so the
+  call was already synchronous and the sleep waited on nothing. It was kept as a cure for
+  a flake (2026-10-23) that was never reproduced on demand. Removing it: 35/35 green, a
+  no-op mutant still red. Rule: before adding a sleep, find what it waits for; before
+  keeping one, check whether the thing it waits for is synchronous.
 - bash `${var#...}` tolerates no spaces around the operator.
 - `check.sh` `check_has` patterns are line-based grep. Multi-line assertions need `bash -c "... grep -A1 ... | grep -q ..."`. `check_not` is a plain `grep -qE` against the file, so its pattern must be `^-anchored` (or otherwise tight) whenever the file can contain prose that legitimately mentions the thing — a loose substring turns a passing repo into a false failure. Structured files (JSON) are safe unanchored.
 - Mosh needs system packages (protobuf, utempter, openssl) — no mise/ubi binary.

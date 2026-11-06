@@ -27,8 +27,14 @@ removed — full implementation history lives in git. Shared-core behavior
 
 ## Open — active bug
 
-- [ ] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it
-  landed).** `check.sh`'s "pwt: the post-restore hook revives a pane whose SAVED title
+- [x] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it
+  landed) — CLOSED 2026-11-06.** Closed by removing the fixed `sleep 0.5` that followed
+  the hook call: the hook ends in `exec fish -c 'pwt revive …'` and runs in the
+  foreground, so the sleep could not be waiting on anything. Evidence: 35 of 35 full
+  suite runs green afterwards (10, then 25 more), and a no-op mutant of the hook still
+  fails the assertion. Falsifier, if it ever recurs: a red run of THIS assertion
+  reopens the entry; the sleep is not to be re-added as a cure. The history below is
+  kept because the reasoning shows how the fix was reached. `check.sh`'s "pwt: the post-restore hook revives a pane whose SAVED title
   was pi's" passed, then failed, then passed again across three consecutive runs of
   UNCHANGED code (`651 passed / 0 failed` ↔ `650 passed / 1 failed`); the only edit
   between runs was doc-only. So the suite's green summary is a coin-flip on this

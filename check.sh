@@ -2651,7 +2651,6 @@ if command -v fish >/dev/null 2>&1; then
                 "$DOTFILES/base/tmux/bin/pwt-revive-restored" >"$_rv_dir/hook-out" 2>&1
         }
         _rv_hook
-        sleep 0.5
         _rv_marked
         check "pwt: the post-restore hook revives a pane whose SAVED title was pi's" \
             bash -c 'grep -qF "|repo-demo8|" "$1"' _ "$_rv_dir/marked"
