@@ -247,6 +247,17 @@ constrains; this is how each rule was found. Read it when you touch the area.
 
 ## General
 
+- **Backticks inside a double-quoted `git commit -m "…"` are command substitution.**
+  A message containing `` `runs` `` executed `runs` and left a hole in the commit body
+  (`sh: runs: command not found`, noticed only by reading the log). Write the message to
+  a file and use `git commit -F`, or quote with single quotes — and after committing, read
+  `git log -1 --format=%B` once. This bit an otherwise careful session.
+- **The shell tool's `raw` mode rejects process substitution.** `diff <(a) <(b)` in raw
+  mode is a syntax error, not a diff. Omit `raw` for shell syntax (the rule in the tool
+  docs), or write both sides to temp files first. Also: an `edit` whose `oldText` does
+  not match fails loudly and changes nothing — retrying it unchanged is the same
+  no-unchanged-retry the stopping rules forbid.
+
 - **A fixed `sleep` in a test is a guess about a race; read the code before keeping it.**
   The pwt post-restore hook test had `sleep 0.5` after a call that ends in `exec`, so the
   call was already synchronous and the sleep waited on nothing. It was kept as a cure for

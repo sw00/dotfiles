@@ -17,6 +17,13 @@ read-only (research/verification) — abandon this skill and handle it inline wi
 normal flow. Over-orchestrating a small task is a failure mode. Only proceed if
 the task is large, multi-step, multi-file, and execution-shaped (makes changes).
 
+**Re-run this gate whenever the brief changes.** Expansion is the normal way an
+orchestrated task goes wrong: "also fix X", "complete everything", or a phase that
+turns out to need a verification loop. Before opening one, re-quote the original goal
+and multiply the per-run cost by the run count — a 17-second suite run 150 times is
+most of an hour. If the brief has outgrown the estimate, say so and re-scope rather
+than absorbing it.
+
 ## Step 1 — Plan
 Write `.pi/plans/<slug>.md`:
 - Goal (one sentence).
@@ -26,6 +33,10 @@ Write `.pi/plans/<slug>.md`:
   (chain), don't parallelise.
 - Parallel vs sequential ordering.
 - Per-sub-task verification.
+- An **ANSWERS LEDGER**: every decision an oracle, reviewer or worker gives you, and
+  the exact question that produced it. A later brief quotes the ledger instead of
+  re-asking. Re-asking what an earlier answer already settled is the most common way
+  consultation cost doubles in a long session.
 
 If planning is uncertain → escalate to `oracle` (PLAN mode) for the plan.
 
@@ -61,6 +72,10 @@ Consolidated summary: what changed, verification status, any open blockers.
 - The expensive model is bounded to your planning/aggregation turns; the bulk
   token volume runs in cheap workers. That's the point — don't do the bulk
   yourself.
+- **Two loops then dispatch.** If you have run two verification loops (a mutation
+  sweep, a mutant-by-mutant proof, a batch of suite runs) yourself, stop and
+  dispatch the rest to workers. The rule above is easy to agree with and easy to
+  erode one "this one is quick" at a time; the count is the tripwire.
 - Safe-change applies at the orchestrator→user boundary: a worker blocker that is
   a *reversible* decision → decide and batch the question for the user, don't
   reflexively escalate to `oracle`; irreversible/credential/doc blockers stop.

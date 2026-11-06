@@ -22,7 +22,12 @@ Review for, in priority order:
 3. **Regressions** — does it break existing behavior, tests, or callers elsewhere in the codebase? Check callers with grep.
 4. **Tests** — for every new or changed test, demand evidence that it FAILS on the unfixed code. A fixture that already satisfies the fix passes either way and proves nothing (a tautological test shipped past a 463-assertion suite this way).
 5. **Security/safety** — injection, leaked secrets, unsafe commands, unvalidated input.
-6. **Consistency** — does it follow the codebase's existing conventions?
+6. **Claims** — every factual claim in the commit messages, the plan and any TODO edits
+   must be supported by the diff or by a measurement you can see. Name the claim the tree
+   does not support ("every counter now reads valid runs only" when one does not; "all 42
+   deletions proved" when the proof rule credited a neighbouring branch). An overstated
+   claim is a defect in the change, not a wording nit.
+7. **Consistency** — does it follow the codebase's existing conventions?
 
 Do NOT nitpick style, formatting, or subjective preferences. Keep the review lightweight and focused.
 
