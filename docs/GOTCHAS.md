@@ -167,6 +167,84 @@ Reference material — load when debugging a specific issue. Not always-loaded c
   `env -u TMUX`; testing a consumer without that put window options on the author's
   real windows.
 
+## pwt
+
+Moved here from `docs/PWT.md` (Phase 4 of that doc's shrink): the incidents behind
+pwt's ten invariants. `PWT.md` keeps the contract and the why at the line it
+constrains; this is how each rule was found. Read it when you touch the area.
+
+- **A workstream window landed in a scratch session instead of beside its project.**
+  The session was resolved by matching an *observed* pane cwd, and a scratch session is
+  routinely the one holding worktree panes — so a match on any path inside the tree
+  resolved that scratch session as the parent of the repo whose worktree it held, which
+  is the placement the feature exists to end. Fix: read the RECORDED `session_path`
+  (tmux stores it at creation, because `sesh connect <path>` runs `new-session -c
+  <path>`), never a live cwd; `__pwt_window_for` carries the same rule (`no-worktrees`).
+  Sub-traps: both sides must be canonicalised, because tmux reports `session_path` as
+  given (`/tmp` where git says `/private/tmp` on macOS); the canonicaliser must be
+  `path resolve`, since `cd …; pwd -P` fires a PWD-change event that direnv hooks on,
+  once per session, on the server; and the name tier must be `=`-exact on a session id,
+  because tmux treats a bare name as a prefix (`foo` answers from `foobar`), rewrites
+  `.`/`:` in names, and cannot reach a name beginning with `$`.
+
+- **A move between sessions looked like it did nothing.** A bare `select-window` cannot
+  cross sessions even when it hits, so pwt calls `switch-client` then `select-window`.
+  `detach-on-destroy` is on, so a move that empties a session kills it — pwt moves the
+  client first and names the session going away — and a move insists on the recorded
+  path, since tier 2 (basename) is fair evidence when CREATING but two repos can share
+  a basename.
+
+- **A tmux-resurrect restore brought pwt windows back as bare shells, and the next
+  `C-w` → enter (or `pwt <slug>`) opened a SECOND window and orphaned the restored
+  one.** Silent: nothing looks broken until two agents appear on one workstream.
+  Mechanism: resurrect's default save strategy records the CHILDREN of the pane pid, and
+  a pwt pane runs `pi --session-id <sid>` with no shell under it, so the saved command is
+  empty; `@user` options (`@pwt_sid`, `@pwt_dir`, the OSC tap) are not saved at all; and
+  the title resurrect restores is overwritten by the shell it starts. Fix: adopt by PATH
+  (`<root>/__worktrees/<slug>` → `<repo basename>-<slug>`), expose the same repair as
+  `pwt revive`, and hang a post-restore hook (`@resurrect-hook-post-restore-all` →
+  `~/bin/pwt-revive-restored`) that reads the save file's SAVED PANE TITLES and revives
+  only the paths a pane that WAS pi occupied. The hook must never `switch-client` or
+  move windows: `post-restore-all` fires last, so a jump there undoes the session
+  resurrect just chose.
+
+- **`pane_current_command` cannot say whether a pane is an idle shell.** tmux wraps a
+  window command in a shell, and the field differs by pi variant (`node` upstream,
+  `pi-bin` under Pi-Bolt — measured 2026-11-05, see the `C-w` title entry above). Use
+  `comm(pane_pid)` plus "has no children", and an ALLOWLIST of shells, so no variant is
+  named. The pane `pwt` is typed into cannot be respawned without killing the `pwt` in
+  it, and a shell that merely `cd`'d into a worktree root looks exactly like a restored
+  one.
+
+- **The `C-w` row glyphs were chosen by the font, not by taste.** `⚑`/`✗` are absent from
+  CaskaydiaCove NF Mono, so the terminal substituted another typeface; `●`/`◐` are
+  East-Asian-Ambiguous (double-width, which shifts the fixed column); and `⬤` fills its
+  cell edge to edge, so a jammed block put two circles in contact — hence the space
+  separator. `!`/`x` are ASCII because those states also reach the status bar.
+
+- **`⬤` was reading the session DIRECTORY, not a transcript.** pi `mkdirSync`s the
+  project session dir on any session *resolve* and writes nothing until the first turn,
+  so `-d` claimed history for worktrees that never had a conversation — 52 of 73
+  directories were empty when measured (no date recorded at the time). Fix:
+  `has_history` globs `*.jsonl` (bash 3.2: no `find -quit`).
+
+- **Two pi processes on one `--session-id` silently lose turns**, because they share one
+  transcript JSONL and each rewrites it from its own memory. Hence `@pwt_sid` +
+  `@pwt_dir` together, pane cwd only as a pre-marker fallback.
+
+- **One stuck agent is a notification storm.** A live agent settles 7–22 times on a
+  single task, so the pushes need a floor: at most one per workstream per 5 minutes.
+
+- **`git clean -X` sees the `__worktrees/` ignore rule.** A single `-f` skips it as a
+  nested repository (verified: "Would skip repository"); a double force deletes a live
+  worktree.
+
+- **Reloading the env exports into the calling shell too.** fish (4.9.3) propagates
+  `set -gx` out of the command substitution pwt builds its arguments in. Harmless and
+  idempotent — same file, same path, as the shell sourced at startup — but never "fix" it
+  by pushing the values into the server with `tmux setenv -g`: such a value outlives the
+  command and is inherited by every later window, with nothing that ever clears it.
+
 ## General
 
 - **A fixed `sleep` in a test is a guess about a race; read the code before keeping it.**
