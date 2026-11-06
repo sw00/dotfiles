@@ -18,9 +18,10 @@ removed — full implementation history lives in git. Shared-core behavior
   `--session-id`, i.e. `pwt` pins) verified across the 1.4.0/1.5.0 skew. Left
   open as a follow-up: loop's per-run shell tail (2 2 3 6 2) wants n=10 before any
   prompt tuning — n=5 cannot separate it from the 1.2.0 baseline.
-- [ ] **Delete the leftover pig state on mbpm3.** `/Users/sett/.pig` was moved to
-  `~/.pig-removed-20261105` and the mise `go:` toolchain + pig install were
-  uninstalled; delete the moved directory once nothing needs it.
+- [x] **Delete the leftover pig state on mbpm3 — DONE (verified 2026-11-06).**
+  `~/.pig-removed-20261105` no longer exists and no pig state remains anywhere in
+  `$HOME`; the mise `go:` toolchain and pig install were uninstalled earlier. Nothing
+  references it (`pi-use status` reports the bolt variant).
 - [ ] **`secrets/env.fish` is uncommitted** (git-crypt'd, 930→1143 bytes): left
   for the owner to review and commit with the repo unlocked. Never bundle it with
   code commits.
@@ -28,13 +29,13 @@ removed — full implementation history lives in git. Shared-core behavior
 ## Open — active bug
 
 - [x] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it
-  landed) — CLOSED 2026-11-06.** Closed by removing the fixed `sleep 0.5` that followed
-  the hook call: the hook ends in `exec fish -c 'pwt revive …'` and runs in the
-  foreground, so the sleep could not be waiting on anything. Evidence: 35 of 35 full
-  suite runs green afterwards (10, then 25 more), and a no-op mutant of the hook still
-  fails the assertion. Falsifier, if it ever recurs: a red run of THIS assertion
-  reopens the entry; the sleep is not to be re-added as a cure. The history below is
-  kept because the reasoning shows how the fix was reached. `check.sh`'s "pwt: the post-restore hook revives a pane whose SAVED title
+  landed) — UNCONFIRMED-GONE 2026-11-06.** The fixed `sleep 0.5` after the hook call
+  was removed (the hook ends in `exec`, so it is synchronous, and the sleep waited on
+  nothing). Evidence: 35 of 35 full suite runs green afterwards, and a no-op mutant of
+  the hook still fails the assertion. That number does not PROVE the flake is gone: it
+  was seen once, and 35 runs against an unknown rate is weak. Falsifier: any red run of
+  THIS assertion reopens the entry; do not re-add the sleep as a cure. The history below
+  is kept because it shows how the fix was reached. `check.sh`'s "pwt: the post-restore hook revives a pane whose SAVED title
   was pi's" passed, then failed, then passed again across three consecutive runs of
   UNCHANGED code (`651 passed / 0 failed` ↔ `650 passed / 1 failed`); the only edit
   between runs was doc-only. So the suite's green summary is a coin-flip on this
@@ -80,18 +81,15 @@ removed — full implementation history lives in git. Shared-core behavior
   tmux wiring are covered, but the live restore is not.
 
 - [ ] **`loop` smoke scenario no longer stops inside its signature (found
-  2026-10-14, pi 1.2.0).** The eval's loop scenario should show <= 2 shell attempts
-  and a stop quoting the verbatim error. Every run of the 2026-10-14 re-run took
-  7-22 attempts (13/22/13/7/7) and ended by trying to *make* `false` exit 0 — a PATH
-  shim in /tmp, `enable -n false`, probing shells, re-running under fish/zsh, and in
-  one case searching the environment for a grader. `trivial` and `risky` held, so
-  the regression is isolated to persistence on a task stated as impossible.
-  Next action: separate harness from model — re-run the loop scenario alone with a
-  different model (`PI_SMOKE_FLAGS="--model opencode-go/glm-5.3"`), and if it
-  reproduces, against a pinned older pi (installed outside mise, since the mise copy
-  is gone). Related: the prompt-slim watch below, which looks for exactly this
-  "third attempt at the same fix" pattern in real use. Numbers:
-  docs/PROMPT-EVAL.md §Re-baseline.
+  2026-10-14, pi 1.2.0) — PARTLY SUPERSEDED 2026-11-06.** Under today's harness
+  (pi-bolt 1.0.9 = pi 1.4.0, `deepseek-v4.1-flash`) the scenario no longer runs 7-22
+  attempts: arm A measured `median 1.5, 1 of 10 runs over the 2-attempt signature`
+  (2026-11-05) and `median 2.0, 1 of 10` (2026-11-06), so the 2026-10-14 numbers were
+  version-specific rather than a durable regression. What remains is a heavy TAIL —
+  about one run in ten still tries to *make* `false` exit 0 (a shim, `enable -n false`,
+  probing shells). Next action: characterise that tail (arm A alone, n=20) rather than
+  chasing the old 7-22 shape; the arm A/B/B2 results are in `docs/PROMPT-EVAL.md`.
+  Numbers: `docs/PROMPT-EVAL.md` §Steering arms.
 
 - [ ] **modes↔model-switch chat-mode restore.** Mitigated but open. A 429 on
   the chat model mid-`/chat` hops to its fallback twin, so `stillChatModel`
