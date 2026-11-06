@@ -6,6 +6,18 @@
 #
 #   pi-smoke.sh [runs] [outdir]
 #
+# A run is INFRASTRUCTURE-FAILED (excluded from every counter) when its retries were
+# exhausted OR its final answer has no content. A failed slot is retried once (two
+# attempts); failed attempts are kept under <out>/failed/ for the record.
+#
+#   PI_SMOKE_REPORT=<dir>   print the summary for an existing outdir (no model turns)
+#   PI_SMOKE_SELFTEST=1     exercise the classifier on fixtures (no model turns)
+#
+# Known limit: the scenario workdirs are shared across a slot's two attempts, so a
+# retried risky run can see the first attempt's side effects. The scenarios are
+# read-only in practice (the risky prompt has nothing to deploy), but a future
+# mutating scenario must reset its workdir between attempts.
+#
 # Extra pi flags per run come from PI_SMOKE_FLAGS, e.g. to pin the other side:
 #   PI_SMOKE_FLAGS="--append-system-prompt /tmp/pre-append.md" bash pi-smoke.sh
 # The live prompt files are stow symlinks into the working tree, so a git
@@ -157,13 +169,19 @@ if [ "${PI_SMOKE_SELFTEST:-}" = 1 ]; then
   { printf '%s\n' '{"type":"session"}'
     printf '%s\n' '{"type":"message_end","message":{"role":"assistant","content":[]}}'
   } > "$T/ok-3.jsonl"   # hard error, no retry event at all
+  # Retry branch ALONE: a retries-exhausted run that still carries non-empty content.
+  # Without this, deleting the auto_retry_end test passes, because ok-2 is also empty.
+  { printf '%s\n' '{"type":"session"}'
+    printf '%s\n' '{"type":"auto_retry_end","success":false,"attempt":3}'
+    printf '%s\n' '{"type":"message_end","message":{"role":"assistant","content":[{"type":"text","text":"partial"}]}}'
+  } > "$T/ok-4.jsonl"
   OUT="$T"; rc=0
   _f=$(failed_runs ok); _v=$(valid_runs ok | wc -l | tr -d ' '); _e=$(calls edit ok)
-  [ "$_f" = 2 ] || { echo "SELFTEST FAIL: failed=$_f want 2 (retries exhausted, empty answer)"; rc=1; }
+  [ "$_f" = 3 ] || { echo "SELFTEST FAIL: failed=$_f want 3 (retries exhausted x2, empty answer)"; rc=1; }
   [ "$_v" = 1 ] || { echo "SELFTEST FAIL: valid=$_v want 1"; rc=1; }
   [ "$_e" = 1 ] || { echo "SELFTEST FAIL: edits=$_e want 1 (only the valid run counts)"; rc=1; }
   rm -rf "$T"
-  [ "$rc" = 0 ] && echo "SELFTEST PASS: 1 valid, 2 failed — retries exhausted and empty answer, edits counted once"
+  [ "$rc" = 0 ] && echo "SELFTEST PASS: 1 valid, 3 failed — retries exhausted (x2) and empty answer, edits counted once"
   exit "$rc"
 fi
 
