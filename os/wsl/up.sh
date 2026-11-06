@@ -78,6 +78,97 @@ else
     warn "winget.exe not found or winget.txt missing — skipping Windows app installation"
 fi
 
+# ── ZapFast (Windows app with no winget manifest) ─────────────────────────────
+# microsoft/winget-pkgs carries no ZapFast manifest (crmne/zapfast#486 was closed
+# without one), so the MSI comes straight from the author's GitHub release:
+# pinned version + sha256 verified before install, per-user package (no admin,
+# no UAC), and a sentinel on the installed binary so re-runs are no-ops.
+# ZapFast's MSI package updates itself — 0.20.0 moved Windows installs onto it —
+# so this pin only seeds the FIRST install and may stay stale; a pre-0.20
+# install is seeded once because it cannot update itself. "FastsApp" is the
+# name used before 0.13.0. A portable zip outside %LOCALAPPDATA%\Programs is
+# invisible to the sentinel — worst case the MSI lands beside it, once.
+PS_ZAPFAST=$(mktemp --suffix=.ps1)
+cat > "$PS_ZAPFAST" << 'EOF'
+$ErrorActionPreference = 'Stop'
+
+$version = '0.21.1'
+
+# The installed binary is the truth; the uninstall entry only says where to
+# look (a key can outlive the files it describes).
+$roots = @(
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+)
+$entry = Get-ItemProperty $roots -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -match 'ZapFast|FastsApp' } |
+    Select-Object -First 1
+$candidates = @("$env:LOCALAPPDATA\Programs\ZapFast\zapfast.exe")
+if ($entry -and $entry.InstallLocation) {
+    $candidates += (Join-Path $entry.InstallLocation 'zapfast.exe')
+}
+$exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($exe) {
+    # Skip only an install that can update itself; anything older falls through
+    # and gets the MSI package seeded over it.
+    $installed = $null
+    $m = [regex]::Match([string]$entry.DisplayVersion, '\d+(\.\d+){1,3}')
+    if ($m.Success) { $installed = [version]$m.Value }
+    if ($installed -and $installed -ge [version]'0.20.0') {
+        Write-Host "==> ZapFast $($entry.DisplayVersion) already installed ($exe) - skipping"
+        exit 0
+    }
+    Write-Host "==> ZapFast at $exe predates the self-updating package - seeding $version"
+}
+
+switch ($env:PROCESSOR_ARCHITECTURE) {
+    'AMD64' { $arch = 'x86_64';  $sha = '20BC852A8B8EC6666BC46F497F1129031638B8217429709A209622DEF2229374' }
+    'ARM64' { $arch = 'aarch64'; $sha = 'D8E327D6F5B2861D2E83D9AD4F819F37D09A8604EFB405A049C8BC4DE3053CFE' }
+    default {
+        Write-Host "==> unsupported architecture '$env:PROCESSOR_ARCHITECTURE' - install ZapFast by hand"
+        exit 1
+    }
+}
+
+$file = "zapfast-v$version-$arch-pc-windows-msvc.msi"
+$url = "https://github.com/crmne/zapfast/releases/download/v$version/$file"
+$msi = Join-Path $env:TEMP $file
+
+Write-Host "==> Downloading ZapFast $version ($arch)"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+try {
+    Invoke-WebRequest $url -OutFile $msi -UseBasicParsing
+} catch {
+    Write-Host "==> download failed: $($_.Exception.Message)"
+    Remove-Item $msi -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+$actual = (Get-FileHash $msi -Algorithm SHA256).Hash
+if ($actual -ne $sha) {
+    Write-Host "==> sha256 mismatch for $file (expected $sha, got $actual) - not installing"
+    Remove-Item $msi -Force -ErrorAction SilentlyContinue
+    exit 1
+}
+
+Write-Host "==> Installing ZapFast $version"
+$p = Start-Process msiexec.exe -ArgumentList '/i', "`"$msi`"", '/qn' -Wait -PassThru -NoNewWindow
+Remove-Item $msi -Force -ErrorAction SilentlyContinue
+# 3010/1641 mean "installed, reboot to finish" — success, not failure.
+if ($p.ExitCode -notin 0, 3010, 1641) {
+    Write-Host "==> msiexec failed with exit code $($p.ExitCode)"
+    exit 1
+}
+Write-Host "==> ZapFast $version installed - it updates itself from here"
+EOF
+
+log "installing ZapFast on Windows (no winget package — pinned, sha256-verified MSI)"
+powershell.exe -NoProfile -ExecutionPolicy Bypass \
+    -File "$(wslpath -w "$PS_ZAPFAST")" 2>&1 || \
+    warn "ZapFast install failed — install manually from https://zapfast.rocks/download/"
+rm -f "$PS_ZAPFAST"
+
 # ── .wslconfig (host-specific hardware tuning) ────────────────────────────────
 WSLCONFIG="$DOTFILES/hosts/$HOST/.wslconfig"
 if [[ -f "$WSLCONFIG" ]]; then

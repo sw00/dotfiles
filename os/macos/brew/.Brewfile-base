@@ -31,6 +31,12 @@ cask "obsidian"         # notes
 cask "flameshot"        # cross-platform screenshots
 cask "telegram"         # messaging
 cask "vscodium"         # editor — canonical extensions list: os/wsl/windows/vscodium/extensions.txt
+# ZapFast (WhatsApp client) ships from its author's tap, not homebrew/cask.
+# No winget twin: microsoft/winget-pkgs has no ZapFast manifest
+# (manifests/c/crmne holds TonePush only). The Windows side is seeded by the
+# pinned-MSI block in os/wsl/up.sh, not by winget.txt.
+tap "crmne/tap"
+cask "zapfast"
 cask "firefox@developer-edition"  # secondary browser (parity with winget)
 
 # ── Tiling window manager ─────────────────────────────────────────────────────

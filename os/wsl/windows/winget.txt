@@ -10,6 +10,11 @@ Bitwarden.Bitwarden
 Brave.Brave
 Obsidian.Obsidian
 VSCodium.VSCodium
+# ZapFast (WhatsApp client) — no winget manifest exists (crmne ships none;
+# crmne/zapfast#486 was closed without one), so it is NOT listed as an ID here.
+# The pinned, sha256-verified MSI is seeded by the PowerShell block in up.sh;
+# the app then self-updates on Windows. macOS side: cask "zapfast" from tap
+# crmne/tap (Brewfile-base).
 
 # ── Development ───────────────────────────────────────────────────────────────
 # Git for Windows — provides git-credential-manager.exe referenced in

@@ -39,14 +39,13 @@ the regression suite (CI runs it on every push).
   (tig, graphviz, mosh), platform integrations (pinentry, wslu, wireguard), and
   native libs (libpq, ffmpeg).
 - Exception: self-updating apps with their own managed install own themselves.
-  Neither pi nor claude is mise-managed — mise can only move either one when
-  `mise upgrade` runs, its PATH entries shadow their self-updating entrypoints
-  (`~/.local/bin`), and neither updater will touch a mise copy: pi refuses any
-  install it cannot classify by path, and Claude Code only updates its native
-  layout under `~/.local/share/claude`. `ensure_pi()` / `ensure_claude()` in
-  bootstrap.sh run the upstream installers through one shared
-  `_ensure_self_managed` helper and skip a host that is already self-managed;
-  check.sh fails if either entry reappears in the mise config.
+  Neither pi nor claude is mise-managed — mise only moves them on
+  `mise upgrade`, its PATH entries shadow their self-updating entrypoints
+  (`~/.local/bin`), and neither updater touches a mise copy (pi refuses installs
+  it cannot classify by path; Claude Code only updates `~/.local/share/claude`).
+  `ensure_pi()` / `ensure_claude()` in bootstrap.sh run the upstream installers
+  through `_ensure_self_managed` and skip an already-self-managed host; check.sh
+  fails if either entry reappears in the mise config.
 - Upgrading those two is deliberate, never a bootstrap step. An upgrade swaps the
   harness under the prompts this repo ships, so it has to be paired with the
   pi-smoke / PROMPT-EVAL pass, and `agents-update` (base/fish) is that pairing:
@@ -63,7 +62,9 @@ the regression suite (CI runs it on every push).
   those two places only — no winget.txt entry.
 - Cross-platform desktop apps are paired entries in `Brewfile-base` ↔
   `winget.txt`; check.sh's parity table enforces the mapping. Role-analogous
-  platform apps (aerospace ↔ komorebi/whkd) are NOT parity pairs.
+  platform apps (aerospace ↔ komorebi/whkd) are NOT parity pairs. An app with no
+  winget manifest (ZapFast) is a `winget.txt` comment plus a pinned,
+  sha256-verified MSI block in `os/wsl/up.sh`; check.sh guards it.
 
 ## Tiling window managers
 

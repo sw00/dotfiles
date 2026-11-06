@@ -964,6 +964,57 @@ check_has "Brewfile-base: obsidian present" \
 check_has "Brewfile-base: flameshot present" \
     'flameshot' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
+# ZapFast is cask-only on macOS (author tap) and MSI-seeded on Windows:
+# microsoft/winget-pkgs has no ZapFast manifest, so it has no winget ID and
+# stays out of the PARITY loop below, which asserts one for every core desktop
+# cask. The Windows declaration is a comment in winget.txt + the pinned MSI
+# block in up.sh — guard both, or the platform parity is only a comment.
+#
+# The up.sh guards run against the zapfast BLOCK, not the whole file: a bare
+# `DisplayName` or `Get-FileHash` anywhere in up.sh would pass even with this
+# seed block gutted. Extraction is marker-based — banner comment to the
+# `rm -f "$PS_ZAPFAST"` cleanup.
+check_has "Brewfile-base: zapfast present (core desktop app, author tap)" \
+    'cask "zapfast"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: crmne/tap declared (source of the zapfast cask)" \
+    'tap "crmne/tap"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+_ZAPFAST_PS=$(mktemp)
+awk '/^# ── ZapFast \(Windows app/,/^rm -f "\$PS_ZAPFAST"$/' \
+    "$DOTFILES/os/wsl/up.sh" > "$_ZAPFAST_PS"
+
+check_has "up.sh: zapfast seeds a pinned MSI (release URL built from the pin)" \
+    'zapfast/releases/download/v\$version' "$_ZAPFAST_PS"
+
+check_has "up.sh: zapfast verifies the downloaded MSI against the pin" \
+    '\$actual -ne \$sha' "$_ZAPFAST_PS"
+
+# Bumping the pin must move the version AND both arch hashes together; the
+# runtime Get-FileHash mismatch is what catches a half-done bump, this only
+# catches a hash being dropped. Both values are checked against the release's
+# checksums.txt when they change.
+check "up.sh: zapfast pins one sha256 per arch (x86_64 + aarch64)" \
+    bash -c '[ "$(grep -oE "\b[0-9A-F]{64}\b" "$1" | wc -l | tr -d " ")" -eq 2 ]' \
+    _ "$_ZAPFAST_PS"
+
+check_has "up.sh: zapfast stops only a self-updating (>= 0.20.0) install" \
+    '0\.20\.0' "$_ZAPFAST_PS"
+
+check_has "up.sh: zapfast treats reboot exit codes as success (3010/1641)" \
+    '-notin 0, 3010, 1641' "$_ZAPFAST_PS"
+
+check_has "up.sh: zapfast sentinel matches both app names (FastsApp pre-0.13)" \
+    "DisplayName -match 'ZapFast\|FastsApp'" "$_ZAPFAST_PS"
+
+rm -f "$_ZAPFAST_PS"
+
+check_has "winget.txt: zapfast documented as up.sh-seeded (no winget ID)" \
+    '^# ZapFast' "$DOTFILES/os/wsl/windows/winget.txt"
+
+check_not "winget.txt: zapfast not listed as a winget ID (no manifest exists)" \
+    '^[^#]*[Zz]ap[Ff]ast' "$DOTFILES/os/wsl/windows/winget.txt"
+
 # Rev 4: the mbpm3 work.fish conf.d fragment was deleted — it carried a work
 # target abbreviation in cleartext. Work tooling stays mbpm3-exclusive (see the
 # mise tests above); what replaced it stores no identifier at all, discovering
@@ -1137,9 +1188,11 @@ for _pkg in wireguard-tools pstree mosh; do
         "brew \"$_pkg\"" "$BREW_BASE"
 done
 
-# Set 1: cross-platform desktop apps — each base macOS cask has a winget twin.
-# Platform-only apps are excluded by design: aerospace
-# (macOS), komorebi/whkd/Git.Git (Windows).
+# Set 1: cross-platform desktop apps — each base macOS cask has a winget twin,
+# except the exclusions below. Aerospace (macOS only) and komorebi/whkd/Git.Git
+# (Windows only) are platform-only by design. ZapFast is cross-platform but has
+# no winget manifest: its Windows side is seeded by up.sh's pinned MSI block and
+# guarded above, so no parity row is possible until a manifest exists.
 while IFS='|' read -r _cask _wid; do
     check "parity: $_cask (brew) ↔ $_wid (winget)" bash -c \
         'grep -q "cask \"$1\"" "$2" && grep -qx "$3" "$4"' \
