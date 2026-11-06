@@ -2304,8 +2304,9 @@ if command -v fish >/dev/null 2>&1; then
     # place the shared-tree caveat, the mute switch and --stash are stated.
     check "pwt: running help prints the doc path" \
         bash -c 'out=$(env -u TMUX "$1" -N -c "source $2; pwt help" 2>&1); rc=$?
-            [[ $rc -eq 0 && "$out" == *"docs/PWT.md"* ]]' \
-        _ "$(command -v fish)" "$_PWT"
+            path=$(printf "%s\n" "$out" | grep -oE "[[:alnum:]/._-]*docs/PWT\.md" | head -1)
+            [[ $rc -eq 0 && -n "$path" && -f "$3/$path" ]]' \
+        _ "$(command -v fish)" "$_PWT" "$DOTFILES"
     # `branch -d` refusing an unmerged branch is CORRECT (those commits exist nowhere
     # else), but the tree is already gone by then, so git's own hint reads like pwt
     # half-failed. The message must be pwt's — naming the kept branch and the follow-up
@@ -2330,9 +2331,13 @@ if command -v fish >/dev/null 2>&1; then
     # exits 0 AND says what it is doing. The squatter is a pane sitting in the checkout
     # with pi's title, which is the evidence `__pwt_window_for … pi-only` reads; it is
     # unmarked, so the identity tier cannot answer for it.
+    # The collision rule is WARN and proceed, never refuse. Both cases share one body:
+    # with a squatter (a pane in the checkout titled with pi's prefix, the evidence
+    # `__pwt_window_for ... pi-only` reads) the warning must appear; with NO squatter it
+    # must not. The second case is the negative control: a warning printed always, or on
+    # any second window, is caught here and not by the positive case.
     if command -v tmux >/dev/null 2>&1; then
-        check "pwt: warns (and proceeds) when a second in-place stream shares the tree" \
-            bash -c 'd=$(mktemp -d); sock="$d/sock"
+        _collide_script='d=$(mktemp -d); sock="$d/sock"
                 trap "tmux -S \"$sock\" kill-server >/dev/null 2>&1; rm -rf \"$d\"" EXIT
                 mkdir -p "$d/bin" "$d/repo"
                 printf "#!/bin/sh\nexec sleep 300\n" > "$d/bin/pi"; chmod +x "$d/bin/pi"
@@ -2344,11 +2349,14 @@ if command -v fish >/dev/null 2>&1; then
                 root=$(cd "$d/repo" && pwd -P)
                 tmux -S "$sock" -f /dev/null new-session -d -s project -c "$root" "sleep 300" || exit 1
                 tmux -S "$sock" new-window -d -t project: -n one -c "$root" "sleep 300" || exit 1
-                tmux -S "$sock" select-pane -t one -T "π - one" || exit 1
+                if [ -n "$3" ]; then tmux -S "$sock" select-pane -t one -T "$3" || exit 1; fi
                 out=$(cd "$root" && env TMUX="$sock" PATH="$d/bin:$PATH" PWT_FORWARD_ENV= \
                     "$1" -N -c "source $2; pwt here two" 2>&1); rc=$?
-                [[ $rc -eq 0 && "$out" == *"parallel edits will collide"* ]]' \
-            _ "$(command -v fish)" "$_PWT"
+                if [ "$4" = yes ]; then [[ $rc -eq 0 && "$out" == *"parallel edits will collide"* ]]; else [[ $rc -eq 0 && "$out" != *"parallel edits will collide"* ]]; fi'
+        check "pwt: warns (and proceeds) when a second in-place stream shares the tree" \
+            bash -c "$_collide_script" _ "$(command -v fish)" "$_PWT" "π - one" yes
+        check "pwt: stays silent when a second in-place workstream has no squatter" \
+            bash -c "$_collide_script" _ "$(command -v fish)" "$_PWT" "" no
     else
         _skip "pwt: in-place collision warning (behavioural)" "tmux not installed"
     fi
@@ -3939,7 +3947,8 @@ NSND
     check "pwt-osc: osascript gets the message as argv, never as script source" \
         bash -c 'grep -qxF -- "osascript|on run argv" "$1" &&
                  grep -qxF -- "osascript|audit — blocked" "$1" &&
-                 grep -qxF -- "osascript|$2" "$1"' \
+                 grep -qxF -- "osascript|$2" "$1" &&
+                 [ "$(grep -cF -- "$2" "$1")" -eq 1 ]' \
         _ "$_osc_trans_log" "$_osc_msg"
     _osc_transport Linux "state=done:app=pi:msg=$_osc_msg_b64" Ubuntu
     check "pwt-osc: on WSL the toast carries the message as a quoted literal" \
