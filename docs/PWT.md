@@ -216,6 +216,8 @@ reuses a window without restarting it.
   `git status` shows the directory, `git add -A` stages a gitlink for the worktree and
   ripgrep/editors index every copy. Editing the repo's `.gitignore` instead would force a
   commit into every repo you use pwt in. Written on create, never removed by `pwt rm`.
+  The write first pads a missing final newline: appending onto a last line that has none
+  would merge `node_modules/` with `__worktrees/`, and that un-ignores `node_modules/`.
   Side effect: it is now ignored, so `git clean -X` considers it — one `-f` skips a
   nested repository, a double force deletes a live worktree (`GOTCHAS`).
 - The branch named after the slug.
@@ -301,7 +303,8 @@ replaces the transport for tests.
   (`@resurrect-processes` lists no `pi`), so re-running `pwt <slug>`, `pwt revive <dir>`
   or the post-restore hook respawns the agent in it.
 - With more than one client attached, the client that moves is the one pwt was run from
-  (`switch-client` is not given `-c`): any other client keeps what it was showing.
+  (`switch-client` is not given `-c`): any other client keeps what it was showing, and
+  loses its place only if its own session is the one a move empties.
 
 ## If you change this
 
@@ -359,6 +362,7 @@ there, not just the rule. The incidents behind them are in `GOTCHAS`.
   to end (and what `no-worktrees` prevents in `__pwt_window_for`). Target it by session
   ID with `=name` on the name tier: a bare name is a prefix match, and tmux rewrites
   `.`/`:` in names.
+
 Where the guarantees live: `bash check.sh`. The pwt blocks cover the identity tiers,
 both collision directions, the ignore write, the window's session placement (against a
 private server whose sessions stand in a repo root, elsewhere, and inside a worktree),
