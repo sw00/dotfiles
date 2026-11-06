@@ -2006,10 +2006,16 @@ check_not "pwt: never places the new window with a bare select-window" \
 # That guard is asserted textually only: forcing `new-window` to create a window and
 # then lose its id needs a tmux shim, and a shim is more likely to be wrong than the
 # race is to happen (same reasoning as the died-on-reload branch below).
+check_has "pwt: falls back to the caller's session when the target is gone" \
+    'test -z "\$pane"' "$_PWT"
+check_has "pwt: refuses a second pi when the window exists but its id was lost" \
+    'already exists — jumped to it' "$_PWT"
 # Placement is MAINTAINED, not one-shot: a window that landed in the caller's session
 # because its project session did not exist yet moves home the next time you go to it
 # (reuse through `pwt <slug>`, or `pwt jump`). Those two verbs rather than a snap verb of
 # its own, because the panel's `enter` already reaches both.
+check_has "pwt: re-homes a reused window into its repo's session" \
+    'move-window -s' "$_PWT"
 # Only windows pwt opened are relocated (the gate covers BOTH callers, including the
 # path fallback that can match a pi started by hand inside the worktree), and a MOVE
 # needs the recorded path rather than a matching session name.
@@ -2090,6 +2096,10 @@ check_has "pwt: hides __worktrees from the parent repo" \
     'info/exclude' "$_PWT"
 # A missing pi makes the pane exit at once and tmux takes the window with it, so the
 # worktree would be created and nothing would be shown.
+check_has "pwt: preflights pi before spawning a window" \
+    'command -sq pi' "$_PWT"
+check_has "pwt: reports a window that died at birth" \
+    'died at birth' "$_PWT"
 # No legitimate commit-ish starts with '-' — git would parse it as an OPTION.
 check_has "pwt: rejects a base ref git would parse as an option" \
     'invalid base ref' "$_PWT"
