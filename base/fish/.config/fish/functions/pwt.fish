@@ -1256,8 +1256,9 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                 if not command grep -qxF -- '__worktrees/' "$excl" 2>/dev/null
                     # Appending onto a last line that has no newline would MERGE with
                     # it — `node_modules/` becoming `node_modules/__worktrees/`, which
-                    # un-ignores it. A command substitution strips trailing newlines,
-                    # so a non-empty last BYTE means the file does not end with one.
+                    # un-ignores it. `tail -c 1` returns the last BYTE unchanged, which a
+                    # command substitution cannot give: it strips trailing newlines, so a
+                    # non-empty last byte means the file does not end with one.
                     if test -s "$excl"; and test -n (command tail -c 1 "$excl" 2>/dev/null)
                         printf '\n' >>"$excl" 2>/dev/null
                     end

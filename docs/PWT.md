@@ -279,7 +279,8 @@ replaces the transport for tests.
 ## Limits worth knowing
 
 - `⬤` tests for a *transcript*, never for the session directory: an empty project dir is
-  evidence of a lookup, not of history (invariant 5, and `GOTCHAS`).
+  evidence of a lookup, not of history (invariant 5, and `GOTCHAS`). The empty
+  directories themselves are swept by `pi-prune-sessions`.
 - A session forked inside a pi — `/new`, `/fork`, `/clone`, or a handoff — is a NEW
   session id that pwt cannot see: the OSC 7501 tap carries state only, and resurrect
   does not save `@user` options. `pwt reload` therefore resumes the pinned id, not the
@@ -294,7 +295,8 @@ replaces the transport for tests.
   longer than that starts fresh. It is MANUAL ONLY — never schedule or auto-run it: the
   transcripts are the only source for session review and the `/usage` dashboard.
 - Session ids are `<repo basename>-<slug>`, so they are not unique across repos — which
-  is why windows carry `@pwt_dir` too.
+  is why windows carry `@pwt_dir` too. pi namespaces transcripts by project directory,
+  so that is only a window-handle concern.
 - A workstream window lives in its project's session, so it dies with that session:
   prefix then `C-x` (the sesh kill-session popup — not the panel's `ctrl-x`) ends the
   project's workstream agents too. The transcript survives (pi persists per entry), so
@@ -368,6 +370,7 @@ both collision directions, the ignore write, the window's session placement (aga
 private server whose sessions stand in a repo root, elsewhere, and inside a worktree),
 the panel parser, the push decisions and the preview — several against a private tmux
 server and a stub `pi`, so they run without touching your session.
+
 ## Not built, on purpose
 
 A dashboard, prompt injection, merge automation, bulk multi-remove, a persistent panel,
