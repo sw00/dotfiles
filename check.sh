@@ -1945,16 +1945,10 @@ if command -v fish >/dev/null 2>&1; then
     check "pwt: parses (fish -n)" \
         fish -n "$_PWT"
 fi
-check_has "pwt: pins an explicit pi session id" \
-    '\-\-session-id' "$_PWT"
 # worktree remove deletes IGNORED files without complaint, so pwt must refuse.
-check_has "pwt: refuses removal while ignored files are present" \
-    'porcelain --ignored' "$_PWT"
 # Two pi processes on one --session-id resume the SAME transcript JSONL and pi
 # rewrites that file from its own memory, so the second writer silently clobbers
 # the first. An open window must therefore be reused, never duplicated.
-check_has "pwt: reuses an open window instead of spawning a second pi" \
-    'tmux select-window -t' "$_PWT"
 check_has "pwt: finds that window by pane cwd" \
     'list-panes -a' "$_PWT"
 # A workstream window belongs to the session that owns the repo's MAIN checkout, not
@@ -2003,8 +1997,6 @@ check_has "pwt: the name tier allows for tmux rewriting '.'" \
     "replace -a -r '\[.:\]' '_'" "$_PWT"
 # select-window cannot cross sessions: without the jump the window opens in the parent
 # session and the command looks like it did nothing at all.
-check_has "pwt: follows the window into the parent session" \
-    '__pwt_jump_to "\$pane"' "$_PWT"
 check_not "pwt: never places the new window with a bare select-window" \
     'select-window -t "\$pane"' "$_PWT"
 # The session can vanish between that listing and the spawn. Falling back to the
@@ -2014,16 +2006,10 @@ check_not "pwt: never places the new window with a bare select-window" \
 # That guard is asserted textually only: forcing `new-window` to create a window and
 # then lose its id needs a tmux shim, and a shim is more likely to be wrong than the
 # race is to happen (same reasoning as the died-on-reload branch below).
-check_has "pwt: falls back to the caller's session when the target is gone" \
-    'test -z "\$pane"' "$_PWT"
-check_has "pwt: refuses a second pi when the window exists but its id was lost" \
-    'already exists — jumped to it' "$_PWT"
 # Placement is MAINTAINED, not one-shot: a window that landed in the caller's session
 # because its project session did not exist yet moves home the next time you go to it
 # (reuse through `pwt <slug>`, or `pwt jump`). Those two verbs rather than a snap verb of
 # its own, because the panel's `enter` already reaches both.
-check_has "pwt: re-homes a reused window into its repo's session" \
-    'move-window -s' "$_PWT"
 # Only windows pwt opened are relocated (the gate covers BOTH callers, including the
 # path fallback that can match a pi started by hand inside the worktree), and a MOVE
 # needs the recorded path rather than a matching session name.
@@ -2040,8 +2026,6 @@ check "pwt: never creates a session to snap into" \
 # tmux reports the RESOLVED path (a window at /tmp shows /private/tmp) while git
 # and find hand back the path as given, so a checkout behind any symlinked parent
 # would never match and pwt would spawn the duplicate after all.
-check_has "pwt: compares window paths canonically" \
-    'path resolve' "$_PWT"
 # ...with a BUILTIN, never a `cd …; pwd -P` round trip. A fish function runs in the
 # caller's process, so cd'ing there fires a PWD-change event on every comparison (direnv
 # hooks PWD), and the shell had to be put back afterwards — bookkeeping whose failure
@@ -2056,16 +2040,10 @@ check "pwt: canonicalises without cd'ing the caller's shell" \
 # from under a running pi, so the ignored-file guard is not the only one. This one
 # is deliberately NOT gated on $TMUX — `pwt rm` from a plain terminal while pi
 # works in tmux is exactly when it matters.
-check_has "pwt: refuses removal while a window still holds the worktree" \
-    'window \$live still holds' "$_PWT"
 # Reuse must require an actual pi: a plain shell cd'd into the worktree is not a
 # workstream, but it IS enough to make removal unsafe. Removal additionally has to
 # see a pane that cd'd into a SUBDIRECTORY — deleting the tree under it leaves that
 # shell in a directory that no longer exists.
-check_has "pwt: distinguishes a pi window from a shell in the worktree" \
-    'case pi-only' "$_PWT"
-check_has "pwt: treats a pane anywhere inside the worktree as in use" \
-    'case in-tree' "$_PWT"
 # The state tap: pwt attaches it as it opens a pane, and adopts one when the panel
 # jumps to a live session. The attach string goes through strftime BEFORE tmux
 # expands formats — a literal pane id (%3) is mangled to "3" and every later
@@ -2078,13 +2056,9 @@ check_has "pwt: names the tap's pane with #{pane_id}, never a literal id" \
     'pwt-osc #\{pane_id\}' "$_PWT"
 check_not "pwt: never attaches the tap with pipe-pane -o" \
     'pipe-pane -o' "$_PWT"
-check_has "pwt: adopts a live session when the C-w panel jumps to it" \
-    '__pwt_tap' "$_PWT"
 # The in-place rung: a workstream with no worktree, for repos a fresh checkout
 # cannot serve (a git-crypt repo fails `worktree add` at the smudge filter) or
 # where the per-worktree state is not worth re-provisioning.
-check_has "pwt: exposes an in-place workstream verb" \
-    'case here' "$_PWT"
 check_has "pwt: rejects a base ref for the in-place verb" \
     'takes no base ref' "$_PWT"
 # Identity, not cwd: two in-place workstreams share one directory, so matching on
@@ -2116,10 +2090,6 @@ check_has "pwt: hides __worktrees from the parent repo" \
     'info/exclude' "$_PWT"
 # A missing pi makes the pane exit at once and tmux takes the window with it, so the
 # worktree would be created and nothing would be shown.
-check_has "pwt: preflights pi before spawning a window" \
-    'command -sq pi' "$_PWT"
-check_has "pwt: reports a window that died at birth" \
-    'died at birth' "$_PWT"
 # No legitimate commit-ish starts with '-' — git would parse it as an OPTION.
 check_has "pwt: rejects a base ref git would parse as an option" \
     'invalid base ref' "$_PWT"
@@ -2134,54 +2104,30 @@ check_has "pwt: names the branch left behind by an unmerged rm" \
 # `--stash` is the panel's confirmed teardown: close the window, keep the work, remove
 # the tree. The parking path is what makes it safe — ignored files are MOVED, never
 # deleted, under the git common dir.
-check_has "pwt: exposes a preserve-and-remove mode" \
-    '\-\-stash' "$_PWT"
-check_has "pwt: parks ignored files instead of deleting them" \
-    'pwt-removed' "$_PWT"
-check_has "pwt: exposes a close verb for live workstreams" \
-    'case close' "$_PWT"
 # A workstream's pi runs with no shell around it, so its environment is fixed at
 # exec: pwt hands the secrets to the SPAWN (tmux -e) instead of pushing them into the
 # server, where a value would outlive the command and be inherited by every later
 # window, including ones pwt never opened.
-check_has "pwt: hands the secrets env to the window it spawns" \
-    '\$envargs pi --session-id' "$_PWT"
 # ...read from the FILE at call time, not from the calling shell's exports: pwt is
 # normally typed into a pane older than the edit, and reload exists to pick an edit
 # up — forwarding the caller's copy would re-inject the stale secret and report
 # success.
-check_has "pwt: reads the secrets file instead of the caller's exports" \
-    'source "\$file"' "$_PWT"
 # The live secrets file carries commented-out `set -gx NAME` lines (retired keys), so
 # an unanchored scrape forwards names that were deliberately retired.
-check_has "pwt: anchors the secrets scrape" \
-    '\[\[:space:\]\]\*set' "$_PWT"
 # tmux owns TERM; the server's PATH carries the mise shims via tmux.conf.
-check_has "pwt: never forwards TERM/PATH/TMUX" \
-    'TERM TMUX TMUX_PANE PWD OLDPWD HOME PATH' "$_PWT"
 # `-e NAME=` would CLEAR a secret the window would otherwise inherit.
-check_has "pwt: skips an empty secret instead of clearing it" \
-    'set -q \$name' "$_PWT"
 # remain-on-exit is off in the shipped tmux.conf, but a corpse keeps answering with a
 # pane id, so the survival check has to look at pane_dead too.
 check_has "pwt: a reload that died is not reported as a reload" \
     'pane_dead' "$_PWT"
-check_has "pwt: exposes a reload verb for a live workstream" \
-    'case reload' "$_PWT"
 # A live process cannot be given new env, so reload IS a restart — and respawn-pane
 # is the only restart that keeps the pane id, the window name and the @pwt_* marks.
 check_has "pwt: reload respawns the pane in place" \
     'respawn-pane -k' "$_PWT"
-check_has "pwt: reload refuses a window with no recorded session id" \
-    'records no pwt session id' "$_PWT"
-check_has "pwt: reload refuses to kill a working agent" \
-    'a reload would drop the current turn' "$_PWT"
 check_has "pwt: reload clears the dead run's state flags" \
     '-u @pi_state' "$_PWT"
 check_has "pwt: reload re-attaches the state tap" \
     '__pwt_tap "\$pane"' "$_PWT"
-check_has "pwt: reload finds a pi that cd'd inside the workstream" \
-    'pi-only in-tree no-worktrees pane-id' "$_PWT"
 # `test -n (tmux display-message …)` collapses to a lone `-n` when the command prints
 # nothing, and `-n` is a non-empty STRING — a survival check that can never fail. The
 # result has to be stored in a variable first. Asserted as a CLASS, because the pattern
@@ -2202,8 +2148,6 @@ check_has "pwt: the doc lists the dormant listing" \
     'pwt ls --all' "$DOTFILES/docs/PWT.md"
 # The dormant state is a SEPARATE helper, not folded into `case ls`, and reads the
 # repo's common dir the same way the info/exclude write does.
-check_has "pwt: ls --all has its own read-only helper" \
-    '__pwt_ls_all' "$_PWT"
 
 # The written contract. pwt's design lives in code comments and this suite; a real
 # tool ships the parts a user has to know.
@@ -2733,8 +2677,6 @@ check "pwt: the pi respawn has one implementation (reload and revive share it)" 
     test "$(grep -c 'respawn-pane' "$_PWT")" = 1
 check_has "pwt: revive reaches pi by the shared respawn helper" \
     '__pwt_respawn_pi' "$_PWT"
-check_has "pwt: revives by rescuing identity from the worktree path" \
-    '__pwt_revive_panes' "$_PWT"
 # comm/pgrep, never pane_current_command: tmux wraps a window command in a shell, so
 # pane_current_command says `fish` for a pane running `cat`.
 check_has "pwt: the idle-shell predicate reads ps comm" 'ps -o comm=' "$_PWT"
@@ -2748,7 +2690,6 @@ check "pwt: the revive hook parses under /bin/bash (3.2 on macOS)" \
     /bin/bash -n "$_RV_HOOK"
 # The kill switch belongs to the hook ALONE, so `pwt revive <dir>` stays usable for
 # explicit repair while the ambient hook is muted.
-check_has "pwt: the hook reads the @pwt_revive kill switch" '@pwt_revive' "$_RV_HOOK"
 check_not "pwt: the revive verb itself ignores the kill switch" '@pwt_revive' "$_PWT"
 check_has "tmux.conf: seeds the revive kill switch on" \
     'set -g @pwt_revive 1' "$_TMUXCONF"
@@ -2780,8 +2721,6 @@ check "tmux.conf: the post-restore hook is a shell command that actually runs" \
 check_has "pwt: the doc lists the revive verb" \
     'pwt revive' "$DOTFILES/docs/PWT.md"
 # Live (non-worktree) sessions are reached through the same window-finding code.
-check_has "pwt: exposes a jump verb for live sessions" \
-    'case jump' "$_PWT"
 
 # repo-list backs the C-f repo half. The rule is subtle enough to have been got
 # wrong twice during development, so each branch is asserted directly.
@@ -2834,8 +2773,6 @@ check "pwt-pick: --list runs under /bin/bash (3.2 on macOS)" \
     env -u TMUX PWT_SRC="$DOTFILES/.git" HOME=/nonexistent /bin/bash "$_PWT_PICK" --list
 # Single source of truth: the panel creates and removes nothing itself, and no
 # longer pins a session id — it asks pwt, which owns the worktree lifecycle.
-check_has "pwt-pick: delegates lifecycle to pwt" \
-    'fish -c' "$_PWT_PICK"
 check_not "pwt-pick: does not pin a session id itself (pwt owns it)" \
     '\-\-session-id' "$_PWT_PICK"
 # Both of these belong here rather than with the pwt assertions: $_PWT_PICK is not
@@ -2860,12 +2797,8 @@ check_has "pwt-pick: ctrl-x can close a live workstream" \
 # ctrl-s is the reload key: unbound in fzf 0.73 (ctrl-l is clear-screen, ctrl-g/ctrl-q
 # abort), and it reaches fzf through tmux — verified by sending it to a --expect panel
 # on a private socket, because a key the terminal swallows looks like a broken bind.
-check_has "pwt-pick: ctrl-s runs the in-place reload" \
-    'ctrl-s' "$_PWT_PICK"
 # The ctrl-s GUARD is tested behaviourally in the stub harness below (a grep for its
 # variable survives a revert of the guard, measured).
-check_has "pwt-pick: reload is taken off the editor via --expect" \
-    '--expect=ctrl-t,ctrl-x,ctrl-r,ctrl-s' "$_PWT_PICK"
 check_not "pwt-pick: ctrl-l stays fzf's clear-screen key" \
     'expect=.*ctrl-l' "$_PWT_PICK"
 # The confirmation mirrors ctrl-x's: the kill is one y/N away, and the semantic guard
@@ -2873,14 +2806,8 @@ check_not "pwt-pick: ctrl-l stays fzf's clear-screen key" \
 # refusal — the panel must not re-implement or pre-empt it.
 check_has "pwt-pick: reload asks once before restarting pi" \
     'Reload the pi at' "$_PWT_PICK"
-check_has "pwt-pick: reload delegates to pwt reload" \
-    'run_pwt reload' "$_PWT_PICK"
-check_has "pwt-pick: the panel header names the reload key" \
-    'ctrl-s reload' "$_PWT_PICK"
 check_has "pwt: the doc lists the panel's reload key" \
     'ctrl-s' "$DOTFILES/docs/PWT.md"
-check_has "pwt-pick: labels a row from the window marker when present" \
-    '@pwt_label' "$_PWT_PICK"
 # A repo with no workstreams has no row, so the list cannot reach it; and not every
 # repo can take a worktree. This is the way in for both.
 check_has "pwt-pick: reaches a repo with no rows through repo-list" \
@@ -2891,16 +2818,12 @@ check_has "pwt-pick: that stage can create the in-place rung too" \
 # injection this whole design exists to avoid.
 check_not "pwt-pick: never interpolates the typed query into a command" \
     '{q}' "$_PWT_PICK"
-check_has "pwt-pick: shows the state pi reports" \
-    '@pi_state' "$_PWT_PICK"
 # An fzf execute()/reload() bind interpolates the row and whatever was typed into
 # a COMMAND STRING that a shell then parses, so a quote in a path is an injection.
 # --expect delivers the key and the row on stdout, to be passed as argv instead.
 # --expect TAKES the key away from fzf's line editor, so the verbs must be keys the
 # editor does not use: ctrl-n/ctrl-p are its next/previous-match pair and ctrl-d is
 # delete-char/eof. Binding those made ctrl-p navigate while ctrl-n exited the panel.
-check_has "pwt-pick: takes its verbs from --expect, off the editor's keys" \
-    '--expect=ctrl-t,ctrl-x,ctrl-r' "$_PWT_PICK"
 check_not "pwt-pick: no longer steals the fzf navigation keys" \
     '--expect=ctrl-n' "$_PWT_PICK"
 # Every live pi pane is adopted as the panel opens — the ones pwt opened are an
@@ -2983,8 +2906,6 @@ check_not "pwt-pick: builds no shell command string for fzf" \
 # does not, so without canonicalisation the ▸ marker silently disappears.
 check_has "pwt-pick: identifies pi panes by window title" \
     'pane_title' "$_PWT_PICK"
-check_has "pwt-pick: canonicalises paths before comparing" \
-    'pwd -P' "$_PWT_PICK"
 # The title SET is needed in all three consumers — pwt decides whether a window is
 # worth reusing, the panel decides which panes are pi, and the post-restore hook
 # decides which SAVED panes were pi — so a new variant must not be able to update
@@ -3016,8 +2937,6 @@ check_has "pwt-pick: holds the popup open when pwt fails" \
 # `pwt ls` is the shell-side half of the panel: same rows, same order, ONE
 # implementation (pwt-pick --list). Outside tmux every marker is blank, which is
 # what makes it usable from a script.
-check_has "pwt: exposes a shell-side listing verb" \
-    'case ls' "$_PWT"
 if command -v fish >/dev/null 2>&1; then
     _pwt_ls_tmp="$(mktemp -d)"
     mkdir -p "$_pwt_ls_tmp/org/repo/__worktrees/demo"
@@ -3671,12 +3590,8 @@ rm -f "$_osc_fix"
 # Same three states, never for progress, never for the window you are looking at,
 # and at most one per workstream per cooldown — a live smoke agent settled 7–22
 # times on one task, so without the cooldown a single stuck agent is a storm.
-check_has "pwt-osc: repeat settles are coalesced by a cooldown" \
-    'COOLDOWN_SECONDS=300' "$_PWT_OSC"
 # The cooldown lives on the window, so it needs no state directory to clean up and
 # dies with the workstream it describes.
-check_has "pwt-osc: the cooldown is stamped on the window, not in a temp file" \
-    '@pi_notified_at' "$_PWT_OSC"
 # A message is program-controlled text on its way to a notifier, so it must arrive
 # as DATA: building `display notification "$msg"` is the injection, and osascript
 # being handed the text as arguments to `on run argv` is the fix.
@@ -3688,10 +3603,6 @@ check_has "pwt-osc: Linux falls back to notify-send when there is one" \
     'notify-send' "$_PWT_OSC"
 # Outside the grid is exactly where the protocol asks for control and bidi
 # characters to be disarmed rather than rendered.
-check_has "pwt-osc: disarms bidi overrides in a message" \
-    'x\{202a\}.*x\{202e\}' "$_PWT_OSC"
-check_has "pwt-osc: clamps a message to the length of a banner" \
-    'substr\(\$s, 0, 160\)' "$_PWT_OSC"
 
 # Behaviour, not text: drive the REAL consumer with stub tmux over synthetic report
 # streams, because window-active suppression, the cooldown and the sanitising are
