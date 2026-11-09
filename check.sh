@@ -1443,6 +1443,73 @@ if cd is not None and not (isinstance(cd, int) and cd > 0):
 
 
 # =============================================================================
+# The search route is brave → exa, and it is only alive while NO scalar
+# `provider`/`searchProvider` key exists: pi-web-access gives a scalar precedence
+# over `searchRouting`, and the curator's provider picker writes that scalar back
+# through the stowed symlink into this tracked file — dirtying the repo AND
+# silently disabling the route. So assert the ABSENCE, not just the route, or
+# that footgun ships green. The key half is structural too: both API keys must
+# stay env references, because this repo is public.
+check "pi: web-search routes brave -> exa with no scalar provider" \
+    bash -c "python3 -c \"
+import json, sys
+ws = json.load(open('$DOTFILES/base/pi/.pi/web-search.json'))
+scalars = [k for k in ('provider', 'searchProvider') if k in ws]
+if scalars:
+    sys.stderr.write('scalar %r present: searchRouting is dead config\\n' % (scalars,))
+    sys.exit(1)
+route = ws.get('searchRouting') or {}
+if route.get('providers') != ['brave', 'exa']:
+    sys.stderr.write('searchRouting.providers must be [brave, exa]: %r\\n' % (route.get('providers'),))
+    sys.exit(1)
+need = {'quota', 'transient', 'network', 'invalid-response', 'empty'}
+missing = need - set(route.get('fallbackOn') or [])
+if missing:
+    sys.stderr.write('searchRouting.fallbackOn missing %r\\n' % (sorted(missing),))
+    sys.exit(1)
+allowed = set((ws.get('webSearch') or {}).get('allowedProviders') or [])
+if not {'brave', 'exa'} <= allowed:
+    sys.stderr.write('webSearch.allowedProviders must allow brave and exa: %r\\n' % (sorted(allowed),))
+    sys.exit(1)
+for field in ('braveApiKey', 'exaApiKey'):
+    body = str(ws.get(field, ''))
+    body = body[1:] if body.startswith(chr(36)) else ''
+    if body.startswith(chr(36)):
+        body = ''
+    if body.startswith('{') and body.endswith('}'):
+        body = body[1:-1]
+    if not body.isidentifier():
+        sys.stderr.write('%s must be one env reference (NAME or {NAME}), not a literal or the literal-value escape\n' % (field,))
+        sys.exit(1)
+\""
+
+# The route is a privacy statement before it is a configuration, and the claim
+# that matters is the NEGATIVE one: Exa's ZDR is an Enterprise-only feature
+# (exa.ai/docs/admin/security/zero-data-retention) and its privacy policy says
+# query data trains models, so a row implying peer-level ZDR would be a lie the
+# README tells about this host. Python, not check_has: the row is
+# pipe-delimited markdown, and ERE would read every `|` as alternation — a
+# pattern that matches anything proves nothing.
+check "pi: README ZDR table states Exa has no ZDR (Enterprise-only)" \
+    bash -c "python3 -c \"
+import sys
+rows = [l for l in open('$DOTFILES/base/pi/README.md') if 'Exa (keyed API)' in l]
+if len(rows) != 1:
+    sys.stderr.write('expected exactly one Exa ZDR row, found %d\\n' % (len(rows),))
+    sys.exit(1)
+cells = [c.strip() for c in rows[0].strip().strip('|').split('|')]
+if len(cells) != 4:
+    sys.stderr.write('Exa row must have 4 cells: %r\\n' % (cells,))
+    sys.exit(1)
+training, retention = cells[2], cells[3]
+if 'Enterprise' not in retention or 'Zero' in retention:
+    sys.stderr.write('Exa RETENTION cell must state Enterprise-only, never Zero: %r\\n' % (retention,))
+    sys.exit(1)
+if training.lower().startswith('no'):
+    sys.stderr.write('Exa TRAINING cell must not claim no-training: %r\\n' % (training,))
+    sys.exit(1)
+\""
+
 # 12. NEOVIM SMOKE TEST
 # pi-claude-auth → pi-claude-bridge migration. pi-claude-auth copied Claude
 # Code's Keychain credential into pi's anthropic auth.json slot and re-synced it

@@ -287,18 +287,44 @@ prompt, not a tool gate.
 
 ## Web search
 
-**Brave Search** via `pi-web-access`. Config at `~/.pi/web-search.json`
-(`base/pi/.pi/web-search.json`) — provider `brave`, `auto-summary` workflow (no
-browser curator), summaries drafted by Flash. Key resolved from
-`BRAVE_SEARCH_API_KEY` (or `BRAVE_API_KEY`). Brave is SOC 2 Type II attested
-with explicit Zero Data Retention — stronger posture than the prior Exa
-integration. Query-hygiene rule in `agent/AGENTS.md`.
+**Brave Search, falling back to Exa**, via `pi-web-access` 0.47.0. Config at
+`~/.pi/web-search.json` (`base/pi/.pi/web-search.json`): a `searchRouting` route
+`brave → exa`, the `auto-summary` workflow (no browser curator), summaries
+drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys
+resolve through `$BRAVE_SEARCH_API_KEY` and `$EXA_SEARCH_API_KEY`
+(`secrets/env.fish`, git-crypt'd), so the repo holds no credential.
+
+The fallback covers named failure kinds only — `quota | transient | network |
+invalid-response | empty` (the last is a successful search with no results). A
+Brave `auth`, `credential`, `invalid-request`, `config` or `aborted` failure
+stops the route; `fallbackOn` does not accept those kinds, and an unresolvable
+key should be fixed, not routed around. `source_check` rides the same route, and
+config is read per process, so a running session keeps the old route until it
+restarts. Per the package's own config reference (README §Configuration): a
+scalar `provider` takes precedence over `searchRouting`, the allowlist refuses
+other providers even when named per call, and `provider: "all"` aggregates only
+the listed ones.
+
+Hence **no scalar `provider` key** — one would silently disable the route — and
+`check.sh` asserts its absence, because the curator's provider picker writes
+that scalar back through the stowed symlink into this tracked file. An explicit
+`provider: "exa"` on a call is honoured (Exa's `category` filter is the per-call
+reason); other names are refused before any request.
+
+Brave stays primary for its SOC 2 Type II Zero Data Retention. **Exa has no ZDR on
+this plan**: Exa's ZDR is an Enterprise feature enabled per team ($12k/yr, 25
+QPS), and its privacy policy says query data is used to train and fine-tune its
+models — Exa acts as a processor under a DPA for API customers, but that
+document's substance could not be verified (the public page renders no body).
+So Exa is a fallback on Brave's failures, never a peer, and the query-hygiene
+rule in `agent/AGENTS.md` applies to it exactly as to any other engine.
 
 ## ZDR posture
 
 | Provider | Model(s) | Training? | Retention |
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
+| Exa (keyed API) | — | Per privacy policy: queries train models | No ZDR here — Enterprise-only, enabled per team |
 | OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3` (oracle), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |

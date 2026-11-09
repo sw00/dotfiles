@@ -1,6 +1,13 @@
 {
-  "provider": "brave",
+  "searchRouting": {
+    "providers": ["brave", "exa"],
+    "fallbackOn": ["quota", "transient", "network", "invalid-response", "empty"]
+  },
+  "webSearch": {
+    "allowedProviders": ["brave", "exa"]
+  },
   "braveApiKey": "$BRAVE_SEARCH_API_KEY",
+  "exaApiKey": "$EXA_SEARCH_API_KEY",
   "workflow": "auto-summary",
   "summaryModel": "opencode-go/deepseek-v4.1-flash",
   "firecrawlBaseUrl": "http://192.168.88.104:8181",
