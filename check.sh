@@ -387,6 +387,32 @@ else
     _skip "fish: config.fish parses" "fish not installed"
 fi
 
+# fish's own embedded scripts execute `true`/`false` BY NAME — `if $flag`, where
+# $flag holds the string "false" — so a host-local definition of either inverts fish's
+# internals: `~/.config/fish/functions/false.fish` (return 0) broke theme application
+# and blanked every fish_color_* (docs/GOTCHAS.md → fish). Only those two names are
+# checked; wrapping a builtin such as `cd` is a legitimate thing for a user to do.
+# Machine-only: CI has no live ~/.config/fish.
+if [[ -z "${CI:-}" ]] && command -v fish >/dev/null 2>&1; then
+    _shadowed=
+    for _fn in true false; do
+        for _dir in "$HOME/.config/fish/functions" "$HOME/.config/fish/conf.d"; do
+            if [[ -e "$_dir/$_fn.fish" ]]; then
+                _shadowed="$_shadowed $_dir/$_fn.fish"
+            fi
+        done
+        if [[ -f "$HOME/.config/fish/config.fish" ]] \
+            && grep -qEs "^(function|alias)[[:space:]]+$_fn([[:space:]]|$)" \
+                "$HOME/.config/fish/config.fish"; then
+            _shadowed="$_shadowed ~/.config/fish/config.fish($_fn)"
+        fi
+    done
+    check "fish: no host-local override of true/false${_shadowed:+ — found:$_shadowed}" \
+        test -z "$_shadowed"
+else
+    _skip "fish: no host-local override of true/false" "CI environment or fish not installed"
+fi
+
 
 # =============================================================================
 # 4. REPOSITORY STRUCTURE

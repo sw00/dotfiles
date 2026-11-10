@@ -245,6 +245,28 @@ constrains; this is how each rule was found. Read it when you touch the area.
   by pushing the values into the server with `tmux setenv -g`: such a value outlives the
   command and is inherited by every later window, with nothing that ever clears it.
 
+## fish
+
+- **Overriding `true`/`false` anywhere in the fish config inverts fish's OWN control
+  flow — the visible symptom was a theme error on every new shell (2026-11-09).** A
+  host-local `functions/false.fish` (`function false; return 0; end`) made each shell
+  print `fish_config theme choose: failed to find '[dark]' section (implied by
+  $fish_terminal_color_theme) in 'default' theme` plus the `--color-theme=light|dark`
+  hint, and left every themeable variable set to nothing (`$fish_color_command` empty,
+  i.e. no syntax colouring at all). fish's embedded scripts run `false`/`true` by name
+  (`if $flag`, where `$flag` is the string "false"), so a `false` that succeeds takes the
+  wrong branch — deterministic in both terminal configurations measured (OSC 11 answered
+  and never answered). Two shadows hid it: the host-local `conf.d/fish_frozen_theme.fish`
+  (the fish 4.3 migration) re-sets the colours later, so only the message was visible;
+  and the message reads like a fish bug, so the advice that file's own header gives
+  (delete it to customise your theme) looked like the fix — moving it aside was measured
+  to change nothing. Fix: delete the override. `~/.config/fish/functions/` is where to
+  look first (fish autoloads a file named after the function, so one file there is one
+  sabotaged command), but `function`/`alias` of either name in `config.fish` or `conf.d/`
+  does the same; `check.sh` asserts the live config is clean. Anything that needs
+  `false` to succeed has to say so locally — `command false` is unaffected, the override
+  only wins for the bare name.
+
 ## General
 
 - **Backticks inside a double-quoted `git commit -m "…"` are command substitution.**
