@@ -13,6 +13,14 @@ removed — full implementation history lives in git. Shared-core behavior
   terminal (it installs pi-bolt and converges the unrecorded variant; non-TTY
   `sudo -v` aborts, AGENTS.md) → `pi-use status` → `pi -p --no-session "Reply OK"`
   → `bash check.sh` again.
+  x13yg2 has **recorded** the pig variant (`~/.pi/agent/pi-variant`), which
+  bootstrap deliberately leaves alone — it needs an explicit `pi-use bolt`
+  before or after bootstrap. Found the hard way on 2026-11-13: a "why do tool
+  rows look different on x13yg2" hunt went through pi version/theme/tmux/
+  Alacritty before anyone checked which BINARY was running. pig reports `1.4.0`
+  (the pi version it aligns to, not a pi build) and shares no renderer with pi,
+  so any styling or behavioural difference between hosts is a variant question
+  first: run `pi-use status` there before diagnosing the difference as config.
 - [x] **Re-baselined the prompt eval under bolt (2026-11-05).** Table +
   readings are in `docs/PROMPT-EVAL.md`; both resume mechanisms (`-c` and
   `--session-id`, i.e. `pwt` pins) verified across the 1.4.0/1.5.0 skew. Left
@@ -25,71 +33,6 @@ removed — full implementation history lives in git. Shared-core behavior
 - [ ] **`secrets/env.fish` is uncommitted** (git-crypt'd, 930→1143 bytes): left
   for the owner to review and commit with the repo unlocked. Never bundle it with
   code commits.
-
-## Open — x13yg2 renders pi tool rows without the solid background (diagnosed on mbpm3 2026-11-13, needs a session ON x13yg2)
-
-- [ ] **Finish the diagnosis on x13yg2; nothing to change in the repo yet.**
-  Report: pi sessions on mbpm3 style tool rows differently from x13yg2 —
-  "solid colours" on mbpm3. (First reported as code blocks; corrected by the
-  owner to tool rows.) The solid bar is the tool row's background: `theme.bg()`
-  over `toolPendingBg`/`toolSuccessBg`/`toolErrorBg`, drawn by the `Box(1, 1, …)`
-  / `Text(1, 1, …)` wrappers in `tool-execution.ts`.
-
-  **Ruled out — do not re-derive these (evidence recorded here because both
-  hosts cannot be inspected from one machine):**
-  - *Version skew.* mbpm3 runs pi-bolt 1.1.7 (= pi 1.5.0 + unreleased), x13yg2
-    runs pi 1.4.0. Both `v1.4.0` and `v1.5.0` upstream
-    (`packages/coding-agent/src/modes/interactive/components/tool-execution.ts`)
-    paint tool rows with the same `theme.bg("toolPendingBg…")` wrappers, and
-    `theme/dark.json` has identical `toolPendingBg` `okhsl(229 5% 24%)`,
-    `toolSuccessBg` `okhsl(158 46% 25%)`, `toolErrorBg` `okhsl(19 54% 25%)` in
-    both tags. 1.5.0 adds no new tool-row component. So upgrading pi is NOT the
-    fix and `agents-update` will not change this.
-  - *`shadedCodeBlocks`.* Absent from live `~/.pi/agent/settings.json` on both
-    hosts and from `settings.desired.json`; compiled default is `false` in
-    `pi-bin`'s `SETTINGS_DEFAULTS`, and no extension sets the runtime flag. It
-    only affects fenced code blocks anyway, not tool rows.
-  - *tmux / truecolor.* Verified on mbpm3 with a pty probe: pi emits truecolor
-    SGR (`38;2;…`/`48;2;…`) through `TERM=screen-256color` and it survives.
-    `Tc: [missing]` in `tmux info` is irrelevant to pi's own output. tmux
-    forwards none of pi's OSC 10/11/4 + DA1 terminal queries on either host;
-    harmless with `theme: "dark"` pinned, but it is why `theme: "system"` would
-    be unreliable under tmux.
-  - *Alacritty palette in the repo.* `base.toml` has no `[colors]` block today
-    (deliberate: inherit Alacritty defaults) and the host layer sets only font
-    size, decorations, `option_as_alt`, and keys.
-
-  **Remaining candidates, all host-local on x13yg2:**
-  1. Live-settings drift. `~/.pi/agent/settings.json` is untracked/host-local by
-     design (AGENTS.md), so its `theme`, `packages` list or extensions may
-     differ from `settings.desired.json`; a project `.pi/settings.json` in the
-     repo pi is launched from counts too.
-  2. A user theme shadowing the built-in. pi hot-reloads
-     `<agent-dir>/themes/<name>.json`, so a stale `~/.pi/agent/themes/dark.json`
-     would override the bundled theme's `tool*Bg` values.
-  3. A stale Windows-side Alacritty config. `os/wsl/alacritty/*` is COPIED to
-     `%APPDATA%\Alacritty\` by `os/wsl/up.sh`, never stowed. `base.toml` used to
-     carry a Nord `[colors]` block (`background = "#2e3440"`, removed in
-     `cbc050f`), and with that palette `okhsl(229 5% 24%)` sits much closer to
-     the background — tool rows would read very differently. This is the only
-     repo mechanism by which "identical palette" could be false.
-
-  **First moves on x13yg2:**
-  ```
-  pi --version; tmux -V; ls ~/.pi/agent/themes 2>/dev/null
-  diff <(jq -S . ~/.pi/agent/settings.json) <(jq -S . ~/dotfiles/base/pi/.pi/agent/settings.desired.json)
-  grep -c colors "/mnt/c/Users/$USER/AppData/Roaming/Alacritty/base.toml"
-  ```
-  Then the question that decides everything: do x13yg2's tool rows have a
-  solid background at all? **A different shade** → candidate 3; re-run
-  `os/wsl/up.sh` to refresh the copied config. **No background at all, plain
-  text with a coloured title** → candidates 1–2; send the live settings and the
-  themes dir.
-
-  If the owner's actual preference turns out to be *no* solid bars, there is no
-  setting for it: it needs a theme with `tool*Bg` set to the terminal
-  background, tracked as INTENT (`base/pi/.pi/agent/settings.desired.json` +
-  `pi-settings-apply`), not a host tweak.
 
 ## Open — active bug
 
