@@ -2,16 +2,22 @@
 # =============================================================================
 # check.sh — dotfiles test suite
 #
-# Usage:  ./check.sh
+# Usage:  ./check.sh              fast: static/pin/parsability checks only (~8s)
+#         CHECK_FULL=1 ./check.sh  full: + behavioural fixtures, node suites, lint
+#         CI=1 ./check.sh          full too (CI sets CI, so pushes gate on everything)
 # Exit:   0 = all tests passed, 1 = one or more failures
 #
-# A full run is FAST: measured 15.8-16.6s for 514 assertions on mbpm3 (2026-10-20);
-# the assertion count has since passed 700 — re-measure rather than trusting either
-# number, and note that the count grows while the duration has stayed in that band.
-# The biggest single section is the pwt harness at ~9s; nothing else exceeds 2s. This
-# header used to claim "~5 minutes", and that stale number cost real time — a session
-# slept 300s per run instead of polling. Do not assume a duration: run it in the
-# foreground, or poll for the "── Results" line.
+# The default run DEFERS the behavioural half — tmux/git/fish fixtures, the
+# `node --test` suites, shellcheck over every script, host probes — and says how
+# many checks it deferred in the summary (`○ N behavioural checks deferred`).
+# Rationale, in the owner's words: this is a dotfiles repo of config and glue, not a
+# complex application, so a fast feedback loop is worth less coverage. Everything
+# static — every pin, every parsability check, every "the file says X" assertion —
+# still runs in both modes. A deferred check never prints ✓ and is never counted as
+# passed; only a CHECK_FULL/CI run's pass count means anything.
+#
+# Measured on mbpm3 (2026-11): ~48s full, ~8s fast, ~765 checks. Do not trust a
+# number you have not measured — run it in the foreground, or poll for "── Results".
 #
 # While iterating on one behavioural block, extract it into a scratch script with a
 # `check()` stub instead of re-running everything:
@@ -46,8 +52,44 @@ fi
 # plain shell variable reads as empty and puts the shims back in front — which is how
 # this fix first looked like it had not worked.
 export _MISE_REAL_BINS
-PASS=0; FAIL=0; SKIP=0
+PASS=0; FAIL=0; SKIP=0; DEFERRED=0
 FAILED=()
+
+# ── Fast by default, full on demand ────────────────────────────────────────
+# This repo is config and glue, so the owner's steer is a sub-12s feedback loop at
+# the cost of coverage: the BEHAVIOURAL half of the suite (tmux/git/fish fixtures,
+# node --test suites, shellcheck, host probes) is DEFERRED unless CHECK_FULL=1 or
+# CI is set. Every static/pin/parsability assertion still runs in both modes, so
+# the default run still proves the config is what it says it is; what it stops
+# proving is that the helpers BEHAVE. CI sets CI, so pushes gate on everything.
+_full() { [[ ${CHECK_FULL:-0} == 1 || -n ${CI:-} ]]; }
+# Deferred checks are their own bucket: they are neither passed nor skipped-with-
+# needs, and they never print a ✓. N is the number of runner calls in the block.
+_defer() { DEFERRED=$((DEFERRED + ${1:-1})); }
+
+# Opt-in timing. `CHECK_PROFILE=1 bash check.sh` collects each check's wall time
+# and prints the slowest at the end, so "the suite is slow" turns into a ranked
+# list instead of a guess. Off by default: the guard below is one string compare.
+PROFILE_ROWS=()
+_profile() {  # <name> <start-epochrealtime>
+    [[ ${CHECK_PROFILE:-0} == 1 ]] || return 0
+    # [.,] on purpose: EPOCHREALTIME uses the LOCALE's decimal point, so a
+    # comma-locale host stripped nothing and every row failed `value too great for
+    # base` — the profiler printed nothing at all on such a host.
+    local now=${EPOCHREALTIME//[.,]/} t0=${2//[.,]/}
+    PROFILE_ROWS+=("$(( now - t0 ))"$'\t'"${SECTION}"$'\t'"$1")
+}
+_profile_report() {
+    [[ ${CHECK_PROFILE:-0} == 1 && ${#PROFILE_ROWS[@]} -gt 0 ]] || return 0
+    printf '\n%bSlowest checks:%b\n' "$(_c "$BLD")" "$(_c "$RST")"
+    printf '%s\n' "${PROFILE_ROWS[@]}" | sort -t$'\t' -k1,1 -gr | head -10 |
+        while IFS=$'\t' read -r us name; do
+            printf '  %6d ms  %s\n' "$(( us / 1000 ))" "$name"
+        done
+    printf '\n%bWall time by section:%b\n' "$(_c "$BLD")" "$(_c "$RST")"
+    printf '%s\n' "${PROFILE_ROWS[@]}" | awk -F'\t' '{ s[$2] += $1; n[$2]++ }
+        END { for (k in s) printf "%8d ms  %4d checks  %s\n", s[k]/1000, n[k], k }' | sort -gr | head -12
+}
 SECTION=""
 
 # ── Colour output (suppressed when not a tty) ──────────────────────────────
@@ -61,15 +103,34 @@ section() {
     printf '\n%b%s%b\n' "$(_c "$BLD")" "── $*" "$(_c "$RST")"
 }
 
-_ok()   { printf '  %b✓%b %s\n' "$(_c "$GRN")" "$(_c "$RST")" "$1"; PASS=$((PASS+1)); }
-_fail() { printf '  %b✗%b %s\n' "$(_c "$RED")" "$(_c "$RST")" "$1"; FAIL=$((FAIL+1)); FAILED+=("[$SECTION] $1"); }
-_skip() { printf '  %b○%b %s  (needs: %s)\n' "$(_c "$YLW")" "$(_c "$RST")" "$1" "$2"; SKIP=$((SKIP+1)); }
+# Colour is resolved ONCE into variables: `$(_c …)` forks a subshell per call, and
+# these three primitives run on every check (~800 forks a run, ~1ms each, for a
+# string that never changes). `_c` stays for the handful of non-hot call sites.
+if [[ -t 1 ]]; then
+    C_GRN=$GRN; C_RED=$RED; C_YLW=$YLW; C_RST=$RST
+else
+    C_GRN=; C_RED=; C_YLW=; C_RST=
+fi
+
+_ok()   { printf '  %b✓%b %s\n' "$C_GRN" "$C_RST" "$1"; PASS=$((PASS+1)); }
+_fail() { printf '  %b✗%b %s\n' "$C_RED" "$C_RST" "$1"; FAIL=$((FAIL+1)); FAILED+=("[$SECTION] $1"); }
+_skip() { printf '  %b○%b %s  (needs: %s)\n' "$C_YLW" "$C_RST" "$1" "$2"; SKIP=$((SKIP+1)); }
 
 # Run a test: pass if the command exits 0, fail otherwise.
 # Both stdout and stderr from the command are suppressed.
 check() {
     local name="$1"; shift
+    local _t0=""
+    [[ ${CHECK_PROFILE:-0} == 1 ]] && _t0=${EPOCHREALTIME//[.,]/}
     if "$@" >/dev/null 2>&1; then _ok "$name"; else _fail "$name"; fi
+    _profile "$name" "$_t0"
+}
+
+# One BEHAVIOURAL check: runs in full mode (CHECK_FULL=1 / CI), counted as deferred
+# otherwise and never printed. Used where the fixture around it is cheap and only
+# the check itself is expensive; a block whose SETUP is expensive is gated whole.
+check_full() {
+    if _full; then check "$@"; else _defer 1; fi
 }
 
 # Pass if an ERE pattern IS found in a file.
@@ -209,11 +270,19 @@ for s in "${ALL_SCRIPTS[@]}"; do
     check "bash -n: $rel" bash -n "$s"
 done
 
+# Linting is the one EXPENSIVE static check (a real analyser, ~100ms+ per script).
+# The per-script `bash -n` run above already proves parsability in BOTH modes, so the
+# lint pass is deferred to full mode rather than deleted: it catches semantics, not
+# syntax, and a push still runs it.
 if command -v shellcheck >/dev/null 2>&1; then
-    for s in "${ALL_SCRIPTS[@]}"; do
-        rel="${s#"$DOTFILES/"}"
-        check "shellcheck: $rel" shellcheck -S warning "$s"
-    done
+    if _full; then
+        for s in "${ALL_SCRIPTS[@]}"; do
+            rel="${s#"$DOTFILES/"}"
+            check "shellcheck: $rel" shellcheck -S warning "$s"
+        done
+    else
+        _defer "${#ALL_SCRIPTS[@]}"
+    fi
 else
     _skip "shellcheck (all scripts)" "shellcheck not installed"
 fi
@@ -1437,6 +1506,8 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 _TS_PIN_MUTATION_GUARD=36
 _TS_PIN_PUBLISH_SCAN=26
 _TS_PIN_PUBLISH_GUARD=15
+# L2's file-tool half: the secret-path predicate and the tool list it gates.
+_TS_PIN_SECRET_PATHS=13
 _ts_suite_count() {  # <test file in lib/> <expected pass count>
     local file="$1" want="$2" out pass tests failed skipped
     out=$(cd "$DOTFILES/base/pi/.pi/agent/extensions" \
@@ -1448,11 +1519,15 @@ _ts_suite_count() {  # <test file in lib/> <expected pass count>
     [[ "$pass" == "$want" && "$tests" == "$want" && "$failed" == 0 && "$skipped" == 0 ]]
 }
 if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
-    # The provider fallback is TEXT-driven because a pre-stream HTTP error never
-    # produces after_provider_response: measured on opencode-go's subscription
-    # 403, which the status allowlist cannot see. Pure decision logic -> tested.
-    check "pi: provider-fallback tests pass" \
-        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/provider-fallback.test.ts"
+    if _full; then
+        # The provider fallback is TEXT-driven because a pre-stream HTTP error never
+        # produces after_provider_response: measured on opencode-go's subscription
+        # 403, which the status allowlist cannot see. Pure decision logic -> tested.
+        check "pi: provider-fallback tests pass" \
+            bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/provider-fallback.test.ts"
+    else
+        _defer 1
+    fi
     check_has "pi: provider fallback resolves the error text at turn_end" \
         'pi.on\("turn_end"' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
     # pi classifies some of these errors as non-retryable (its list names OpenCode
@@ -1462,17 +1537,21 @@ if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
         'agent_before_settle' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
     check_has "pi: the provider hop can never loop on itself" \
         'entry.to === provider' "$DOTFILES/base/pi/.pi/agent/extensions/lib/provider-fallback.ts"
-    check "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
-        _ts_suite_count mutation-guard.test.ts "$_TS_PIN_MUTATION_GUARD"
-    # L4's pure core: the publish decision (which calls publish, and whether the
-    # outgoing text carries a credential) is hermetic and separately counted, so a
-    # guard that stopped scanning or a suite that stopped running is visible.
-    check "pi: publish-scan suite passes $_TS_PIN_PUBLISH_SCAN/$_TS_PIN_PUBLISH_SCAN (count pinned)" \
-        _ts_suite_count publish-scan.test.ts "$_TS_PIN_PUBLISH_SCAN"
-    # L4's WIRING (handler, scanner process, fail-closed branches) is separately
-    # counted: the pure-core suite passing is not evidence that the hook blocks.
-    check "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
-        _ts_suite_count publish-guard.test.ts "$_TS_PIN_PUBLISH_GUARD"
+    if _full; then
+        check "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
+            _ts_suite_count mutation-guard.test.ts "$_TS_PIN_MUTATION_GUARD"
+        # L4's pure core: the publish decision (which calls publish, and whether the
+        # outgoing text carries a credential) is hermetic and separately counted, so a
+        # guard that stopped scanning or a suite that stopped running is visible.
+        check "pi: publish-scan suite passes $_TS_PIN_PUBLISH_SCAN/$_TS_PIN_PUBLISH_SCAN (count pinned)" \
+            _ts_suite_count publish-scan.test.ts "$_TS_PIN_PUBLISH_SCAN"
+        # L4's WIRING (handler, scanner process, fail-closed branches) is separately
+        # counted: the pure-core suite passing is not evidence that the hook blocks.
+        check "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
+            _ts_suite_count publish-guard.test.ts "$_TS_PIN_PUBLISH_GUARD"
+    else
+        _defer 3
+    fi
 else
     _skip "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
         "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
@@ -1489,7 +1568,7 @@ fi
 # The pure core lives in lib/ so it is testable and never auto-loaded as an
 # extension (root-level *.ts would be); assert the tests + the load split hold.
 if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
-    check "pi: edit-guardian diagnostic tests pass" \
+    check_full "pi: edit-guardian diagnostic tests pass" \
         bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/edit-diagnostic.test.ts"
 else
     _skip "pi: edit-guardian diagnostic tests pass" \
@@ -1504,7 +1583,7 @@ check_has "pi: no-powershell extension gates on process.platform (win32 exempt)"
     'process\.platform' "$DOTFILES/base/pi/.pi/agent/extensions/no-powershell.ts"
 
 if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
-    check "pi: no-powershell platform-tools tests pass" \
+    check_full "pi: no-powershell platform-tools tests pass" \
         bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/platform-tools.test.ts"
 else
     _skip "pi: no-powershell platform-tools tests pass" \
@@ -2037,7 +2116,7 @@ check "bootstrap: pi settings migration runs after the stow block" \
 # Functional, through the real function: a relative stow link becomes a regular
 # file holding the target's bytes. Sourcing with main "$@" stripped is the only
 # way to reach an internal bootstrap function; the top-level is pure definition.
-check "bootstrap: pi settings migration de-references a relative stow link" \
+check_full "bootstrap: pi settings migration de-references a relative stow link" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         mkdir -p "$d/dotfiles/base/pi/.pi/agent" "$d/.pi/agent"
         printf "%s" "{\"defaultModel\": \"mig\"}" > "$d/dotfiles/base/pi/.pi/agent/settings.desired.json"
@@ -2108,6 +2187,9 @@ check_has "pi-settings-apply: a missing live file is created from the template (
     'fresh = not os\.path\.lexists\(live_path\)' "$_PI_SETTINGS_APPLY"
 
 if command -v fish >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+    # The whole functional group is gated: each check runs the real fish helper
+    # through python3 under a throwaway dir, which is ~200ms apiece.
+    if _full; then
     # Functional, through the helper with explicit paths, so the real agent dir is
     # never touched. Policy under test: template wins, packages live-wins,
     # live-only preserved, --prune drops, -n writes nothing, the rewrite stays in
@@ -2181,6 +2263,9 @@ if command -v fish >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
     check "pi-settings-apply: public wrapper rejects a bad argument (exit 2)" \
         bash -c 'fish -c "source \"$1\"; pi-settings-apply --bogus" >/dev/null 2>&1; test $? -eq 2' \
         _ "$_PI_SETTINGS_APPLY"
+    else
+        _defer 7
+    fi
 else
     _skip "pi-settings-apply: functional tests" "fish + python3 not both callable in this env"
 fi
@@ -2334,8 +2419,9 @@ check_has "pwt: adopts a live session when the C-w panel jumps to it" \
 # The in-place rung: a workstream with no worktree, for repos a fresh checkout
 # cannot serve (a git-crypt repo fails `worktree add` at the smudge filter) or
 # where the per-worktree state is not worth re-provisioning.
-check_has "pwt: rejects a base ref for the in-place verb" \
-    'takes no base ref' "$_PWT"
+# (The "takes no base ref" message used to be pinned here as text; the behavioural
+# `pwt: here refuses a base ref and says why` runs the real function and reads its
+# own words, so this was the same fact asserted twice.)
 # Identity, not cwd: two in-place workstreams share one directory, so matching on
 # the path would hand the second one the first one's window and its transcript.
 check_has "pwt: records the workstream identity on the window it opens" \
@@ -2369,17 +2455,12 @@ check_has "pwt: preflights pi before spawning a window" \
     'command -sq pi' "$_PWT"
 check_has "pwt: reports a window that died at birth" \
     'died at birth' "$_PWT"
-# No legitimate commit-ish starts with '-' — git would parse it as an OPTION.
-check_has "pwt: rejects a base ref git would parse as an option" \
-    'invalid base ref' "$_PWT"
-# Two in-place workstreams share one working tree: warn, never refuse (the rung
-# exists for repos a worktree cannot serve).
-check_has "pwt: warns when a second in-place workstream shares a working tree" \
-    'parallel edits will collide' "$_PWT"
-# `worktree remove` succeeds first, so `branch -d` refusing an unmerged branch must
-# name the follow-up rather than leave a bare git hint.
-check_has "pwt: names the branch left behind by an unmerged rm" \
-    'not fully merged' "$_PWT"
+# Deleting the text pins for `invalid base ref`, `parallel edits will collide` and
+# `not fully merged` was deliberate: each of those messages is asserted by a
+# behavioural check that runs the real function ("refuses a base ref git would parse
+# as an option", "warns (and proceeds) when a second in-place stream shares the tree",
+# "rm names the branch an unmerged teardown left behind"), so the grep only repeated
+# what the behaviour already proves.
 # `--stash` is the panel's confirmed teardown: close the window, keep the work, remove
 # the tree. The parking path is what makes it safe — ignored files are MOVED, never
 # deleted, under the git common dir.
@@ -2474,6 +2555,12 @@ check_has "AGENTS.md: points at docs/PWT.md" \
 if command -v fish >/dev/null 2>&1; then
     # Behavioural, no tmux needed: the ignore rule is written on create, and a
     # second run must not append a duplicate line.
+    # …and FULL MODE ONLY: everything from here to the outer `fi` builds throwaway
+    # git repos and drives the real fish function through tmux, which is the bulk of
+    # the suite's wall time (~30s of it). The 45 checks inside were counted from a
+    # CHECK_FULL run; the fast summary prints the total, so a drifting count shows up
+    # there rather than as a silent gap.
+    if _full; then
     check "pwt: hides __worktrees from git status, add -A, and indexers" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
             git config user.email t@t; git config user.name t; echo x > f; git add f
@@ -3014,6 +3101,9 @@ if command -v fish >/dev/null 2>&1; then
     else
         _skip "pwt: window placement (behavioural)" "tmux not installed"
     fi
+    else
+        _defer 45
+    fi
 else
     _skip "pwt: __worktrees ignore + pi preflight" "fish not installed"
 fi
@@ -3065,7 +3155,7 @@ check "pwt: revive never respawns the pane pwt itself runs in" \
     grep -qF -- '!= "$TMUX_PANE"' "$_PWT"
 check "pwt: the revive hook exists in base/tmux/bin" test -f "$_RV_HOOK"
 check "pwt: the revive hook is executable" test -x "$_RV_HOOK"
-check "pwt: the revive hook is shellcheck clean" shellcheck -S warning "$_RV_HOOK"
+check_full "pwt: the revive hook is shellcheck clean" shellcheck -S warning "$_RV_HOOK"
 check "pwt: the revive hook parses under /bin/bash (3.2 on macOS)" \
     /bin/bash -n "$_RV_HOOK"
 # The kill switch belongs to the hook ALONE, so `pwt revive <dir>` stays usable for
@@ -3108,30 +3198,30 @@ check_has "pwt: the doc lists the revive verb" \
 _RL="$DOTFILES/base/tmux/bin/repo-list"
 check "repo-list: helper exists in base/tmux/bin" test -f "$_RL"
 check "repo-list: is executable" test -x "$_RL"
-check "repo-list: shellcheck clean" shellcheck -S warning "$_RL"
-check "repo-list: runs under /bin/bash (3.2 on macOS)" \
+check_full "repo-list: shellcheck clean" shellcheck -S warning "$_RL"
+check_full "repo-list: runs under /bin/bash (3.2 on macOS)" \
     env PWT_SRC="$DOTFILES/.git" /bin/bash "$_RL" --stdin < /dev/null
-check "repo-list: keeps a repo root, drops its subdirectories" \
+check_full "repo-list: keeps a repo root, drops its subdirectories" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q; mkdir -p sub/deep
         out=$(printf "%s\n%s\n%s\n" "$d" "$d/sub" "$d/sub/deep" | "$1" --stdin)
         [[ "$out" == "$d" ]]' _ "$_RL"
-check "repo-list: keeps a path that is in no repo (nothing hidden)" \
+check_full "repo-list: keeps a path that is in no repo (nothing hidden)" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; mkdir -p "$d/standalone"
         out=$(printf "%s\n" "$d/standalone" | "$1" --stdin)
         [[ "$out" == "$d/standalone" ]]' _ "$_RL"
-check "repo-list: drops .git and __worktrees paths" \
+check_full "repo-list: drops .git and __worktrees paths" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q
         out=$(printf "%s\n%s\n" "$d/.git" "$d/__worktrees/x" | "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
 # The two navigation roots must not depend on zoxide still holding a score for
 # them: a fresh PWT_SRC has no zoxide entries at all, so this exercises the
 # always-emit path. Home first, source root last (outer -> inner).
-check "repo-list: always offers ~ and the source root, in that order" \
+check_full "repo-list: always offers ~ and the source root, in that order" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$(PWT_SRC="$d" "$1" 2>/dev/null)
         [[ "$(printf "%s\n" "$out" | head -1)" == "$HOME" ]] &&
         [[ "$(printf "%s\n" "$out" | tail -1)" == "$d" ]]' _ "$_RL"
-check "repo-list: --stdin filters exactly the given list (no injection)" \
+check_full "repo-list: --stdin filters exactly the given list (no injection)" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$(printf "" | PWT_SRC="$d" "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
@@ -3147,10 +3237,10 @@ check "repo-list: --stdin passes the roots through unchanged" \
 _PWT_PICK="$DOTFILES/base/tmux/bin/pwt-pick"
 check "pwt-pick: picker exists in base/tmux/bin" test -f "$_PWT_PICK"
 check "pwt-pick: is executable" test -x "$_PWT_PICK"
-check "pwt-pick: shellcheck clean" shellcheck -S warning "$_PWT_PICK"
+check_full "pwt-pick: shellcheck clean" shellcheck -S warning "$_PWT_PICK"
 # TMUX is unset for every --list assertion: check.sh may itself run inside a tmux
 # pane, and live-pane rows would then appear in the results and move `head -1`.
-check "pwt-pick: --list runs under /bin/bash (3.2 on macOS)" \
+check_full "pwt-pick: --list runs under /bin/bash (3.2 on macOS)" \
     env -u TMUX PWT_SRC="$DOTFILES/.git" HOME=/nonexistent /bin/bash "$_PWT_PICK" --list
 # Single source of truth: the panel creates and removes nothing itself, and no
 # longer pins a session id — it asks pwt, which owns the worktree lifecycle.
@@ -3244,11 +3334,11 @@ check "pwt-preview: helper exists in base/tmux/bin" test -f "$_PWT_PREVIEW"
 check "pwt-preview: is executable" test -x "$_PWT_PREVIEW"
 check "pwt-preview: shellcheck clean" shellcheck -S warning "$_PWT_PREVIEW"
 # A popup's PATH can resolve to macOS's bash 3.2, and this runs from a keypress.
-check "pwt-preview: runs under /bin/bash (3.2 on macOS)" \
+check_full "pwt-preview: runs under /bin/bash (3.2 on macOS)" \
     /bin/bash "$_PWT_PREVIEW" "$DOTFILES"
 # A live row can be a pi started in $HOME or /tmp: no repo, so say so instead of
 # rendering an empty preview that reads as broken.
-check "pwt-preview: names a non-repository row instead of rendering nothing" \
+check_full "pwt-preview: names a non-repository row instead of rendering nothing" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
         out=$("$1" "$d" 2>&1); [[ "$out" == *"not a git work tree"* ]]' \
     _ "$_PWT_PREVIEW"
@@ -3257,7 +3347,7 @@ check_has "pwt-preview: shows commits on no remote" \
 # "Do I still need this?" has a second half the status line cannot answer: a pwt
 # branch is created from HEAD with no upstream, so a pushed branch and a MERGED
 # branch both leave rev-list at 0. One merge-base call against the default branch.
-check "pwt-pick: names the default branch when HEAD has landed on it" \
+check_full "pwt-pick: names the default branch when HEAD has landed on it" \
     bash -c 'd=$(mktemp -d); trap "rm -rf "$d"" EXIT; cd "$d"; git init -q repo; cd repo
         git config user.email t@t; git config user.name t; echo x > f; git add f
         git -c commit.gpgsign=false commit -qm init
@@ -3265,7 +3355,7 @@ check "pwt-pick: names the default branch when HEAD has landed on it" \
         git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
         out=$("$1" "$PWD"); grep -q "already in origin/main" <<<"$out"' \
     _ "$_PWT_PREVIEW"
-check "pwt-preview: no landed claim for work that is not an ancestor" \
+check_full "pwt-preview: no landed claim for work that is not an ancestor" \
     bash -c 'd=$(mktemp -d); trap "rm -rf "$d"" EXIT; cd "$d"; git init -q repo; cd repo
         git config user.email t@t; git config user.name t; echo x > f; git add f
         git -c commit.gpgsign=false commit -qm init
@@ -3280,7 +3370,7 @@ check_not "pwt-pick: no inline preview snippet" \
     'rev-list' "$_PWT_PICK"
 # Behaviour through the shell that broke it: fish. A script with a shebang is
 # unaffected by $SHELL; the same snippet inline was not.
-check "pwt-preview: renders correctly when invoked from fish" \
+check_full "pwt-preview: renders correctly when invoked from fish" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
         git config user.email t@t; git config user.name t; echo x > f; git add f
         git -c commit.gpgsign=false commit -qm init
@@ -3319,11 +3409,9 @@ check "pwt: declares the accepted pi-title set" test -n "$_ptl_p"
 check "pwt: the same pi-title set as pwt-pick" test -n "$_ptl_p" -a "$_ptl_p" = "$_ptl_f"
 check "pwt-revive-restored: the same pi-title set as pwt-pick" \
     test -n "$_ptl_p" -a "$_ptl_p" = "$_ptl_r"
-# Both halves of the set, anchored to the CASE ARM rather than to the file: the
-# marker comment above already contains both prefixes, so a check that just looked for
-# the strings would stay green if an arm were deleted.
-check_has "pwt: is_pi_title's case arm covers both prefixes" \
-    "'π - '*|'Pi-Bolt - '*" "$_PWT_PICK"
+# Both halves of the set are covered behaviourally by "pwt: is_pi_title accepts both
+# shipped prefixes" (it runs the real predicate against `π - ` and `Pi-Bolt - `), so
+# the case-arm grep that used to sit here is gone rather than repeated.
 # display-popup -E closes as soon as the command exits, so a refusal or a
 # validation error has to hold the popup open or it is unreadable.
 check_has "pwt-pick: holds the popup open when pwt fails" \
@@ -3333,6 +3421,7 @@ check_has "pwt-pick: holds the popup open when pwt fails" \
 # implementation (pwt-pick --list). Outside tmux every marker is blank, which is
 # what makes it usable from a script.
 if command -v fish >/dev/null 2>&1; then
+    if _full; then
     _pwt_ls_tmp="$(mktemp -d)"
     mkdir -p "$_pwt_ls_tmp/org/repo/__worktrees/demo"
     check "pwt: ls prints the panel's rows outside tmux" \
@@ -3360,6 +3449,9 @@ PRED
             ! PWT_PI_TITLE="zz - " "$1" -N "$2" "$3" "π - demo"' \
         _ "$(command -v fish)" "$_pwt_pred" "$_PWT"
     rm -f "$_pwt_pred"
+    else
+        _defer 3
+    fi
 fi
 
 # `pwt ls --all` is the DORMANT half of the listing: plain `pwt ls` is the panel's
@@ -3369,6 +3461,7 @@ fi
 # three remains plus a live worktree and a quiet repo, so inclusion and omission are
 # both pinned. TMUX is unset because the verb must be pure git (a plain terminal).
 if command -v fish >/dev/null 2>&1; then
+    if _full; then
     _pwt_dorm_tmp="$(mktemp -d)"
     _pwt_dorm_src="$_pwt_dorm_tmp/src"
     _pwt_dorm_repo="$_pwt_dorm_src/repo"
@@ -3416,6 +3509,9 @@ if command -v fish >/dev/null 2>&1; then
         bash -c 'grep -qF "repo/live" "$1" && ! grep -qi dormant "$1"' \
         _ "$_pwt_dorm_tmp/ls.out"
     rm -rf "$_pwt_dorm_tmp"
+    else
+        _defer 7
+    fi
 fi
 
 # Completions live in base/fish/completions, which the fish .gitignore ignores by
@@ -3424,6 +3520,7 @@ _PWT_COMP="$DOTFILES/base/fish/.config/fish/completions/pwt.fish"
 check "pwt completions: file exists in base/fish" test -f "$_PWT_COMP"
 if command -v fish >/dev/null 2>&1; then
     check "pwt completions: parses (fish -n)" fish -n "$_PWT_COMP"
+    if _full; then
     # Behaviour, not text: complete -C is the same engine TAB uses.
     check "pwt completions: offer verbs and this repo's workstream slugs" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
@@ -3442,6 +3539,9 @@ if command -v fish >/dev/null 2>&1; then
             fout=$(cd "$d" && fish -N -c "source $1; complete -C \"pwt revive \"")
             grep -q "^revive" <<<"$out" && grep -q "^markerfile" <<<"$fout"' \
         _ "$_PWT_COMP"
+    else
+        _defer 3
+    fi
 fi
 
 # End-to-end listing: a fabricated worktree must surface as org/repo/slug behind a
@@ -3451,7 +3551,7 @@ fi
 # put two circles in contact — the legibility problem the glyph set exists to fix.
 _pwt_tmp="$(mktemp -d)"
 mkdir -p "$_pwt_tmp/org/repo/__worktrees/demo" "$_pwt_tmp/org/repo/__worktrees/demo/sub" "$_pwt_tmp/org/live"
-check "pwt-pick: lists a worktree as org/repo/slug" \
+check_full "pwt-pick: lists a worktree as org/repo/slug" \
     bash -c '[[ "$(env -u TMUX PWT_SRC="$1" HOME=/nonexistent "$2" --list | head -1 | cut -f1)" == "      org/repo/demo" ]]' \
     _ "$_pwt_tmp" "$_PWT_PICK"
 
@@ -3599,6 +3699,7 @@ rm -rf "$_pwt_tmp" "$_pwt_bin"
 # server (-f /dev/null, own socket), so nothing the developer is running is
 # touched and no fixture repo is left behind.
 if command -v tmux >/dev/null 2>&1 && command -v fish >/dev/null 2>&1; then
+    if _full; then
     _pwtsock="$(mktemp -d)/sock"
     _pwt_repo="$(mktemp -d)/repo"
     _pwt_wt="$_pwt_repo/__worktrees/demo"
@@ -3943,6 +4044,9 @@ PROBE
     unset PWT_STUB_ENV_OUT
     rm -rf "$(dirname "$_pwtsock")" "$(dirname "$_pwt_repo")" "$_pwtprobe" "$_pwt_stub" \
         "$_pwt_envlog" "$_pwt_reload_dir" "$_pwt_reload_secrets"
+    else
+        _defer 29
+    fi
 else
     _skip "pwt: window resolution (behavioural)" "tmux or fish not installed"
 fi
@@ -3960,7 +4064,7 @@ fi
 _PWT_OSC="$DOTFILES/base/tmux/bin/pwt-osc"
 check "pwt-osc: consumer exists in base/tmux/bin" test -f "$_PWT_OSC"
 check "pwt-osc: is executable" test -x "$_PWT_OSC"
-check "pwt-osc: shellcheck clean" shellcheck -S warning "$_PWT_OSC"
+check_full "pwt-osc: shellcheck clean" shellcheck -S warning "$_PWT_OSC"
 
 # The parse half needs no tmux: six states, plus a report carrying no `app` at all
 # (accepted) and two that must be dropped — an unknown state, and a nested program
@@ -3996,8 +4100,10 @@ check_has "pwt-osc: osascript receives the text as argv, never as script source"
     'on run argv' "$_PWT_OSC"
 check_has "pwt-osc: WSL pushes through a zero-dep WinRT toast" \
     'ToastNotificationManager' "$_PWT_OSC"
-check_has "pwt-osc: Linux falls back to notify-send when there is one" \
-    'notify-send' "$_PWT_OSC"
+# ("Linux falls back to notify-send when there is one" used to grep for the
+# notify-send name here; the behavioural "the Linux fallback hands notify-send both
+# fields as argv" check drives the real transport, which is the same fact plus the
+# argument shape, so the grep was a duplicate.)
 # Outside the grid is exactly where the protocol asks for control and bidi
 # characters to be disarmed rather than rendered.
 
@@ -4005,6 +4111,7 @@ check_has "pwt-osc: Linux falls back to notify-send when there is one" \
 # streams, because window-active suppression, the cooldown and the sanitising are
 # decisions. PWT_NOTIFY_CMD — the documented override — becomes the recorder.
 if command -v perl >/dev/null 2>&1 && command -v base64 >/dev/null 2>&1; then
+    if _full; then
     _osc_stub_dir="$(mktemp -d)"; _osc_opt="$_osc_stub_dir/opt"; mkdir -p "$_osc_opt"
     _osc_nlog="$_osc_stub_dir/notify.log"; : > "$_osc_nlog"
     cat > "$_osc_stub_dir/tmux" <<'OSTUB'
@@ -4218,11 +4325,15 @@ NSND
                  grep -qxF -- "notify-send|$2" "$1"' \
         _ "$_osc_trans_log" "$_osc_msg"
     rm -rf "$_osc_stub_dir"
+    else
+        _defer 28
+    fi
 else
     _skip "pwt-osc: push decisions (behavioural)" "perl or base64 not installed"
 fi
 
 if command -v tmux >/dev/null 2>&1 && command -v perl >/dev/null 2>&1; then
+    if _full; then
     _osc_dir="$(mktemp -d)"; _osc_sock="$_osc_dir/sock"
     cat > "$_osc_dir/emit.sh" <<'EMIT'
 #!/bin/sh
@@ -4326,6 +4437,9 @@ REC
         _ "$_osc_sock" "$_osc_pane"
     tmux -S "$_osc_sock" kill-server >/dev/null 2>&1
     rm -rf "$_osc_dir"
+    else
+        _defer 8
+    fi
 else
     _skip "pwt-osc: tap behaviour (behavioural)" "tmux or perl not installed"
 fi
@@ -4367,6 +4481,7 @@ check_has "git-prune-merged: --fetch runs git fetch --prune" \
 if command -v fish >/dev/null 2>&1; then
     check "git-prune-merged: parses (fish -n)" fish -n "$_GIT_PRUNE"
 
+    if _full; then
     _gp="$(mktemp -d)"
     _gp_repo="$_gp/repo"
     _gp_bare="$_gp/origin.git"
@@ -4430,6 +4545,9 @@ if command -v fish >/dev/null 2>&1; then
             git -C "$1" show-ref --verify --quiet refs/heads/main' \
         _ "$_gp_repo" "$_GIT_PRUNE"
     rm -rf "$_gp"
+    else
+        _defer 3
+    fi
 fi
 
 # ── pi installation method ───────────────────────────────────────────────────
@@ -4571,7 +4689,7 @@ if command -v pi-use >/dev/null 2>&1; then
     # ~/.local/bin, so a relative `pig` target dangles and leaves `pi` unrunnable),
     # stay runnable, and read back as pig through `current`. $0 is the script path,
     # passed by check().
-    check "pi-use: pig flip links the resolved binary (PIG_USE_PI_DIRS=1)" bash -c '
+    check_full "pi-use: pig flip links the resolved binary (PIG_USE_PI_DIRS=1)" bash -c '
         tmp=$(cd "$(mktemp -d)" && pwd -P); trap "rm -rf \"$tmp\"" EXIT
         mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
         printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
@@ -4589,7 +4707,7 @@ if command -v pi-use >/dev/null 2>&1; then
     # resolved path are identical, so linking the shim and linking the binary look the
     # same. A shimmed pig is what mise actually produces, and the failure it hides is
     # real — the link then only works while the owning shims dir is on PATH.
-    check "pi-use: pig flip resolves a symlinked shim (link never records the shim)" bash -c '
+    check_full "pi-use: pig flip resolves a symlinked shim (link never records the shim)" bash -c '
         tmp=$(cd "$(mktemp -d)" && pwd -P); trap "rm -rf \"$tmp\"" EXIT
         mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/shim" "$tmp/real/0.7.0/bin"
         printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
@@ -4609,7 +4727,7 @@ if command -v pi-use >/dev/null 2>&1; then
     # every extension) with no error. Every refusal must leave the link AND the state
     # file untouched — a half-done flip is worse than a refused one. `env -u` matters:
     # the live shell exports the variable, so an inherited value would mask this.
-    check "pi-use: pig flip refused unless PIG_USE_PI_DIRS is exactly 1 (link+state untouched)" bash -c '
+    check_full "pi-use: pig flip refused unless PIG_USE_PI_DIRS is exactly 1 (link+state untouched)" bash -c '
         tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT
         mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
         printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
@@ -4630,7 +4748,7 @@ if command -v pi-use >/dev/null 2>&1; then
     # The version string is the one discriminator a bin dir cannot fake: PiG prints
     # <pig>+<pi>, the impostor a bare 1.5.0. Flipping that in drops infra-safety and
     # the rest of the extension stack silently, so the refusal must name it.
-    check "pi-use: pig flip refuses a bare version (names the impostor, nothing changed)" bash -c '
+    check_full "pi-use: pig flip refuses a bare version (names the impostor, nothing changed)" bash -c '
         tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT
         mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
         printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
@@ -4815,6 +4933,41 @@ check "safety: L2 gates no tool name only (no hook hard-codes hypa_shell)" \
 check_has "safety: L2 inspects shell script bodies (expandScripts, 4e)" \
     '^export function expandScripts' "$_EXT/lib/classify.ts"
 
+# L2's second half — the secret-path gate (owner decision 2026-11-16, spec §2.1a,
+# §5). Probe E measured the gap: L3 allows `hypa_read` of secrets/env.fish, because
+# the file is git-crypt'd rather than `.env`-shaped. The gate is on the FILE tools
+# only; the shell stays with the classifier and with L3, because this repo's own
+# scanners run `grep secrets/leak-patterns`. Three checks: the wiring names every
+# file tool and no shell tool, the pure suite runs with a pinned count, and the
+# decision is driven end to end (deny the credential store, allow the corpus).
+check "safety: L2 wires the secret-path gate to the FILE tools only" bash -c '
+    ext="$1/infra-safety.ts"; mod="$1/lib/secret-paths.ts"
+    grep -q "secretPathBlock(event.toolName" "$ext" || exit 1
+    for t in read hypa_read grep hypa_grep find hypa_find edit write; do
+        grep -qE "^  \"$t\",\$" "$mod" || exit 1
+    done
+    ! grep -qE "^  \"(bash|hypa_shell)\",\$" "$mod"
+' _ "$_EXT"
+if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
+    check_full "safety: L2 secret-path suite passes $_TS_PIN_SECRET_PATHS/$_TS_PIN_SECRET_PATHS (count pinned)" \
+        _ts_suite_count secret-paths.test.ts "$_TS_PIN_SECRET_PATHS"
+    check_full "safety: L2 denies hypa_read of secrets/env.fish, allows secrets/leak-patterns" \
+        node --experimental-strip-types --input-type=module -e '
+const { secretPathBlock } = await import(process.argv[1]);
+const cwd = process.argv[2];
+const deny = secretPathBlock("hypa_read", { path: "secrets/env.fish" }, cwd);
+const allow = secretPathBlock("hypa_read", { path: "secrets/leak-patterns" }, cwd);
+const shell = secretPathBlock("hypa_shell", { command: "cat secrets/env.fish" }, cwd);
+const sane = deny && deny.block === true && /^secret-path: blocked/.test(deny.reason);
+process.exit(sane && allow === null && shell === null ? 0 : 1);
+' "$_EXT/lib/secret-paths.ts" "$DOTFILES"
+else
+    _skip "safety: L2 secret-path suite passes $_TS_PIN_SECRET_PATHS/$_TS_PIN_SECRET_PATHS (count pinned)" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+    _skip "safety: L2 denies hypa_read of secrets/env.fish, allows secrets/leak-patterns" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+fi
+
 # L4 — the publish guard. The message names the rule or the variable and never the
 # matched value; that is the whole point, because the value is already in context.
 check_has "safety: L4 block template names the rule, never the matched value" \
@@ -4921,7 +5074,7 @@ sys.exit(0 if pin and installed == pin.group(1) else 1)
         # Probe A, as a library call rather than a session: the layer must deny the
         # one destructive verb it is trusted for and must not deny an ordinary read
         # (deny-by-default would be a different product, and unusable).
-        check "safety: L3 library denies 'git reset --hard' and allows 'ls'" \
+        check_full "safety: L3 library denies 'git reset --hard' and allows 'ls'" \
             node --input-type=module -e '
 import { pathToFileURL } from "node:url";
 const { checkCommand } = await import(pathToFileURL(`${process.argv[1]}/dist/api.js`).href);
@@ -4963,7 +5116,7 @@ elif ! command -v fish >/dev/null 2>&1; then
     _skip "safety: L0 — a clean login shell exports no secret name" \
         "fish is not installed on this host"
 else
-    check "safety: L0 — a clean login shell exports no secret name" bash -c '
+    check_full "safety: L0 — a clean login shell exports no secret name" bash -c '
         names=$(sed -nE "s/^[[:space:]]*set[[:space:]]+-[A-Za-z]*x[A-Za-z]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/p" "$1" | sort -u)
         [ -n "$names" ] || exit 1
         exported=$(env -i HOME="$HOME" PATH="$PATH" TERM=dumb fish -l -c env 2>/dev/null \
@@ -5052,7 +5205,7 @@ check_has "pi-smoke: stamps the prompt identity (words + hash)" \
 # cover three classes — retries exhausted, an empty answer with no retry event (the hard
 # error the first cut of this classifier missed), and a valid run — and require the
 # valid run's tool call to be counted exactly once.
-check "pi-smoke: classifier self-test (retries exhausted, empty answer, valid run)" \
+check_full "pi-smoke: classifier self-test (retries exhausted, empty answer, valid run)" \
     env PI_SMOKE_SELFTEST=1 bash "$DOTFILES/pi-smoke.sh"
 
 # --append-system-prompt REPLACES discovery of APPEND_SYSTEM.md (pi's resource-loader),
@@ -5122,10 +5275,17 @@ check "fish: every cross-file __helper is autoloadable (one function per file)" 
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
     "── Results ────────────────────────────────" "$(_c "$RST")"
 
-printf '  %b✓%b %-3d passed\n'  "$(_c "$GRN")" "$(_c "$RST")" "$PASS"
-printf '  %b✗%b %-3d failed\n'  "$(_c "$RED")" "$(_c "$RST")" "$FAIL"
+_profile_report
+
+printf '  %b✓%b %-3d passed\n'  "$C_GRN" "$C_RST" "$PASS"
+printf '  %b✗%b %-3d failed\n'  "$C_RED" "$C_RST" "$FAIL"
 [[ $SKIP -gt 0 ]] && \
-printf '  %b○%b %-3d skipped\n' "$(_c "$YLW")" "$(_c "$RST")" "$SKIP"
+printf '  %b○%b %-3d skipped\n' "$C_YLW" "$C_RST" "$SKIP"
+# Deferred is its OWN bucket, never folded into passed or skipped-with-needs: the
+# count says how much of the suite this run did not execute.
+[[ $DEFERRED -gt 0 ]] && \
+printf '  %b○%b %-3d behavioural checks deferred (CHECK_FULL=1 or CI runs them)\n' \
+    "$C_YLW" "$C_RST" "$DEFERRED"
 
 if [[ ${#FAILED[@]} -gt 0 ]]; then
     printf '\n%bFailed tests:%b\n' "$(_c "$BLD")" "$(_c "$RST")"

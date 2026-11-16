@@ -19,12 +19,20 @@
  * own verb tables and its own `domain` string — don't grow this file into a
  * catch-all. Different domains have different danger signals (SQL content,
  * git flags, etc.) that don't fit this CLI-verb-token model anyway.
+ *
+ * The one exception, because it is not a CLI-verb domain at all: L2 also gates
+ * agent READS under a `secrets/` directory (lib/secret-paths.ts), on the FILE
+ * tools rather than the shell. It has no mode and no confirm — an unreadable
+ * credential store is not something a human should be able to approve into the
+ * transcript — and it is deliberately not applied to shell commands, which are
+ * the classifier's and L3's business (docs/AGENT-SAFETY.md §2 L2, §2.1a).
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createMutationGuard, execForContext } from "./lib/mutation-guard.ts";
 import type { ToolConfig } from "./lib/classify.ts";
 import { AWS, AZ, GCLOUD, KUBECTL, TERRAFORM } from "./lib/infra-tables.ts";
+import { secretPathBlock } from "./lib/secret-paths.ts";
 
 // KUBECTL's getContext (live current-context, shown in confirm prompts) is
 // pi-wired via execForContext, so it can't live in the pi-free tables module.
@@ -40,4 +48,11 @@ export default function (pi: ExtensionAPI) {
     icon: "☁️",
     tools: [AWS, AZ, GCLOUD, kubectl, TERRAFORM],
   });
+
+  // Second thing L2 gates: a file-tool path under a `secrets/` directory. The
+  // decision (and its reason) is pure — lib/secret-paths.ts — so it stays
+  // testable without the harness; this is only the hook. A call the predicate
+  // cannot resolve blocks (fail closed); a file tool with no path is not this
+  // check's business and passes through.
+  pi.on("tool_call", async (event, ctx) => secretPathBlock(event.toolName, event.input, ctx.cwd) ?? undefined);
 }

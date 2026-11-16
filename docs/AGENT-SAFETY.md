@@ -21,7 +21,7 @@ is the mapping it implies.
 
 | Rank | Class | Primary | Secondary | Residual (accepted) |
 |---|---|---|---|---|
-| b | secret exfiltration | L0 env hygiene; L3 secret-file rules | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); indirection *inside* an inlined script body (§2.1b); a pwt window that asked for the values (§5) |
+| b | secret exfiltration | L0 env hygiene; L3 secret-file rules; L2 secret-path gate on the file tools (`lib/secret-paths.ts`) | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); indirection *inside* an inlined script body (§2.1b); a pwt window that asked for the values (§5); a symlink that points into `secrets/` (the gate resolves lexically, §2.1a) |
 | c | credential in a published artifact | L4 publish guard | L1 pre-commit (this repo, staged files) | channels other than gh/glab/web tools |
 | e | irreversible remote ops | L3 rulebooks (deny) | L2 (locked default; armed = human confirm) | ops neither table names |
 | a | infra mutation | L2 locked/armed gate | L3 for the destructive subset (no kubectl rulebook exists) | argument-position false positives (§4) |
@@ -31,10 +31,10 @@ is the mapping it implies.
 
 | L | What | Attachment | Failure mode → detection |
 |---|---|---|---|
-| L0 | No credential is exported at shell startup. `creds <cmd>` loads them for one command; `pwt` forwards them per spawn. | `base/fish/.config/fish/config.fish:4-26`; `functions/pwt.fish:640` (`__pwt_forward_env`) | If `source secrets/env.fish` comes back → `check.sh` fails: a static pin on startup files (`check.sh:4920`) plus a behavioural login-shell probe printing names only (`:4935`) |
-| L1 | git-crypt at rest; `.githooks/pre-commit` names the offending path, never the matched text | `git` (`core.hooksPath`), `.githooks/pre-commit:74-77` | Bypassed with `--no-verify` → the L3 project rulebook blocks that invocation (`check.sh:4840` requires a blocked fixture per rule) |
-| L2 | Infra gate: `extensions/infra-safety.ts` + `lib/{mutation-guard,classify,infra-tables}.ts` | `tool_call` on both shell tools — one constant, `SHELL_TOOLS = ["bash", "hypa_shell"]`, and one predicate, `isShellCall` (`lib/mutation-guard.ts`), so the handler and `/check`'s read-only gate (`modes/index.ts:235`) cannot drift apart. Resets to locked on `session_start`. Arm with `/infra-arm` or the `infra_mode` tool. When armed, a mutation needs `ctx.ui.confirm` showing the whole command; with no UI it is blocked rather than auto-approved. | An unknown verb while locked is blocked, i.e. it fails closed. Hook not loaded → `infra_mode` is absent from the tool list and nothing notices at runtime: `check.sh` asserts the files and their shape (`:4775`, `:4780`, `:4784`), never a live session. A hook that loads but is inert is UNVERIFIED — no check probes it |
-| L3 | cc-safety-net: exact npm package declared in settings `packages` (`npm:cc-safety-net@2.7.14`). User config stowed from `base/cc-safety-net`, project rulebook in `.cc-safety-net/`, every rulebook ref pinned to a 40-hex commit. | Its own pi extension hooking `bash` plus the declared `hypa_shell` (probe B, §3) | Package absent → the layer is gone without notice → `check.sh` host assertions: stow link (`:4869`), installed version matches the pin (`:4883`), library denies `git reset --hard` and allows `ls` (`:4893`) |
+| L0 | No credential is exported at shell startup. `creds <cmd>` loads them for one command; `pwt` forwards them per spawn. | `base/fish/.config/fish/config.fish:4-26`; `functions/pwt.fish:640` (`__pwt_forward_env`) | If `source secrets/env.fish` comes back → `check.sh` fails: a static pin on startup files (`check.sh:5011`) plus a behavioural login-shell probe printing names only (`:5026`) |
+| L1 | git-crypt at rest; `.githooks/pre-commit` names the offending path, never the matched text | `git` (`core.hooksPath`), `.githooks/pre-commit:74-77` | Bypassed with `--no-verify` → the L3 project rulebook blocks that invocation (`check.sh:4931` requires a blocked fixture per rule) |
+| L2 | Infra gate: `extensions/infra-safety.ts` + `lib/{mutation-guard,classify,infra-tables}.ts`; **plus** the secret-path gate `lib/secret-paths.ts` on the file tools | `tool_call` on both shell tools — one constant, `SHELL_TOOLS = ["bash", "hypa_shell"]`, and one predicate, `isShellCall` (`lib/mutation-guard.ts`), so the handler and `/check`'s read-only gate (`modes/index.ts:235`) cannot drift apart. Resets to locked on `session_start`. Arm with `/infra-arm` or the `infra_mode` tool. When armed, a mutation needs `ctx.ui.confirm` showing the whole command; with no UI it is blocked rather than auto-approved. A second `tool_call` handler gates the FILE tools by path (`FILE_PATH_TOOLS` = read/grep/find/edit/write + the `hypa_*` mirrors): a path resolving under a directory named `secrets` is denied outright — no mode, no confirm | An unknown verb while locked is blocked, i.e. it fails closed. Hook not loaded → `infra_mode` is absent from the tool list and nothing notices at runtime: `check.sh` asserts the files and their shape (`:4829`, `:4831`, `:4836`), never a live session. A hook that loads but is inert is UNVERIFIED — no check probes it. The secret-path half is driven at the decision boundary (`check.sh`'s `safety: L2 denies hypa_read of secrets/env.fish, allows secrets/leak-patterns` calls the same `secretPathBlock` the hook returns), which is as far as a check can go without a live session |
+| L3 | cc-safety-net: exact npm package declared in settings `packages` (`npm:cc-safety-net@2.7.14`). User config stowed from `base/cc-safety-net`, project rulebook in `.cc-safety-net/`, every rulebook ref pinned to a 40-hex commit. | Its own pi extension hooking `bash` plus the declared `hypa_shell` (probe B, §3) | Package absent → the layer is gone without notice → `check.sh` host assertions: stow link (`:4960`), installed version matches the pin (`:4974`), library denies `git reset --hard` and allows `ls` (`:4984`) |
 | L4 | Publish guard: `extensions/publish-guard.ts` + `lib/publish-scan.ts` | `tool_call` on shell tools running a publish verb (gh/glab) and on `fetch_content`/`web_search` | Scanner unavailable → blocks (fails closed). It never echoes the match |
 | L5 | Feedback | `check.sh`, `pi-smoke.sh`, `docs/PROMPT-EVAL.md` | A skip reported as green (PRINCIPLES §What counts as a defect) |
 
@@ -50,10 +50,16 @@ from a pipe, and a command word held in a variable, are *refused* rather than
 inspected: both classify as unknown. Inside an already-inlined body the same shapes
 are a reported notice, not a block — the depth boundary in §2.1b.
 
+Path, not command: the second half of L2 never looks at a command string. It
+inspects the `path` argument of a file tool (`secretPathBlock`), and it is
+intentionally blind to `bash`/`hypa_shell` — a shell command that reads a secret
+is the classifier's and L3's business, and blocking `grep secrets/leak-patterns`
+here would break this repo's own scanners. Two matching rules, two domains.
+
 Cites into the `lib/` modules name the **symbol**, not a line: `classify.ts`,
 `mutation-guard.ts` and `infra-tables.ts` are the files this change set is still
 splitting up, so a line number there would be stale before it was read. `check.sh`
-pins the same exports by name for the same reason (`:4784`).
+pins the same exports by name for the same reason (`:4829`, `:4831`).
 
 ### 2.1 Landed, and what is still not honest
 
@@ -66,14 +72,15 @@ only honest if the shapes L2 still misses are named. (a) ships and is asserted;
 
 | Capability | Implementation | Asserted by |
 |---|---|---|
-| Dual shell tools | `SHELL_TOOLS = ["bash", "hypa_shell"]`, `SHELL_TOOL_SET` and `isShellCall` live in `lib/shell-tools.ts` — one declaration, no pi import, so the publish guard and the unit tests read it too; it drives the gate's `tool_call` handler and `/check`'s read-only gate (`modes/index.ts:235`), so a harness that exposes `bash` is not left ungated | `check.sh:4803` (the export exists on the guard engine), `:4808` (no hook hard-codes one shell name); the pure suite pins exactly one declaration repo-wide |
-| Secret-noun classification | a read-ish verb aimed at a credential noun is high-risk, not read (`disclosesSecret`; the noun sets are `secretNouns` in `lib/infra-tables.ts`), with enumeration verbs exempt because they return names, not values (`ENUMERATION_VERBS`) | `check.sh:1464` runs the pure suite with a pinned pass count |
+| Dual shell tools | `SHELL_TOOLS = ["bash", "hypa_shell"]`, `SHELL_TOOL_SET` and `isShellCall` live in `lib/shell-tools.ts` — one declaration, no pi import, so the publish guard and the unit tests read it too; it drives the gate's `tool_call` handler and `/check`'s read-only gate (`modes/index.ts:235`), so a harness that exposes `bash` is not left ungated | `check.sh:4831` (the gate re-exports the shared declaration), `:4836` (no hook hard-codes one shell name); the pure suite pins exactly one declaration repo-wide |
+| Secret-noun classification | a read-ish verb aimed at a credential noun is high-risk, not read (`disclosesSecret`; the noun sets are `secretNouns` in `lib/infra-tables.ts`), with enumeration verbs exempt because they return names, not values (`ENUMERATION_VERBS`) | `check.sh:1490` runs the pure suite with a pinned pass count |
 | Confirm payload | no truncated confirm: past `CONFIRM_LIMIT` the armed gate refuses and tells you to split it (`confirmPayload`), and the human is shown the whole command once (`lib/mutation-guard.ts`, in the `tool_call` handler) | same |
 | Read-only lookup allowances | segments led by `which`, `type`, `whereis` or `command -v` are not classified — nothing they name executes (`isLookupSegment`, `LOOKUP_LEAD`). The exemption is withheld from any such segment that carries a substitution, because that is code and not a name: `which $(aws s3 rm s3://b/k)` classifies as an `aws` mutation and blocks (measured 2026-11-16) | same |
-| Script expansion | `expandScripts` inlines shell-script bodies at most `SCRIPT_MAX_BYTES` (1 MiB) each and `SCRIPT_MAX_DEPTH` (3) levels deep, refusing non-regular files before reading; a script the command **names directly** that is unreadable or oversize becomes an unresolved unknown, which a locked gate blocks and an armed gate blocks, while a mutation found inside any inlined body blocks in both modes. What the walk cannot resolve *inside* an already-inlined body is a notice, not a block — see §2.1b | `check.sh:4812` (the export exists); `sh /tmp/probeA.sh` — §4 residual 5's own case — now blocks (§3, probe D); `bash check.sh` runs under a locked gate (pure suite) |
+| Script expansion | `expandScripts` inlines shell-script bodies at most `SCRIPT_MAX_BYTES` (1 MiB) each and `SCRIPT_MAX_DEPTH` (3) levels deep, refusing non-regular files before reading; a script the command **names directly** that is unreadable or oversize becomes an unresolved unknown, which a locked gate blocks and an armed gate blocks, while a mutation found inside any inlined body blocks in both modes. What the walk cannot resolve *inside* an already-inlined body is a notice, not a block — see §2.1b | `check.sh:4840` (the export exists); `sh /tmp/probeA.sh` — §4 residual 5's own case — now blocks (§3, probe D); `bash check.sh` runs under a locked gate (pure suite) |
 | Flag-gated escalation | `highRiskFlags` (`lib/infra-tables.ts`) makes a read verb high-risk only with a revealing flag — `ssm get-parameter --with-decryption`, `kubectl config view --raw`, `terraform output|show -json` — so the innocent form stays a read | pinned in the same suite |
+| Secret-path reads (2026-11-16, owner decision) | `secretPathBlock` / `isSecretPath` (`lib/secret-paths.ts`) denies a FILE-tool `path` that resolves under a directory named `secrets` — probe E's gap, where L3 allows `secrets/env.fish` because the file is git-crypt'd rather than `.env`-shaped. `SECRET_ALLOWLIST = ["leak-patterns"]` keeps the identifier corpus readable: it names hosts and customer identifiers, not credentials, and `check.sh` + `.githooks/pre-commit` scan with it. Component match, not substring (`secrets-notes.md`, `notsecrets/x` pass); `..` normalised before deciding; a path that cannot be resolved is a deny; the reason names the rule and the path, never a value. The shell is NOT gated — that is the classifier and L3 (§2) | `check.sh` asserts it three ways: `safety: L2 wires the secret-path gate to the FILE tools only` (every file tool named, no shell tool), `safety: L2 secret-path suite passes 13/13` (count pinned), and `safety: L2 denies hypa_read of secrets/env.fish, allows secrets/leak-patterns` (the decision driven end to end) |
 | `--` is a wall | `--help`/`-h`/`--dry-run` are read-only only **before** a standalone `--`; past it the flag belongs to the wrapped command (`beforeEndOfFlags`). `--version` is no longer a blanket read allowance | same |
-| Project rulebook | `.cc-safety-net/rules/rule.json` plus `rules/dotfiles-rules/rulebook.json`: deny `git commit --no-verify` / `-n`, forced pushes, forced adds; one blocked fixture per rule plus allow cases, including `git add secrets/env.fish` (allowed, because the path stays git-crypt'd) | `check.sh:4840` (fixture per rule + an allow), `:4820` (every ref is a 40-hex commit) |
+| Project rulebook | `.cc-safety-net/rules/rule.json` plus `rules/dotfiles-rules/rulebook.json`: deny `git commit --no-verify` / `-n`, forced pushes, forced adds; one blocked fixture per rule plus allow cases, including `git add secrets/env.fish` (allowed, because the path stays git-crypt'd) | `check.sh:4931` (fixture per rule + an allow), `:4911` (every ref is a 40-hex commit) |
 
 **(a-1) The project rulebook ships, and its schema is validated.** `.cc-safety-net/`
 is in the tree and stowed like any other config: `rules/rule.json` declares one local
@@ -88,8 +95,8 @@ against the live `$HOME` it refuses outright with "Unable to access user policy
 filesystem safely", because the live user config is a set of stow symlinks. That is
 why `check.sh` asserts the shape instead of shelling out to `verify`: the JSON parses
 and every rulebook ref is a 40-hex **commit**, not a tag or branch (`#d1fc329f…`,
-`check.sh:4820`), and every rule has a blocked fixture plus at least one allow
-(`:4840`). A branch or tag ref reads as a pin to a human; it does not satisfy the
+`check.sh:4911`), and every rule has a blocked fixture plus at least one allow
+(`:4931`). A branch or tag ref reads as a pin to a human; it does not satisfy the
 check.
 
 **(b) Still not honest — the shapes L2 misses.** Each was measured on 2026-11-16
@@ -142,8 +149,8 @@ gate blocks them, an armed gate confirms them.
 **(c) Unverified predicates.** Conclusions unchanged, and still not measured:
 
 - **`@version` pins honoured by the settings `packages` entry.** The template's pin
-  shape is asserted (`check.sh:2005`, a full semver, exactly once) and the installed
-  copy is compared to it (`:4883`), but that comparison is skipped wherever the
+  shape is asserted (`check.sh:2039`, a full semver, exactly once) and the installed
+  copy is compared to it (`:4974`), but that comparison is skipped wherever the
   package is absent — which is every host observed so far. Whether pi and PiG honour
   `@x.y.z` **at install time** is UNVERIFIED. What settles it: a fresh agent dir with
   a pinned entry, then read the installed `package.json` version.
@@ -153,9 +160,13 @@ gate blocks them, an armed gate confirms them.
   `block:true — Access to a sensitive path is not allowed`, identically to `read`.
   Its routing is by *input shape*, not by the four documented tool names, so replace
   mode does not make its secret rules inert. **No adapter is needed, and none is
-  written.** One gap stays visible: `secrets/env.fish` is not in its secret list
-  (it is git-crypt'd, not `.env`), so an agent read of that path is allowed — see
-  §5.
+  written.** The one gap probe E left — `secrets/env.fish` is not in its secret list
+  (it is git-crypt'd, not `.env`), so L3 allows an agent read of that path — is now
+  closed in this repo by L2's secret-path gate (§2.1a), not by a project rule.
+  Whether that hook fires in a LIVE session is UNVERIFIED: the predicate and its
+  wiring are unit-tested, and the wiring is three lines with no IO, but no probe has
+  driven a real `hypa_read` at `secrets/env.fish` yet. What settles it: one `pi -p`
+  session told to read that path, expecting `secret-path: blocked`.
 
 ## 3. Verification log (2026-11-16)
 
@@ -209,9 +220,10 @@ host, loaded with a fake harness in Node, then driven with `tool_call` events:
 `hypa_read` on `~/.ssh/id_ed25519` → `block:true`, "Access to a sensitive path is
 not allowed"; `hypa_grep` over `~/.ssh` → same; `hypa_read` on a repo README →
 allowed. Identical verdicts to the native `read` tool, so its routing keys on the
-input shape rather than the four documented tool names. Two consequences: no
-adapter is needed for replace mode, and `secrets/env.fish` (git-crypt'd, not
-`.env`-shaped) is *allowed* — that path needs a project rule, see §5.
+input shape rather than the four documented tool names. Consequence: no adapter is
+needed for replace mode. Second consequence: `secrets/env.fish` (git-crypt'd, not
+`.env`-shaped) is *allowed* — the gap the second half of L2 closes on the file tools
+(`lib/secret-paths.ts`, §2.1a), by denying the path rather than teaching L3 a rule.
 
 **Probe D — script expansion, and what a locked gate still lets through
 (2026-11-16).** Measured by driving the pipeline the gate itself runs
@@ -275,20 +287,37 @@ other side — literal CLI names anywhere in an argument list are classified.
 
 ## 5. Open policy questions
 
-**Should the agent be able to read `secrets/env.fish`?** Probe E: L3 allows it (the
-file is git-crypt'd, not `.env`-shaped, so its secret list does not match). L0 keeps
-the *shell* from exporting those values, and `creds` loads them for one command — but
-an agent that reads the file puts every credential in context, which is class (b).
-The candidate fix is one project rule denying reads under `secrets/`, at the cost of
-this repo's own tooling being unable to inspect that path. Decide once, write it
-here; do not leave it to whichever layer notices first.
+**Settled 2026-11-16 — should the agent be able to read `secrets/env.fish`? No.**
+Probe E found L3 allows it (the file is git-crypt'd, not `.env`-shaped, so its
+secret list does not match). L0 keeps the *shell* from exporting those values and
+`creds` loads them for one command, but an agent read put every credential in
+context — class (b), and from there into anything L4 has to catch. Owner decision:
+deny by default. Implemented as the second half of L2 (`lib/secret-paths.ts`,
+§2.1a) rather than as an L3 project rule: a rule would have had to enumerate paths
+in an agent-writable file, and the gate also covers the `hypa_*` tools and any
+clone or worktree path without a list to maintain. Two deliberate narrowings, both
+stated so the next session does not "fix" them:
+
+- **`secrets/leak-patterns` stays readable** (`SECRET_ALLOWLIST`). It is the
+  identifier corpus that `check.sh` and `.githooks/pre-commit` scan with, and it
+  holds internal hostnames and customer identifiers, not credentials. Denying it
+  would break the scanners to protect nothing.
+- **Shell commands are not gated.** `grep secrets/leak-patterns` is how the
+  scanners run, so the shell stays with L2's classifier and L3's secret rules; this
+  gate is the FILE tools only. A shell read of `secrets/env.fish` is therefore still
+  L3's call, and L3 still allows it.
+
+The costs, accepted: a directory named `secrets` anywhere on the host is treated as
+a credential store (a false positive in an unrelated project is a deny with a reason
+naming the rule), `ls` is not gated (it returns names, not contents), and the check
+is lexical — a symlink whose *target* is inside `secrets/` passes.
 
 **pwt forwards the workstream's secrets into the window it spawns. Default off with
 an explicit opt-in, or keep as the sanctioned way a workstream gets credentials?**
 `__pwt_forward_env` (`functions/pwt.fish:640`) reads `secrets/env.fish` at call time
-and hands the names to `tmux -e` on the spawn; `check.sh:2507-2517` asserts that
-hand-off (the `__pwt_forward_env` call it exercises is at `:2512`), so the current
-behaviour is unambiguously "forward". L0's claim is therefore
+and hands the names to `tmux -e` on the spawn; `check.sh:2541-2560` asserts that
+hand-off (inside it, the `__pwt_forward_env` calls are at `:2546`, `:2554`, `:2557`),
+so the current behaviour is unambiguously "forward". L0's claim is therefore
 narrower than "no credentials exported": nothing is exported at shell *startup*,
 but a pwt window starts with the values it asked for. Both answers are defensible —
 forwarding is what makes a workstream able to run terraform at all, and it is also
@@ -372,7 +401,10 @@ Exceptions, with the evidence that earned them:
 - **L2 gate (`infra-safety.ts`).** 2026-11-16: cc-safety-net is deny-only and
   stateless, offers no human decision at the moment of the act, and its rules are
   agent-editable (probe A, §3). It therefore cannot express read-only-by-default,
-  per-session escalation, or "modes only tighten".
+  per-session escalation, or "modes only tighten". The secret-path half (§2.1a) is
+  the same exception applied to a measured allow: L3 permits a read of
+  `secrets/env.fish` (probe E), an L3 project rule could only name paths from an
+  agent-writable file, and no write gate can express "denied, not approvable".
 - **L4 publish guard (`publish-guard.ts`).** 2026-11-16: L3 guards file *access*,
   not content, and `pre-commit` scans only this repo's staged files — neither sees
   a body sent to someone else's repo. Incident: a credential pasted into a

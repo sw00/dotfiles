@@ -74,9 +74,9 @@ paths live in `docs/TILING.md` — read it before changing either config.
 
 ## Workflows
 
-- Before committing: `bash check.sh` — commit only when green, and sanity-
-  check the pass count (a harness bug once hid skipped tests behind a green
-  summary). Commits are GPG-signed; the signing subkey must be imported. For a
+- Before committing: `bash check.sh` — commit only when green, and check the
+  pass count too; it is the fast tier, `CHECK_FULL=1` the full one. Commits are
+  GPG-signed; the signing subkey must be imported. For a
   session that will end in commit+push, inventory the interactive prerequisites
   up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
