@@ -6,6 +6,26 @@ This file tracks only genuine open or deferred work; completed fixes were
 removed — full implementation history lives in git. Shared-core behavior
 (`base/`) is validated by `./check.sh`; run it before committing.
 
+## Open — agent safety: the stack landed, the verification did not
+
+Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
+`docs/AGENT-SAFETY.md`. What is still owed, in order:
+
+- [ ] **Two owner decisions.** (a) Should L3 deny agent reads of `secrets/`?
+  Today `hypa_read secrets/env.fish` is allowed (probe E) — every credential then
+  sits in context. (b) pwt secret forwarding: keep, or default-off with an opt-in?
+- [ ] **Interactive probes** (cannot run non-interactively): PiG TUI
+  `ctx.ui.confirm` renders the full armed command; cc-safety-net fires live on
+  `hypa_shell` + `bash`; a PiG session resumes under `pi` and vice versa.
+- [ ] **Default flip** (`pi-use pig`) — only after 14 green days on all three
+  hosts. `~/dotfiles` is green here; x13yg2/x1eg2 untested and still running
+  ZoroSpace/pig (remove it there first: `rm "$(command -v pig)"`).
+- [ ] **Remaining falsifiers** if any regress: throwing `tool_call` handler
+  letting the call run; sessions unreadable across harnesses; `@version` pins
+  ignored at install time; no working TUI confirm.
+- [ ] `--body-file -` (gh stdin) blocks with a misleading "could not be read"
+  reason; give stdin its own label in `lib/publish-targets.ts`.
+
 ## Open — pi-bolt is the default `pi` binary (landed on mbpm3 2026-11-05)
 
 - [ ] **Migrate x13yg2 and x1eg2.** Both are WSL hosts, unreachable from mbpm3.

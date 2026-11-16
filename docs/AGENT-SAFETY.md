@@ -147,11 +147,15 @@ gate blocks them, an armed gate confirms them.
   package is absent — which is every host observed so far. Whether pi and PiG honour
   `@x.y.z` **at install time** is UNVERIFIED. What settles it: a fresh agent dir with
   a pinned entry, then read the installed `package.json` version.
-- **Conditional L4 adapter for `hypa_read/grep/find/ls`** (decision C1). Only if L3
-  turns out to be unable to declare non-shell tools: under pi-hypa replace mode
-  `hypa_read` would make its secret-file rules inert. Probe B settles this for shell
-  tools only; for `hypa_read` it is UNVERIFIED. If it lands it is a ~20-line adapter
-  mapping `hypa_read(path)` → `checkCommand({command: "cat <path>"})`, fail-closed.
+- **L3 covers the hypa file tools directly (decision C1 resolved, 2026-11-16).** Probe
+  E drove cc-safety-net's own Pi host with a fake harness: `hypa_read` of
+  `~/.ssh/id_ed25519` and `hypa_grep` over `~/.ssh` both return
+  `block:true — Access to a sensitive path is not allowed`, identically to `read`.
+  Its routing is by *input shape*, not by the four documented tool names, so replace
+  mode does not make its secret rules inert. **No adapter is needed, and none is
+  written.** One gap stays visible: `secrets/env.fish` is not in its secret list
+  (it is git-crypt'd, not `.env`), so an agent read of that path is allowed — see
+  §5.
 
 ## 3. Verification log (2026-11-16)
 
@@ -190,6 +194,15 @@ safety dependency in the template is enough — no installer step.
   2026-11-16 (§2.1a).
 - A rulebook install message mentioning `gcloud azure` was blocked as an
   "unrecognised verb". Not retired — it is the accepted cost in §4, residual 4.
+
+**Probe E — the hypa file tools are covered (2026-11-16).** cc-safety-net's own Pi
+host, loaded with a fake harness in Node, then driven with `tool_call` events:
+`hypa_read` on `~/.ssh/id_ed25519` → `block:true`, "Access to a sensitive path is
+not allowed"; `hypa_grep` over `~/.ssh` → same; `hypa_read` on a repo README →
+allowed. Identical verdicts to the native `read` tool, so its routing keys on the
+input shape rather than the four documented tool names. Two consequences: no
+adapter is needed for replace mode, and `secrets/env.fish` (git-crypt'd, not
+`.env`-shaped) is *allowed* — that path needs a project rule, see §5.
 
 **Probe D — script expansion, and what a locked gate still lets through
 (2026-11-16).** Measured by driving the pipeline the gate itself runs
@@ -252,6 +265,14 @@ other side — literal CLI names anywhere in an argument list are classified.
 6. The plaintext session store is kept 90 days (decision D3).
 
 ## 5. Open policy questions
+
+**Should the agent be able to read `secrets/env.fish`?** Probe E: L3 allows it (the
+file is git-crypt'd, not `.env`-shaped, so its secret list does not match). L0 keeps
+the *shell* from exporting those values, and `creds` loads them for one command — but
+an agent that reads the file puts every credential in context, which is class (b).
+The candidate fix is one project rule denying reads under `secrets/`, at the cost of
+this repo's own tooling being unable to inspect that path. Decide once, write it
+here; do not leave it to whichever layer notices first.
 
 **pwt forwards the workstream's secrets into the window it spawns. Default off with
 an explicit opt-in, or keep as the sanctioned way a workstream gets credentials?**
@@ -347,9 +368,9 @@ Exceptions, with the evidence that earned them:
   not content, and `pre-commit` scans only this repo's staged files — neither sees
   a body sent to someone else's repo. Incident: a credential pasted into a
   work-repo PR body (`Lelapa-AI/engineering-org#31`, third description edit).
-- **(Conditional) L3 adapter for `hypa_read/grep/find/ls`.** Only if cc-safety-net
-  cannot declare non-shell tools (decision C1) — probe B settled the shell-tool half,
-  the `hypa_read` half is UNVERIFIED (§2.1c).
+- **(Retired) L3 adapter for `hypa_read/grep/find/ls`.** Measured unnecessary
+  (probe E): cc-safety-net blocks `hypa_read`/`hypa_grep` on sensitive paths by input
+  shape. Kept on record so the ~20-line adapter is not re-invented.
 
 Any other custom code labelled safety links here or gets deleted.
 
