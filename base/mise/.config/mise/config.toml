@@ -73,6 +73,11 @@ bitwarden = "latest"
 "ubi:rikorose/DeepFilterNet" = "latest"
 "npm:ccusage" = "latest"
 "aqua:grafana/gcx" = "latest"
+# gitleaks backs the publish guard (class c: a credential riding out inside a
+# `gh pr create --body`). The guard fails CLOSED when it cannot find a scanner,
+# so this entry is load-bearing: without it every publish and web call blocks
+# with "gitleaks not installed".
+"aqua:gitleaks/gitleaks" = "latest"
 # btop: aqua ships linux builds only; macOS has no prebuilt binary for any mise
 # backend, so it comes from brew instead (os/macos/brew/.Brewfile-base). The
 # os restriction makes mise skip it on macOS rather than fail on aqua.
@@ -87,6 +92,25 @@ os = ["linux"]
 [tools.navi]
 version = "latest"
 os = ["linux"]
+
+# PiG (MichaelKinsy/PiG, pi-in-go.dev) — the pi-compatible Go harness this repo
+# provisions; `pi-use pig` makes it the `pi` on PATH.  It is mise-managed
+# precisely BECAUSE of the note above: it has no self-updater, so unlike pi and
+# claude it has one owner and that owner is mise.
+#
+# PINNED to an exact version, unlike every neighbour here.  An upgrade swaps the
+# harness under the prompts this repo ships, so the pin may only move in a
+# reviewable commit that is paired with the pi-smoke / PROMPT-EVAL pass —
+# `agents-update` runs `mise upgrade --bump` on this entry for exactly that
+# reason (it rewrites the line below; the diff is the review).  A floating
+# `latest` would move it silently on the next `mise upgrade`.
+#
+# `exe` is required, not cosmetic: ubi looks for an archive member matching the
+# repo name and the release ships the binary as `pig`, so without it install
+# fails with "could not find any files matching [PiG*]" (verified 2026-11-16).
+[tools."ubi:MichaelKinsy/PiG"]
+version = "0.7.0"
+exe = "pig"
 
 # Uncomment when needed on a project:
 # go     = "latest"

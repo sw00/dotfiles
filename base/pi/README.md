@@ -62,7 +62,7 @@ config only where the table says so.
 | --- | --- | --- | --- |
 | `pi-use bolt` | pi-bolt 1.0.9 — pi 1.4.0 compiled AOT — **the default** | `~/.pi/agent` | all, via jiti in JSC's interpreter (runtime-verified) |
 | `pi-use pi` | upstream managed install | `~/.pi/agent` | all — the rollback path and the zero-lag option |
-| `pi-use pig` | pig (Go rewrite, **not provisioned**) | `~/.pig/agent` | **none** — no extension system exists there |
+| `pi-use pig` | PiG 0.7.0+1.5.0 — the same Pi, in Go (`PIG_USE_PI_DIRS=1`) | `~/.pi/agent` | all — PiG implements Pi's extension model (process-hosted TS) |
 
 `pi-use status` reports the link, the variant and what is actually running, and
 fails on drift (a recorded choice that the symlink no longer honours). A flip is
@@ -100,10 +100,36 @@ Rules that follow from the table:
   `pi-bolt config` is reverted by the next `pi-settings-apply`, so template first.
   A bolt upgrade can compile in more extensions; check the compiled-in list in
   `pi-bolt doctor` rather than waiting for a name collision to warn.
-- **pig is not a drop-in and is deliberately not provisioned.** With no extension
-  system, `infra-safety` does not run, so infra mutations are ungated; `pi-use`
-  says so at flip time and `status` keeps printing `degraded:`. It has no
-  prebuilt releases (Go toolchain required) and no `update` subcommand.
+- **`pi-use pig` is PiG (MichaelKinsy/PiG, pi-in-go.dev), and it is a drop-in
+  only through the shared-tree switch.** PiG is Pi reimplemented in Go: same CLI,
+  same settings/auth/session formats, and Pi's *full* extension model, with TS
+  extensions hosted in a Node child process (≥ 22.13) — so this repo's stack
+  loads under it unchanged, because it ships Pi-API extensions and npm packages
+  only and no PiG-only feature. With **`PIG_USE_PI_DIRS=1`** — the exact value
+  `1`, nothing else — PiG reads `~/.pi/agent` and the project `.pi/` under Pi's
+  own lock protocol: **one settings, trust, auth and session store**, so a flip
+  re-asks nothing and a rollback is `pi-use pi` (one symlink, no migration). Any
+  other value (unset, `0`, `true`) leaves it on `~/.pig/agent`, a second,
+  unseeded tree — which is why `set_pig` refuses to flip without `1`. The
+  variable lives in `conf.d/pig.fish`, never in settings: settings are shared, so
+  a value written there would follow you back into upstream pi. **`~/.pig` is
+  PiG's SDK/Piglet cache only** — never stow it, never merge it into
+  `~/.pi/agent`, never delete it as "duplicate config". PiG is provisioned by
+  mise (`ubi:MichaelKinsy/PiG`, pinned) and moves with `mise upgrade`; it has no
+  self-update, so `agents-update` bumps the pin rather than calling
+  `pi update --self`. **PiG never writes the settings template** — the template
+  is intent and is pushed with `pi-settings-apply`, exactly as on the other
+  variants.
+- **"pig" here never means `ZoroSpace/pig`, the other Go rewrite.** That binary
+  has **no extension system** at all (`-e file.ts` validates the path, then runs
+  nothing), so flipping to it silently dropped `infra-safety` (the locked/armed
+  write gate), `subagent`, `model-switch`, `usage`, `hypa`, web search and the
+  Claude bridge, and it kept its own unseeded `~/.pig/agent` trust store that
+  could not even prompt. It is not provisioned, and `check.sh` tombstones it.
+  One command tells the two binaries apart:
+  `env -u PIG_VERSION_FORMAT pig --version` — PiG prints `<pig>+<pi>`
+  (`0.7.0+1.5.0`), ZoroSpace prints a bare `1.5.0`. `pi-use pig` refuses any
+  version without a `+`, so the impostor cannot be flipped into place.
 
 ## Project trust
 
@@ -118,31 +144,28 @@ roots are stored as roots, never enumerated per project:
 | `~/src/lelapa` | checkout root — every repo under it |
 
 Anything narrower (a single repo that ships `.agents/skills`, say) is a *project*
-entry: make it interactively under pi, or seed it by hand, then mirror it into pig.
+entry: make it interactively under pi, or seed it by hand. It needs no mirroring
+anywhere — every variant reads the same file.
 
-Two stores, one policy: upstream pi and pi-bolt share `~/.pi/agent/trust.json`;
-pig reads `~/.pig/agent/trust.json` and **nothing seeds it**, so a `pi-use` flip
-re-asks every settled question. pig 1.4.0 has no prompt to ask with — its
-interactive branch is a stub, so a trust-requiring project dies at startup with
-`interactive project trust selection is not available yet` (`pi -p` resolves
-*untrusted* silently instead). Seed both stores:
+**One store, one policy.** Upstream pi, pi-bolt, and PiG (under
+`PIG_USE_PI_DIRS=1`) all read `~/.pi/agent/trust.json`, so a `pi-use` flip re-asks
+nothing and there is a single trust boundary to audit. Seed it:
 
 ```sh
 home=$(cd -P "$HOME" && pwd -P)   # a symlinked $HOME must not leak into the keys
-for s in ~/.pi/agent/trust.json ~/.pig/agent/trust.json; do
-    mkdir -p "${s%/*}"; [ -s "$s" ] || printf '{}\n' >"$s"
-    jq -S --arg home "$home" '. + {($home + "/src/personal"): true,
-        ($home + "/src/lelapa"): true}' "$s" >"$s.tmp" && mv "$s.tmp" "$s"
-done
+s=$HOME/.pi/agent/trust.json
+mkdir -p "${s%/*}"; [ -s "$s" ] || printf '{}\n' >"$s"
+jq -S --arg home "$home" '. + {($home + "/src/personal"): true,
+    ($home + "/src/lelapa"): true}' "$s" >"$s.tmp" && mv "$s.tmp" "$s"
 ```
 
 Keys are canonical absolute paths, and matching is exact: the resolver walks up
 from a canonicalised cwd comparing raw keys, so a non-canonical key trusts
-nothing. `check.sh` asserts the set in every store that exists, so changing this
-table means editing `_PI_TRUST_ENTRIES` in `check.sh` too. It is a security
-statement: under pi, anything cloned under a trusted prefix can load that
-project's settings and extensions. pig has no extension system, but trust still
-gates its project settings, skills, prompts, themes and MCP servers.
+nothing. `check.sh` asserts the set in the single store, so changing this table
+means editing `_PI_TRUST_ENTRIES` in `check.sh` too. It is a security statement:
+anything cloned under a trusted prefix can load that project's settings and
+extensions, and under PiG in shared mode that grant is exactly the same one —
+`PIG_USE_PI_DIRS=1` is a config switch, not a trust decision.
 
 ## Models
 

@@ -1,0 +1,66 @@
+{
+  "rulebook_version": 2,
+  "name": "dotfiles-rules",
+  "version": "1.0.0",
+  "description": "Project rules for this dotfiles repo: the layer-1 hook bypass (--no-verify), forced pushes, and forced adds. Matching is exact-token only, so 'git add -f secrets/' cannot be scoped to secrets/ and is blocked as a forced add.",
+  "author": "dotfiles",
+  "allowed_commands": ["git"],
+  "rules": [
+    {
+      "name": "block-commit-no-verify",
+      "command": "git",
+      "match": {
+        "command_path": ["commit"],
+        "any_args": ["--no-verify", "-n"]
+      },
+      "reason": "Skipping hooks bypasses the pre-commit secret scan. Fix the finding instead; the hook prints the pattern, never the value.",
+      "intent": "use_alternative"
+    },
+    {
+      "name": "block-push-force",
+      "command": "git",
+      "match": {
+        "command_path": ["push"],
+        "any_args": [
+          "--force",
+          "-f",
+          "--force-with-lease",
+          "--force-if-includes",
+          "--mirror"
+        ]
+      },
+      "reason": "A forced push rewrites published history and can destroy other clones' work. Ask the user; they run it in their own terminal.",
+      "intent": "manual_only"
+    },
+    {
+      "name": "block-add-force",
+      "command": "git",
+      "match": {
+        "command_path": ["add"],
+        "any_args": ["-f", "--force"]
+      },
+      "reason": "A forced add overrides .gitignore and is how a secret file gets staged. Add the ordinary path; secrets/ stays git-crypt'd, not bypassed.",
+      "intent": "use_alternative"
+    }
+  ],
+  "tests": [
+    {
+      "command": "git commit --no-verify -m wip",
+      "expect": "blocked",
+      "rule": "block-commit-no-verify"
+    },
+    { "command": "git commit -n", "expect": "blocked", "rule": "block-commit-no-verify" },
+    {
+      "command": "git push --force origin main",
+      "expect": "blocked",
+      "rule": "block-push-force"
+    },
+    { "command": "git push -f", "expect": "blocked", "rule": "block-push-force" },
+    { "command": "git add -f notes.txt", "expect": "blocked", "rule": "block-add-force" },
+    { "command": "git commit -F /tmp/msg", "expect": "allowed" },
+    { "command": "git commit -m 'fix: typo'", "expect": "allowed" },
+    { "command": "git push origin main", "expect": "allowed" },
+    { "command": "git add secrets/env.fish", "expect": "allowed" },
+    { "command": "git status", "expect": "allowed" }
+  ]
+}

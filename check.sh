@@ -512,6 +512,21 @@ check_has \
     'disown' \
     "$AGENT_CFG"
 
+# PiG reaches pi's state dir only through this one shell-local export, so it is
+# asserted as CONTENT rather than "a file exists": any other value (0, true, the
+# empty string) leaves PiG on its own ~/.pig/agent — different settings, an unseeded
+# trust store, and none of the extensions this repo ships — with nothing reporting
+# an error. Deliberately in conf.d/ and never in ~/.pi/agent/settings.json: settings
+# travel with the shared dir, so a value there would follow the rollback binary too.
+_PIG_CONFD="$DOTFILES/base/fish/.config/fish/conf.d/pig.fish"
+check "pig.fish: exactly one line, set -gx PIG_USE_PI_DIRS 1" \
+    bash -c 'test "$(grep -cE "^set -gx PIG_USE_PI_DIRS 1$" "$1")" = 1 &&
+             test "$(grep -cE "PIG_USE_PI_DIRS" "$1")" = 1' _ "$_PIG_CONFD"
+# conf.d/* is an ALLOWLIST in .gitignore, so the file is invisible (and never
+# committed) unless it is re-included — the trap that cost a conf.d/mise.fish.
+check_has "gitignore: conf.d/pig.fish is re-included (conf.d/* is an allowlist)" \
+    '^!base/fish/\.config/fish/conf\.d/pig\.fish$' "$DOTFILES/.gitignore"
+
 
 # =============================================================================
 # 6. TMUX CONFIG
@@ -790,6 +805,46 @@ check_has "mise: sesh managed by mise (ubi backend)" \
 
 check_has "mise: lf managed by mise (ubi backend)" \
     'ubi:gokcehan/lf' "$MISE_CFG"
+
+# ── PiG (the harness this repo provisions) ────────────────────────────────
+# PiG is the ONE harness mise owns, and unlike every neighbour it is pinned to an
+# exact version: an upgrade swaps the harness under the prompts this repo ships, so
+# the pin may only move in a reviewable commit paired with the pi-smoke /
+# PROMPT-EVAL pass (`agents-update` runs `mise upgrade --bump` and the diff IS the
+# review). `latest` here would move it silently on the next `mise upgrade`, which is
+# why the pin is matched as x.y.z specifically rather than as "a version string".
+_pig_table_block() {
+    awk '/^\[/ { tbl = ($0 == "[tools.\"ubi:MichaelKinsy/PiG\"]"); next }
+         tbl && !/^[[:space:]]*(#|$)/' "$MISE_CFG"
+}
+check_has "mise: PiG is declared as a ubi table entry" \
+    '^\[tools\."ubi:MichaelKinsy/PiG"\]$' "$MISE_CFG"
+# The entry's own assignment lines. A key written after a table header belongs to
+# THAT table in TOML, so this block is the whole entry — which is what makes the
+# assertions below precise (exe present, and nothing else nested in by accident).
+check_has "mise: the PiG pin is an exact x.y.z" \
+    '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' <(_pig_table_block)
+check_not "mise: the PiG pin never floats on latest" \
+    'latest' <(_pig_table_block)
+# `exe` is load-bearing, not cosmetic: ubi looks for an archive member matching the
+# repo name and PiG's release ships the binary as `pig`, so without it `mise install`
+# fails with "could not find any files matching [PiG*]".
+check_has "mise: the PiG entry names exe = pig (ubi cannot guess the archive member)" \
+    '^exe[[:space:]]*=[[:space:]]*"pig"$' <(_pig_table_block)
+check "mise: the PiG entry holds exactly version + exe (no key nested in it)" \
+    test "$(_pig_table_block | wc -l | tr -d ' ')" = 2
+check_not "mise: the PiG pin never reappears in the floating key form" \
+    '"ubi:MichaelKinsy/PiG"[[:space:]]*=[[:space:]]*"latest"' "$MISE_CFG"
+# gitleaks backs the publish guard (class c: a credential riding out inside a
+# `gh pr create --body`). The guard fails CLOSED when it cannot find a scanner, so
+# this declaration is what keeps every publish and web call from blocking — and the
+# DECLARATION SITE is what is asserted, not the string: a tool written under another
+# tool's table header is an unknown key on that tool, not a declared tool, so mise
+# would never install it while `grep` still found the line.
+check "mise: gitleaks is declared in [tools] (not nested in another tool's table)" \
+    bash -c 'awk "/^\[/ { table = \$0; next }
+        table == \"[tools]\" && /^\"aqua:gitleaks\/gitleaks\"[ \t]*=/ { found = 1 }
+        END { exit(found ? 0 : 1) }" "$1"' _ "$MISE_CFG"
 
 # navi cannot come from mise on macOS: aqua:denisidoro/navi publishes linux and
 # windows/amd64 only, so `mise install navi` fails outright on Apple Silicon. That
@@ -1369,8 +1424,29 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
     '\(\?:\^\|\\s\)' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
 
 # Regression guard for the guard layer itself. The unit tests verify that
-# infra-safety + /check mode correctly classify mutations vs. reads when the
-# shell arrives through the native tool (mutation-guard is now hypa-only).
+# infra-safety + /check mode correctly classify mutations vs. reads whichever
+# shell tool the session actually has: lib/mutation-guard.ts exports ONE
+# SHELL_TOOLS constant ("bash" + "hypa_shell") and both gates read it, so the
+# gate is neither hypa-only nor bash-only.
+#
+# A green `node --test` summary is not evidence: a suite whose cases all SKIP, or a
+# runner that counted nothing, still exits 0 while passing nothing. So the pass
+# count itself is pinned, and `# tests`/`# fail`/`# skipped` have to agree with it —
+# a case that silently stopped running cannot be laundered through a green summary.
+# Re-pin a count only when the test file gained cases deliberately.
+_TS_PIN_MUTATION_GUARD=29
+_TS_PIN_PUBLISH_SCAN=26
+_TS_PIN_PUBLISH_GUARD=15
+_ts_suite_count() {  # <test file in lib/> <expected pass count>
+    local file="$1" want="$2" out pass tests failed skipped
+    out=$(cd "$DOTFILES/base/pi/.pi/agent/extensions" \
+        && node --experimental-strip-types --test "lib/$file" 2>&1)
+    pass=$(printf '%s\n' "$out" | sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p')
+    tests=$(printf '%s\n' "$out" | sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p')
+    failed=$(printf '%s\n' "$out" | sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p')
+    skipped=$(printf '%s\n' "$out" | sed -n 's/^# skipped \([0-9][0-9]*\)$/\1/p')
+    [[ "$pass" == "$want" && "$tests" == "$want" && "$failed" == 0 && "$skipped" == 0 ]]
+}
 if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
     # The provider fallback is TEXT-driven because a pre-stream HTTP error never
     # produces after_provider_response: measured on opencode-go's subscription
@@ -1386,10 +1462,25 @@ if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
         'agent_before_settle' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
     check_has "pi: the provider hop can never loop on itself" \
         'entry.to === provider' "$DOTFILES/base/pi/.pi/agent/extensions/lib/provider-fallback.ts"
-    check "pi: mutation-guard tests pass" \
-        bash -c "cd '$DOTFILES/base/pi/.pi/agent/extensions' && node --experimental-strip-types --test lib/mutation-guard.test.ts"
+    check "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
+        _ts_suite_count mutation-guard.test.ts "$_TS_PIN_MUTATION_GUARD"
+    # L4's pure core: the publish decision (which calls publish, and whether the
+    # outgoing text carries a credential) is hermetic and separately counted, so a
+    # guard that stopped scanning or a suite that stopped running is visible.
+    check "pi: publish-scan suite passes $_TS_PIN_PUBLISH_SCAN/$_TS_PIN_PUBLISH_SCAN (count pinned)" \
+        _ts_suite_count publish-scan.test.ts "$_TS_PIN_PUBLISH_SCAN"
+    # L4's WIRING (handler, scanner process, fail-closed branches) is separately
+    # counted: the pure-core suite passing is not evidence that the hook blocks.
+    check "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
+        _ts_suite_count publish-guard.test.ts "$_TS_PIN_PUBLISH_GUARD"
 else
-    _skip "pi: mutation-guard tests pass" \
+    _skip "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+    _skip "pi: publish-scan suite passes $_TS_PIN_PUBLISH_SCAN/$_TS_PIN_PUBLISH_SCAN (count pinned)" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+    # Same gap, same reason: without this line the wiring suite vanished silently
+    # on every host whose node cannot strip types.
+    _skip "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
         "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
 fi
 
@@ -1658,8 +1749,11 @@ if missing:
 
 # Agents must request the hypa tools, not the builtins they replace: pi-hypa's
 # replace filter drops a builtin only when its hypa twin is in the SAME tool
-# list, so an agent asking for `bash` gets native bash — which the infra
-# write-gate and the /check classifier never see (both hook hypa_shell).
+# list, so an agent asking for `bash` gets native bash. That is still gated —
+# SHELL_TOOLS in lib/mutation-guard.ts lists "bash" and "hypa_shell", and the
+# infra write-gate, the /check classifier and the publish guard all read that one
+# list — but the hypa twin is what the rest of the stack (paths, truncation) is
+# written against, so the agent lists stay hypa-only.
 _native_agent_tools=$(grep -REn '^tools:.*(^|[^_a-z])(bash|read|grep|find|ls)([^_a-z]|$)' \
     "$DOTFILES"/base/pi/.pi/agent/agents/ 2>/dev/null || true)
 check "pi: agents request the hypa tools, not the replaced builtins" \
@@ -1912,6 +2006,23 @@ check "pi settings: the template's extensions list is exactly [-builtin:usage]" 
 # remove /usage under `pi-use pi`), and nothing else asserts it.
 check_has "pi settings: the usage package is still declared (canonical on both variants)" \
     'npm:@tmustier/pi-usage-extension' "$_PI_SETTINGS_TEMPLATE"
+# L3 (cc-safety-net) is a settings PACKAGE, so the template is what puts it on a host:
+# probe C measured that a declared `npm:` entry is auto-installed into <agent-dir>/npm,
+# which is why no installer step exists. Pinned to a full semver, and exactly one
+# entry: a floating range would move a safety layer without a reviewable diff, and a
+# second entry would be two versions of the same rules.
+check "pi settings: cc-safety-net is declared once, pinned to a full semver" \
+    python3 -c '
+import json, re, sys
+pkgs = json.load(open(sys.argv[1])).get("packages") or []
+hits = [p for p in pkgs if p.startswith("npm:cc-safety-net")]
+sys.exit(0 if len(hits) == 1 and re.fullmatch(r"npm:cc-safety-net@[0-9]+\.[0-9]+\.[0-9]+", hits[0]) else 1)
+' "$_PI_SETTINGS_TEMPLATE"
+# PIG_USE_PI_DIRS travels with the shared dir, so a value here would make the
+# ROLLBACK binary (upstream pi, and pi-bolt) carry a PiG-only key. It belongs in
+# conf.d/pig.fish, where it applies to the shell that launches either harness.
+check_not "pi settings: the template carries no PiG-only key (PIG_USE_PI_DIRS)" \
+    'PIG_USE_PI_DIRS' "$_PI_SETTINGS_TEMPLATE"
 check "pi settings: template is tracked by git" \
     git -C "$DOTFILES" ls-files --error-unmatch base/pi/.pi/agent/settings.desired.json
 # The migration must recognise stow's RELATIVE link (../../dotfiles/...): a raw
@@ -4415,8 +4526,30 @@ check_has "pi-use: accepts the installer layout (release tree beside the binary)
     'examples/extensions/subagent' "$_PI_USE"
 check_has "pi-use: bolt flip names the non-interactive installer" \
     'PIBOLT_YES=1' "$_PI_USE"
-check_not "pig: no longer provisioned (no mise go: entry for it)" \
-    'ZoroSpace/pig' "$MISE_CFG"
+# The OTHER Go rewrite that ships a binary called `pig` is tombstoned, not
+# provisioned. Its name is assembled here on purpose: the repo-wide scan two
+# checks down looks for the JOINED name, so an unsplit mention in this file would
+# make check.sh its own allowlist entry and the scan would prove nothing.
+# (Naming rule: docs/AGENT-SAFETY.md §7. "pig" here means MichaelKinsy/PiG.)
+_ZORO_IMPOSTOR='Zoro''Space'
+check_not "pig: never provisioned (no mise entry names the other Go rewrite)" \
+    "${_ZORO_IMPOSTOR}/pig" "$MISE_CFG"
+check_not "pig: bootstrap never installs the other Go rewrite" \
+    "${_ZORO_IMPOSTOR}/pig" "$DOTFILES/bootstrap.sh"
+# Repo-wide, so a NEW file cannot start depending on it: every mention has to sit
+# in one of the files that must name it — the naming rule (spec + gotchas), the
+# README section that tells a reader which project is meant, the one refusal that
+# quotes the discriminator, and TODO's open work. Anywhere else is a review event.
+check_has "naming: the spec carries the naming rule (impostor named once, by name)" \
+    "$_ZORO_IMPOSTOR" "$DOTFILES/docs/AGENT-SAFETY.md"
+check_has "naming: gotchas carry the one-command discriminator" \
+    "$_ZORO_IMPOSTOR" "$DOTFILES/docs/GOTCHAS.md"
+_ZORO_ALLOW="TODO.md base/pi/README.md base/pi/.local/bin/pi-use docs/AGENT-SAFETY.md docs/GOTCHAS.md"
+_zoro_hits=$(git -C "$DOTFILES" grep -l -- "$_ZORO_IMPOSTOR" 2>/dev/null || true)
+_zoro_extra=$(printf '%s\n' "$_zoro_hits" | grep -vxF "$(printf '%s\n' $_ZORO_ALLOW)" || true)
+[[ -n "$_zoro_extra" ]] && printf '      %s\n' "$_zoro_extra"
+check "pig: every mention of the impostor is inside the allowlist" \
+    test -z "$_zoro_extra"
 check_has "bootstrap: ensure_pi honours a deliberate pi-bolt flip" \
     'pi-variant' "$DOTFILES/bootstrap.sh"
 
@@ -4433,21 +4566,81 @@ if command -v pi-use >/dev/null 2>&1; then
     check "pi-use: stowed live at ~/.local/bin/pi-use" \
         bash -c '[[ "$(readlink -f "$HOME/.local/bin/pi-use")" == "$1" ]]' _ "$_PI_USE"
 
-    # Behavioural: flip to pig in a sandboxed HOME and require the link to name
-    # the resolved binary and to stay runnable. Fails on the pre-fix script,
-    # which wrote the literal target `pig` (dangling unless pig sits in
-    # ~/.local/bin). $0 is the script path, passed by check().
-    check "pi-use: pig flip links the resolved binary (sandbox HOME)" bash -c '
+    # Behavioural, on a fake binary — PiG's two preconditions ARE the contract.
+    # The link must carry the RESOLVED path (a mise/ubi install lives outside
+    # ~/.local/bin, so a relative `pig` target dangles and leaves `pi` unrunnable),
+    # stay runnable, and read back as pig through `current`. $0 is the script path,
+    # passed by check().
+    check "pi-use: pig flip links the resolved binary (PIG_USE_PI_DIRS=1)" bash -c '
+        tmp=$(cd "$(mktemp -d)" && pwd -P); trap "rm -rf \"$tmp\"" EXIT
+        mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
+        printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
+        printf "#!/bin/sh\necho 0.7.0+1.5.0\n" >"$tmp/toolbin/pig"
+        chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/toolbin/pig"
+        ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
+        HOME="$tmp" PATH="$tmp/toolbin:$PATH" PIG_USE_PI_DIRS=1 "$0" pig >/dev/null 2>&1 || exit 1
+        [ "$(readlink "$tmp/.local/bin/pi")" = "$tmp/toolbin/pig" ] || exit 2
+        [ -x "$tmp/.local/bin/pi" ] || exit 3
+        [ "$(cat "$tmp/.pi/agent/pi-variant" 2>/dev/null)" = pig ] || exit 4
+        [ "$(HOME="$tmp" PATH="$tmp/toolbin:$PATH" "$0" current)" = pig ] || exit 5
+    ' "$_PI_USE"
+
+    # A plain-file pig cannot catch a resolution regression: the reported path and the
+    # resolved path are identical, so linking the shim and linking the binary look the
+    # same. A shimmed pig is what mise actually produces, and the failure it hides is
+    # real — the link then only works while the owning shims dir is on PATH.
+    check "pi-use: pig flip resolves a symlinked shim (link never records the shim)" bash -c '
+        tmp=$(cd "$(mktemp -d)" && pwd -P); trap "rm -rf \"$tmp\"" EXIT
+        mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/shim" "$tmp/real/0.7.0/bin"
+        printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
+        printf "#!/bin/sh\necho 0.7.0+1.5.0\n" >"$tmp/real/0.7.0/bin/pig"
+        chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/real/0.7.0/bin/pig"
+        ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
+        ln -s ../real/0.7.0/bin/pig "$tmp/shim/pig"
+        HOME="$tmp" PATH="$tmp/shim:$PATH" PIG_USE_PI_DIRS=1 "$0" pig >/dev/null 2>&1 || exit 1
+        [ "$(readlink "$tmp/.local/bin/pi")" = "$tmp/real/0.7.0/bin/pig" ] || exit 2
+        [ -x "$tmp/.local/bin/pi" ] || exit 3
+        [ "$(PATH=/usr/bin:/bin "$tmp/.local/bin/pi" 2>/dev/null)" = 0.7.0+1.5.0 ] || exit 4
+        [ "$(HOME="$tmp" PATH=/usr/bin:/bin "$0" current)" = pig ] || exit 5
+    ' "$_PI_USE"
+
+    # Shared mode is the only supported posture and `1` is the only enabling value:
+    # anything else silently swaps ~/.pi/agent for ~/.pig/agent (settings, trust,
+    # every extension) with no error. Every refusal must leave the link AND the state
+    # file untouched — a half-done flip is worse than a refused one. `env -u` matters:
+    # the live shell exports the variable, so an inherited value would mask this.
+    check "pi-use: pig flip refused unless PIG_USE_PI_DIRS is exactly 1 (link+state untouched)" bash -c '
         tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT
         mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
         printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
-        printf "#!/bin/sh\necho pig 1.4.0\n" >"$tmp/toolbin/pig"
+        printf "#!/bin/sh\necho 0.7.0+1.5.0\n" >"$tmp/toolbin/pig"
         chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/toolbin/pig"
         ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
-        HOME="$tmp" PATH="$tmp/toolbin:$PATH" "$0" pig >/dev/null 2>&1 || exit 1
-        [ "$(readlink "$tmp/.local/bin/pi")" = "$tmp/toolbin/pig" ] || exit 2
-        [ -x "$tmp/.local/bin/pi" ] || exit 3
-        [ "$(HOME="$tmp" PATH="$tmp/toolbin:$PATH" "$0" current)" = pig ] || exit 4
+        for v in UNSET 0 true; do
+            if [ "$v" = UNSET ]; then
+                HOME="$tmp" PATH="$tmp/toolbin:$PATH" env -u PIG_USE_PI_DIRS "$0" pig >/dev/null 2>&1 && exit 1
+            else
+                HOME="$tmp" PATH="$tmp/toolbin:$PATH" PIG_USE_PI_DIRS="$v" "$0" pig >/dev/null 2>&1 && exit 1
+            fi
+            [ "$(readlink "$tmp/.local/bin/pi")" = "../../.pi/agent/bin/pi" ] || exit 2
+            [ ! -e "$tmp/.pi/agent/pi-variant" ] || exit 3
+        done
+    ' "$_PI_USE"
+
+    # The version string is the one discriminator a bin dir cannot fake: PiG prints
+    # <pig>+<pi>, the impostor a bare 1.5.0. Flipping that in drops infra-safety and
+    # the rest of the extension stack silently, so the refusal must name it.
+    check "pi-use: pig flip refuses a bare version (names the impostor, nothing changed)" bash -c '
+        tmp=$(mktemp -d); trap "rm -rf \"$tmp\"" EXIT
+        mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/toolbin"
+        printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
+        printf "#!/bin/sh\necho 1.5.0\n" >"$tmp/toolbin/pig"
+        chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/toolbin/pig"
+        ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
+        out=$(HOME="$tmp" PATH="$tmp/toolbin:$PATH" PIG_USE_PI_DIRS=1 "$0" pig 2>&1) && exit 1
+        printf "%s" "$out" | grep -q "Zoro""Space" || exit 2
+        [ "$(readlink "$tmp/.local/bin/pi")" = "../../.pi/agent/bin/pi" ] || exit 3
+        [ ! -e "$tmp/.pi/agent/pi-variant" ] || exit 4
     ' "$_PI_USE"
 
     check "pi-use: no drift between the recorded variant and the pi symlink" \
@@ -4468,11 +4661,36 @@ if command -v pi-use >/dev/null 2>&1; then
             bash -c 'pi-use status | grep -q "^aligned: pi"'
     fi
 
-    # pig is a rewrite with no extension system: the flip is allowed, but the
-    # command must say so every time it happens. Assert the warning exists
-    # rather than trusting prose to survive an edit.
-    check_has "pi-use: the pig variant warns that no extensions load (safety gate)" \
-        'infra-safety' "$_PI_USE"
+    # PiG hosts Pi's own TS extensions in a Node child process, so the flip is safe
+    # only in shared mode: the gate is asserted as the CONDITION pi-use tests, not as
+    # prose about it. This replaces the old "no extension system" warning, which
+    # described the impostor rather than the binary this target installs.
+    check_has "pi-use: the pig flip is gated on the exact value PIG_USE_PI_DIRS=1" \
+        'PIG_USE_PI_DIRS:-}"[[:space:]]*=[[:space:]]*1' "$_PI_USE"
+
+    # Host probe for the binary itself: the two facts every assertion above assumes.
+    # A bare `1.5.0` here means an impostor is on PATH, and `~/.pig/agent` means some
+    # session ran unshared — both are the failure this whole section guards.
+    if command -v pig >/dev/null 2>&1; then
+        check "pig: PIG_VERSION_FORMAT=pi prints a bare pi version (base pin readable)" \
+            bash -c 'env PIG_VERSION_FORMAT=pi pig --version 2>/dev/null | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"'
+        check "pig: plain --version is <pig>+<pi> (this is PiG, not the impostor)" \
+            bash -c 'env -u PIG_VERSION_FORMAT pig --version 2>/dev/null | grep -q "+"'
+        check "pig: no unshared state dir (~/.pig/agent means shared mode never ran)" \
+            test ! -e "$HOME/.pig/agent"
+        # The export is the shell's half of shared mode, so it is read through a real
+        # login shell rather than by grepping the file the fish section already pins.
+        if [ -e "$HOME/.config/fish/conf.d/pig.fish" ]; then
+            check "pig: a login fish exports PIG_USE_PI_DIRS=1 (shared mode is live)" \
+                bash -c 'env -i HOME="$HOME" PATH="$PATH" TERM=dumb fish -l -c "test \"\$PIG_USE_PI_DIRS\" = 1"'
+        else
+            _skip "pig: a login fish exports PIG_USE_PI_DIRS=1 (shared mode is live)" \
+                "conf.d/pig.fish is not stowed yet (stow --no-folding -d base -t ~ fish)"
+        fi
+    else
+        _skip "pig: shared-mode host probes (version shapes, no ~/.pig/agent, shell export)" \
+            "pig is not installed on this host (mise install; the pin is ubi:MichaelKinsy/PiG)"
+    fi
 
     if [ -e "$HOME/.local/bin/pi-bolt" ]; then
         # Two supported shapes: the curl installer's release tree (which is what
@@ -4483,39 +4701,33 @@ if command -v pi-use >/dev/null 2>&1; then
     fi
 fi
 
-# ── pi trust: the deliberate entries, in EVERY variant's store ──────────────
+# ── pi trust: the deliberate entries, in the ONE store every variant reads ──
 # A trust store is a flat {"/abs/path": true|false}; resolution walks UP from
 # the cwd to the nearest key, so a PREFIX key covers every repo beneath it —
 # present and future — which is why the checkout roots are stored as roots and
-# never enumerated per project. Both stores must carry the same set: pi and
-# pi-bolt share ~/.pi/agent/trust.json, but pig reads ~/.pig/agent/trust.json
-# and NOTHING seeds it, so a pi-use flip re-asks settled questions (and pig
-# 1.4.0 has no prompt to ask with: it errors at startup in a trust-requiring
-# project). Assert on every store that EXISTS — CI and a fresh host have
-# neither, and a host without pig has no ~/.pig at all.
+# never enumerated per project. There is exactly ONE store: under
+# PIG_USE_PI_DIRS=1 PiG reads ~/.pi/agent/trust.json, the same file pi and pi-bolt
+# read, so a second store would only describe the unshared mode `pi-use` refuses to
+# flip into. Assert on it when it exists — CI and a fresh host have none.
 _PI_TRUST_ENTRIES="personal lelapa"   # prefix roots only — see README → Project trust
-_PI_TRUST_STORES=("$HOME/.pi/agent/trust.json:pi|pi-bolt" "$HOME/.pig/agent/trust.json:pig")
-for _trust_entry in "${_PI_TRUST_STORES[@]}"; do
-    _trust_store=${_trust_entry%%:*}
-    _trust_variant=${_trust_entry##*:}
-    if [ -e "$_trust_store" ]; then
-        check "pi trust: $_trust_variant store trusts the source roots" \
-            python3 -c '
+_PI_TRUST_STORE="$HOME/.pi/agent/trust.json"
+if [ -e "$_PI_TRUST_STORE" ]; then
+    check "pi trust: the shared store trusts the source roots (pi|pi-bolt|PiG)" \
+        python3 -c '
 import json, os, sys
 store, home, entries = sys.argv[1], sys.argv[2], sys.argv[3].split()
 want = {os.path.realpath(os.path.join(home, "src", e)) for e in entries}
-# Keys are compared RAW on purpose: pig/pi match a CANONICALISED cwd against the
-# stored key, so a non-canonical key (e.g. written through a symlinked $HOME)
+# Keys are compared RAW on purpose: PiG and pi match a CANONICALISED cwd against
+# the stored key, so a non-canonical key (e.g. written through a symlinked $HOME)
 # trusts nothing — realpath-ing the keys here would hide exactly that drift.
 with open(store) as fh:
     have = {k for k, v in json.load(fh).items() if v is True}
 sys.exit(0 if want <= have else 1)
-' "$_trust_store" "$HOME" "$_PI_TRUST_ENTRIES"
-    else
-        _skip "pi trust: $_trust_variant store trusts the source roots" \
-            "no trust store (fresh host / variant not installed)"
-    fi
-done
+' "$_PI_TRUST_STORE" "$HOME" "$_PI_TRUST_ENTRIES"
+else
+    _skip "pi trust: the shared store trusts the source roots (pi|pi-bolt|PiG)" \
+        "no ~/.pi/agent/trust.json (fresh host / pi state not initialised)"
+fi
 
 # ── Claude Code installation method ──────────────────────────────────────────
 # Same ownership rule as pi, for the same reasons (AGENTS.md): claude is NOT
@@ -4559,6 +4771,205 @@ else
         "claude not installed on this machine"
 fi
 
+# ── Agent safety layers ─────────────────────────────────────────────────────
+# docs/AGENT-SAFETY.md is the contract: each layer names the file that makes it real,
+# and this section asserts those files exist and behave. A layer whose file never
+# landed is red here, never believed — a spec that describes intent as fact is how
+# the next session inherits a hole it thinks is covered.
+section "Agent safety layers (docs/AGENT-SAFETY.md)"
+
+_SAFETY_SPEC="$DOTFILES/docs/AGENT-SAFETY.md"
+_EXT="$DOTFILES/base/pi/.pi/agent/extensions"
+
+check "safety: the spec exists (every layer row cites a file in it)" \
+    test -f "$_SAFETY_SPEC"
+check_has "safety: the spec carries its dated verification log" \
+    'Verification log \(2026-11-16\)' "$_SAFETY_SPEC"
+# Open questions are NOT accepted costs: the pwt forwarding question has two
+# defensible answers and must stay visible until the owner decides.
+check_has "safety: the spec keeps an open-questions section (not an accepted cost)" \
+    'Open policy questions' "$_SAFETY_SPEC"
+check_has "safety: the spec records the measured bypass (probeA.sh, residual 5)" \
+    'probeA\.sh' "$_SAFETY_SPEC"
+# Session-scoped working notes are host-local scratch (.pi/plans is gitignored, never
+# committed) and must never be cited by the contract: a stale plan reads as ground
+# truth to the next session, which is what the capture tiers exist to prevent.
+check_not "safety: the contract cites no host-local plan (.pi/plans is scratch)" \
+    '\.pi/plans' "$_SAFETY_SPEC"
+
+# L2 — the infra write gate. One shell-tool list drives both gates, so a session
+# whose shell arrives as `bash` (any harness without pi-hypa's replace mode) is gated
+# too; a hook that hard-codes hypa_shell leaves it decorative there.
+check_has "safety: L2 exports SHELL_TOOLS (one list, both gates)" \
+    '^export const SHELL_TOOLS' "$_EXT/lib/mutation-guard.ts"
+_sh_only=$(grep -rlE 'isToolCallEventType\([[:space:]]*["'"'"']hypa_shell' \
+    "$_EXT"/*.ts "$_EXT"/modes/*.ts 2>/dev/null || true)
+[[ -n "$_sh_only" ]] && printf '      %s\n' "$_sh_only"
+check "safety: L2 gates no tool name only (no hook hard-codes hypa_shell)" \
+    test -z "$_sh_only"
+# 4e: a script body is inspected, not its filename — `sh /tmp/probeA.sh` was the
+# measured bypass, and an unreadable/oversize body classifies as unknown (blocked).
+check_has "safety: L2 inspects shell script bodies (expandScripts, 4e)" \
+    '^export function expandScripts' "$_EXT/lib/classify.ts"
+
+# L4 — the publish guard. The message names the rule or the variable and never the
+# matched value; that is the whole point, because the value is already in context.
+check_has "safety: L4 block template names the rule, never the matched value" \
+    'publish-guard: blocked — outgoing text matches' "$_EXT/lib/publish-scan.ts"
+check_has "safety: L4 asks the scanner to redact its own report" \
+    '"--redact"' "$_EXT/publish-guard.ts"
+check_has "safety: L4 hooks the web tools (their arguments leave the host)" \
+    'fetch_content' "$_EXT/publish-guard.ts"
+# The identifier corpus (secrets/leak-patterns) belongs to .githooks/pre-commit and
+# the leak-patterns scan above: it names internal hosts and customer identifiers, not
+# credential shapes, so L4 must not quietly become a second owner of it.
+check_not "safety: L4 does not borrow the pre-commit identifier corpus" \
+    'leak-patterns' "$_EXT/publish-guard.ts"
+check_not "safety: L4's pure core does not borrow the identifier corpus either" \
+    'leak-patterns' "$_EXT/lib/publish-scan.ts"
+
+# L3 — cc-safety-net. Its config and rules are STOWED from base/cc-safety-net so an
+# edit is a reviewable diff, and its rulebooks are pinned to a commit: a floating
+# `#main` means the rules that run are whatever upstream pushed that morning.
+_CCSN_BASE="$DOTFILES/base/cc-safety-net/.cc-safety-net"
+_CCSN_RULE="$_CCSN_BASE/rules/rule.json"
+_CCSN_PROJ="$DOTFILES/.cc-safety-net/rules/rule.json"
+_CCSN_BOOK="$DOTFILES/.cc-safety-net/rules/dotfiles-rules/rulebook.json"
+check "safety: L3 user config ships in base/cc-safety-net (stowed, reviewable)" \
+    test -f "$_CCSN_RULE"
+# Probe B: shell tools are declarable, so no adapter is needed to put pi-hypa's shell
+# tool under L3 — but only the DECLARED ones are covered, which is why it is asserted.
+check_has "safety: L3 declares the hypa shell tool (probe B)" \
+    '"hypa_shell"' "$_CCSN_RULE"
+check_not "safety: L3 pins its rulebooks (no floating #main/#master/#HEAD)" \
+    '#\((main|master|HEAD)\)' "$_CCSN_RULE"
+check_not "safety: L3 project rules pin their rulebook too" \
+    '#\((main|master|HEAD)\)' "$_CCSN_PROJ"
+check "safety: every L3 rulebook ref is pinned to a 40-hex commit" \
+    python3 -c "
+import json, re, sys
+bad = []
+for path in sys.argv[1:]:
+    try:
+        refs = json.load(open(path)).get('rules', [])
+    except Exception as exc:
+        bad.append('%s: %s' % (path, exc))
+        continue
+    for ref in refs:
+        if '#' in ref and not re.search(r'#[0-9a-f]{40}/[a-z0-9-]+\$', ref):
+            bad.append('%s: %s' % (path, ref))
+if bad:
+    sys.stderr.write('\n'.join(bad))
+sys.exit(1 if bad else 0)
+" "$_CCSN_RULE" "$_CCSN_PROJ"
+# Step 3's project rules (the L1 --no-verify bypass, forced pushes, forced adds) are
+# only useful if they are shown to block, and only trustworthy if they also show what
+# they let through — a rulebook of deny-everything passes half of this fixture.
+check "safety: the project rulebook carries fixtures for every rule (+ an allow case)" \
+    python3 -c "
+import json, sys
+d = json.load(open(sys.argv[1]))
+rules = {r.get('name') for r in d.get('rules', [])}
+tests = d.get('tests', [])
+blocked = {t.get('rule') for t in tests if t.get('expect') == 'blocked'}
+allows = [t for t in tests if t.get('expect') == 'allowed']
+missing = rules - blocked
+if missing:
+    sys.stderr.write('no blocked fixture for: %s\n' % ', '.join(sorted(missing)))
+sys.exit(0 if rules and not missing and allows else 1)
+" "$_CCSN_BOOK"
+
+# Host half of L3, skipped where the layer is not installed/stowed (CI, a fresh host).
+# The package is declared in the settings template, so a host that dropped it has L3
+# gone silently — the one failure mode the spec names for this layer.
+_CCSN_LIVE="$HOME/.cc-safety-net"
+_CCSN_PIN=$(python3 -c "
+import json, sys
+for p in json.load(open(sys.argv[1])).get('packages', []):
+    if p.startswith('npm:cc-safety-net'):
+        print(p); break
+" "$DOTFILES/base/pi/.pi/agent/settings.desired.json")
+# Run whenever ANY of the two files is already a stow link: that is the difference
+# between "not installed on this host" (skip, with the reason) and a half-stowed
+# tree, where the second file is cc-safety-net's own copy and rule edits stop being
+# visible to git — a drift this check must catch, not skip.
+if [ -L "$_CCSN_LIVE/rules/rule.json" ] || [ -L "$_CCSN_LIVE/policy.json" ]; then
+    check "safety: the live L3 config is the stow link into base/cc-safety-net" \
+        bash -c 'for f in policy.json rules/rule.json; do
+            l="$1/$f"
+            [ -L "$l" ] || exit 1
+            [ "$(readlink -f "$l")" = "$2/$f" ] || exit 1
+        done' _ "$_CCSN_LIVE" "$_CCSN_BASE"
+    # Probe C: a declared `npm:` package is auto-installed into <agent-dir>/npm. The
+    # pin is only real if the INSTALLED copy matches it, or L3 runs older rules than
+    # the file this repo asserts.
+    _CCSN_INSTALLED=""
+    for _cand in "$HOME"/.pi/agent/npm/node_modules/cc-safety-net "$HOME"/.pi/agent/npm/cc-safety-net; do
+        [ -f "$_cand/package.json" ] && { _CCSN_INSTALLED="$_cand"; break; }
+    done
+    if [ -n "$_CCSN_INSTALLED" ]; then
+        check "safety: the installed cc-safety-net matches the pinned version" \
+            python3 -c "
+import json, re, sys
+pin = re.fullmatch(r'npm:cc-safety-net@([0-9]+\.[0-9]+\.[0-9]+)', sys.argv[1])
+installed = json.load(open(sys.argv[2])).get('version')
+sys.exit(0 if pin and installed == pin.group(1) else 1)
+" "$_CCSN_PIN" "$_CCSN_INSTALLED/package.json"
+        # Probe A, as a library call rather than a session: the layer must deny the
+        # one destructive verb it is trusted for and must not deny an ordinary read
+        # (deny-by-default would be a different product, and unusable).
+        check "safety: L3 library denies 'git reset --hard' and allows 'ls'" \
+            node --input-type=module -e '
+import { pathToFileURL } from "node:url";
+const { checkCommand } = await import(pathToFileURL(`${process.argv[1]}/dist/api.js`).href);
+const deny = checkCommand({ command: "git reset --hard", cwd: process.env.HOME });
+const allow = checkCommand({ command: "ls", cwd: process.env.HOME });
+process.exit(deny.kind === "deny" && allow.kind === "allow" ? 0 : 1);
+' "$_CCSN_INSTALLED"
+    else
+        _skip "safety: the installed cc-safety-net matches the pinned version" \
+            "no installed copy under ~/.pi/agent/npm (pi install it from the settings package)"
+        _skip "safety: L3 library denies 'git reset --hard' and allows 'ls'" \
+            "cc-safety-net is not installed under ~/.pi/agent/npm"
+    fi
+else
+    _skip "safety: the live L3 config is the stow link into base/cc-safety-net" \
+        "base/cc-safety-net is not stowed on this host (stow --restow --no-folding -d base -t ~ cc-safety-net)"
+    _skip "safety: the installed cc-safety-net matches the pinned version" \
+        "L3 config is not stowed, so the layer is not installed on this host"
+    _skip "safety: L3 library denies 'git reset --hard' and allows 'ls'" \
+        "L3 config is not stowed, so the layer is not installed on this host"
+fi
+
+# L0 — no credential is exported at shell startup. Two halves, because either alone is
+# a prose pin: (a) the static guarantee that `source secrets/env.fish` never comes back
+# into a STARTUP file, and (b) a behavioural probe that a clean login shell exports
+# none of the names that file defines (printed names only, never values).
+check_not "safety: L0 — config.fish never sources the secrets file at startup" \
+    '^[[:space:]]*[^#]*source[[:space:]]+[^ ]*secrets/env\.fish' "$FISH_CFG"
+_l0_confd=$(grep -lE '^[[:space:]]*[^#]*source[[:space:]]+[^ ]*secrets/env\.fish' \
+    "$DOTFILES"/base/fish/.config/fish/conf.d/*.fish 2>/dev/null || true)
+[[ -n "$_l0_confd" ]] && printf '      %s\n' "$_l0_confd"
+check "safety: L0 — no conf.d file sources the secrets file at startup" \
+    test -z "$_l0_confd"
+_L0_SECRETS="$DOTFILES/secrets/env.fish"
+if [ ! -r "$_L0_SECRETS" ] || head -c 16 "$_L0_SECRETS" 2>/dev/null | grep -aq GITCRYPT; then
+    _skip "safety: L0 — a clean login shell exports no secret name" \
+        "secrets/env.fish is locked/absent (git-crypt unlock runs the behavioural probe)"
+elif ! command -v fish >/dev/null 2>&1; then
+    _skip "safety: L0 — a clean login shell exports no secret name" \
+        "fish is not installed on this host"
+else
+    check "safety: L0 — a clean login shell exports no secret name" bash -c '
+        names=$(sed -nE "s/^[[:space:]]*set[[:space:]]+-[A-Za-z]*x[A-Za-z]*[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\1/p" "$1" | sort -u)
+        [ -n "$names" ] || exit 1
+        exported=$(env -i HOME="$HOME" PATH="$PATH" TERM=dumb fish -l -c env 2>/dev/null \
+            | sed -n "s/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p")
+        leak=$(printf "%s\n" "$exported" | grep -xF "$names" || true)
+        [ -z "$leak" ] || { printf "      exported at startup: %s\n" "$leak" >&2; exit 1; }
+    ' _ "$_L0_SECRETS"
+fi
+
 # ── Agent upgrade routine (deliberate) ───────────────────────────────────────
 # pi and claude install themselves (sections above), but bootstrap must NOT
 # upgrade them.  An upgrade swaps the harness under the prompts this repo ships,
@@ -4598,7 +5009,14 @@ check_has "agents-update: updates pi via its own updater" \
     'pi update --self' "$_AGENTS_UPDATE"
 check_has "agents-update: updates Claude Code via its own updater" \
     'claude update' "$_AGENTS_UPDATE"
-check_has "agents-update: refuses to self-update under pig only (bolt self-updates)" \
+# PiG has no `update` subcommand, so mise is its only updater and `--bump` is what
+# rewrites the pinned line in the (tracked, stowed) config.toml — the version move
+# arrives as a reviewable diff instead of floating with every `mise upgrade`. The
+# old refusal (`test "$variant" = pig`) is gone because it is no longer true of the
+# target: under PiG `pi` IS the harness mise just bumped.
+check_has "agents-update: bumps the PiG pin through mise (--bump, the reviewable diff)" \
+    "mise upgrade --bump 'ubi:MichaelKinsy/PiG'" "$_AGENTS_UPDATE"
+check_not "agents-update: the old 'refuses to self-update under pig' branch is gone" \
     'test "\$variant" = pig' "$_AGENTS_UPDATE"
 check_not "agents-update: no vendored pin left to compare" \
     '@ pi ' "$_AGENTS_UPDATE"

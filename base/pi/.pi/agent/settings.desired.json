@@ -32,7 +32,8 @@
     "npm:pi-claude-bridge",
     "npm:@hypabolic/pi-hypa",
     "npm:pi-web-access",
-    "npm:@tmustier/pi-usage-extension"
+    "npm:@tmustier/pi-usage-extension",
+    "npm:cc-safety-net@2.7.14"
   ],
   "theme": "dark"
 }

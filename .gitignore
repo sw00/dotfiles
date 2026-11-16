@@ -14,7 +14,7 @@ vim/.netrwhist
 # — it is a repo artifact, not config. Patterns are anchored at base/fish/; a
 # negation cannot re-include a file whose PARENT dir is excluded, hence
 # `functions/*` rather than `functions/`.
-# Tracked: config.fish, fish_plugins, conf.d/{ssh-agent,ssh-locale,wsl,mise}.fish,
+# Tracked: config.fish, fish_plugins, conf.d/{ssh-agent,ssh-locale,wsl,mise,pig}.fish,
 #          functions/{tt,pi-prune-sessions,pi-settings-apply,pwt,agents-update,
 #          git-prune-merged}.fish, completions/pwt.fish
 # A NEW own-file is invisible until it is negated below — check.sh asserts one
@@ -33,6 +33,7 @@ base/fish/.config/fish/conf.d/*
 !base/fish/.config/fish/conf.d/ssh-agent.fish
 !base/fish/.config/fish/conf.d/ssh-locale.fish
 !base/fish/.config/fish/conf.d/mise.fish
+!base/fish/.config/fish/conf.d/pig.fish
 # pi session captures (transient, machine-local)
 pi-session-*.html
 

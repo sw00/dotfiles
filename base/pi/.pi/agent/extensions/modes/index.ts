@@ -21,8 +21,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
-import { getGuards } from "../lib/mutation-guard.ts";
+import { getGuards, isShellCall } from "../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 
@@ -47,7 +46,7 @@ const SIMPLE_READ = new Set([
   "basename", "dirname", "realpath", "readlink", "echo", "printf", "seq", "test", "true", "false",
   // system info
   "df", "free", "ps", "top", "htop", "env", "printenv", "id", "whoami", "uname", "date", "uptime",
-  "hostname", "which", "whereis", "man", "lscpu", "lsmem", "lsblk", "lsusb", "lspci", "vmstat",
+  "hostname", "which", "type", "whereis", "man", "lscpu", "lsmem", "lsblk", "lsusb", "lspci", "vmstat",
   "iostat", "nproc", "getent", "journalctl",
   // network reads
   "ping", "dig", "nslookup", "host", "traceroute", "ss", "netstat", "ifconfig",
@@ -114,6 +113,9 @@ function checkBashAllowed(command: string): string | null {
 
     const tokens = stripped.split(/\s+/);
     const cmd = tokens[0];
+    // `command -v <cli>` / `command -V <cli>` only look the name up; they never
+    // run it. (`command <cli>` does run it, so it stays un-allowlisted.)
+    if (cmd === "command" && (tokens[1] === "-v" || tokens[1] === "-V")) continue;
     if (guarded.has(cmd)) continue; // already vetted by the domain guard above
     if (SIMPLE_READ.has(cmd)) continue;
 
@@ -225,11 +227,12 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  // read-only shell gate (check mode only): pi-hypa replace mode disables
-  // the native bash tool; all shell commands arrive as hypa_shell.
+  // read-only shell gate (check mode only): gates every tool that delivers a
+  // shell command (SHELL_TOOLS — hypa_shell under pi-hypa, bash wherever the
+  // harness still exposes it).
   pi.on("tool_call", async (event) => {
     if (mode !== "check") return;
-    if (!isToolCallEventType("hypa_shell", event)) return;
+    if (!isShellCall(event)) return;
     const command = event.input.command;
     const reason = checkBashAllowed(command);
     if (reason) return { block: true, reason };

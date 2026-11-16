@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "rules": [
+    "dotfiles-rules"
+  ],
+  "overrides": {},
+  "transparent_wrappers": []
+}

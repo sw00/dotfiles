@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "rules": [
+    "cc-safety-net/rulebooks#d1fc329f00f1c8068f0ce57a855508043981f7c7/terraform",
+    "cc-safety-net/rulebooks#d1fc329f00f1c8068f0ce57a855508043981f7c7/aws",
+    "cc-safety-net/rulebooks#d1fc329f00f1c8068f0ce57a855508043981f7c7/gcloud",
+    "cc-safety-net/rulebooks#d1fc329f00f1c8068f0ce57a855508043981f7c7/azure"
+  ],
+  "overrides": {},
+  "transparent_wrappers": [],
+  "command_tools": [
+    "hypa_shell"
+  ]
+}

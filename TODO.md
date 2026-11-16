@@ -14,13 +14,25 @@ removed — full implementation history lives in git. Shared-core behavior
   `sudo -v` aborts, AGENTS.md) → `pi-use status` → `pi -p --no-session "Reply OK"`
   → `bash check.sh` again.
   x13yg2 has **recorded** the pig variant (`~/.pi/agent/pi-variant`), which
-  bootstrap deliberately leaves alone — it needs an explicit `pi-use bolt`
-  before or after bootstrap. Found the hard way on 2026-11-13: a "why do tool
-  rows look different on x13yg2" hunt went through pi version/theme/tmux/
-  Alacritty before anyone checked which BINARY was running. pig reports `1.4.0`
-  (the pi version it aligns to, not a pi build) and shares no renderer with pi,
-  so any styling or behavioural difference between hosts is a variant question
-  first: run `pi-use status` there before diagnosing the difference as config.
+  bootstrap deliberately leaves alone — and the binary behind that link is the
+  *other* Go rewrite, **`ZoroSpace/pig`** (bare version; it reports `1.4.0`
+  there). It has **no extension system** (`-e file.ts` validates the path, then
+  runs nothing), so that host has been running without `infra-safety` and the
+  rest of the stack. Two steps, in this order:
+  1. `pi-use bolt` (or `pi-use pi`) — the flip is what matters; it is recorded
+     back in `~/.pi/agent/pi-variant`, so bootstrap can no longer reset it.
+  2. Remove the go-installed impostor so `pi-use pig` can only ever find the real
+     one: `rm "$(command -v pig)"` (i.e. `~/go/bin/pig`), then `mise uninstall go`
+     if nothing else needs the toolchain. Verify with
+     `env -u PIG_VERSION_FORMAT pig --version` → it must be **not found** (or
+     print `<pig>+<pi>`, once PiG is provisioned).
+  The eventual flip target on every host is **PiG** (`MichaelKinsy/PiG`, shared
+  `~/.pi/agent` via `PIG_USE_PI_DIRS=1`), never the binary that is there now. A
+  bare `1.4.0`/`1.5.0` is how you tell them apart, and it is also why a "why do
+  tool rows look different on x13yg2" hunt went through pi version/theme/tmux/
+  Alacritty before anyone checked which BINARY was running: any styling or
+  behavioural difference between hosts is a variant question first — run
+  `pi-use status` there before diagnosing the difference as config.
 - [x] **Re-baselined the prompt eval under bolt (2026-11-05).** Table +
   readings are in `docs/PROMPT-EVAL.md`; both resume mechanisms (`-c` and
   `--session-id`, i.e. `pwt` pins) verified across the 1.4.0/1.5.0 skew. Left
@@ -29,7 +41,9 @@ removed — full implementation history lives in git. Shared-core behavior
 - [x] **Delete the leftover pig state on mbpm3 — DONE (verified 2026-11-06).**
   `~/.pig-removed-20261105` no longer exists and no pig state remains anywhere in
   `$HOME`; the mise `go:` toolchain and pig install were uninstalled earlier. Nothing
-  references it (`pi-use status` reports the bolt variant).
+  references it (`pi-use status` reports the bolt variant). That was **ZoroSpace/pig**
+  state — the binary it removed was the impostor, not PiG. `~/.pig` itself is PiG's
+  SDK/Piglet cache and is never "cleaned up" as duplicate config (GOTCHAS §pi).
 - [ ] **`secrets/env.fish` is uncommitted** (git-crypt'd, 930→1143 bytes): left
   for the owner to review and commit with the repo unlocked. Never bundle it with
   code commits.

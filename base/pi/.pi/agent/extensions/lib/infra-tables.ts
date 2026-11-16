@@ -69,13 +69,69 @@ export const AWS: ToolConfig = {
   ]),
   // Interactive shells / sessions into live resources: arbitrary code
   // execution, so treat like kubectl exec (always extra-strength confirm).
-  highRisk: new Set(["start-session", "execute-command", "ssh"]),
+  // The credential-disclosing verbs belong here for the same reason: they hand
+  // over material, not metadata (see secretNouns + classify.disclosesSecret).
+  highRisk: new Set([
+    "start-session", "execute-command", "ssh",
+    // Secrets Manager / ECR / STS / KMS — verb reads, material out
+    "get-secret-value", "batch-get-secret-value",
+    "get-login-password", "get-authorization-token", "decrypt",
+    // STS session/federation tokens: a credential by definition.
+    "get-session-token", "get-federation-token", "assume-role-with-saml",
+    // EKS bearer token for the cluster API.
+    "get-token",
+    // Parameter Store: the plural form hands back stored values in one call.
+    // The singular form is flag-gated below (it returns ciphertext unless
+    // --with-decryption is given) so ordinary config reads stay read-only.
+    "get-parameters",
+  ]),
+  // Read verbs that disclose material only with the flag that asks for it.
+  highRiskFlags: [
+    { verb: "get-parameter", flags: ["--with-decryption"] },
+  ],
+  // Nouns whose content is a credential. A read verb aimed at one of these is
+  // high-risk even when the verb's root sits in the read set.
+  //
+  // The secretsmanager SERVICE NAME is deliberately NOT here: it is on every
+  // aws secretsmanager command line, so listing it made metadata reads
+  // (`describe-secret`, `list-secret-version-ids`) high-risk. What hands out
+  // material is the verb, and those verbs sit in highRisk above.
+  secretNouns: new Set([
+    "secret", "secrets",
+    // `aws configure get <key>` prints the stored credential itself.
+    "aws_secret_access_key", "aws_session_token",
+  ]),
 };
 
 // az and gcloud follow the same "verb anywhere" grammar as aws, and in
-// practice the same verb vocabulary classifies them well too.
-export const AZ: ToolConfig = { ...AWS, names: ["az"] };
-export const GCLOUD: ToolConfig = { ...AWS, names: ["gcloud"] };
+// practice the same verb vocabulary classifies them well too. They get their
+// OWN Set objects: `{ ...AWS }` shared AWS's mutation/read/highRisk instances,
+// so any per-CLI addition silently rewrote aws's tables as well.
+export const AZ: ToolConfig = {
+  names: ["az"],
+  verbPosition: "any",
+  mutation: new Set(AWS.mutation),
+  read: new Set(AWS.read),
+  // Azure's credential endpoint: `az account get-access-token` hands out a
+  // bearer token, so it is high-risk, not a read.
+  highRisk: new Set([...AWS.highRisk!, "get-access-token"]),
+  // `az keyvault secret show` returns the material; `secret list` does not
+  // (list is excluded by ENUMERATION_VERBS in classify.ts).
+  secretNouns: new Set(["secret", "secrets"]),
+};
+
+export const GCLOUD: ToolConfig = {
+  names: ["gcloud"],
+  verbPosition: "any",
+  mutation: new Set(AWS.mutation),
+  read: new Set(AWS.read),
+  // `gcloud auth print-access-token` / `print-identity-token` and
+  // `gcloud secrets versions access` all return credentials. These are matched
+  // as WHOLE verbs (see isHighRiskVerb): `access` must not swallow
+  // `access-context-manager policies list`, a plain read.
+  highRisk: new Set([...AWS.highRisk!, "access", "print-access-token", "print-identity-token"]),
+  secretNouns: new Set(["secret", "secrets"]),
+};
 
 // ── kubectl ──────────────────────────────────────────────────────
 // Verb is (almost) always the first token: `kubectl <verb> ...`. The
@@ -114,6 +170,17 @@ export const KUBECTL: ToolConfig = {
   // Not "mutations" in the CRUD sense — arbitrary code execution, file
   // transfer, or network tunnels into a live container. Always confirm.
   highRisk: new Set(["exec", "cp", "port-forward", "proxy", "attach", "debug"]),
+  // `config view --raw` prints the kubeconfig verbatim — client key material
+  // included; plain `config view` renders it redacted and stays a read.
+  highRiskFlags: [{ verb: "config view", flags: ["--raw"] }],
+  // A Secret's data is base64, not encryption: `kubectl get secret … -o yaml`
+  // reveals it. Enumeration (`get secrets`) is caught by the same rule; `get
+  // pods` carries no secret noun and stays read-only.
+  secretNouns: new Set(["secret", "secrets"]),
+  // `kubectl describe secret` prints the DATA KEYS and their byte counts, never
+  // the values, so it stays a metadata read. Only `describe` is restored: `get`
+  // must keep blocking.
+  secretMetadataVerbs: new Set(["describe"]),
 };
 
 // ── terraform / tofu ───────────────────────────────────────────
@@ -136,6 +203,13 @@ export const TERRAFORM: ToolConfig = {
   ]),
   // destroy is qualitatively worse than apply — extra-strength prompt
   highRisk: new Set(["destroy"]),
+  // State and outputs carry attribute values verbatim, so the -json forms print
+  // whatever secrets the plan/state holds. `terraform output` / `show` are
+  // otherwise ordinary reads (they filter sensitive values).
+  highRiskFlags: [
+    { verb: "output", flags: ["-json"] },
+    { verb: "show", flags: ["-json"] },
+  ],
 };
 
 /** All infra tool configs, in guard-registration order. */

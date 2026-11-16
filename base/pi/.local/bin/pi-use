@@ -20,10 +20,19 @@
 # inside ~/.pi/agent. ensure_pi reads this script's state file and leaves a
 # deliberate bolt flip alone (see bootstrap.sh).
 #
-# A third variant, pig, is NOT a drop-in: it is a Go rewrite with no
-# extension system, so flipping to it removes this repo's safety and workflow
-# extensions (see set_pig's warning). It is NOT provisioned by bootstrap or mise:
-# reaching for it means "run the other implementation", never "same setup".
+# A third variant, pig, is PiG (MichaelKinsy/PiG, pi-in-go.dev): Pi reimplemented
+# in Go, and it reproduces Pi's *full* extension model by hosting TS extensions in
+# a Node child process. It is a drop-in only in shared mode — PIG_USE_PI_DIRS=1
+# makes it read this same ~/.pi/agent (settings, auth, trust, sessions,
+# extensions) under Pi's own lock protocol, so nothing is provisioned per variant
+# and `pi-use pi` is the whole rollback. set_pig refuses the flip without that
+# exact value, and refuses a binary whose --version is not EXACTLY `<pig>+<pi>`: the
+# OTHER Go rewrite that ships as `pig` (ZoroSpace/pig) has no extension system,
+# prints a bare 1.5.0, and must never be flipped in. It also links the RESOLVED
+# binary, never the path `command -v` reported — on a mise host that is a shim
+# (`~/.local/share/mise/shims/pig`), a symlink that only resolves while its own
+# directory is on PATH. PiG's version belongs to mise (ubi:), not to
+# `pi update --self`.
 #
 # Pi-bolt is the DEFAULT: pi 1.4.0 compiled ahead of time, sharing ~/.pi/agent
 # (settings, auth, trust, sessions, extensions), installed by its own curl
@@ -42,13 +51,43 @@ pig_target=pig
 
 die() { printf 'pi-use: %s\n' "$*" >&2; exit 1; }
 
+# The real file a path names, symlinks and all. Needed because `command -v` reports
+# whatever is on PATH — on a mise/ubi host that is a SHIM, a symlink that resolves
+# only while ~/.local/share/mise/shims is itself on PATH. Linking a shim makes `pi`
+# work in the shell that ran the flip and dangle in every shell that lacks it.
+resolve_binary() {
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$1"
+        return
+    fi
+    # BSD readlink only grew -f recently, so probe it instead of assuming.
+    if readlink -f / >/dev/null 2>&1; then
+        readlink -f "$1"
+        return
+    fi
+    # Neither available: walk the chain by hand, one link at a time.
+    p=$1
+    hops=0
+    while [ -L "$p" ]; do
+        hops=$((hops + 1))
+        [ "$hops" -le 40 ] || return 1
+        t=$(readlink "$p") || return 1
+        case $t in
+            /*) p=$t ;;
+            *) p=${p%/*}/$t ;;
+        esac
+    done
+    printf '%s\n' "$p"
+}
+
 link_target() {
     [ -L "$pi_link" ] && readlink "$pi_link" || true
 }
 
-# Pig has no launcher of its own, so its link carries the RESOLVED binary path
-# (see set_pig); identity therefore falls back to the basename for an absolute
-# target. bolt and upstream are same-dir/shallow-relative links and match exactly.
+# PiG is a single Go binary with no launcher of its own, so its link carries the
+# RESOLVED binary path (see set_pig); identity therefore falls back to the
+# basename for an absolute target. bolt and upstream are same-dir/shallow-relative
+# links and match exactly.
 is_pig_target() {
     [ "$1" = "$pig_target" ] && return 0
     case "$1" in
@@ -72,6 +111,28 @@ current_variant() {
 }
 
 read_state() { [ -r "$state_file" ] && cat "$state_file" || true; }
+
+# The pig binary for the version probes: PATH first, else the absolute target this
+# script linked (mise's install dir is not on every PATH that runs `pi-use status`).
+pig_binary() {
+    if command -v pig >/dev/null 2>&1; then
+        command -v pig
+        return 0
+    fi
+    case "$(link_target)" in
+        /*) [ -x "$(link_target)" ] && { link_target; return 0; } ;;
+    esac
+    return 1
+}
+
+# PiG's Pi base for the informational alignment line: PIG_VERSION_FORMAT=pi makes
+# it print the Pi version it implements instead of `<pig>+<pi>`. Surfaced, never
+# asserted — PiG pins that base per release, so a gap is expected between bumps.
+pig_pi_base() {
+    b=$(pig_binary) || return 1
+    PIG_VERSION_FORMAT=pi "$b" --version 2>/dev/null \
+        | sed -n 's/^\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -1
+}
 
 write_state() {
     mkdir -p "${state_file%/*}"
@@ -119,35 +180,53 @@ set_bolt() {
 }
 
 set_pig() {
-    # pig is a behaviour-compatible *rewrite*, not the same program: no
-    # extension system at all (upstream pi's Node-sidecar API is unimplemented
-    # there), and its own config dir. Allowed, but never quietly.
+    # PiG only. The version string decides WHICH Go rewrite this is, and it is the
+    # one check a bin dir cannot fake: PiG prints `<pig>+<pi>` (0.7.0+1.5.0), while
+    # ZoroSpace/pig prints a bare 1.5.0 and has no extension system — flipping that
+    # in silently drops infra-safety and the rest of the stack.
+    # PIG_VERSION_FORMAT is unset for the probe on purpose: it makes PiG print only
+    # its Pi base, which is exactly the impostor's shape.
     if [ -x "$bin_dir/pig" ]; then
         pig_bin=$bin_dir/pig
     else
         pig_bin=$(command -v pig 2>/dev/null) \
-            || die "pig is not installed — mise use -g go, then: go install github.com/ZoroSpace/pig/cmd/pig@latest"
+            || die "pig is not installed — PiG is mise-managed (ubi:MichaelKinsy/PiG); run: mise install"
     fi
+    # Resolve BEFORE validating or linking: `command -v pig` on a mise host answers
+    # with ~/.local/share/mise/shims/pig, so a link recording it verbatim works only
+    # in shells that happen to carry the shims dir (not cron, not a bare login
+    # shell). The refusal order stays: missing -> not executable -> version ->
+    # shared mode -> our symlink. Nothing is written until all five pass.
+    pig_resolved=$(resolve_binary "$pig_bin") \
+        || die "cannot resolve $pig_bin to a real file — refusing to link a path that may dangle. Nothing changed."
+    pig_bin=$pig_resolved
     [ -x "$pig_bin" ] || die "$pig_bin is not executable"
+    ver=$(env -u PIG_VERSION_FORMAT "$pig_bin" --version 2>/dev/null || true)
+    # Strict whole-string match on `<pig>+<pi>` and nothing else. The old substring
+    # test on `+` accepted any banner glued to a version, and this number is the
+    # ONLY discriminator between PiG and the extensionless impostor. `printf %s`
+    # (no newline) with $ anchors makes an embedded newline fail too.
+    if ! printf '%s' "$ver" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+\.[0-9]+\.[0-9]+$'; then
+        die "$pig_bin reports '${ver:-no version}' — that is not PiG. PiG's --version is exactly <pig>+<pi> (e.g. 0.7.0+1.5.0); a bare 1.5.0 is ZoroSpace/pig, which has no extension system. Nothing changed."
+    fi
+    # Shared mode IS the contract: with PIG_USE_PI_DIRS=1 PiG reads ~/.pi/agent
+    # under Pi's lock protocol, so the extension stack and every settled trust
+    # answer carry over. Without it PiG writes its own ~/.pig/agent — different
+    # settings, an unseeded trust store, sessions upstream pi may not resume — and
+    # nothing reports an error, so the flip is refused instead.
+    [ "${PIG_USE_PI_DIRS:-}" = 1 ] \
+        || die "PIG_USE_PI_DIRS=1 is required (only that exact value enables shared mode) — it is exported by conf.d/pig.fish; restart the shell or set it for this command. Nothing changed."
     require_our_link
-    # Link the RESOLVED path, not the same-dir name: pig comes from `go install`
-    # (~/go/bin, usually not ~/.local/bin), so a relative `pig` target would
-    # dangle and leave `pi` unrunnable. It is a plain binary, not a launcher, so
-    # an absolute target is safe here — unlike bolt, which resolves itself.
+    # Link the RESOLVED path, not the same-dir name and not a shim: PiG is a single
+    # binary that mise/ubi installs outside ~/.local/bin, so a relative `pig` target
+    # would dangle and leave `pi` unrunnable, and a shim target works only under the
+    # PATH that owns it. It is a plain binary, not a launcher, so an absolute target
+    # is safe here — unlike bolt, which resolves itself.
     ln -sfn "$pig_bin" "$pi_link"
     write_state pig
-    {
-        echo "pi-use: pi -> pig ($pig_bin)"
-        echo "pi-use: WARNING — pig has no extension system. Not loaded under it:"
-        echo "pi-use:   infra-safety (the locked/armed write gate), subagent,"
-        echo "pi-use:   model-switch, usage, hypa, web-search, claude-bridge."
-        echo "pi-use:   Infra mutations are therefore UNGATED while pig is active."
-        echo "pi-use: pig also reads ~/.pig/agent, not ~/.pi/agent: sessions are"
-        echo "pi-use:   JSONL-compatible, settings/models are not shared unless you"
-        echo "pi-use:   link them yourself. Verified providers there: DeepSeek,"
-        echo "pi-use:   Volcengine Ark, Google (partial). Your default is opencode-go."
-        echo "pi-use: flip back with: pi-use pi   (or pi-use bolt)"
-    } >&2
+    printf 'pi-use: pi -> pig (PiG %s, %s)\n' "$ver" "$pig_bin"
+    printf 'pi-use:   shared tree: %s (settings, auth, trust, sessions, extensions)\n' "$HOME/.pi/agent"
+    printf 'pi-use:   rollback: pi-use pi   (one symlink, no migration)\n'
 }
 
 show_status() {
@@ -172,10 +251,25 @@ show_status() {
                 "${base:-unknown}" "${upstream:-unknown}"
         fi
     fi
-    # Degraded variants say so in the status line, not only at flip time.
+    # pig has two postures and they must never be confused: shared mode (the only
+    # supported one) differs from pi by nothing but the binary, while unshared mode
+    # silently swaps the settings tree, the trust store and this repo's extensions
+    # for ~/.pig/agent. Say which one is live on every run.
     if [ "$have" = pig ]; then
-        printf 'degraded: %s\n' \
-            'pig has no extension system — infra-safety, subagent, model-switch, usage, hypa NOT loaded'
+        if [ "${PIG_USE_PI_DIRS:-}" = 1 ]; then
+            upstream=$(cat "$HOME/.pi/agent/install/current-version" 2>/dev/null || true)
+            base=$(pig_pi_base || true)
+            if [ -n "$base" ] && [ -n "$upstream" ] && [ "$base" = "$upstream" ]; then
+                printf 'aligned: pi %s · upstream %s (in step · informational)\n' \
+                    "$base" "$upstream"
+            else
+                printf 'aligned: pi %s · upstream %s (informational — PiG pins its Pi base per release)\n' \
+                    "${base:-unknown}" "${upstream:-unknown}"
+            fi
+        else
+            printf 'degraded: %s\n' \
+                'PIG_USE_PI_DIRS is not 1 — pig is UNshared: ~/.pig/agent instead of ~/.pi/agent, so settings, trust and the repo extensions are not in play'
+        fi
     fi
     # First run on a machine nobody recorded a choice on: adopt what is there.
     if [ -z "$want" ] && [ "$have" != unknown ]; then

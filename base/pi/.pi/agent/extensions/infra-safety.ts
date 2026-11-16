@@ -12,6 +12,8 @@
  *
  * Built on the shared engine in lib/mutation-guard.ts. The per-CLI verb
  * tables live in lib/infra-tables.ts (pure data, shared with the tests).
+ * The engine gates every tool in SHELL_TOOLS (hypa_shell under pi-hypa, bash
+ * wherever the harness exposes it), so this file needs no tool names.
  * If you want to gate other tool domains (git, databases, package managers,
  * ...), write a new extension that imports createMutationGuard() with its
  * own verb tables and its own `domain` string — don't grow this file into a

@@ -1,13 +1,28 @@
 # ── Environment ───────────────────────────────────────────────────────────────
 set -gx EDITOR nvim
 
-# Source secrets env file (native fish syntax).
-set -l _secrets ~/dotfiles/secrets/env.fish
-if test -f $_secrets
-    set -l first_line (head -n 1 $_secrets 2>/dev/null)
-    if string match -q "set*" $first_line
-        source $_secrets
+# ── Secrets ───────────────────────────────────────────────────────────────────
+# NOT sourced at startup, on purpose. Every shell exports into tmux, tmux into pi,
+# and pi into every shell tool it runs — and `"$VAR"` expands in bash, sh AND fish
+# 4.9 (measured), so an exported credential is one prose accident away from a
+# published artifact. Workstreams that legitimately need the values still get them
+# per window from pwt (tmux -e, see __pwt_forward_env); everything else asks:
+# `creds <cmd>` for one command, or bare `creds` for the current shell.
+# Rationale and the incident it comes from: docs/AGENT-SAFETY.md.
+function creds --description 'load secrets/env.fish for one command, or into this shell'
+    set -l f $HOME/dotfiles/secrets/env.fish
+    test -r $f; or begin
+        echo 'creds: no readable' $f '(git-crypt locked?)' >&2
+        return 1
     end
+    if test (count $argv) -eq 0
+        source $f
+        echo 'creds: loaded into this shell:' (string match -rg '^\s*set\s+-\w*x\w*\s+([A-Za-z_][A-Za-z0-9_]*)' <$f | string join ' ')
+        return 0
+    end
+    # One-shot: a child fish sets the vars then execs, so nothing lands in this shell
+    # and nothing is inherited by anything the command does not itself spawn.
+    command fish --no-config -c 'source $argv[1] >/dev/null 2>&1; set -e argv[1]; exec $argv' -- $f $argv
 end
 
 # ── Homebrew (macOS only) ─────────────────────────────────────────────────────

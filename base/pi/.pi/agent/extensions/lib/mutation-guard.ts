@@ -5,11 +5,12 @@
  * with live, hard-to-reverse side effects (cloud, orchestration, IaC, ...).
  *
  * This extension assumes the `pi-hypa` extension is configured in
- * `replace` mode, so the native `bash` tool is disabled and shell commands are
- * delivered through `hypa_shell`. The guard therefore intercepts only
- * `hypa_shell`; the command string is the intended shell command, not a
- * compression wrapper.
-
+ * `replace` mode, where the native `bash` tool is hidden and shell commands
+ * arrive through `hypa_shell`. That is NOT guaranteed on other harnesses
+ * (PiG, plain pi without hypa), so the guard gates every tool in
+ * `SHELL_TOOLS` — an ungated shell makes the whole write gate decorative.
+ * The command string is the intended shell command, not a compression wrapper.
+ *
  * A domain extension (e.g. infra-safety.ts) supplies CLI names + per-CLI
  * verb tables and calls createMutationGuard(). Verb-table data is never
  * sent to the model, so expanding coverage is free context-wise.
@@ -28,11 +29,38 @@ import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { execFile } from "node:child_process";
-import { classify, findInvocations, hasDryRun } from "./classify.ts";
-import type { ToolConfig } from "./classify.ts";
+import { readFileSync, statSync } from "node:fs";
+import { checkCommandReadOnly, classifyInvocations, confirmPayload, SCRIPT_MAX_BYTES } from "./classify.ts";
+import type { ReadFile, ToolConfig } from "./classify.ts";
 
 export type { ToolConfig, VerbPosition, Classification, Invocation } from "./classify.ts";
-export { classify, findInvocations, hasDryRun, normalizeCommand } from "./classify.ts";
+export { classify, findInvocations, hasDryRun, hasHelpFlag, normalizeCommand } from "./classify.ts";
+
+/**
+ * Every tool that delivers a raw shell command. A gate wired to one name only
+ * is bypassed by the other: pi-hypa's replace mode hides the native `bash`
+ * tool, but other harnesses expose it, so both must be gated.
+ */
+export const SHELL_TOOLS = ["bash", "hypa_shell"] as const;
+
+/** True for a tool_call carrying a shell command, whichever shell tool it is. */
+export function isShellCall(event: unknown): event is { input: { command: string } } {
+  return SHELL_TOOLS.some((tool) => isToolCallEventType(tool as never, event as never));
+}
+
+/** The engine's filesystem access, used to inline `sh x.sh` script bodies.
+ *  stat() first: readFileSync on /dev/zero (or any fifo/device) never returns,
+ *  so a non-regular file is refused as unverifiable rather than read, and an
+ *  oversized one is refused before its bytes are loaded. */
+const readFile: ReadFile = (path) => {
+  try {
+    const st = statSync(path);
+    if (!st.isFile() || st.size > SCRIPT_MAX_BYTES) return null;
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+};
 
 export interface MutationGuardConfig {
   domain: string; // e.g. "infra" — drives command/tool names + messages
@@ -120,25 +148,8 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   });
 
   /** Read-only-semantics check, reusable by other extensions via the registry. */
-  const checkCommand = (command: string): string[] => {
-    const issues: string[] = [];
-    for (const inv of findInvocations(command, allNames)) {
-      const tool = toolByName.get(inv.cli)!;
-      if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
-
-      const result = classify(tool, inv.tokens);
-      const verb = inv.tokens.slice(0, 2).join(" ") || inv.cli;
-
-      if (result.kind === "mutation") {
-        issues.push(
-          `${inv.cli} ${verb}: ${result.highRisk ? "high-risk op" : "mutation"} blocked: ${domain} gate is locked.`,
-        );
-      } else if (result.kind === "unknown") {
-        issues.push(`${inv.cli} ${verb}: unrecognised verb, blocked: ${domain} gate is locked.`);
-      }
-    }
-    return issues;
-  };
+  const checkCommand = (command: string): string[] =>
+    checkCommandReadOnly(command, allNames, toolByName, domain, readFile);
 
   guardRegistry.set(domain, {
     domain,
@@ -149,7 +160,8 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (!isToolCallEventType("hypa_shell", event)) return;
+    // Both shell tools: hypa_shell under pi-hypa, bash wherever it survives.
+    if (!isShellCall(event)) return;
 
     const command = event.input.command;
 
@@ -166,29 +178,80 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
       return;
     }
 
-    for (const inv of findInvocations(command, allNames)) {
-      const tool = toolByName.get(inv.cli)!;
-      if (hasDryRun(inv.fullCommand)) continue; // real dry-run, scoped to this invocation
+    const { verdicts, unresolved, unknowns, text: expanded } = classifyInvocations(
+      command,
+      allNames,
+      toolByName,
+      readFile,
+    );
 
-      const result = classify(tool, inv.tokens);
+    // A script nobody could read is not a script we may wave through — not even
+    // armed. The human can read /tmp/x.sh themselves and re-run it by hand.
+    if (unresolved.length > 0) {
+      return {
+        block: true,
+        reason:
+          `${unresolved.join(", ")}: script body unreadable or too large to inspect — unknown, blocked `
+          + `even with the ${domain} gate armed.`,
+      };
+    }
 
-      if (result.kind === "mutation") {
-        if (!ctx.hasUI) {
-          return { block: true, reason: `${Domain} mutation needs interactive confirmation, unavailable here.` };
-        }
-        let note = "";
-        if (tool.getContext) {
-          try {
-            const c = await tool.getContext();
-            if (c) note = `Current context: ${c}\n\n`;
-          } catch {
-            /* best-effort */
-          }
-        }
-        const title = result.highRisk ? `⚠️⚠️ HIGH-RISK ${domain.toUpperCase()}` : `${icon} ${Domain} mutation`;
-        const ok = await ctx.ui.confirm(title, `${note}${inv.fullCommand.slice(0, 400)}\n\nAllow?`);
-        if (!ok) return { block: true, reason: `User denied ${domain} mutation` };
+    let payload: ReturnType<typeof confirmPayload> | null = null;
+    /** The human reviews the WHOLE command once — with the script bodies the
+     *  gate inlined, because `sh /tmp/x.sh` as a launcher line hides the
+     *  `terraform destroy` inside it. Too long to review is too long to
+     *  confirm: split the command instead. */
+    const review = () => {
+      payload ??= confirmPayload(expanded);
+      return payload;
+    };
+
+    for (const { tool, result } of verdicts) {
+      // Armed means "ask before mutating", not "allow anything that is not a
+      // mutation": an unrecognised verb passes silently if we skip it here.
+      if (result.kind === "read") continue;
+      const unknown = result.kind === "unknown";
+
+      if (!ctx.hasUI) {
+        return {
+          block: true,
+          reason: `${Domain} ${unknown ? "unrecognised command" : "mutation"} needs interactive confirmation, unavailable here.`,
+        };
       }
+      const reviewed = review();
+      if (!reviewed.ok) return { block: true, reason: reviewed.reason };
+
+      let note = "";
+      if (!unknown && tool.getContext) {
+        try {
+          const c = await tool.getContext();
+          if (c) note = `Current context: ${c}\n\n`;
+        } catch {
+          /* best-effort */
+        }
+      }
+      const title = unknown
+        ? `❓ UNRECOGNISED ${domain.toUpperCase()}`
+        : result.highRisk
+          ? `⚠️⚠️ HIGH-RISK ${domain.toUpperCase()}`
+          : `${icon} ${Domain} mutation`;
+      const ok = await ctx.ui.confirm(title, `${note}${reviewed.text}\n\nAllow?`);
+      if (!ok) return { block: true, reason: `User denied ${domain} command` };
+    }
+
+    // Shapes with no body to inspect: a pipeline into a shell, a `$VAR` command
+    // word. Loud, never silent.
+    if (unknowns.length > 0) {
+      if (!ctx.hasUI) {
+        return { block: true, reason: `${Domain} command cannot be inspected and needs interactive confirmation, unavailable here.` };
+      }
+      const reviewed = review();
+      if (!reviewed.ok) return { block: true, reason: reviewed.reason };
+      const ok = await ctx.ui.confirm(
+        `❓ UNINSPECTABLE ${domain.toUpperCase()}`,
+        `${unknowns.join("\n")}\n\n${reviewed.text}\n\nAllow?`,
+      );
+      if (!ok) return { block: true, reason: `User denied ${domain} command` };
     }
   });
 
