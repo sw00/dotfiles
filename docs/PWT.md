@@ -153,10 +153,12 @@ in through the panel's `enter` (a popup, so it has no such pane) or from another
 
 ## Worktree vs in-place
 
-`pwt here` exists for repos a fresh checkout cannot serve: a git-crypt repo fails
-`worktree add` at the smudge filter and the new tree would need its own unlock, and
+`pwt here` exists for repos where a fresh checkout is not worth the provisioning:
 per-path state (`.env`, `.venv`, `node_modules`, `direnv allow`) does not carry into a
-worktree anyway.
+worktree. (A git-crypt repo used to be a hard case — `worktree add` died at the smudge
+filter — but bootstrap now points both git-crypt filters at
+`base/git/bin/git-crypt-filter`, so `pwt <slug>` works in those repos on any clone
+bootstrap has run on. See `docs/GOTCHAS.md`.)
 
 The catch is stated in the command's output whenever a pi is already open in that
 checkout itself (a pi in one of its worktrees does not count): two in-place workstreams

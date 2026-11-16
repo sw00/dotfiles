@@ -452,9 +452,9 @@ ctrl-r)
     # Two ways in. A repo with no workstreams has no row, so the list cannot reach it,
     # and not every repo can take a worktree. repo-list backs C-f's repo half, so the
     # frecency order and $PWT_SRC scope are the same here. This second stage's key
-    # picks the rung: a worktree, or the in-place kind for a checkout that cannot be
-    # materialised (a git-crypt repo fails `worktree add`) or is not worth
-    # re-provisioning. Two --expect stages, both parsed the same way: key, then choice.
+    # picks the rung: a worktree, or the in-place kind for a checkout that is not
+    # worth re-provisioning (per-path state does not carry into a worktree). Two
+    # --expect stages, both parsed the same way: key, then choice.
     repo_bin="${PWT_REPO_LIST:-$HOME/bin/repo-list}"
     picked="$("$repo_bin" | fzf --prompt 'repo> ' --reverse --no-preview \
         --border-label ' pwt · repo ' \

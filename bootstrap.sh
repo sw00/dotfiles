@@ -1007,6 +1007,34 @@ with open(sys.argv[1], 'rb') as f:
 " "$sentinel" 2>/dev/null
 }
 
+# ── git-crypt filters that survive a linked worktree ─────────────────────────
+# git-crypt resolves its key at <git-dir>/git-crypt/keys, and a linked worktree's
+# git dir (.git/worktrees/<n>) has none — so the worktree's own checkout dies at
+# the smudge filter and `git worktree add` exits 128. base/git/bin/git-crypt-filter
+# redirects the filter to the main repo's key through commondir; point BOTH
+# directions at it (smudge-only lets the add succeed and then breaks `git status`
+# in the new tree). Idempotent and UNCONDITIONAL: a clone unlocked in an earlier
+# run skips 1a's unlock entirely and is exactly the one that needs repairing,
+# since a bare `git-crypt unlock` writes the plain "git-crypt" values back.
+_ensure_worktree_git_crypt_filters() {
+    local gd shim
+    # --git-common-dir, not --absolute-git-dir: DOTFILES could itself be a linked
+    # worktree, and the key lives in the main repo's git dir.
+    gd="$(git -C "$DOTFILES" rev-parse --git-common-dir 2>/dev/null)" || return 0
+    [[ -d "$gd/git-crypt/keys" ]] || return 0   # not a git-crypt repo — nothing to wire
+    shim="$DOTFILES/base/git/bin/git-crypt-filter"
+    if [[ ! -x "$shim" ]]; then
+        warn "$shim missing or not executable — worktrees will fail at the smudge filter"
+        return 0
+    fi
+    # Quoted inside the value the way git-crypt configures it itself, so a
+    # $DOTFILES path containing a space still runs (git passes the value to sh -c).
+    git -C "$DOTFILES" config --local filter.git-crypt.smudge "\"$shim\" smudge" \
+        && git -C "$DOTFILES" config --local filter.git-crypt.clean "\"$shim\" clean" \
+        || { warn "could not wire the git-crypt worktree filters"; return 0; }
+    log "git-crypt filters: linked worktrees decrypt (via commondir)"
+}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1037,6 +1065,10 @@ main() {
             err "git-crypt is locked and no key provided.\n\n  Provide the key via one of:\n    DOTFILES_KEY=/path/to/key ./bootstrap.sh\n    ./bootstrap.sh /path/to/key\n    (interactive) enter path at the prompt\n\n  See README for git-crypt setup instructions."
         fi
     fi
+
+    # 1a-b. Make git-crypt's filters worktree-safe (idempotent; also repairs a
+    # clone that was unlocked before the shim existed).
+    _ensure_worktree_git_crypt_filters
 
     # 1b. Platform-specific privileged phase
     case "$platform" in

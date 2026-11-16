@@ -1,0 +1,43 @@
+#!/bin/sh
+# git-crypt clean/smudge filter that also works inside a LINKED WORKTREE.
+#
+# git-crypt resolves its key at <git-dir>/git-crypt/keys/<name>. A linked
+# worktree's git dir is .git/worktrees/<n>, which has no such directory, so the
+# filter dies with "Unable to open key file" and the checkout that asked for it
+# aborts — `git worktree add` exits 128 and rolls the worktree back.
+#
+# The main repo's git dir is one `commondir` hop away: decrypt with ITS key when
+# this git dir has none of its own. BOTH directions need the shim — smudge-only
+# wiring lets `worktree add` succeed and then breaks `git status` in the new tree
+# ("clean filter 'git-crypt' failed"). The `-d <main>/git-crypt/keys` test is
+# defence in depth: only a git dir that really holds this repo's key is borrowed.
+#
+# Wired per-clone by _ensure_worktree_git_crypt_filters() in bootstrap.sh:
+#   filter.git-crypt.smudge = "<repo>/base/git/bin/git-crypt-filter" smudge
+#   filter.git-crypt.clean  = "<repo>/base/git/bin/git-crypt-filter" clean
+# The shim is named by ABSOLUTE path so git finds it whatever PATH it inherits
+# (Paseo runs git from an app process). `git-crypt` itself is still resolved
+# through PATH, exactly as the stock filter config resolved it.
+# Plain sh, no *.sh suffix on purpose — check.sh globs only *.sh for the syntax
+# pass, so its own `sh -n` assertion in the git-crypt section covers this file.
+#
+# SECURITY: no weakening. If the main repo has no key either, this falls through
+# to plain `git-crypt` and fails exactly as it does today.
+set -u
+case ${1:-} in
+clean | smudge) ;;
+*)
+	echo "usage: git-crypt-filter clean|smudge" >&2
+	exit 2
+	;;
+esac
+
+if gd=$(git rev-parse --git-dir 2>/dev/null) && [ -f "$gd/commondir" ] && [ ! -d "$gd/git-crypt/keys" ]; then
+	main=$(cd "$gd" 2>/dev/null && cd "$(cat commondir 2>/dev/null)" 2>/dev/null && pwd -P) || main=""
+	if [ -n "$main" ] && [ -d "$main/git-crypt/keys" ]; then
+		GIT_DIR=$main
+		export GIT_DIR
+	fi
+fi
+
+exec git-crypt "$1"

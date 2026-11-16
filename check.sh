@@ -1289,6 +1289,73 @@ done < <(git -C "$DOTFILES" ls-files)
 [[ -n "$_cipher_not" ]] && printf '      not encrypted in HEAD:%s\n' "$_cipher_not"
 check "git-crypt: every filtered path is ciphertext in HEAD" test -z "$_cipher_not"
 
+# ── git-crypt filters that survive a linked worktree ─────────────────────────
+section "git-crypt worktree filters  [GREEN]"
+# git-crypt's key lives at <git-dir>/git-crypt/keys, and a linked worktree's git
+# dir (.git/worktrees/<n>) has none — its own checkout then dies at the smudge
+# filter and `git worktree add` exits 128. base/git/bin/git-crypt-filter falls
+# back to the main repo's key through commondir, and bootstrap points BOTH filter
+# directions at it. Local-only: a locked clone may have no git-crypt driver
+# configured at all, and CI never runs the behavioural half.
+check "git-crypt: worktree filter shim present and executable" \
+    test -x "$DOTFILES/base/git/bin/git-crypt-filter"
+
+# The shim has no *.sh suffix (the syntax pass globs only *.sh/*.bash), so without
+# this its only coverage would be the CHECK_FULL behavioural test below.
+check "git-crypt: worktree filter shim parses (sh -n)" \
+    sh -n "$DOTFILES/base/git/bin/git-crypt-filter"
+
+check_has "bootstrap: wires the worktree-safe git-crypt filters" \
+    'shim="\$DOTFILES/base/git/bin/git-crypt-filter"' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: wires both filter directions" \
+    'filter\.git-crypt\.clean' "$DOTFILES/bootstrap.sh"
+
+check_has "bootstrap: runs the wiring unconditionally (repairs an unlocked clone)" \
+    '^    _ensure_worktree_git_crypt_filters$' "$DOTFILES/bootstrap.sh"
+
+if head -c 10 "$DOTFILES/secrets/leak-patterns" 2>/dev/null | grep -aq GITCRYPT; then
+    _skip "git-crypt: both filters point at the worktree shim" \
+        "locked clone (CI has no git-crypt key)"
+    _skip "git-crypt: a fresh linked worktree checks out clean" \
+        "locked clone (CI has no git-crypt key)"
+else
+    # Pinned exactly, not "contains git-crypt": a bare `git-crypt unlock` writes
+    # the plain "git-crypt" values back over these and silently re-breaks every
+    # worktree add, so the failure has to name the drift.
+    _gc_shim="$DOTFILES/base/git/bin/git-crypt-filter"
+    check "git-crypt: smudge filter is the worktree shim" \
+        test "$(git -C "$DOTFILES" config --local --get filter.git-crypt.smudge)" = "\"$_gc_shim\" smudge"
+    check "git-crypt: clean filter is the worktree shim" \
+        test "$(git -C "$DOTFILES" config --local --get filter.git-crypt.clean)" = "\"$_gc_shim\" clean"
+
+    # The real regression test: a tree this clone has never checked out. Both
+    # directions are exercised, because the status must come back EMPTY — a
+    # smudge-only fix leaves it dirty ("clean filter failed") instead.
+    # --detach so a failed cleanup cannot leak a branch into the next run; under
+    # mktemp, never __worktrees/ (that exclude rule is per-clone, pwt writes it,
+    # and `git clean -X -ff` deletes worktrees parked there). Cleanup is a trap,
+    # not a happy path: check.sh never aborts, so a leak would be silent.
+    check_full "git-crypt: a fresh linked worktree checks out clean" bash -c '
+        set -u
+        repo=$1
+        tmp=$(mktemp -d) || exit 1
+        wt=$tmp/wt
+        cleanup() {
+            # No `worktree prune` here: that prunes EVERY stale entry in the real
+            # repo, so a check could delete admin state for a worktree on an
+            # unmounted drive. This test removes its own entry explicitly, and a
+            # rolled-back `add` leaves none.
+            git -C "$repo" worktree remove --force "$wt" >/dev/null 2>&1
+            rm -rf "$tmp"
+        }
+        trap cleanup EXIT
+        git -C "$repo" worktree add --detach "$wt" HEAD >/dev/null 2>&1 || exit 1
+        out=$(git -C "$wt" status --porcelain 2>&1) || exit 1
+        [ -z "$out" ]
+    ' bash "$DOTFILES"
+fi
+
 # fly refuses to talk to a mismatched server API, so its version must be pinned
 # rather than floated on mise's `latest`.
 check_has "hosts/mbpm3: fly pinned to the server API version" \
@@ -2416,9 +2483,8 @@ check_not "pwt: never attaches the tap with pipe-pane -o" \
     'pipe-pane -o' "$_PWT"
 check_has "pwt: adopts a live session when the C-w panel jumps to it" \
     '__pwt_tap' "$_PWT"
-# The in-place rung: a workstream with no worktree, for repos a fresh checkout
-# cannot serve (a git-crypt repo fails `worktree add` at the smudge filter) or
-# where the per-worktree state is not worth re-provisioning.
+# The in-place rung: a workstream with no worktree, for repos where the per-worktree
+# state is not worth re-provisioning.
 # (The "takes no base ref" message used to be pinned here as text; the behavioural
 # `pwt: here refuses a base ref and says why` runs the real function and reads its
 # own words, so this was the same fact asserted twice.)
@@ -2624,9 +2690,8 @@ if command -v fish >/dev/null 2>&1; then
     # "unreachable" or a reworded message all pass a grep. Each of these runs the real
     # function and reads its exit status and its own words.
     # `here` makes NO worktree, so a third word has nothing to base. Accepting it would
-    # silently imply the fresh checkout this rung exists to avoid (a git-crypt repo
-    # fails `worktree add`), so it is a usage error (2), and it says why: `pwt here foo
-    # main` reads like it should work.
+    # silently imply the fresh checkout this rung exists to avoid, so it is a usage
+    # error (2), and it says why: `pwt here foo main` reads like it should work.
     check "pwt: here refuses a base ref and says why" \
         bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q repo; cd repo
             out=$(env -u TMUX "$1" -N -c "source $2; pwt here lab main" 2>&1); rc=$?

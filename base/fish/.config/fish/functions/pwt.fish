@@ -1172,12 +1172,16 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
             __pwt_jump_to "$wid"
         case here
             # A workstream in THIS checkout, with no worktree: same window naming,
-            # same tap, same pinned session id. This is the fallback for repos where
-            # a fresh checkout cannot be materialised — a git-crypt repo fails
-            # `worktree add` at the smudge filter, and the new tree would need its
-            # own key unlock anyway — or where it is not worth the provisioning:
-            # .env, .venv, node_modules and `direnv allow` are keyed by path and do
-            # not carry over. Isolation is the entire point of a worktree, so two
+            # same tap, same pinned session id. This is the rung for repos where a
+            # fresh checkout is not worth the provisioning — .env, .venv,
+            # node_modules and `direnv allow` are keyed by path and do not carry
+            # over — and for per-path state generally. (A git-crypt repo used to be
+            # a hard case here: `worktree add` died at the smudge filter, and the
+            # new tree needed its own key unlock. bootstrap now points both filters
+            # at base/git/bin/git-crypt-filter, which resolves the main repo's key
+            # through commondir, so `pwt <slug>` works in those repos too — on a
+            # clone bootstrap has wired; see docs/GOTCHAS.md.)
+            # Isolation is the entire point of a worktree, so two
             # in-place workstreams in one repo share a working tree: they must not
             # be mutating the same files at the same time.
             set -l label "$argv[2]"
@@ -1200,10 +1204,9 @@ function pwt --description 'pi git-worktree helper (tmux window + pinned session
                     __pwt_need_pi; or return 1
                     # Two in-place workstreams share ONE working tree — the exact
                     # collision worktrees exist to prevent. This rung is still the
-                    # right one for repos a worktree cannot serve (git-crypt fails
-                    # at the smudge filter) and for per-path state (.env/.venv/
-                    # direnv), so warn and let the user decide: refusing would
-                    # delete the rung's reason to exist.
+                    # right one for per-path state (.env/.venv/direnv), so warn and
+                    # let the user decide: refusing would delete the rung's reason
+                    # to exist.
                     set -l squatter (__pwt_window_for "$dir" pi-only in-tree no-worktrees)
                     test -n "$squatter"; and echo "pwt: a pi is already open in this checkout — '$label' and it share one working tree, so parallel edits will collide" >&2
                 end
