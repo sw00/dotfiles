@@ -4722,6 +4722,27 @@ if command -v pi-use >/dev/null 2>&1; then
         [ "$(HOME="$tmp" PATH=/usr/bin:/bin "$0" current)" = pig ] || exit 5
     ' "$_PI_USE"
 
+    # A mise shim is not a symlink to the tool: it is the mise binary in disguise, so
+    # resolving one yields `mise` and the version probe reads mise's own --version.
+    # That is a CORRECT refusal wearing a broken-install costume — it once made a
+    # working host look like "pi-use pig did not work". mise knows the real path, so
+    # ask it before falling back to resolution.
+    check_full "pi-use: pig flip asks mise for the real binary (a shim is not the tool)" bash -c '
+        tmp=$(cd "$(mktemp -d)" && pwd -P); trap "rm -rf \"$tmp\"" EXIT
+        mkdir -p "$tmp/.local/bin" "$tmp/.pi/agent/bin" "$tmp/real/0.7.0/bin" "$tmp/shim" "$tmp/bin"
+        printf "#!/bin/sh\nexit 0\n" >"$tmp/.pi/agent/bin/pi"
+        printf "#!/bin/sh\necho 0.7.0+1.5.0\n" >"$tmp/real/0.7.0/bin/pig"
+        printf "#!/bin/sh\necho 2026.10.14 macos-arm64\n" >"$tmp/shim/pig"
+        chmod +x "$tmp/.pi/agent/bin/pi" "$tmp/real/0.7.0/bin/pig" "$tmp/shim/pig"
+        ln -s ../../.pi/agent/bin/pi "$tmp/.local/bin/pi"
+        # mise answers `which pig` with the install path, exactly as the real one does.
+        printf "#!/bin/sh\n[ \"\$1\" = which ] && { echo \"$tmp/real/0.7.0/bin/pig\"; exit 0; }; exit 1\n" >"$tmp/bin/mise"
+        chmod +x "$tmp/bin/mise"
+        out=$(HOME="$tmp" PATH="$tmp/bin:$tmp/shim:$PATH" PIG_USE_PI_DIRS=1 "$0" pig 2>&1) || exit 2
+        [ "$(readlink "$tmp/.local/bin/pi")" = "$tmp/real/0.7.0/bin/pig" ] || exit 3
+        printf "%s" "$out" | grep -q "0.7.0+1.5.0" || exit 4
+    ' "$_PI_USE"
+
     # Shared mode is the only supported posture and `1` is the only enabling value:
     # anything else silently swaps ~/.pi/agent for ~/.pig/agent (settings, trust,
     # every extension) with no error. Every refusal must leave the link AND the state

@@ -55,6 +55,21 @@ die() { printf 'pi-use: %s\n' "$*" >&2; exit 1; }
 # whatever is on PATH — on a mise/ubi host that is a SHIM, a symlink that resolves
 # only while ~/.local/share/mise/shims is itself on PATH. Linking a shim makes `pi`
 # work in the shell that ran the flip and dangle in every shell that lacks it.
+# A mise shim is NOT a symlink to the tool: it is a copy/hardlink of the `mise`
+# binary that dispatches on argv[0]. So resolving a shim yields `mise`, whose
+# --version is mise's own — which is exactly how a correct refusal once looked like
+# a broken install. Ask mise where the tool actually lives, and only fall back to
+# plain resolution on hosts without mise.
+lookup_pig() {
+    if command -v mise >/dev/null 2>&1; then
+        if mise which pig >/dev/null 2>&1; then
+            mise which pig
+            return 0
+        fi
+    fi
+    command -v pig 2>/dev/null
+}
+
 resolve_binary() {
     if command -v realpath >/dev/null 2>&1; then
         realpath "$1"
@@ -115,8 +130,8 @@ read_state() { [ -r "$state_file" ] && cat "$state_file" || true; }
 # The pig binary for the version probes: PATH first, else the absolute target this
 # script linked (mise's install dir is not on every PATH that runs `pi-use status`).
 pig_binary() {
-    if command -v pig >/dev/null 2>&1; then
-        command -v pig
+    if lookup_pig >/dev/null 2>&1; then
+        lookup_pig
         return 0
     fi
     case "$(link_target)" in
@@ -189,14 +204,16 @@ set_pig() {
     if [ -x "$bin_dir/pig" ]; then
         pig_bin=$bin_dir/pig
     else
-        pig_bin=$(command -v pig 2>/dev/null) \
+        pig_bin=$(lookup_pig) \
             || die "pig is not installed — PiG is mise-managed (ubi:MichaelKinsy/PiG); run: mise install"
     fi
     # Resolve BEFORE validating or linking: `command -v pig` on a mise host answers
     # with ~/.local/share/mise/shims/pig, so a link recording it verbatim works only
     # in shells that happen to carry the shims dir (not cron, not a bare login
-    # shell). The refusal order stays: missing -> not executable -> version ->
-    # shared mode -> our symlink. Nothing is written until all five pass.
+    # shell). lookup_pig already asks mise for the install path; the resolution below
+    # is what catches a shim on a host where mise is not on PATH. The refusal order
+    # stays: missing -> not executable -> version -> shared mode -> our symlink.
+    # Nothing is written until all five pass.
     pig_resolved=$(resolve_binary "$pig_bin") \
         || die "cannot resolve $pig_bin to a real file — refusing to link a path that may dangle. Nothing changed."
     pig_bin=$pig_resolved

@@ -23,6 +23,14 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 - [ ] **Remaining falsifiers** if any regress: throwing `tool_call` handler
   letting the call run; sessions unreadable across harnesses; `@version` pins
   ignored at install time; no working TUI confirm.
+- [ ] **Shared mode is only guaranteed inside fish.** `PIG_USE_PI_DIRS=1` comes
+  from `conf.d/pig.fish`, so `pi` launched from bash/cron/launchd runs PiG
+  *unshared*: `~/.pig/agent` appears, settings and extensions are absent, and the
+  first symptom is a 401 (no auth) rather than an error. `pi-use status` prints
+  `degraded:`, and check.sh fails on the reappearance of `~/.pig/agent`, but
+  nothing prevents it. Two options, decide once: symlink `~/.pig/agent` →
+  `~/.pi/agent` (mechanical, at the cost of the spec's "never merge" line) or keep
+  the conf.d export and accept the gap (current state).
 - [ ] `--body-file -` (gh stdin) blocks with a misleading "could not be read"
   reason; give stdin its own label in `lib/publish-targets.ts`.
 
