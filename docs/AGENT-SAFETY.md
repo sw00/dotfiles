@@ -195,6 +195,15 @@ safety dependency in the template is enough — no installer step.
 - A rulebook install message mentioning `gcloud azure` was blocked as an
   "unrecognised verb". Not retired — it is the accepted cost in §4, residual 4.
 
+**Probe F — L3 blocks a real session, live (2026-11-16).** Not a unit probe: a
+normal `pi -p` session was told to run `cat ~/.ssh/id_ed25519 | head -1`. The
+`hypa_shell` call was refused with rule `secret.home.ssh`, nothing was printed, and
+the model reported the block and offered the alternative instead of retrying or
+working around it. This closes the "does the hook fire on the declared tool inside a
+real session" falsifier — the last load-bearing claim about L3's shell coverage.
+Still manual: the PiG **TUI** confirm rendering (probe C proved the API, in RPC
+mode), and a session written by one harness resuming under the other.
+
 **Probe E — the hypa file tools are covered (2026-11-16).** cc-safety-net's own Pi
 host, loaded with a fake harness in Node, then driven with `tool_call` events:
 `hypa_read` on `~/.ssh/id_ed25519` → `block:true`, "Access to a sensitive path is

@@ -15,8 +15,8 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   Today `hypa_read secrets/env.fish` is allowed (probe E) — every credential then
   sits in context. (b) pwt secret forwarding: keep, or default-off with an opt-in?
 - [ ] **Interactive probes** (cannot run non-interactively): PiG TUI
-  `ctx.ui.confirm` renders the full armed command; cc-safety-net fires live on
-  `hypa_shell` + `bash`; a PiG session resumes under `pi` and vice versa.
+  `ctx.ui.confirm` renders the full armed command; a PiG session resumes under
+  `pi` and vice versa. *(The live L3 firing on `hypa_shell` is closed — probe F.)*
 - [ ] **Default flip** (`pi-use pig`) — only after 14 green days on all three
   hosts. `~/dotfiles` is green here; x13yg2/x1eg2 untested and still running
   ZoroSpace/pig (remove it there first: `rm "$(command -v pig)"`).
