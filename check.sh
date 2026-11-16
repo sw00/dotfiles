@@ -1434,7 +1434,7 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # count itself is pinned, and `# tests`/`# fail`/`# skipped` have to agree with it —
 # a case that silently stopped running cannot be laundered through a green summary.
 # Re-pin a count only when the test file gained cases deliberately.
-_TS_PIN_MUTATION_GUARD=29
+_TS_PIN_MUTATION_GUARD=36
 _TS_PIN_PUBLISH_SCAN=26
 _TS_PIN_PUBLISH_GUARD=15
 _ts_suite_count() {  # <test file in lib/> <expected pass count>
@@ -4797,11 +4797,14 @@ check_has "safety: the spec records the measured bypass (probeA.sh, residual 5)"
 check_not "safety: the contract cites no host-local plan (.pi/plans is scratch)" \
     '\.pi/plans' "$_SAFETY_SPEC"
 
-# L2 — the infra write gate. One shell-tool list drives both gates, so a session
-# whose shell arrives as `bash` (any harness without pi-hypa's replace mode) is gated
-# too; a hook that hard-codes hypa_shell leaves it decorative there.
-check_has "safety: L2 exports SHELL_TOOLS (one list, both gates)" \
-    '^export const SHELL_TOOLS' "$_EXT/lib/mutation-guard.ts"
+# L2 — the infra write gate. ONE shell-tool declaration (lib/shell-tools.ts) feeds
+# both gates, so a session whose shell arrives as `bash` (any harness without
+# pi-hypa's replace mode) is gated too; a hook that hard-codes hypa_shell leaves it
+# decorative there, and a second copy drifts silently.
+check_has "safety: L2 declares SHELL_TOOLS once, in lib/shell-tools.ts" \
+    '^export const SHELL_TOOLS' "$_EXT/lib/shell-tools.ts"
+check_has "safety: the gate re-exports the shared declaration" \
+    'SHELL_TOOLS' "$_EXT/lib/mutation-guard.ts"
 _sh_only=$(grep -rlE 'isToolCallEventType\([[:space:]]*["'"'"']hypa_shell' \
     "$_EXT"/*.ts "$_EXT"/modes/*.ts 2>/dev/null || true)
 [[ -n "$_sh_only" ]] && printf '      %s\n' "$_sh_only"

@@ -21,7 +21,7 @@ is the mapping it implies.
 
 | Rank | Class | Primary | Secondary | Residual (accepted) |
 |---|---|---|---|---|
-| b | secret exfiltration | L0 env hygiene; L3 secret-file rules | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); a pwt window that asked for the values (§5) |
+| b | secret exfiltration | L0 env hygiene; L3 secret-file rules | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); indirection *inside* an inlined script body (§2.1b); a pwt window that asked for the values (§5) |
 | c | credential in a published artifact | L4 publish guard | L1 pre-commit (this repo, staged files) | channels other than gh/glab/web tools |
 | e | irreversible remote ops | L3 rulebooks (deny) | L2 (locked default; armed = human confirm) | ops neither table names |
 | a | infra mutation | L2 locked/armed gate | L3 for the destructive subset (no kubectl rulebook exists) | argument-position false positives (§4) |
@@ -47,7 +47,8 @@ string names** (`expandScripts`, `lib/classify.ts`) — and nothing else. No
 other file is read: an interpreter, or a script whose shebang does not claim a
 shell, is still opaque to L2 (§2.1b, §4 residual 5). A runner that reads its script
 from a pipe, and a command word held in a variable, are *refused* rather than
-inspected: both classify as unknown.
+inspected: both classify as unknown. Inside an already-inlined body the same shapes
+are a reported notice, not a block — the depth boundary in §2.1b.
 
 Cites into the `lib/` modules name the **symbol**, not a line: `classify.ts`,
 `mutation-guard.ts` and `infra-tables.ts` are the files this change set is still
@@ -65,11 +66,11 @@ only honest if the shapes L2 still misses are named. (a) ships and is asserted;
 
 | Capability | Implementation | Asserted by |
 |---|---|---|
-| Dual shell tools | `SHELL_TOOLS = ["bash", "hypa_shell"]` and `isShellCall` in `lib/mutation-guard.ts` drive the gate's `tool_call` handler and `/check`'s read-only gate (`modes/index.ts:235`), so a harness that exposes `bash` is not left ungated | `check.sh:4775` (the export exists), `:4780` (no hook hard-codes one shell name) |
+| Dual shell tools | `SHELL_TOOLS = ["bash", "hypa_shell"]`, `SHELL_TOOL_SET` and `isShellCall` live in `lib/shell-tools.ts` — one declaration, no pi import, so the publish guard and the unit tests read it too; it drives the gate's `tool_call` handler and `/check`'s read-only gate (`modes/index.ts:235`), so a harness that exposes `bash` is not left ungated | `check.sh:4803` (the export exists on the guard engine), `:4808` (no hook hard-codes one shell name); the pure suite pins exactly one declaration repo-wide |
 | Secret-noun classification | a read-ish verb aimed at a credential noun is high-risk, not read (`disclosesSecret`; the noun sets are `secretNouns` in `lib/infra-tables.ts`), with enumeration verbs exempt because they return names, not values (`ENUMERATION_VERBS`) | `check.sh:1464` runs the pure suite with a pinned pass count |
 | Confirm payload | no truncated confirm: past `CONFIRM_LIMIT` the armed gate refuses and tells you to split it (`confirmPayload`), and the human is shown the whole command once (`lib/mutation-guard.ts`, in the `tool_call` handler) | same |
 | Read-only lookup allowances | segments led by `which`, `type`, `whereis` or `command -v` are not classified — nothing they name executes (`isLookupSegment`, `LOOKUP_LEAD`). The exemption is withheld from any such segment that carries a substitution, because that is code and not a name: `which $(aws s3 rm s3://b/k)` classifies as an `aws` mutation and blocks (measured 2026-11-16) | same |
-| Script expansion | `expandScripts` inlines shell-script bodies at most `SCRIPT_MAX_BYTES` (1 MiB) each and `SCRIPT_MAX_DEPTH` (3) levels deep, refusing non-regular files before reading; an unreadable or oversize body becomes an unresolved unknown, which a locked gate blocks and an armed gate blocks or confirms with the expanded body in view | `check.sh:4784` (the export exists); `sh /tmp/probeA.sh` — §4 residual 5's own case — now blocks (§3, probe D) |
+| Script expansion | `expandScripts` inlines shell-script bodies at most `SCRIPT_MAX_BYTES` (1 MiB) each and `SCRIPT_MAX_DEPTH` (3) levels deep, refusing non-regular files before reading; a script the command **names directly** that is unreadable or oversize becomes an unresolved unknown, which a locked gate blocks and an armed gate blocks, while a mutation found inside any inlined body blocks in both modes. What the walk cannot resolve *inside* an already-inlined body is a notice, not a block — see §2.1b | `check.sh:4812` (the export exists); `sh /tmp/probeA.sh` — §4 residual 5's own case — now blocks (§3, probe D); `bash check.sh` runs under a locked gate (pure suite) |
 | Flag-gated escalation | `highRiskFlags` (`lib/infra-tables.ts`) makes a read verb high-risk only with a revealing flag — `ssm get-parameter --with-decryption`, `kubectl config view --raw`, `terraform output|show -json` — so the innocent form stays a read | pinned in the same suite |
 | `--` is a wall | `--help`/`-h`/`--dry-run` are read-only only **before** a standalone `--`; past it the flag belongs to the wrapped command (`beforeEndOfFlags`). `--version` is no longer a blanket read allowance | same |
 | Project rulebook | `.cc-safety-net/rules/rule.json` plus `rules/dotfiles-rules/rulebook.json`: deny `git commit --no-verify` / `-n`, forced pushes, forced adds; one blocked fixture per rule plus allow cases, including `git add secrets/env.fish` (allowed, because the path stays git-crypt'd) | `check.sh:4840` (fixture per rule + an allow), `:4820` (every ref is a 40-hex commit) |
@@ -92,9 +93,23 @@ and every rulebook ref is a 40-hex **commit**, not a tag or branch (`#d1fc329f�
 check.
 
 **(b) Still not honest — the shapes L2 misses.** Each was measured on 2026-11-16
-passing a **locked** gate (probe D, §3). They are named here so the residual column
-in §1 cannot be read as "a hook cannot be fooled":
+passing a **locked** gate (probe D, §3), except the first, which is a deliberate depth
+boundary rather than a measurement:
 
+- **Intent hidden inside a script's own indirection is best-effort.** L2 enforces
+  what it reads for the command it was given (depth 0: the command line, and whether
+  a script that command names directly can be read at all). What the expansion walk
+  fails to resolve *inside* an already-inlined body (depth ≥ 1) — a `$VAR` command
+  word, an unexpandable `$DOTFILES/…` path, a shell reading a script from a pipe — is
+  recorded as a **notice** (`nestedNotes` in `lib/script-expand.ts` /
+  `lib/classify.ts`), reported once per session through `ctx.ui.notify` and never as
+  a block; an unrecognised verb found there is a notice for the same reason. L3
+  independently parses script contents, so the shell layer is not the only reader.
+  The reason is measured, not stylistic: this repo's own `check.sh` is 297 KB of
+  `$VAR` command words, `$DOTFILES/…` paths and quoted prose, and a gate that failed
+  closed on all of them made the suite unrunnable **in every mode** — friction in the
+  wrong direction, and the reliable way to get a guard switched off. A *recognised*
+  mutation inside a body still blocks in both modes; that is what inlining is for.
 - **An executed file that declares itself neither by shebang nor by suffix.** A
   directly run `/tmp/x/bare` — no shebang, no extension — is skipped on purpose:
   nothing in it claims to be a shell script. Two things count as a declaration: the
@@ -106,6 +121,12 @@ in §1 cannot be read as "a hook cannot be fooled":
   script L2 already inlined) is scanned for CLI names, not expanded again.
 - **Bare interactive shells** are now an unknown rather than an allow: `bash` with no
   file argument can run anything, so a locked gate blocks it and an armed gate asks.
+
+Every shape above is a *block* only where the gate reads it, i.e. on the command
+itself (depth 0); the same shape inside an already-inlined body is the notice
+described in the first bullet. The boundary is a product decision, not an oversight:
+enforcing it made `bash check.sh` unrunnable, and the residual is written down here
+instead of being papered over.
 
 Shapes that used to be listed here are **closed**, each measured 2026-11-16: a runner
 reading stdin (`curl … | sh`, `sh -s`) and a `$VAR` command word classify as
@@ -221,10 +242,13 @@ other side — literal CLI names anywhere in an argument list are classified.
    interpreter that shells out, and a substitution nested inside an already-inlined
    body (§2.1b). Pipe-into-shell, `$VAR` command words, `/dev/stdin`, a shell behind
    `xargs`/`find -exec`, a substitution- or brace-built command word and a glob path
-   are closed: all classify as unknown or `unresolved`, so locked blocks them and
-   armed confirms them. More file reading does not fix the remaining three — the
-   payload lives somewhere L2 cannot see (a non-shell interpreter, or a file with no
-   claim to being a script).
+   are closed **on the command itself** (depth 0): all classify as unknown or
+   `unresolved`, so locked blocks them and armed confirms them. The same shapes found
+   *inside* an inlined body are a reported notice, not a block — the depth boundary
+   in §2.1b, which exists because `bash check.sh` (297 KB, this repo's own suite)
+   otherwise could not run in any mode. More file reading does not fix the remaining
+   three — the payload lives somewhere L2 cannot see (a non-shell interpreter, or a
+   file with no claim to being a script).
 6. The plaintext session store is kept 90 days (decision D3).
 
 ## 5. Open policy questions

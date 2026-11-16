@@ -13,9 +13,9 @@
  * leave a case here.
  */
 
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -25,11 +25,13 @@ import {
   confirmPayload,
   findInvocations,
   hasDryRun,
+  inspectCommand,
   writeTargets,
   SCRIPT_MAX_BYTES,
   type ReadFile,
   type ToolConfig,
 } from "./classify.ts";
+import { SHELL_TOOLS, SHELL_TOOL_SET, isShellCall, isShellTool } from "./shell-tools.ts";
 import { AWS, AZ, GCLOUD, KUBECTL, TOOLS } from "./infra-tables.ts";
 
 const ALL_NAMES = new Set(TOOLS.flatMap((t) => t.names));
@@ -58,9 +60,11 @@ function classifyCommand(cmd: string): Verdict {
   if (unresolved.length || unknowns.length) return "BLOCK(unknown)";
   if (invocations.length === 0) return "not-cloud";
   let verdict: Verdict = "allow(read)";
-  for (const { result } of verdicts) {
+  for (const { result, nested } of verdicts) {
     if (result.kind === "mutation") return result.highRisk ? "BLOCK(high-risk)" : "BLOCK(mutation)";
-    if (result.kind === "unknown") verdict = "BLOCK(unknown)";
+    // An unrecognised verb found INSIDE an inlined body is a note, not a block
+    // (depth policy, ./script-expand.ts) — a recognised mutation there still blocks.
+    if (result.kind === "unknown" && !nested) verdict = "BLOCK(unknown)";
   }
   return verdict;
 }
@@ -370,22 +374,79 @@ test("4e: a quoted command (bash -c \"…\") resolves its basename", () => {
 
 const SRC = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
-test("4a: SHELL_TOOLS is the single source of shell tool names", () => {
-  const guard = SRC("./mutation-guard.ts");
-  const decl = guard.match(/export const SHELL_TOOLS\s*=\s*\[([^\]]*)\]/s);
-  assert.ok(decl, "mutation-guard.ts must export SHELL_TOOLS");
+/** Every .ts source under extensions/ (recursive), for the "declared once"
+ *  scan. Uses node:fs, like the test's other fs reads. */
+function sourceFiles(): { rel: string; text: string }[] {
+  const root = new URL("..", import.meta.url);
+  const rootPath = decodeURIComponent(root.pathname);
+  return readdirSync(rootPath, { recursive: true })
+    .map(String)
+    .filter((p) => p.endsWith(".ts"))
+    .map((p) => ({ rel: p.split(sep).join("/"), text: readFileSync(new URL(p.split(sep).join("/"), root), "utf8") }));
+}
+
+test("4a: SHELL_TOOLS is declared exactly once, in lib/shell-tools.ts", () => {
+  // Intent kept from the original pin: one list, every hook. What changed is
+  // WHERE it lives — the publish guard used to carry a private copy, and a test
+  // pinned that copy. A second declaration is the bug, so this asserts the
+  // single declaration and that both hooks read it.
+  //
+  // A "declaration" is a const/let/var bound to an array literal naming both
+  // tools. Test files are exempt: platform-tools.test.ts lists tool names as
+  // pruning FIXTURES, which is data, not a gate.
+  const PAIR_DECL = /\b(?:const|let|var)\s+\w+\s*(?::[^=]+?)?=\s*(?:new\s+Set(?:<[^>]*>)?\s*\(\s*)?\[([^\]]*)\]/g;
+  const declaresPair = (text: string) =>
+    [...text.matchAll(PAIR_DECL)].some(
+      ([, body]) => /["'`]bash["'`]/.test(body) && /["'`]hypa_shell["'`]/.test(body),
+    );
+
+  const owners = sourceFiles()
+    .filter((f) => !f.rel.endsWith(".test.ts"))
+    .filter((f) => declaresPair(f.text))
+    .map((f) => f.rel);
+  assert.deepEqual(owners, ["lib/shell-tools.ts"], `the shell-tool pair is declared in: ${owners.join(", ")}`);
+
+  const lib = SRC("./shell-tools.ts");
+  const decl = lib.match(/export const SHELL_TOOLS\s*=\s*\[([^\]]*)\]/s);
+  assert.ok(decl, "lib/shell-tools.ts must declare SHELL_TOOLS");
   const names = [...decl![1].matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
   assert.deepEqual(names.sort(), ["bash", "hypa_shell"], `SHELL_TOOLS = ${names}`);
-  assert.match(guard, /SHELL_TOOLS\.some\(/, "the shell-tool predicate must use SHELL_TOOLS");
+
+  // mutation-guard.ts re-exports that one declaration instead of owning a copy
+  const guard = SRC("./mutation-guard.ts");
+  assert.match(
+    guard,
+    /export \{[^}]*SHELL_TOOLS[^}]*\}\s*from\s*["']\.\/shell-tools\.ts["']/,
+    "mutation-guard.ts must re-export SHELL_TOOLS from lib/shell-tools.ts",
+  );
   assert.match(guard, /isShellCall\(event\)/, "the tool_call hook must use the shared predicate");
+  // the publish guard reads the shared set, not its own copy
+  const publish = SRC("../publish-guard.ts");
+  assert.match(publish, /SHELL_TOOL_SET/, "publish-guard.ts must read SHELL_TOOL_SET");
+  assert.doesNotMatch(publish, /new Set\(\[/, "publish-guard.ts still declares its own shell-tool set");
+});
+
+test("4a: the shared declaration is pi-free and answers both tool names", () => {
+  // publish-guard.ts is imported by the wiring tests, so this module must never
+  // import the harness package — that is why the predicate lives here.
+  assert.doesNotMatch(SRC("./shell-tools.ts"), /^\s*import\b/m, "lib/shell-tools.ts must have no imports");
+  assert.deepEqual([...SHELL_TOOLS], ["bash", "hypa_shell"]);
+  assert.equal(isShellTool("bash"), true);
+  assert.equal(isShellTool("hypa_shell"), true);
+  assert.equal(isShellTool("read"), false);
+  assert.equal(isShellCall({ toolName: "bash", input: { command: "ls" } }), true);
+  assert.equal(isShellCall({ toolName: "hypa_shell", input: { command: "ls" } }), true);
+  assert.equal(isShellCall({ toolName: "read" }), false);
+  assert.equal(isShellCall(undefined), false);
+  assert.equal(SHELL_TOOL_SET.size, 2);
 });
 
 test("4a: no hook hard-codes the hypa_shell tool name", () => {
   for (const rel of ["./mutation-guard.ts", "../infra-safety.ts", "../modes/index.ts"]) {
     assert.doesNotMatch(
       SRC(rel),
-      /isToolCallEventType\(\s*["']hypa_shell["']/,
-      `${rel} still gates the hypa_shell tool name only`,
+      /isToolCallEventType\(\s*["'](?:hypa_shell|bash)["']/,
+      `${rel} still gates a hard-coded shell tool name`,
     );
   }
   assert.match(SRC("../modes/index.ts"), /isShellCall|SHELL_TOOLS/, "modes' read-only gate must use SHELL_TOOLS");
@@ -859,4 +920,101 @@ test("readFile: the guard refuses non-regular and oversized files before reading
   assert.match(guard, /statSync\(/, "readFile must stat before reading");
   assert.match(guard, /isFile\(\)/, "readFile must refuse non-regular files (/dev/zero, fifos)");
   assert.match(guard, /SCRIPT_MAX_BYTES/, "readFile must size-check before reading the whole file");
+});
+
+// ── depth: what is enforced vs. what is only recorded ───────────
+// Policy: what the gate reads for the TOP-LEVEL command is enforced (depth 0);
+// what it fails to resolve while walking INSIDE an already-inlined body
+// (depth >= 1) is a notice. Without this split, `bash check.sh` — this repo's
+// own 270 KB suite — could not run through the gate in ANY mode, which is how a
+// guard gets switched off. A recognised mutation inside a body still blocks:
+// that is the whole point of inlining it.
+
+test("depth: a `$VAR` command word inside an inlined body is a note, not a block", () => {
+  const read = fakeFiles({ "/tmp/big.sh": "#!/bin/bash\n$RUNNER deploy --all\nkubectl get pods\n" });
+  const res = classifyInvocations("bash /tmp/big.sh", ALL_NAMES, BY_NAME, read);
+  assert.deepEqual(res.unknowns, [], "depth >= 1 must not produce an unknown");
+  assert.deepEqual(res.unresolved, []);
+  assert.equal(res.nestedNotes.length, 1, `nestedNotes = ${JSON.stringify(res.nestedNotes)}`);
+  assert.match(res.nestedNotes[0], /\$RUNNER/);
+  // the body is still classified — only the unresolvable word is a note
+  assert.deepEqual(res.verdicts.map((v) => v.result.kind), ["read"]);
+  assert.deepEqual(checkCommandReadOnly("bash /tmp/big.sh", ALL_NAMES, BY_NAME, DOMAIN, read), []);
+});
+
+test("depth: an unexpandable path referenced from a body is a note, not unresolved", () => {
+  const read = fakeFiles({ "/tmp/big.sh": '#!/bin/bash\nsource "$DOTFILES/lib/expand.sh"\n' });
+  const res = classifyInvocations("bash /tmp/big.sh", ALL_NAMES, BY_NAME, read);
+  assert.deepEqual(res.unresolved, [], "a path inside a body must not be unresolved");
+  assert.deepEqual(res.unknowns, []);
+  assert.equal(res.nestedNotes.length, 1, `nestedNotes = ${JSON.stringify(res.nestedNotes)}`);
+  assert.match(res.nestedNotes[0], /expand\.sh/);
+  assert.deepEqual(checkCommandReadOnly("bash /tmp/big.sh", ALL_NAMES, BY_NAME, DOMAIN, read), []);
+});
+
+test("depth: an unrecognised verb inside a body is a note, while a mutation there still blocks", () => {
+  const read = fakeFiles({
+    "/tmp/unknown.sh": "#!/bin/bash\nkubectl frobnicate widgets\n",
+    "/tmp/mutate.sh": "#!/bin/bash\nkubectl delete pod x\n",
+  });
+  const unknown = classifyInvocations("bash /tmp/unknown.sh", ALL_NAMES, BY_NAME, read);
+  assert.deepEqual(unknown.verdicts.map((v) => [v.result.kind, v.nested]), [["unknown", true]]);
+  assert.equal(unknown.nestedNotes.length, 1);
+  assert.match(unknown.nestedNotes[0], /frobnicate/);
+  assert.deepEqual(checkCommandReadOnly("bash /tmp/unknown.sh", ALL_NAMES, BY_NAME, DOMAIN, read), []);
+
+  const [issue] = checkCommandReadOnly("bash /tmp/mutate.sh", ALL_NAMES, BY_NAME, DOMAIN, read);
+  assert.match(String(issue), /mutation blocked/, "a mutation inside a body must still block");
+});
+
+test("depth: the same shapes at depth 0 keep today's fail-closed behaviour", () => {
+  const none = fakeFiles({});
+  // the word is on the command line the caller typed
+  const top = classifyInvocations("$RUNNER deploy --all", ALL_NAMES, BY_NAME, none);
+  assert.ok(top.unknowns.length > 0, "a depth-0 `$VAR` command word must stay unknown");
+  assert.deepEqual(top.nestedNotes, []);
+  assert.ok(checkCommandReadOnly("$RUNNER deploy --all", ALL_NAMES, BY_NAME, DOMAIN, none).length > 0);
+
+  // a script the command names directly, which the gate cannot read
+  const direct = classifyInvocations("sh /tmp/x.sh", ALL_NAMES, BY_NAME, none);
+  assert.deepEqual(direct.unresolved, ["/tmp/x.sh"]);
+  assert.deepEqual(direct.nestedNotes, []);
+  const [issue] = checkCommandReadOnly("sh /tmp/x.sh", ALL_NAMES, BY_NAME, DOMAIN, none);
+  assert.match(String(issue), /unreadable|too large/);
+  assert.match(String(issue), /blocked/);
+});
+
+test("depth: bash check.sh — this repo's own suite — is allowed under a locked gate", () => {
+  const checkSh = new URL("../../../../../../check.sh", import.meta.url).pathname;
+  const body = readFileSync(checkSh, "utf8");
+  assert.ok(body.length > 200_000, `check.sh should be the big script this policy exists for (${body.length} bytes)`);
+  const read = fakeFiles({ [checkSh]: body });
+
+  const res = classifyInvocations(`bash ${checkSh}`, ALL_NAMES, BY_NAME, read);
+  assert.deepEqual(res.unknowns, [], "the top-level command must not be an unknown");
+  assert.deepEqual(res.unresolved, [], "the top-level command must not be unresolved");
+  assert.ok(res.nestedNotes.length > 0, "the body's own indirection must be RECORDED, not silently dropped");
+
+  const issues = checkCommandReadOnly(`bash ${checkSh}`, ALL_NAMES, BY_NAME, DOMAIN, read);
+  assert.deepEqual(issues, [], `locked gate must allow the repo's own suite: ${issues.slice(0, 3).join(" | ")}`);
+  assert.deepEqual(inspectCommand(`bash ${checkSh}`, ALL_NAMES, BY_NAME, DOMAIN, read).issues, []);
+
+  // the mutation that used to be invisible is still blocked, on the same reader
+  const mutate = fakeFiles({ [checkSh]: `${body}\nkubectl delete pod x\n` });
+  const [mutation] = checkCommandReadOnly(`bash ${checkSh}`, ALL_NAMES, BY_NAME, DOMAIN, mutate);
+  assert.match(String(mutation), /mutation blocked/);
+});
+
+test("depth: the locked gate REPORTS notes and the armed gate does not prompt for them", () => {
+  const guard = SRC("./mutation-guard.ts");
+  assert.match(guard, /nestedNotes/, "the wiring must consume nestedNotes");
+  assert.match(guard, /ui\.notify\(/, "notes must reach the user via ctx.ui.notify (never model context)");
+  assert.match(guard, /reportedNotes/, "notes are reported once per session, not on every call");
+  // a note must never be folded into a block reason
+  assert.doesNotMatch(guard, /reason:[^;]*nestedNotes/, "nestedNotes must never become a block reason");
+  assert.match(
+    guard,
+    /nested && result\.kind === "unknown"\)\s*continue/,
+    "the armed gate must not prompt for a nested unknown",
+  );
 });

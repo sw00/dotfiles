@@ -25,28 +25,25 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
-import { checkCommandReadOnly, classifyInvocations, confirmPayload, SCRIPT_MAX_BYTES } from "./classify.ts";
+import { classifyInvocations, confirmPayload, inspectCommand, SCRIPT_MAX_BYTES } from "./classify.ts";
 import type { ReadFile, ToolConfig } from "./classify.ts";
+import { isShellCall } from "./shell-tools.ts";
 
 export type { ToolConfig, VerbPosition, Classification, Invocation } from "./classify.ts";
 export { classify, findInvocations, hasDryRun, hasHelpFlag, normalizeCommand } from "./classify.ts";
 
 /**
- * Every tool that delivers a raw shell command. A gate wired to one name only
- * is bypassed by the other: pi-hypa's replace mode hides the native `bash`
- * tool, but other harnesses expose it, so both must be gated.
+ * Every tool that delivers a raw shell command lives in ./shell-tools.ts — one
+ * declaration, no pi import, so the publish guard and the tests share it
+ * without pulling the harness in. A gate wired to one name only is bypassed by
+ * the other: pi-hypa's replace mode hides the native `bash` tool, but other
+ * harnesses expose it, so both must be gated.
  */
-export const SHELL_TOOLS = ["bash", "hypa_shell"] as const;
-
-/** True for a tool_call carrying a shell command, whichever shell tool it is. */
-export function isShellCall(event: unknown): event is { input: { command: string } } {
-  return SHELL_TOOLS.some((tool) => isToolCallEventType(tool as never, event as never));
-}
+export { SHELL_TOOLS, isShellCall, isShellTool, SHELL_TOOL_SET } from "./shell-tools.ts";
 
 /** The engine's filesystem access, used to inline `sh x.sh` script bodies.
  *  stat() first: readFileSync on /dev/zero (or any fifo/device) never returns,
@@ -149,7 +146,24 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
 
   /** Read-only-semantics check, reusable by other extensions via the registry. */
   const checkCommand = (command: string): string[] =>
-    checkCommandReadOnly(command, allNames, toolByName, domain, readFile);
+    inspectCommand(command, allNames, toolByName, domain, readFile).issues;
+
+  /** Depth >= 1 findings: shapes the walk could not resolve INSIDE an already
+   *  inlined script body. Best-effort by contract, so they are told to the human
+   *  once per session and never enter model context — the point is to be honest
+   *  about what was inspected, not to nag or to block (`bash check.sh` carries
+   *  hundreds of `$VAR` words and would otherwise be unrunnable in every mode). */
+  const reportedNotes = new Set<string>();
+  const reportNestedNotes = (ctx: ExtensionContext, notes: string[]): void => {
+    const fresh = notes.filter((note) => !reportedNotes.has(note));
+    if (fresh.length === 0) return;
+    for (const note of fresh) reportedNotes.add(note);
+    ctx.ui.notify(
+      `ℹ️ ${domain}: ${fresh.length} shape(s) inside an inlined script could not be resolved `
+        + `(not enforced) — ${fresh[0]}`,
+      "info",
+    );
+  };
 
   guardRegistry.set(domain, {
     domain,
@@ -166,7 +180,8 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
     const command = event.input.command;
 
     if (mode === "locked") {
-      const issues = checkCommand(command);
+      const { issues, nestedNotes } = inspectCommand(command, allNames, toolByName, domain, readFile);
+      reportNestedNotes(ctx, nestedNotes);
       if (issues.length) {
         return {
           block: true,
@@ -178,12 +193,13 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
       return;
     }
 
-    const { verdicts, unresolved, unknowns, text: expanded } = classifyInvocations(
+    const { verdicts, unresolved, unknowns, nestedNotes, text: expanded } = classifyInvocations(
       command,
       allNames,
       toolByName,
       readFile,
     );
+    reportNestedNotes(ctx, nestedNotes);
 
     // A script nobody could read is not a script we may wave through — not even
     // armed. The human can read /tmp/x.sh themselves and re-run it by hand.
@@ -206,10 +222,13 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
       return payload;
     };
 
-    for (const { tool, result } of verdicts) {
+    for (const { tool, result, nested } of verdicts) {
       // Armed means "ask before mutating", not "allow anything that is not a
       // mutation": an unrecognised verb passes silently if we skip it here.
       if (result.kind === "read") continue;
+      // An unrecognised verb inside an inlined body is a note (reported above),
+      // not a prompt: inside a large script most verb-shaped words are prose.
+      if (nested && result.kind === "unknown") continue;
       const unknown = result.kind === "unknown";
 
       if (!ctx.hasUI) {
@@ -257,6 +276,7 @@ export function createMutationGuard(pi: ExtensionAPI, config: MutationGuardConfi
 
   pi.on("session_start", (_e, ctx) => {
     mode = "locked";
+    reportedNotes.clear();
     setStatus(ctx);
   });
 

@@ -9,9 +9,9 @@
  * files after the fact.
  *
  * Two questions, one decision:
- *   1. Is this call publishing outgoing text?  SHELL_TOOLS + the publish verbs
- *      of gh/glab (lib/publish-scan.ts: publishTargets); or a web tool, which
- *      publishes its own arguments by definition.
+ *   1. Is this call publishing outgoing text?  SHELL_TOOL_SET (lib/shell-tools.ts)
+ *      + the publish verbs of gh/glab (lib/publish-scan.ts: publishTargets); or a
+ *      web tool, which publishes its own arguments by definition.
  *   2. Does that text carry a known credential?  gitleaks' default rules over
  *      the same text, plus exact values from secrets/env.fish.
  *
@@ -40,9 +40,7 @@ import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
 import { publishTargets, scan, type LeakScan } from "./lib/publish-scan.ts";
-
-/** Shell tools that can run a publish CLI. Kept local: lib/ owns no tool lists. */
-const SHELL_TOOLS = new Set(["bash", "hypa_shell"]);
+import { SHELL_TOOL_SET } from "./lib/shell-tools.ts";
 
 /** Web tools publish their arguments; these are the fields that leave the host. */
 const WEB_TOOL_FIELDS: Record<string, readonly string[]> = {
@@ -193,7 +191,7 @@ function blocked(reason: string): { block: true; reason: string } {
 
 /** Which tool calls publish text, and what they will send. */
 function targetsFor(toolName: string, input: Record<string, unknown>): Targets | null {
-  if (SHELL_TOOLS.has(toolName)) {
+  if (SHELL_TOOL_SET.has(toolName)) {
     const command = input.command;
     if (typeof command !== "string" || command.length === 0) return null;
     const t = publishTargets(command);
