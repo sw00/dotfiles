@@ -1,0 +1,24 @@
+#!/bin/bash
+# worktrunk post-start hook: keep `__worktrees/` out of this clone's `git status`.
+#
+# Runs in the new worktree with no WORKTRUNK_* variables in the environment, so the repo
+# comes from git. Silent and idempotent: it is a background hook, once per creation.
+# Why this exists, and the newline trap it guards: docs/WT.md.
+set -u
+
+common=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
+[ -n "$common" ] || exit 0
+# A linked worktree answers with an absolute path; the main checkout (or a subdirectory
+# of it) answers relative, and anchoring on the cwd is what makes that usable.
+case $common in
+    /*) ;;
+    *) common="$PWD/$common" ;;
+esac
+exclude="$common/info/exclude"
+mkdir -p "$common/info" 2>/dev/null || exit 0
+# Pad a missing final newline BEFORE appending: without it the last line merges with ours
+# and stops ignoring what it named (node_modules/ is the case that bit pwt).
+if [ -f "$exclude" ] && [ -n "$(tail -c 1 "$exclude")" ]; then
+    printf '\n' >> "$exclude"
+fi
+grep -qxF '__worktrees/' "$exclude" 2>/dev/null || printf '__worktrees/\n' >> "$exclude"

@@ -95,14 +95,14 @@ export function matchesProviderError(errorText: string, patterns: string[]): boo
  * signal, because the twin's model can come from two very different places:
  *
  *  - the SESSION's own transcript (pi appends a `model_change` to the session, and
- *    a continued or resumed session — `-c`, `--resume`, pwt's re-run
- *    `--session-id` — restores from it). That is a hop's leftover: re-testing the
+ *    a continued or resumed session — `-c`, `--resume`, an explicit
+ *    `--session-id` re-run — restores from it). That is a hop's leftover: re-testing the
  *    primary here is how a lapsed subscription comes back by itself.
  *  - THIS invocation (an explicit `--model <twin>`), which is the user's own
  *    choice and must win.
  *
- * pi reports both as `session_start` with reason "startup" (measured: pwt's
- * re-run `--session-id` is NOT "resume"), and its `model_select` "restore" source
+ * pi reports both as `session_start` with reason "startup" (measured: an explicit
+ * `--session-id` re-run is NOT "resume"), and its `model_select` "restore" source
  * is declared but never emitted — so the branch is what tells them apart:
  * `--model` is applied ON TOP of the transcript, so a last `model_change` that
  * disagrees with the effective model means the flag won; a branch with no message

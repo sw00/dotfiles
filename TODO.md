@@ -11,9 +11,14 @@ removed — full implementation history lives in git. Shared-core behavior
 Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 `docs/AGENT-SAFETY.md`. What is still owed, in order:
 
-- [ ] **Two owner decisions.** (a) Should L3 deny agent reads of `secrets/`?
-  Today `hypa_read secrets/env.fish` is allowed (probe E) — every credential then
-  sits in context. (b) pwt secret forwarding: keep, or default-off with an opt-in?
+- [ ] **Owed: rename `PWT_SRC`.** `base/tmux/bin/repo-list` (and the checks that
+  exercise it) still read `$PWT_SRC` — the source root, now the only thing it names.
+  Left as-is when pwt was deleted so a deletion commit would not change an env contract;
+  the rename is a separate, mechanical change. Do it before the next touch of repo-list.
+- [x] **Two former owner decisions, both settled.** (a) L3 agent reads of `secrets/`:
+  denied since 2026-11-16 by the L2 secret-path gate. (b) Credential forwarding into a
+  workstream: `creds` per command, nothing forwarded, since 2026-11-18 — the reasoning
+  and the checks are in `docs/AGENT-SAFETY.md` §5.
 - [ ] **Interactive probes** (cannot run non-interactively): PiG TUI
   `ctx.ui.confirm` renders the full armed command; a PiG session resumes under
   `pi` and vice versa. *(The live L3 firing on `hypa_shell` is closed — probe F.)*
@@ -110,7 +115,9 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   real tool dirs into BOTH hooks, so a future demo8 failure categorically exonerates
   mise (structurally — `_rv_hook` never overrides `HOME` — not merely statistically).**
 
-- [ ] **pwt workstream windows do not survive a tmux-resurrect restore (found
+- [x] **Moot — pwt removed 2026-11-18.** A workstream pane is a plain shell now, which
+  resurrect restores itself; the revive machinery and its post-restore hook went with it.
+  (Was: pwt workstream windows do not survive a tmux-resurrect restore, found
   2026-10-22).** `C-r` brings the sessions, windows and layout back, but a worktree
   window is a bare shell: resurrect records no command for a pane whose pid IS pi
   (its save strategy reads the pane pid's CHILDREN), no `@user` options are saved, and
@@ -122,7 +129,7 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   `__pwt_revive`/`__pwt_revive_panes` in `base/fish/.config/fish/functions/pwt.fish`,
   adoption on the `pwt <slug>` path (panel `enter` runs it), the resurrect hook script
   `base/tmux/bin/pwt-revive-restored` wired via `@resurrect-hook-post-restore-all` with
-  `@pwt_revive` as a kill switch, docs in `docs/PWT.md`, and behavioural + static
+  `@pwt_revive` as a kill switch, docs in PWT.md (now `docs/WT.md`), and behavioural + static
   assertions in `check.sh` (private socket, stub pi, restored panes built with
   `new-window -d -c` and no command). Design and mutant table:
   `.pi/plans/pwt-tmux-restore.md`. Open until a REAL `C-r` on a live server has been
@@ -154,7 +161,9 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   it is reachable wherever the map is populated, which is the shared-core case
   that matters. Still worth fixing, deprioritizable for an attended profile.
 
-- [ ] **pwt push notifications are unverified on WSL (2026-10-15).** Everything else
+- [x] **Moot — pwt removed 2026-11-18; there are no pushes to verify.** The gap that
+  replaces it is recorded in the workmux entry above.
+  (Was: pwt push notifications are unverified on WSL, 2026-10-15. Everything else
   about them is covered by `./check.sh`, including a live report through a real
   `pipe-pane`, but the WSL transport is a zero-dep WinRT toast run through
   `powershell.exe -NoProfile -NonInteractive -Command`, and its failure mode is
@@ -186,10 +195,12 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   repos). Next action: choose the rung (a `pwt`-adjacent habit, an `agents-update`-style
   alias, or a periodic prompt) and call it; keep the dry-run default.
 
-- [ ] **`pwt <slug>` refuses inside a bare shell at a worktree root (2026-10-23,
+- [x] **Moot — pwt removed 2026-11-18.** `wt switch` in a bare shell does not spawn an
+  agent at all, so there is nothing to duplicate.
+  (Was: `pwt <slug>` refuses inside a bare shell at a worktree root, 2026-10-23,
   judgment).** Deliberate: a resurrect-restored pane and a shell merely `cd`'d into the
   worktree are indistinguishable, and respawning the pane `pwt` runs in would kill pwt —
-  so it refuses loudly instead of opening a second window (`docs/PWT.md` §After a
+  so it refuses loudly instead of opening a second window (PWT.md §After a
   tmux-resurrect restore). Revisit if the `cd`-into-worktree flow proves common; the
   alternative is to open the window there and accept the duplicate on a restore.
 
@@ -255,14 +266,19 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   browser, and it is org-configured); decide whether the ARO break-glass
   credential and the AKS kubeconfig contexts stay machine-local (they need a
   `$HOME` backup to survive a rebuild).
-- [ ] **workmux trial — deferred; the status gap it named is now closed (2026-10-11,
-  status 2026-10-20).** Higher-order pi session/agent management: git worktrees + tmux
-  windows with per-agent status, prompt injection, merge/cleanup lifecycle, and a
-  dashboard. Deferred because the acute bottleneck was solved without a new tool —
-  `pi --session-id` per workstream, `pwt` for worktrees, and now the OSC 7501 tap +
-  `C-w` panel + pushes for status (`docs/PWT.md`). What is still workmux-only: prompt
-  injection, merge automation and the dashboard. Revisit only if manual bookkeeping
-  costs >10 min/week, or if >=3 parallel mutating agents per repo become routine. If
+- [ ] **workmux trial — deferred; worktrees and cleanup now belong to `wt` (2026-10-11,
+  revised 2026-11-18).** Higher-order pi session/agent management: git worktrees + tmux
+  windows with per-agent status, prompt injection, merge/cleanup lifecycle, a dashboard.
+  Worktrees, cleanup and branch integration went to `wt` (`docs/WT.md`), so what remains
+  workmux-only is prompt injection and a cross-repo dashboard. Revisit only if manual
+  bookkeeping costs >10 min/week, or if >=3 parallel mutating agents per repo become
+  routine. **Two gaps the pwt→wt move accepted, in priority order:** (1) *no desktop push
+  when an agent settles* — `wt`'s markers are pull-only (`wt list`), so an agent that
+  finishes while you are elsewhere waits silently; if that costs >10 min/week the fix is
+  a ~40-line pi extension on `agent_settled`, NOT a reason to rebuild the OSC tap;
+  (2) *no cross-repo view* — `wt list` is per-repo, and the old `C-w` panel spanned
+  everything under `PWT_SRC`; (3) *no in-window "wants a human" flag* — the tmux status
+  bar used to carry `!` from the same tap, and now shows no agent state at all. If
   revisited:
   `mise use -g github:raine/workmux` (prebuilt binary — no rust toolchain, no
   Brewfile/check.sh parity work), mbpm3 first, window mode, and it must displace

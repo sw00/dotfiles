@@ -51,21 +51,21 @@ in the same change, and say which in the commit.
    is a gate; a filtered or extracted run is a debugging aid.
 
 3. **Fail loudly; never degrade silently.** Refuse and name the way out
-   (`pwt rm` names `--stash`). Skip visibly with the reason. Error on a wrong
+   (a refused `wt remove` says what to run instead). Skip visibly with the reason. Error on a wrong
    environment. A silent no-op is the worst outcome, above all in a hook.
 
 4. **Read recorded facts, not observed state.** Allowlists, not blocklists
-   (`__pwt_is_shell`). Never infer identity from a signal something else can
+   (the L2 gate's `SHELL_TOOLS`). Never infer identity from a signal something else can
    spoof — pane titles, `pane_current_command`, `#{window_active}`. Prefer the
-   file that records the fact (`@pwt_sid`, `session_path`).
+   file that records the fact (tmux's recorded `session_path`, not a live pane cwd).
 
 5. **Nothing irreversible without a recovery path.** Move, don't delete. Stash
    before remove. Keep what exists nowhere else. Never `--zap` in a migration,
    and never revert a deliberate human act (`packages` stay live-wins; secrets
    are never `git checkout`ed without asking).
 
-6. **One owner per fact, action and tool.** One `respawn-pane`, one place
-   pinning a session id, one doc owning each fact, one package manager per tool.
+6. **One owner per fact and tool.** One doc owning each fact, one package manager per
+   tool.
    When a fact must exist in several languages, duplicate it as a byte-identical
    marker line and assert the copies agree — do not build indirection to avoid
    the duplication.

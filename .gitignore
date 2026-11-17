@@ -15,19 +15,17 @@ vim/.netrwhist
 # negation cannot re-include a file whose PARENT dir is excluded, hence
 # `functions/*` rather than `functions/`.
 # Tracked: config.fish, fish_plugins, conf.d/{ssh-agent,ssh-locale,wsl,mise,pig}.fish,
-#          functions/{tt,pi-prune-sessions,pi-settings-apply,pwt,agents-update,
-#          git-prune-merged}.fish, completions/pwt.fish
+#          functions/{tt,pi-prune-sessions,pi-settings-apply,agents-update,
+#          git-prune-merged}.fish
 # A NEW own-file is invisible until it is negated below — check.sh asserts one
 # negation per own-file for exactly that reason.
 base/fish/.config/fish/functions/*
 !base/fish/.config/fish/functions/tt.fish
 !base/fish/.config/fish/functions/pi-prune-sessions.fish
 !base/fish/.config/fish/functions/pi-settings-apply.fish
-!base/fish/.config/fish/functions/pwt.fish
 !base/fish/.config/fish/functions/agents-update.fish
 !base/fish/.config/fish/functions/git-prune-merged.fish
 base/fish/.config/fish/completions/*
-!base/fish/.config/fish/completions/pwt.fish
 base/fish/.config/fish/conf.d/*
 !base/fish/.config/fish/conf.d/wsl.fish
 !base/fish/.config/fish/conf.d/ssh-agent.fish

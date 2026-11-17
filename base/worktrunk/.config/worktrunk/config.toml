@@ -1,0 +1,28 @@
+# ~/.config/worktrunk/config.toml — stowed from base/worktrunk.
+#
+# USER-level config only. Project config (.config/wt.toml) is deliberately absent:
+# project hooks need an interactive approval stored in
+# ~/.config/worktrunk/approvals.toml, so every clone of every repo would have to be
+# approved by hand, and nothing here is repo-specific anyway.
+#
+# Contract, rules and daily verbs: docs/WT.md.
+
+# Worktrees live INSIDE the repo rather than in a sibling directory. Two reasons, both
+# load-bearing: it keeps them under the path prefix pi trusts
+# (~/.pi/agent/trust.json), so a workstream stays inside the prefix that file covers; and
+# it keeps them under the sesh/zoxide scope that repo-list already excludes. `sanitize`
+# maps `/` and `\` to `-` only — it is not a slugifier (upstream docs) — which is fine
+# because this config only ever sees slugs.
+worktree-path = "{{ repo_path }}/__worktrees/{{ branch | sanitize }}"
+
+# git does not read `__worktrees/` as ignored on its own, so without this the directory
+# shows in `git status`, `git add -A` stages it as a gitlink, and ripgrep indexes every
+# copy. worktrunk writes no `info/exclude` (verified against 0.81.0), so this hook does
+# — into the clone's own exclude file, never the repo's .gitignore, which would force a
+# commit into every repository wt is used in.
+#
+# post-start is create-only (measured: it does not re-fire on later switches) and runs
+# with cwd = the new worktree. It exports NO worktrunk template variables, so the
+# script derives the repo from $PWD through git; see bin/wt-exclude.
+[post-start]
+exclude = "$HOME/bin/wt-exclude"

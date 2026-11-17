@@ -488,7 +488,7 @@ already on a target provider is never re-hopped.
 An extension's `pi.setModel()` does **not** persist `defaultModel` (corrected
 2026-10-22: `agent-session.js` writes it only for `options.persist`, which the
 extension-facing wrapper does not pass) — but it DOES append a `model_change` to the
-session, and a resumed session (`pi -c`, `--resume`, a pwt re-run `--session-id`)
+session, and a resumed session (`pi -c`, `--resume`, an explicit `--session-id`)
 restores from that. So a fallback survives a resume, which is why the extension
 re-probes the primary on `session_start`: a lapsed subscription is re-tested once per
 session, and when it comes back the session returns to it by itself. The cost while

@@ -78,6 +78,12 @@ bitwarden = "latest"
 # so this entry is load-bearing: without it every publish and web call blocks
 # with "gitleaks not installed".
 "aqua:gitleaks/gitleaks" = "latest"
+# worktrunk (`wt`) owns git worktrees — contract and daily verbs in docs/WT.md.
+# PINNED, not `latest`: 0.82.0 is signed by a release-recovery tag and fails mise's
+# cosign verification outright, so `latest` breaks `mise install` on every host.
+# 0.81.0 also has no `refs/wt-backup`, which is why docs/WT.md forbids `wt remove
+# --force`. Move the pin only when aqua's `latest` installs clean.
+"aqua:max-sixty/worktrunk" = "0.81.0"
 # btop: aqua ships linux builds only; macOS has no prebuilt binary for any mise
 # backend, so it comes from brew instead (os/macos/brew/.Brewfile-base). The
 # os restriction makes mise skip it on macOS rather than fail on aqua.

@@ -157,8 +157,8 @@ error. Risky per-run tool calls: 2 3 3 3 3, with no infra CLI attempted.
 
 **Resume across the version skew — verified, both mechanisms.** A session
 written under upstream 1.5.0 resumed under bolt and answered its codeword with
-`pi -c` (continue) *and* with `pi -p --session-id <id>`, the mechanism `pwt`
-pins with. So the 1.4.0/1.5.0 gap does not break session resume on this pair;
+`pi -c` (continue) *and* with `pi -p --session-id <id>`, the mechanism a pinned
+workstream session uses. So the 1.4.0/1.5.0 gap does not break session resume on this pair;
 treat it as version-specific evidence, not a guarantee (re-probe after a bolt
 rebase).
 

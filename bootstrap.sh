@@ -1121,7 +1121,7 @@ main() {
     # git-crypt was unlocked in phase 1a (or we aborted), so ssh is always
     # safe to stow here.
     log "stowing base configs"
-    stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh tokentelemetry claude
+    stow_dir "$DOTFILES/base" git nvim ssh fish pi tmux alacritty mise sesh tokentelemetry claude worktrunk
 
     # gnupg is stowed per-OS, not from base: macOS uses pinentry-ide,
     # Linux/WSL use pinentry-tty. Both sources target the same file

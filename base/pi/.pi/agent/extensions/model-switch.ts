@@ -587,7 +587,7 @@ export default function (pi: ExtensionAPI) {
   // keeps its own map and is deliberately absent here.
   // Provider fallback: a hop does not persist in SETTINGS, but pi.setModel()
   // appends a `model_change` to the SESSION, and a resumed session (`pi -c`,
-  // `--resume`, or pwt's re-run `--session-id`) restores from it. Without this a
+  // `--resume`, or an explicit `--session-id` re-run) restores from it. Without this a
   // session that once hopped would stay on the metered twin forever, and a lapsed
   // subscription that comes back would never be picked up again. The cost while it
   // is still lapsed is one failed attempt on the next turn — the hop immediately
@@ -596,8 +596,8 @@ export default function (pi: ExtensionAPI) {
   //   Provenance decides, via ./lib/provider-fallback.ts:shouldReprobePrimary —
   // the twin must have come from the SESSION (a hop's leftover), not from an
   // explicit `--model` on this invocation, which is the user's own choice. Gating
-  // on the start REASON cannot do this: pwt re-runs `pi --session-id <sid>` for
-  // every workstream window and pi reports that as "startup", not "resume".
+  // on the start REASON cannot do this: an explicit `--session-id` re-run is reported
+  // as "startup", not "resume".
   // `reload` is skipped outright — the extension is re-imported with its guards
   // reset, so acting there would silently undo a deliberate `/use`.
   pi.on("session_start", async (event, ctx) => {

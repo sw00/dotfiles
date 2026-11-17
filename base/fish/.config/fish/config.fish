@@ -5,9 +5,8 @@ set -gx EDITOR nvim
 # NOT sourced at startup, on purpose. Every shell exports into tmux, tmux into pi,
 # and pi into every shell tool it runs — and `"$VAR"` expands in bash, sh AND fish
 # 4.9 (measured), so an exported credential is one prose accident away from a
-# published artifact. Workstreams that legitimately need the values still get them
-# per window from pwt (tmux -e, see __pwt_forward_env); everything else asks:
-# `creds <cmd>` for one command, or bare `creds` for the current shell.
+# published artifact. Nothing forwards them implicitly — a workstream window included —
+# so everything asks: `creds <cmd>` for one command, or bare `creds` for this shell.
 # Rationale and the incident it comes from: docs/AGENT-SAFETY.md.
 function creds --description 'load secrets/env.fish for one command, or into this shell'
     set -l f $HOME/dotfiles/secrets/env.fish

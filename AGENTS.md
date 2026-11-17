@@ -80,9 +80,9 @@ paths live in `docs/TILING.md` — read it before changing either config.
   session that will end in commit+push, inventory the interactive prerequisites
   up front instead of meeting them mid-run: `sudo -n true` (Linux/WSL), the repo
   unlocked (`git-crypt status`), the GPG signing cache, `ssh-add -l`.
-- Parallel agent workstreams: `pwt <slug>` (worktree + tmux window + pinned pi
-  session), `pwt ls` from a shell, `C-w` for the state-sorted panel. Read
-  `docs/PWT.md` before changing `pwt`, `pwt-pick` or `pwt-osc`.
+- Parallel agent workstreams: `wt switch --create <branch>`, then `creds pi -c` in
+  that shell; `wt list` for state, `wt remove` to finish. Read `docs/WT.md`
+  before changing wt's config or `~/bin/wt-exclude`.
 - Multi-file behaviour changes: `reviewer` on the diff before committing; prove each
   new test fails on the unfixed code; re-read any contract doc against the final diff,
   last. Fixture commits pass `git -c commit.gpgsign=false` — a locked signing agent
@@ -130,7 +130,7 @@ A plan's only required header is `> **Status:** draft | in-progress | landed (<c
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
 **How changes are made here** (principles): `docs/PRINCIPLES.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
-**Parallel agent workstreams (pwt)**: `docs/PWT.md`
+**Worktrees and workstreams (`wt`)**: `docs/WT.md`
 **Pending work**: `TODO.md`
 **Before changing provisioning behaviour** (`bootstrap.sh`, `check.sh`, `os/wsl/up.sh`):
 skim `docs/GOTCHAS.md` and `TODO.md` first, then `.pi/plans/` if it exists — the

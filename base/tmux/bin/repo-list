@@ -52,7 +52,9 @@ fi
         continue
     fi
     case "$_d" in
-        # pwt worktrees are workstreams, not repos — C-w picks those.
+        # Worktrees are workstreams, not repos: they are reached with `wt switch`.
+        # PWT_SRC keeps its historical name on purpose (a deletion commit must not change
+        # an env contract); the rename is owed — see TODO.md.
         */__worktrees|*/__worktrees/*) continue ;;
         # git reports NO toplevel for paths inside a .git directory, so the rule
         # below would treat them as "in no repo" and keep them. Never navigation

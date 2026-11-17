@@ -987,7 +987,11 @@ test("depth: the same shapes at depth 0 keep today's fail-closed behaviour", () 
 test("depth: bash check.sh — this repo's own suite — is allowed under a locked gate", () => {
   const checkSh = new URL("../../../../../../check.sh", import.meta.url).pathname;
   const body = readFileSync(checkSh, "utf8");
-  assert.ok(body.length > 200_000, `check.sh should be the big script this policy exists for (${body.length} bytes)`);
+  // A floor, not a policy limit: check.sh is 180,332 bytes here (it was 310,426 before the
+  // workstream helper it used to carry was deleted), so this proves the fixture is still
+  // the repo's big script rather than a toy. The allow and mutation assertions below are
+  // the real checks; the body is fed to the reader directly, so no size cap applies here.
+  assert.ok(body.length > 150_000, `check.sh should be the big script this policy exists for (${body.length} bytes)`);
   const read = fakeFiles({ [checkSh]: body });
 
   const res = classifyInvocations(`bash ${checkSh}`, ALL_NAMES, BY_NAME, read);
