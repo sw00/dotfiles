@@ -51,9 +51,14 @@ cask "aerospace"
 # come from the OS package manager on every platform (brew on macOS,
 # ensure_system_tools on Linux/WSL). lf moved to mise (ubi:gokcehan/lf).
 brew "tig"              # text-mode git log/diff browser
-brew "make"             # GNU Make as `gmake`. macOS ships make 3.81 at
-                        # /usr/bin/make; gmake is the only route to a modern GNU
-                        # make, and mise offers only conda:/asdf: backends for it.
+brew "make"             # GNU Make as `gmake`. macOS ships 3.81 at /usr/bin/make;
+                        # gmake is the only route to a modern GNU make.
+                        # Needed by the FLEET, not by the workbench: the IaC repo's
+                        # Makefile uses $(abspath) (Make 4.0+) and two work repos
+                        # use .ONESHELL (4.x-only). Both degrade SILENTLY on 3.81
+                        # — abspath expands empty; .ONESHELL is ignored, so every
+                        # recipe line gets its own shell. Which repos those are is
+                        # recorded in the workbench, never in this public tree.
                         # Declared for the `gmake` binary, not `make` — the brew
                         # formula is keg-only for `make`, so nothing is shadowed.
 brew "graphviz"         # graph visualization library

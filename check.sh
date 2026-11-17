@@ -1102,7 +1102,12 @@ check_has "Brewfile-base: graphviz present (moved from host)" \
     'brew "graphviz"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
 # Declared for gmake, not make: the brew formula is keg-only for `make`, so
-# /usr/bin/make still wins and only `gmake` is reachable from it.
+# /usr/bin/make still wins and only `gmake` is reachable from it. The consumer is
+# the FLEET, not this repo: the IaC repo's Makefile uses $(abspath) and two work
+# repos use .ONESHELL. Both are 4.x-only and both degrade SILENTLY on 3.81, which
+# is why this is asserted rather than left to whoever notices a broken build.
+# Repo names stay out of this public tree — the workbench records which ones.
+# (The workbench itself no longer needs gmake; its Makefile was verified on 3.81.)
 check_has "Brewfile-base: make present (provides gmake; macOS make is 3.81)" \
     'brew "make"' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
