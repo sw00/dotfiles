@@ -30,7 +30,7 @@
 # "syntax error near unexpected token" and then "_d: unbound variable".
 set -euo pipefail
 
-SRC="${PWT_SRC:-$HOME/src}"
+SRC="${WT_SRC:-$HOME/src}"
 
 stdin_mode=0
 if [[ "${1:-}" == "--stdin" ]]; then
@@ -53,8 +53,7 @@ fi
     fi
     case "$_d" in
         # Worktrees are workstreams, not repos: they are reached with `wt switch`.
-        # PWT_SRC keeps its historical name on purpose (a deletion commit must not change
-        # an env contract); the rename is owed — see TODO.md.
+        # WT_SRC is the source root; it overrides the default base for the picker below.
         */__worktrees|*/__worktrees/*) continue ;;
         # git reports NO toplevel for paths inside a .git directory, so the rule
         # below would treat them as "in no repo" and keep them. Never navigation
@@ -74,7 +73,7 @@ done
 
 # Always offered, and always last so fzf's default selection (the first curated
 # entry) is unchanged. Home before the source root, reading outer -> inner. The
-# guard covers PWT_SRC being set to $HOME, which would otherwise emit it twice.
+# guard covers WT_SRC being set to $HOME, which would otherwise emit it twice.
 if (( ! stdin_mode )); then
     _prev=""
     for _r in "$HOME" "$SRC"; do

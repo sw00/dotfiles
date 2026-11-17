@@ -11,10 +11,6 @@ removed — full implementation history lives in git. Shared-core behavior
 Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 `docs/AGENT-SAFETY.md`. What is still owed, in order:
 
-- [ ] **Owed: rename `PWT_SRC`.** `base/tmux/bin/repo-list` (and the checks that
-  exercise it) still read `$PWT_SRC` — the source root, now the only thing it names.
-  Left as-is when pwt was deleted so a deletion commit would not change an env contract;
-  the rename is a separate, mechanical change. Do it before the next touch of repo-list.
 - [x] **Two former owner decisions, both settled.** (a) L3 agent reads of `secrets/`:
   denied since 2026-11-16 by the L2 secret-path gate. (b) Credential forwarding into a
   workstream: `creds` per command, nothing forwarded, since 2026-11-18 — the reasoning

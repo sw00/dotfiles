@@ -7,11 +7,11 @@
 # chosen worktree; `--list` prints the same rows for scripts and for the suite. It never
 # starts an agent — that is the operator's move in the window it opens (docs/WT.md).
 #
-# The source root is $WT_SRC, falling back to the historical $PWT_SRC, then ~/src: that
-# rename is owed (TODO.md) and this bridges it rather than adding a third name.
+# The source root is $WT_SRC, then ~/src. repo-list reads the same name, so the two
+# views can never disagree about which repos exist.
 set -uo pipefail
 
-src="${WT_SRC:-${PWT_SRC:-$HOME/src}}"
+src="${WT_SRC:-$HOME/src}"
 
 # TSV: branch, marker, repo, dirty, path.
 rows() {

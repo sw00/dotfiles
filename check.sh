@@ -2354,7 +2354,7 @@ check "repo-list: helper exists in base/tmux/bin" test -f "$_RL"
 check "repo-list: is executable" test -x "$_RL"
 check_full "repo-list: shellcheck clean" shellcheck -S warning "$_RL"
 check_full "repo-list: runs under /bin/bash (3.2 on macOS)" \
-    env PWT_SRC="$DOTFILES/.git" /bin/bash "$_RL" --stdin < /dev/null
+    env WT_SRC="$DOTFILES/.git" /bin/bash "$_RL" --stdin < /dev/null
 check_full "repo-list: keeps a repo root, drops its subdirectories" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT; cd "$d"; git init -q; mkdir -p sub/deep
         out=$(printf "%s\n%s\n%s\n" "$d" "$d/sub" "$d/sub/deep" | "$1" --stdin)
@@ -2368,16 +2368,16 @@ check_full "repo-list: drops .git and __worktrees paths" \
         out=$(printf "%s\n%s\n" "$d/.git" "$d/__worktrees/x" | "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
 # The two navigation roots must not depend on zoxide still holding a score for
-# them: a fresh PWT_SRC has no zoxide entries at all, so this exercises the
+# them: a fresh WT_SRC has no zoxide entries at all, so this exercises the
 # always-emit path. Home first, source root last (outer -> inner).
 check_full "repo-list: always offers ~ and the source root, in that order" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-        out=$(PWT_SRC="$d" "$1" 2>/dev/null)
+        out=$(WT_SRC="$d" "$1" 2>/dev/null)
         [[ "$(printf "%s\n" "$out" | head -1)" == "$HOME" ]] &&
         [[ "$(printf "%s\n" "$out" | tail -1)" == "$d" ]]' _ "$_RL"
 check_full "repo-list: --stdin filters exactly the given list (no injection)" \
     bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
-        out=$(printf "" | PWT_SRC="$d" "$1" --stdin)
+        out=$(printf "" | WT_SRC="$d" "$1" --stdin)
         [[ -z "$out" ]]' _ "$_RL"
 # --stdin must pass paths through untouched: skipping $HOME/$SRC there (they are
 # skipped in zoxide mode to avoid re-emitting them) silently dropped input lines.
@@ -2553,8 +2553,8 @@ check "wt-all: exists in base/tmux/bin" test -f "$_WTA"
 check "wt-all: is executable" test -x "$_WTA"
 check_has "wt-all: reads wt's own JSON, not a second state store" \
     'wt list --format=json' "$_WTA"
-check_has "wt-all: bridges the source-root rename instead of adding a third name" \
-    'WT_SRC:-\$\{PWT_SRC' "$_WTA"
+check_has "wt-all: reads the same source root as repo-list (WT_SRC, then ~/src)" \
+    'WT_SRC:-\$HOME/src' "$_WTA"
 check_has "wt-all: refuses loudly without wt rather than showing an empty view" \
     'wt not on PATH' "$_WTA"
 check_has "wt-all: the picker opens a WINDOW, not an agent" \

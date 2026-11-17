@@ -68,8 +68,8 @@ notifies when an agent settles or blocks, and raises `@pi_waiting` on that windo
 window list shows `!` — cleared as soon as you look, so it reads as an inbox rather than a
 log. `PI_SETTLE_NOTIFY=0` mutes the push only; the bar is silent already.
 
-`C-w` is the cross-repo view: every worktree under `$WT_SRC` (`~/src`; `$PWT_SRC` is the
-historical name and is still honoured), one row each with its agent marker, a `git status`
+`C-w` is the cross-repo view: every worktree under `$WT_SRC` (`~/src` by default, the
+same name `repo-list` reads), one row each with its agent marker, a `git status`
 preview, and `enter` opening a window there. It reads `wt list` in each repo, so it keeps
 no state of its own, and `wt-all --list` prints the same rows for a script. It opens a
 window, never an agent: `creds pi -c` in that shell is what starts one.
