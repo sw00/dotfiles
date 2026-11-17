@@ -438,6 +438,14 @@ and any host-specific overlay extensions in their deployment repositories — th
 are NOT tracked here, and the shared core must stay free of references to them.
 `check.sh` enforces this.
 
+## settle-notify
+
+`agent/extensions/settle-notify.ts` — a desktop notification when the agent settles
+(`agent_settled`, skipped when the run was aborted) or blocks on a prompt
+(`ui_prompt_start`). Title is `repo/branch`; nothing is pushed for the pane you are
+looking at. macOS `osascript`, a zero-dep WinRT toast on WSL, `notify-send` otherwise.
+`PI_SETTLE_NOTIFY=0` mutes it; `SETTLE_NOTIFY_CMD` replaces the transport for tests.
+
 ## model-switch
 
 `agent/extensions/model-switch.ts` — `/use <q>` (fuzzy-switch any authed model),

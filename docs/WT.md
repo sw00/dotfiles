@@ -63,6 +63,11 @@ Agent state comes from worktrunk's pi extension (`wt config plugins pi install`,
 writes the host-local `~/.pi/agent/extensions/worktrunk.ts`): `🤖` while working, in
 `wt list`.
 
+The desktop push is separate and pi-native: `agent/extensions/settle-notify.ts` notifies
+when an agent settles or blocks, so a workstream that finishes while you are looking
+elsewhere says so. `PI_SETTLE_NOTIFY=0` mutes it. It is the one behaviour worth keeping
+from the old tmux tap — the tmux status bar itself still carries no agent state.
+
 ## Installing on a host
 
 ```sh

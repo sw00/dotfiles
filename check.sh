@@ -1573,6 +1573,8 @@ _TS_PIN_PUBLISH_SCAN=26
 _TS_PIN_PUBLISH_GUARD=15
 # L2's file-tool half: the secret-path predicate and the tool list it gates.
 _TS_PIN_SECRET_PATHS=13
+# Dispatch-only: the extension is driven by a fake `pi`, so no case sends a real push.
+_TS_PIN_SETTLE_NOTIFY=6
 _ts_suite_count() {  # <test file in lib/> <expected pass count>
     local file="$1" want="$2" out pass tests failed skipped
     out=$(cd "$DOTFILES/base/pi/.pi/agent/extensions" \
@@ -1610,6 +1612,10 @@ if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
         # guard that stopped scanning or a suite that stopped running is visible.
         check "pi: publish-scan suite passes $_TS_PIN_PUBLISH_SCAN/$_TS_PIN_PUBLISH_SCAN (count pinned)" \
             _ts_suite_count publish-scan.test.ts "$_TS_PIN_PUBLISH_SCAN"
+        # Notification dispatch is driven through a FAKE pi object, so this suite proves
+        # the event choice, the suppression and the fail-safe without sending anything.
+        check "pi: settle-notify suite passes $_TS_PIN_SETTLE_NOTIFY/$_TS_PIN_SETTLE_NOTIFY (count pinned)" \
+            _ts_suite_count settle-notify.test.ts "$_TS_PIN_SETTLE_NOTIFY"
         # L4's WIRING (handler, scanner process, fail-closed branches) is separately
         # counted: the pure-core suite passing is not evidence that the hook blocks.
         check "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
@@ -2491,6 +2497,33 @@ if _full && [ "$_wt_usable" = 1 ]; then
 else
     _defer 2
 fi
+
+# ── settle notify (pi extension) ─────────────────────────────────────────────
+# The one behaviour worth keeping from the retired workstream helper: a desktop push when
+# an agent wants a human. Three things are asserted because each fails SILENTLY — the
+# wrong event (agent_end fires mid-task, so the push would lie), a message spliced into
+# script text (breaks on the first quote), and a transport error reaching the session.
+section "settle notify (pi extension)"
+
+_SN="$DOTFILES/base/pi/.pi/agent/extensions/settle-notify.ts"
+check "settle-notify: the extension exists" test -f "$_SN"
+check_has "settle-notify: subscribes to agent_settled (the final-idle event)" \
+    'pi\.on\("agent_settled"' "$_SN"
+check_not "settle-notify: never subscribes to agent_end or turn_end (both fire mid-task)" \
+    'pi\.on\("agent_end"|pi\.on\("turn_end"' "$_SN"
+check_has "settle-notify: skips an aborted run (Escape means the human is there)" \
+    'event\.aborted' "$_SN"
+check_has "settle-notify: covers a blocking prompt too" \
+    'pi\.on\("ui_prompt_start"' "$_SN"
+check_has "settle-notify: an explicit mute switch exists" 'PI_SETTLE_NOTIFY' "$_SN"
+check_has "settle-notify: has a transport seam, so the suite sends no real push" \
+    'SETTLE_NOTIFY_CMD' "$_SN"
+check_has "settle-notify: PowerShell text is a doubled single-quoted literal" \
+    "replace\(/'/g" "$_SN"
+check_not "settle-notify: stays deployment-agnostic in the shared core" \
+    'pwt|dotfiles' "$_SN"
+check_has "settle-notify: documented in the pi README" 'settle-notify' \
+    "$DOTFILES/base/pi/README.md"
 
 # ── pi session prune policy ──────────────────────────────────────────────────
 # Sessions are KEPT, not scheduled away: the transcripts are the only source for
