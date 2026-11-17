@@ -28,7 +28,14 @@ cask "alacritty"        # terminal emulator
 cask "bitwarden"        # password/key vault
 cask "brave-browser"    # primary browser
 cask "obsidian"         # notes
-cask "flameshot"        # cross-platform screenshots
+# Flameshot comes from its own tap: homebrew/cask disabled the canonical cask
+# (disable! date: "2026-09-01", :fails_gatekeeper_check) because upstream ships
+# an ad-hoc-signed, unnotarized DMG. The tap pins the same release digests the
+# disabled cask did (arm64 ff2f63fb…, intel bb3ba6c0…). `trusted: true` is
+# required: Homebrew 7 refuses to load a cask from an untrusted third-party tap,
+# and trust otherwise lives in host-local ~/.homebrew/trust.json.
+tap "flameshot-org/flameshot"
+cask "flameshot-org-flameshot", trusted: true  # cross-platform screenshots
 cask "telegram"         # messaging
 cask "vscodium"         # editor — canonical extensions list: os/wsl/windows/vscodium/extensions.txt
 # ZapFast (WhatsApp client) ships from its author's tap, not homebrew/cask.

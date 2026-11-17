@@ -122,6 +122,10 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
   `/Applications/Flameshot.app`, `migrate_flameshot_tap_cask` removes the old
   `flameshot` cask before `brew bundle` — skip it and the new install fails; worse,
   the stale Caskroom entry would delete the new app on a later uninstall.
+  Re-quarantine is a per-install fact, not a one-time fix: `brew upgrade --cask
+  flameshot-org-flameshot` puts the xattr back, and the app is killed again until
+  bootstrap's strip runs (or `xattr -dr com.apple.quarantine
+  /Applications/Flameshot.app` by hand).
 
 ## tmux
 

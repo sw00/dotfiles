@@ -520,6 +520,36 @@ ensure_homebrew_bundle() {
     done
 }
 
+migrate_flameshot_tap_cask() {
+    # 2026-11: Flameshot moved from the (now disabled) homebrew/cask cask
+    # "flameshot" to upstream's tap cask "flameshot-org-flameshot". Both install
+    # /Applications/Flameshot.app, so a machine still carrying the old cask would
+    # fail the new install — and the stale Caskroom entry owns that app path, so a
+    # later `brew uninstall --cask flameshot` would delete the new app. Drop the
+    # old cask first. Config under ~/.config/flameshot is untouched: no --zap.
+    # Delete this function (and its tombstone in check.sh) once no machine
+    # carries the old cask.
+    if brew list --cask 2>/dev/null | grep -qx 'flameshot'; then
+        log "migrating: removing the old homebrew/cask flameshot (superseded by the tap cask)"
+        brew uninstall --cask flameshot || warn "could not remove the old flameshot cask"
+    fi
+}
+
+ensure_flameshot_quarantine() {
+    # Flameshot's macOS build is ad-hoc signed, not notarized — which is why it
+    # comes from flameshot-org/flameshot rather than homebrew/cask (see
+    # os/macos/brew/.Brewfile-base). A cask install carries the download's
+    # com.apple.quarantine xattr onto the .app, and Gatekeeper then kills the app
+    # on launch (`Killed: 9`, exit 137). HOMEBREW_CASK_OPTS=--no-quarantine does
+    # NOT strip it (measured 2026-11-13, Homebrew 7.0.14), so strip it here.
+    local app="/Applications/Flameshot.app"
+    [[ -d "$app" ]] || return 0
+    if xattr "$app" 2>/dev/null | grep -qx 'com.apple.quarantine'; then
+        log "stripping com.apple.quarantine from Flameshot.app (unnotarized build)"
+        xattr -dr com.apple.quarantine "$app" || warn "could not strip quarantine from $app"
+    fi
+}
+
 ensure_tmux_plugins() {
     # Plugins are sourced directly in tmux.conf (no TPM) to avoid TPM's
     # startup overhead (~8 s on WSL from repeated tmux list-keys calls).
@@ -1178,8 +1208,10 @@ main() {
             ensure_tmux_plugins
             ;;
         macos)
+            migrate_flameshot_tap_cask
             ensure_homebrew_bundle
             migrate_app_trim
+            ensure_flameshot_quarantine
             ensure_vscodium_extensions
             ensure_fisher
             ensure_mise

@@ -1114,8 +1114,78 @@ check_has "Brewfile-base: make present (provides gmake; macOS make is 3.81)" \
 check_has "Brewfile-base: obsidian present" \
     'obsidian' "$DOTFILES/os/macos/brew/.Brewfile-base"
 
-check_has "Brewfile-base: flameshot present" \
-    'flameshot' "$DOTFILES/os/macos/brew/.Brewfile-base"
+# Flameshot is a tap cask, not a homebrew/cask one: the canonical cask was
+# disabled 2026-09-01 (`because: :fails_gatekeeper_check`), so bootstrap must
+# declare the tap, the tap-qualified cask name AND `trusted: true` — Homebrew 7
+# refuses to load a cask from an untrusted third-party tap, and trust otherwise
+# lives in host-local ~/.homebrew/trust.json, which a fresh machine lacks. The
+# quarantine strip is the other half of that gap: a cask install leaves the
+# download's xattr on the .app and Gatekeeper kills it on launch (Killed: 9,
+# exit 137).
+check_has "Brewfile-base: flameshot present (core desktop app, upstream tap)" \
+    'cask "flameshot-org-flameshot"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: flameshot cask trusted (third-party tap, no host trust.json)" \
+    'cask "flameshot-org-flameshot", trusted: true' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "Brewfile-base: flameshot-org/flameshot tap declared (source of the flameshot cask)" \
+    'tap "flameshot-org/flameshot"' "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+# Tombstone: the disabled core cask must not return. It cannot install at all,
+# and its Caskroom entry would own — and could later delete — the tap cask's app.
+# check_not + an ERE that tolerates quote style and any separator after the name:
+# a plain `! grep "cask \"flameshot\""` silently passes on `cask 'flameshot'`.
+check_not "Brewfile-base: no homebrew/cask flameshot (disabled; tap cask only)" \
+    "^cask[[:space:]]+[\"']flameshot[\"']([[:space:],]|$)" \
+    "$DOTFILES/os/macos/brew/.Brewfile-base"
+
+check_has "bootstrap.sh: strips the Flameshot quarantine (notarization gap)" \
+    'xattr -dr com.apple.quarantine "\$app"' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap.sh: quarantine strip called in the macOS branch (after app trim)" bash -c \
+    "grep -A4 '^            migrate_app_trim\$' '$DOTFILES/bootstrap.sh' \
+        | grep -q '^            ensure_flameshot_quarantine\$'"
+
+# The rename needs a migration, not just a Brewfile edit: the old cask owns
+# /Applications/Flameshot.app, so the new cask cannot install over it and the
+# stale entry would later delete the new app.
+check_has "bootstrap.sh: old flameshot cask migration defined (2026-11 tap move)" \
+    'migrate_flameshot_tap_cask()' "$DOTFILES/bootstrap.sh"
+
+check "bootstrap.sh: flameshot migration runs on macOS before brew bundle" bash -c \
+    "grep -B1 '^            ensure_homebrew_bundle\$' '$DOTFILES/bootstrap.sh' \
+        | grep -q 'migrate_flameshot_tap_cask'"
+
+# Behavioural, not a grep pin: the migration must actually uninstall the old cask,
+# and must not touch brew when it is absent. bootstrap.sh runs main on source, so
+# the function is extracted; `brew` is a shell function, so this needs no Homebrew
+# and runs on the Linux CI runner too.
+_FS_MIG=$(mktemp)
+awk '/^migrate_flameshot_tap_cask\(\)/,/^}$/' "$DOTFILES/bootstrap.sh" > "$_FS_MIG"
+check_full "bootstrap: flameshot migration uninstalls the old cask only when present" bash -c '
+    fn="$1"
+    log() { :; }; warn() { :; }
+    _calls=""
+    brew() {
+        case "$1 $2" in
+            "list --cask") printf "%s\n" "$FAKE_LIST" ;;
+            *) _calls+="$* " ;;
+        esac
+    }
+    . "$fn"
+    FAKE_LIST="flameshot
+    alacritty"
+    migrate_flameshot_tap_cask
+    case "$_calls" in
+        "uninstall --cask flameshot ") ;;
+        *) echo "old-cask branch did not uninstall it: [$_calls]"; exit 1 ;;
+    esac
+    _calls=""
+    FAKE_LIST="flameshot-org-flameshot"
+    migrate_flameshot_tap_cask
+    [ -z "$_calls" ] || { echo "touched brew with the old cask absent: [$_calls]"; exit 1; }
+' _ "$_FS_MIG"
+rm -f "$_FS_MIG"
 
 # ZapFast is cask-only on macOS (author tap) and MSI-seeded on Windows:
 # microsoft/winget-pkgs has no ZapFast manifest, so it has no winget ID and
@@ -1423,7 +1493,7 @@ bitwarden|Bitwarden.Bitwarden
 brave-browser|Brave.Brave
 obsidian|Obsidian.Obsidian
 vscodium|VSCodium.VSCodium
-flameshot|Flameshot.Flameshot
+flameshot-org-flameshot|Flameshot.Flameshot
 telegram|Telegram.TelegramDesktop
 firefox@developer-edition|Mozilla.Firefox.DeveloperEdition
 PARITY
