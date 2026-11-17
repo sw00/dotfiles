@@ -105,6 +105,23 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
 - `mas`-managed casks need an active Mac App Store session — `brew bundle` fails otherwise.
 - Discord brew cask can leave a dangling Caskroom symlink. Fix: `brew reinstall --cask discord`.
 - Discord auto-updater caches old versions in `~/Library/Application Support/discord/app-*`. Fix: quit Discord, remove old dirs + updater state files, relaunch.
+- Flameshot is a **tap** cask. `homebrew/cask` disabled its `flameshot` cask on
+  2026-09-01 (`disable! because: :fails_gatekeeper_check` — upstream ships an
+  ad-hoc-signed DMG and won't pay Apple to notarize), so `brew upgrade --cask
+  flameshot` no longer works at all and the Brewfile now declares `tap
+  "flameshot-org/flameshot"` + `cask "flameshot-org-flameshot", trusted: true` (upstream's own
+  tap, pinning the same release digests the disabled core cask did).
+  `trusted: true` is not optional — Homebrew 7 refuses to load a cask from an
+  untrusted third-party tap, and trust otherwise lives in host-local
+  `~/.homebrew/trust.json`. The cask install also carries the download's
+  `com.apple.quarantine` xattr onto the .app, and Gatekeeper then kills the app on
+  launch (`Killed: 9`, exit 137) — `HOMEBREW_CASK_OPTS=--no-quarantine` does NOT
+  strip it (measured 2026-11-13, Homebrew 7.0.14), and `xattr -cr` would also wipe
+  `com.apple.provenance`; `ensure_flameshot_quarantine` runs `xattr -dr
+  com.apple.quarantine` instead, idempotently. Because both casks install
+  `/Applications/Flameshot.app`, `migrate_flameshot_tap_cask` removes the old
+  `flameshot` cask before `brew bundle` — skip it and the new install fails; worse,
+  the stale Caskroom entry would delete the new app on a later uninstall.
 
 ## tmux
 
@@ -285,3 +302,14 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
   inverse case it does NOT forbid: helpers defined and used inside one file
   (`pwt.fish`'s fourteen `__pwt_*`) are fine, because autoloading that file defines
   them before the entry point runs.
+- **`check.sh`'s leak scan reads the INDEX, so a green suite says nothing about unstaged
+  edits.** The scan is `git grep --cached` on purpose — those are the bytes that get
+  published, and a worktree scan would read git-crypt-decrypted paths as plaintext. The
+  consequence is that a stem you just typed in the editor is invisible to it until you
+  `git add`. Measured 2026-11-17: two comment lines naming work repos went into the
+  worktree, the suite reported "499 passed, 0 failed", and the **pre-commit hook** blocked
+  the commit instead, because the hook scans what is staged. Staged, the in-suite scan
+  would have caught them — the stems file matches those repo names — but it never ran in
+  that state, so treat that half as inference rather than measurement. Rule: stage before
+  trusting a green suite, or treat the hook as the gate and the suite as the regression
+  check. Same family as the header's warning about worktree scans, opposite direction.
