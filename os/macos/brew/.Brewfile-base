@@ -28,6 +28,16 @@ cask "alacritty"        # terminal emulator
 cask "bitwarden"        # password/key vault
 cask "brave-browser"    # primary browser
 cask "obsidian"         # notes
+# Paseo bundles its own daemon AND CLI (Homebrew links that bundle's `paseo`
+# binary onto PATH, and the app drops ~/.local/bin/paseo itself — nothing here
+# provisions the CLI). The daemon's config is tracked per host:
+# hosts/<host>/paseo/.paseo/config.json. The cask is auto_updates (verified in the
+# API JSON: `brew info --cask --json=v2 paseo` → auto_updates true), so Paseo
+# updates itself and brew only records ownership. A host that installed the dmg
+# by hand needs no migration: `brew bundle` passes `--adopt` for casks by default
+# (Library/Homebrew/bundle/installer.rb), which takes ownership without touching
+# /Applications — and, for auto_updates casks, without comparing versions.
+cask "paseo"            # AI agent daemon + desktop client
 # Flameshot comes from its own tap: homebrew/cask disabled the canonical cask
 # (disable! date: "2026-09-01", :fails_gatekeeper_check) because upstream ships
 # an ad-hoc-signed, unnotarized DMG. The tap pins the same release digests the

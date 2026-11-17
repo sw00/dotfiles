@@ -1,0 +1,62 @@
+{
+  "$schema": "https://paseo.sh/schemas/paseo.config.v1.json",
+  "version": 1,
+  "daemon": {
+    "listen": "setts-macbook-pro.tailc118c.ts.net:6767",
+    "hostnames": [
+      "setts-macbook-pro.tailc118c.ts.net",
+      "localhost",
+      ".localhost"
+    ],
+    "mcp": {
+      "injectIntoAgents": true
+    },
+    "autoArchiveAfterMerge": true,
+    "enableTerminalAgentHooks": true,
+    "agentProfiles": [
+      {
+        "id": "agent_profile_mwjv4ez5_4z07t6m81ov",
+        "name": "DeepSueek V4.1 Flash 1017",
+        "icon": "terminal",
+        "color": "emerald",
+        "provider": "pi",
+        "model": "opencode-go/deepseek-v4.1-flash",
+        "thinkingOptionId": "high",
+        "notes": "Use as primary orchestrator, parent agent"
+      }
+    ],
+    "cors": {
+      "allowedOrigins": [
+        "https://app.paseo.sh"
+      ]
+    },
+    "relay": {
+      "enabled": false
+    }
+  },
+  "app": {
+    "baseUrl": "https://app.paseo.sh"
+  },
+  "agents": {
+    "providers": {
+      "codex": {
+        "enabled": false
+      },
+      "copilot": {
+        "enabled": false
+      },
+      "opencode": {
+        "enabled": false
+      },
+      "antigravity": {
+        "enabled": false
+      },
+      "muse": {
+        "enabled": false
+      }
+    },
+    "metadataGeneration": {
+      "providers": []
+    }
+  }
+}

@@ -361,8 +361,8 @@ check_stow "os/macos: brew gnupg" \
     "$DOTFILES/os/macos" brew gnupg
 
 stow_layer "$DOTFILES/os/macos" brew gnupg
-check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace
+check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace paseo" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace paseo
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
@@ -1301,7 +1301,7 @@ check "hosts/mbpm3: work-status probes az with account show" \
 # worktree scan reads plaintext that is not published and reports encrypted
 # content as a leak (it flagged base/ssh/.ssh/config.d/work.conf, whose every
 # blob has been ciphertext since 2025). Index content is what gets pushed.
-_leak_shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J'
+_leak_shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J|[$]2[aby][$][0-9]{2}[$]'
 check "leak scan: no cloud/SSO identifiers tracked outside secrets/" \
     bash -c "! git -C '$DOTFILES' grep --cached -IE '$_leak_shapes' -- ':(exclude)secrets/**'"
 
@@ -1464,6 +1464,9 @@ check_has "winget.txt: Firefox Developer Edition present" \
 check_has "winget.txt: Git for Windows present (required for GCM in gitconfig-wsl)" \
     'Git.Git' "$DOTFILES/os/wsl/windows/winget.txt"
 
+check_has "winget.txt: Paseo present (parity with cask paseo)" \
+    'Paseo.Paseo' "$DOTFILES/os/wsl/windows/winget.txt"
+
 # ── Base sets: packages common to every machine of a platform ────────────────
 BREW_BASE="$DOTFILES/os/macos/brew/.Brewfile-base"
 
@@ -1496,6 +1499,7 @@ vscodium|VSCodium.VSCodium
 flameshot-org-flameshot|Flameshot.Flameshot
 telegram|Telegram.TelegramDesktop
 firefox@developer-edition|Mozilla.Firefox.DeveloperEdition
+paseo|Paseo.Paseo
 PARITY
 
 # ── Ownership drift guards ───────────────────────────────────────────────────
@@ -3130,6 +3134,174 @@ else
     _skip "claude: native install (PATH resolution, layout, shim, mise leftovers)" \
         "claude not installed on this machine"
 fi
+
+# ── Paseo ──────────────────────────────────────────────────────────────────
+# Paseo Desktop bundles its own daemon and CLI: it installs both itself and
+# updates them itself, so nothing here provisions or stows either. What this repo
+# owns is the daemon's config.json — the file the daemon reads its intent from
+# (listen address, allowed Host headers, provider toggles, agent profiles) and
+# writes back only on an explicit edit (`paseo daemon config set`, the app's
+# Settings panes), which is why it is stowed rather than templated.
+section "Paseo (host-local daemon config)"
+
+# hosts/mbpm3, not base: daemon.listen is the machine's Tailscale name and
+# daemon.hostnames repeats it, so one shared copy would make a second host's
+# daemon fail to bind. The macOS host layer is stowed wholesale (bootstrap), so
+# adding this package needed no stow-list edit.
+_PASEO_CFG="$DOTFILES/hosts/mbpm3/paseo/.paseo/config.json"
+
+check "paseo: daemon config ships in hosts/mbpm3 (tailnet listen is per-machine)" \
+    test -f "$_PASEO_CFG"
+
+check "paseo: daemon config is valid JSON" \
+    python3 -m json.tool "$_PASEO_CFG"
+
+# Every other file in ~/.paseo is runtime state (agents/, projects/, schedules/,
+# worktrees/, logs, pid, credential keys). Tracking one of those would commit a
+# machine's live sessions; the intent lives in config.json alone.
+check "paseo: only config.json is tracked from ~/.paseo" \
+    bash -c 'test "$(git -C "$1" ls-files hosts/mbpm3/paseo)" = "hosts/mbpm3/paseo/.paseo/config.json"' \
+    _ "$DOTFILES"
+
+# `paseo daemon set-password` writes a bcrypt hash into 
+# daemon.auth.password in THIS file (docs: configuration.md, "Password
+# authentication"), and the file is tracked: a password set on the host would be
+# one `git add` away from the repo in the clear. The structured check names the
+# path to unset; the second pass is the backstop for the hash landing anywhere
+# else in the file (a nested key, a renamed field).
+check "paseo: no daemon password hash is committed" \
+    python3 -c '
+import json, re, sys
+d = json.load(open(sys.argv[1]))
+auth = (d.get("daemon") or {}).get("auth") or {}
+if auth.get("password"):
+    sys.exit("daemon.auth.password is committed — remove it before tracking this file")
+blob = open(sys.argv[1]).read()
+if re.search(r"\$2[aby]\$[0-9]{2}\$", blob):
+    sys.exit("a bcrypt hash appears in the file outside daemon.auth.password")
+' "$_PASEO_CFG"
+
+# A daemon bound to the tailnet name answers the phone's Host header from
+# daemon.hostnames; if the two drift the app connects and then gets refused.
+check "paseo: daemon.hostnames covers the daemon.listen host" \
+    python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1])).get("daemon", {})
+listen = d.get("listen") or ""
+host = listen.rsplit(":", 1)[0] if listen else ""
+if not host:
+    sys.exit("daemon.listen is unset — nothing to bind")
+if host in ("127.0.0.1", "0.0.0.0", "localhost", "::1"):
+    sys.exit(0)
+if host not in (d.get("hostnames") or []):
+    sys.exit("daemon.listen host %r is missing from daemon.hostnames %r" % (host, d.get("hostnames")))
+' "$_PASEO_CFG"
+
+# Paseo installs its agent skills into ~/.agents/skills/ and records what it owns
+# in .paseo-managed-files.json beside them, then rewrites those files on update;
+# ~/.local/bin/paseo is a symlink into the app bundle, made by the app. Both are
+# the app's own install: a repo-owned link would fight the updater or dangle
+# after an app move. Stated as repo intent (the index), so it holds in CI too.
+check "paseo: the app's own install (skills, ~/.local/bin/paseo) is not tracked" \
+    bash -c '! git -C "$1" ls-files | grep -qE "(\.agents/skills/paseo|\.local/bin/paseo)"' \
+    _ "$DOTFILES"
+
+# The daemon writes config.json in place (measured 2026-11-17 on a throwaway
+# --home: `paseo daemon config set` kept the symlink and wrote through it), which
+# is what makes stowing it safe. A future release writing via tempfile+rename
+# would replace the link with a plain file and the repo copy would go stale
+# without an error — catch that here. Absent on CI, hence the skip.
+if [[ -e "$HOME/.paseo/config.json" || -L "$HOME/.paseo/config.json" ]]; then
+    check "paseo: live ~/.paseo/config.json is still the stow link (no rename-write)" \
+        bash -c '[ -L "$1" ] && python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$1" | grep -qF "$2"' \
+        _ "$HOME/.paseo/config.json" "$DOTFILES/hosts/mbpm3/paseo/.paseo/config.json"
+else
+    _skip "paseo: live ~/.paseo/config.json is still the stow link (no rename-write)" \
+        "no live paseo home on this host (CI)"
+fi
+
+# bootstrap's stow preflight removes a plain file that conflicts with a stow
+# package. Paseo creates config.json on first launch, so on a host that ran the
+# app before this package landed, that `rm` would drop the live settings (listen,
+# profiles, possibly a password hash). _ensure_paseo_config moves it aside first.
+check_has "bootstrap: _ensure_paseo_config defined" \
+    '^_ensure_paseo_config\(\)' "$DOTFILES/bootstrap.sh"
+check "bootstrap: _ensure_paseo_config runs before _stow_preflight, not just the stow" \
+    bash -c 'c=$(grep -n "^ *_ensure_paseo_config$" "$1" | tail -1 | cut -d: -f1)
+        p=$(grep -n "^ *_stow_preflight$" "$1" | tail -1 | cut -d: -f1)
+        test -n "$c" && test -n "$p" && test "$c" -lt "$p"' _ "$DOTFILES/bootstrap.sh"
+# End-to-end for the ordering above: a plain ~/.paseo/config.json is a FATAL
+# conflict for _stow_preflight, so a run WITHOUT the backup aborts and one with
+# it proceeds. Both halves are asserted, or the test would pass on a preflight
+# that simply got loosened.
+if command -v stow >/dev/null 2>&1; then
+    _PASEO_E2E=$(mktemp -d)
+    check_full "bootstrap: paseo backup unblocks the fatal plain-file preflight" bash -c '
+        d="$2"
+        mkdir -p "$d/dotfiles/hosts/h/paseo/.paseo" "$d/.paseo"
+        printf "%s" "{\"daemon\": {\"listen\": \"tracked\"}}" > "$d/dotfiles/hosts/h/paseo/.paseo/config.json"
+        sed "/^main \"\$@\"$/d" "$1" > "$d/bootstrap.sh" || exit 1
+        # 1. without the backup: preflight aborts on the plain file (rc != 0)
+        cp "$d/dotfiles/hosts/h/paseo/.paseo/config.json" "$d/.paseo/config.json"
+        printf "%s" "{\"daemon\": {\"listen\": \"live\"}}" > "$d/.paseo/config.json"
+        if env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; host=h; platform=macos; _stow_preflight" >/dev/null 2>&1; then
+            echo "preflight passed with a conflicting plain file — the test is not measuring the abort"; exit 1
+        fi
+        # 2. with the backup: same fixture, preflight green
+        if ! env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; host=h; platform=macos; _ensure_paseo_config; _stow_preflight" >/dev/null 2>&1; then
+            echo "backup did not clear the fatal conflict"; exit 1
+        fi
+        ls "$d"/.paseo/config.json.pre-dotfiles-* >/dev/null 2>&1 || { echo "live bytes were not kept"; exit 1; }
+        exit 0' _ "$DOTFILES/bootstrap.sh" "$_PASEO_E2E"
+    rm -rf "$_PASEO_E2E"
+else
+    _skip "bootstrap: paseo backup unblocks the fatal plain-file preflight" "stow not installed"
+fi
+# Functional, through the real function: differing live bytes survive in the
+# backup path, and an identical copy is left for stow to replace without a
+# backup (no clutter per bootstrap).
+check_full "bootstrap: _ensure_paseo_config backs up a differing live config" \
+    bash -c 'd=$(mktemp -d); trap "rm -rf \"$d\"" EXIT
+        mkdir -p "$d/dotfiles/hosts/h/paseo/.paseo" "$d/.paseo"
+        printf "%s" "{\"daemon\": {\"listen\": \"tracked\"}}" > "$d/dotfiles/hosts/h/paseo/.paseo/config.json"
+        printf "%s" "{\"daemon\": {\"listen\": \"live\"}}" > "$d/.paseo/config.json"
+        sed "/^main \"\$@\"$/d" "$1" > "$d/bootstrap.sh" || exit 1
+        env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; host=h; _ensure_paseo_config" >/dev/null 2>&1 || exit 1
+        test ! -e "$d/.paseo/config.json" || exit 1
+        b=$(ls "$d"/.paseo/config.json.pre-dotfiles-* 2>/dev/null | head -1)
+        test -n "$b" || exit 1
+        grep -q "live" "$b" || exit 1
+        printf "%s" "{\"daemon\": {\"listen\": \"tracked\"}}" > "$d/.paseo/config.json"
+        env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; host=h; _ensure_paseo_config" >/dev/null 2>&1 || exit 1
+        # Identical bytes are still a FATAL preflight conflict, so they must be
+        # dropped too — nothing is lost (the tracked copy holds them) and no
+        # second backup appears.
+        test ! -e "$d/.paseo/config.json" || exit 1
+        test "$(ls "$d"/.paseo/config.json.pre-dotfiles-* | wc -l)" -eq 1 || exit 1
+        # …and the preflight the migration serves is now green for this host.
+        env HOME="$d" DOTFILES="$d/dotfiles" bash -c "source \"$d/bootstrap.sh\"; host=h; platform=macos; _stow_preflight" >/dev/null 2>&1 || exit 1
+        exit 0' _ "$DOTFILES/bootstrap.sh"
+
+# Claude Code reports turn/session events to the daemon through its hooks, but
+# only inside a Paseo terminal: PASEO_TERMINAL_ID is set there and nowhere else,
+# so an ungated (or inverted-gate) hook would run `paseo hooks` in every terminal
+# on every host. Matching the whole command, not a substring: `hooks claude Stop`
+# is a prefix of StopFailure, and a comment could satisfy a substring test.
+check "claude: paseo hooks cover five events and are gated on PASEO_TERMINAL_ID" \
+    python3 -c '
+import json, sys
+hooks = (json.load(open(sys.argv[1])).get("hooks") or {})
+want = ["UserPromptSubmit", "Stop", "StopFailure", "SessionEnd", "Notification"]
+missing = [e for e in want if e not in hooks]
+if missing:
+    sys.exit("no paseo hook for: " + ", ".join(missing))
+for event in want:
+    expected = ("if [ -n \"$PASEO_TERMINAL_ID\" ]; then \"${PASEO_HOOK_CLI:-paseo}\" "
+                "hooks claude " + event + "; fi")
+    cmds = [h.get("command", "") for m in hooks[event] for h in (m.get("hooks") or [])]
+    if expected not in cmds:
+        sys.exit(event + ": expected hook command not found, got: " + repr(cmds))
+' "$DOTFILES/base/claude/.claude/settings.json"
 
 # ── Agent safety layers ─────────────────────────────────────────────────────
 # docs/AGENT-SAFETY.md is the contract: each layer names the file that makes it real,

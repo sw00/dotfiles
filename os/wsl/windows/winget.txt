@@ -10,6 +10,12 @@ Bitwarden.Bitwarden
 Brave.Brave
 Obsidian.Obsidian
 VSCodium.VSCodium
+# Paseo — desktop app that bundles its own daemon AND CLI, so there is no separate
+# CLI install on this side either (macOS parity pair: cask "paseo" in
+# Brewfile-base). Configuration is per host and tracked under
+# hosts/<host>/paseo. It self-updates. Manifest: manifests/p/Paseo/Paseo in
+# microsoft/winget-pkgs.
+Paseo.Paseo
 # ZapFast (WhatsApp client) — no winget manifest exists (crmne ships none;
 # crmne/zapfast#486 was closed without one), so it is NOT listed as an ID here.
 # The pinned, sha256-verified MSI is seeded by the PowerShell block in up.sh;

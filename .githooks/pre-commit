@@ -21,14 +21,17 @@ root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 cd "$root" || exit 0
 
 # Generic provider shapes. Harmless in cleartext because they describe the
-# provider, not our resources.
+# provider, not our resources. The last entry is a secret SHAPE, not a resource
+# name — a bcrypt hash (Paseo's `daemon set-password` writes one into its tracked
+# config) belongs here rather than in secrets/leak-patterns, which stays
+# work-scoped and encrypted.
 #
 # DISCIPLINE: write every literal so it does NOT contain another pattern's
 # literal text — otherwise the guard matches its own definition and blocks the
 # commit that introduces it. Bracket classes do this: `ar[o]app` is the regex for
 # the ARO host suffix while not containing that text itself. The rule applies to
 # prose too — a comment that spells out a stem trips the same guard.
-shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J'
+shapes='awsapps[.]com|eks[.]amazonaws[.]com|ar[o]app[.]io|sso_(start_url|account_id)|e[y]J|[$]2[aby][$][0-9]{2}[$]'
 
 patterns="$shapes"
 if [[ -f secrets/leak-patterns ]]; then

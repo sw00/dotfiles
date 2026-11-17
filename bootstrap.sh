@@ -376,6 +376,34 @@ migrate_app_trim() {
     fi
 }
 
+_ensure_paseo_config() {
+    # Paseo's desktop app writes ~/.paseo/config.json the first time it runs, so on
+    # a host that used the app BEFORE this repo shipped the package, stow_dir's
+    # plain-file preflight would `rm` the live settings — listen address, allowed
+    # Host headers, agent profiles, possibly a bcrypt password hash — and replace
+    # them with the tracked copy, silently. Keep the bytes: move the live file
+    # aside and say where it went. Idempotent: a stow link, an identical copy, or
+    # a host with no paseo package all fall straight through.
+    local live="$HOME/.paseo/config.json"
+    local tracked="$DOTFILES/hosts/$host/paseo/.paseo/config.json"
+    [[ -f "$tracked" ]] || return 0
+    [[ -f "$live" && ! -L "$live" ]] || return 0
+    if cmp -s "$live" "$tracked"; then
+        # Identical bytes: nothing can be lost, but a plain file is STILL a fatal
+        # _stow_preflight conflict, so drop it and let stow write the link.
+        rm -f "$live"
+        return 0
+    fi
+    local backup
+    backup="$live.pre-dotfiles-$(date +%Y%m%dT%H%M%S)"
+    if mv "$live" "$backup"; then
+        warn "paseo: live config differed from $tracked — moved to $backup"
+        warn "paseo: merge anything host-local from it into the tracked file, then commit that"
+    else
+        warn "paseo: could not move $live aside — stow will drop those bytes"
+    fi
+}
+
 migrate_pi_settings_desync() {
     # 2026-10 pi-settings desync migration. The old scheme stowed
     # ~/.pi/agent/settings.json as a SYMLINK into base/pi/.pi/agent/settings.json,
@@ -1132,6 +1160,11 @@ main() {
     # ═══════════════════════════════════════════════════════════════════════
 
     # 2a. Pre-flight stow conflict check
+    # A hand-installed Paseo writes ~/.paseo/config.json on first launch, and this
+    # preflight counts that plain file as FATAL — so the backup has to run before
+    # it, not before the stow. stow_dir's own plain-file handling never gets the
+    # chance, because the run has already aborted.
+    _ensure_paseo_config
     _stow_preflight
 
     # 2a-bis. Clear dangling links left by dotfiles deleted since the last run
