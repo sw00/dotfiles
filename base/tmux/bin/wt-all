@@ -1,0 +1,67 @@
+#!/bin/bash
+# wt-all — every worktree across the repos under the source root, with its state.
+#
+# The cross-repo half of the retired workstream panel, rebuilt as a READER: the rows are
+# `wt list`'s own JSON, one repo at a time, so there is no second state store to drift and
+# the agent marker comes from worktrunk's pi extension. `--pick` opens a tmux window at the
+# chosen worktree; `--list` prints the same rows for scripts and for the suite. It never
+# starts an agent — that is the operator's move in the window it opens (docs/WT.md).
+#
+# The source root is $WT_SRC, falling back to the historical $PWT_SRC, then ~/src: that
+# rename is owed (TODO.md) and this bridges it rather than adding a third name.
+set -uo pipefail
+
+src="${WT_SRC:-${PWT_SRC:-$HOME/src}}"
+
+# TSV: branch, marker, repo, dirty, path.
+rows() {
+    local d
+    for d in "$src"/*/; do
+        d=${d%/}
+        [ -e "$d/.git" ] || continue          # dir or file: a linked worktree has a file
+        ( cd "$d" && wt list --format=json 2>/dev/null ) | jq -r --arg repo "${d##*/}" '
+            (.items // [])[]
+            | [
+                .branch,
+                (.marker // ""),
+                $repo,
+                ((.worktree.changes.modified // false)
+                    or (.worktree.changes.staged // false)
+                    or (.worktree.changes.untracked // false)
+                    | if . then "+" else "" end),
+                .worktree.path
+              ] | @tsv' 2>/dev/null
+    done
+}
+
+if ! command -v wt >/dev/null 2>&1; then
+    echo 'wt-all: wt not on PATH (mise install aqua:max-sixty/worktrunk) — docs/WT.md' >&2
+    exit 1
+fi
+
+case "${1:---pick}" in
+    --list)
+        rows
+        ;;
+    --pick)
+        # fzf replaces {5} with a QUOTED path, so a space in a directory name cannot split
+        # into two arguments. --no-sort keeps repo/branch order; nothing here is time-sorted.
+        sel=$(rows | fzf --reverse --no-sort --delimiter=$'\t' \
+            --with-nth=1,2,3,4 --prompt 'wt  ' \
+            --header 'branch · marker · repo · dirty' \
+            --preview 'git -C {5} status --short --branch' 2>/dev/null) || exit 0
+        [ -n "$sel" ] || exit 0
+        path=$(printf '%s\n' "$sel" | cut -f5)
+        branch=$(printf '%s\n' "$sel" | cut -f1 | tr '/' '-')
+        if [ -n "${TMUX:-}" ]; then
+            # A window at the worktree, not an agent: starting one is the operator's move,
+            # which keeps `wt` out of session ids entirely.
+            exec tmux new-window -c "$path" -n "$branch"
+        fi
+        printf '%s\n' "$path"
+        ;;
+    *)
+        echo 'usage: wt-all [--pick|--list]' >&2
+        exit 2
+        ;;
+esac

@@ -1574,7 +1574,7 @@ _TS_PIN_PUBLISH_GUARD=15
 # L2's file-tool half: the secret-path predicate and the tool list it gates.
 _TS_PIN_SECRET_PATHS=13
 # Dispatch-only: the extension is driven by a fake `pi`, so no case sends a real push.
-_TS_PIN_SETTLE_NOTIFY=6
+_TS_PIN_SETTLE_NOTIFY=9
 _ts_suite_count() {  # <test file in lib/> <expected pass count>
     local file="$1" want="$2" out pass tests failed skipped
     out=$(cd "$DOTFILES/base/pi/.pi/agent/extensions" \
@@ -2431,14 +2431,18 @@ check "wt: the panel, tap, preview and revive scripts are gone" bash -c \
         [ -e "$1/base/tmux/bin/$f" ] && exit 1
      done; exit 0' _ "$DOTFILES"
 check "wt: docs/PWT.md is gone" test ! -e "$DOTFILES/docs/PWT.md"
-check_not "wt: no agent-state flag survives in tmux.conf" \
+check_not "wt: no pwt-era state flag survives in tmux.conf" \
     '@pwt_|@pi_alert|@pi_state|PI_PROGRAM_STATUS' "$_WT_TMUX"
+check_has "wt: the bar flag is pi's own (@pi_waiting, not the retired tap)" \
+    '@pi_waiting' "$_WT_TMUX"
 # C-f's binding wraps onto a continuation line, so this greps the LINE AFTER it rather
 # than assuming one line — the shape that made the first version of this check pass
 # vacuously against nothing.
 check "wt: C-f still reaches repo-list (navigation outlived the panel)" bash -c \
     'grep -A1 "^bind-key C-f " "$1" | grep -q "repo-list"' _ "$_WT_TMUX"
-check_not "wt: the C-w panel binding is gone" '^bind-key C-w ' "$_WT_TMUX"
+# The panel's BINARY is what must not come back (asserted above); the KEY was reused by
+# its replacement, so this pins the successor rather than forbidding the binding.
+check_has "wt: C-w runs the cross-repo view" '^bind-key C-w .*wt-all' "$_WT_TMUX"
 check_not "wt: no post-restore revive hook survives" \
     'resurrect-hook-post-restore-all' "$_WT_TMUX"
 
@@ -2524,6 +2528,67 @@ check_not "settle-notify: stays deployment-agnostic in the shared core" \
     'pwt|dotfiles' "$_SN"
 check_has "settle-notify: documented in the pi README" 'settle-notify' \
     "$DOTFILES/base/pi/README.md"
+# The second surface is the tmux bar, and it must stay pi's: the flag is raised on the same
+# events, cleared when a run starts, and only the PUSH honours the mute.
+check_has "settle-notify: raises @pi_waiting for the bar" \
+    'FLAG = "@pi_waiting"' "$_SN"
+check_has "settle-notify: clears it when a run starts (work resumed)" \
+    'pi\.on\("agent_start"' "$_SN"
+check_has "settle-notify: the mute silences only the push, not the bar" \
+    'if \(MUTE\) return' "$_SN"
+check_has "tmux: the bar renders the waiting flag as ASCII !" \
+    'window-status-format.*@pi_waiting.*!' "$_WT_TMUX"
+check_has "tmux: an ordinary window switch clears the flag" \
+    "after-select-window 'set-window-option -u @pi_waiting'" "$_WT_TMUX"
+
+# ── wt-all (cross-repo view) ─────────────────────────────────────────────────
+# The cross-repo half of the retired panel, rebuilt as a READER: rows come from `wt list`
+# per repo, so there is no second state store to drift. Two things it must not do — keep
+# its own notion of a workstream, or spawn an agent (starting one is `creds pi -c` in the
+# window it opens, which is what keeps wt out of session ids).
+section "wt-all (cross-repo view)"
+
+_WTA="$DOTFILES/base/tmux/bin/wt-all"
+check "wt-all: exists in base/tmux/bin" test -f "$_WTA"
+check "wt-all: is executable" test -x "$_WTA"
+check_has "wt-all: reads wt's own JSON, not a second state store" \
+    'wt list --format=json' "$_WTA"
+check_has "wt-all: bridges the source-root rename instead of adding a third name" \
+    'WT_SRC:-\$\{PWT_SRC' "$_WTA"
+check_has "wt-all: refuses loudly without wt rather than showing an empty view" \
+    'wt not on PATH' "$_WTA"
+check_has "wt-all: the picker opens a WINDOW, not an agent" \
+    'tmux new-window -c' "$_WTA"
+check_not "wt-all: never spawns an agent (no session id, no pi invocation)" \
+    'pi --|pi -c|--session-id' "$_WTA"
+check_has "wt-all: a path with spaces survives the picker (quoted placeholder)" \
+    'git -C \{5\} status' "$_WTA"
+
+if _full && command -v wt >/dev/null 2>&1 && wt --version >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+    _wta_d=$(mktemp -d)
+    # One trap for both temp trees: a second `trap ... EXIT` REPLACES the first, which
+    # would silently orphan the wt section's directory.
+    trap 'rm -rf "${_wt_d:-}" "${_wta_d:-}"' EXIT
+    mkdir -p "$_wta_d/home/.config/worktrunk"
+    printf 'worktree-path = "{{ repo_path }}/__worktrees/{{ branch | sanitize }}"\n' \
+        > "$_wta_d/home/.config/worktrunk/config.toml"
+    for _wta_r in alpha beta; do
+        git init -q -b main "$_wta_d/$_wta_r"
+        printf 'x\n' > "$_wta_d/$_wta_r/f"
+        git -C "$_wta_d/$_wta_r" add -A
+        git -C "$_wta_d/$_wta_r" -c commit.gpgsign=false -c user.email=c@example.invalid \
+            -c user.name=c commit -qm init
+        ( cd "$_wta_d/$_wta_r" && HOME="$_wta_d/home" XDG_CONFIG_HOME="$_wta_d/home/.config" \
+            wt switch --create "$_wta_r-ws" --base @ --no-cd >/dev/null 2>&1 )
+    done
+    _wta_out=$(WT_SRC="$_wta_d" "$_WTA" --list 2>/dev/null)
+    check "wt-all: merges a worktree from every repo under the source root" bash -c \
+        'printf "%s" "$1" | grep -q "alpha-ws" && printf "%s" "$1" | grep -q "beta-ws"' _ "$_wta_out"
+    check "wt-all: each row carries the worktree path, not its repo root" bash -c \
+        'printf "%s" "$1" | grep -q "/alpha/__worktrees/alpha-ws"' _ "$_wta_out"
+else
+    _defer 2
+fi
 
 # ── pi session prune policy ──────────────────────────────────────────────────
 # Sessions are KEPT, not scheduled away: the transcripts are the only source for

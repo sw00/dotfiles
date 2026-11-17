@@ -1,25 +1,33 @@
 /**
  * Settle Notify Extension
  *
- * A desktop notification when pi stops for good, or blocks on a question: the "wants a
- * human" signal, for when you are looking at something else entirely.
+ * Two surfaces, one signal — "this workstream wants a human":
+ *
+ *   1. a desktop notification, for when you are looking somewhere else entirely;
+ *   2. a tmux window flag (`@pi_waiting`), for when you are in tmux but in another
+ *      window. `tmux.conf` renders it as `!` in the window list and clears it when the
+ *      window is looked at, so it reads as an inbox rather than a log.
  *
  * `agent_settled`, never `agent_end`: pi may auto-retry, auto-compact and retry, or pick
  * up queued messages after `agent_end`, so notifying there fires mid-task. An ABORTED run
- * is skipped — Escape means the human is already looking. `ui_prompt_start` covers a
- * blocking confirm/select, which is a directly-reported "blocked" signal rather than one
- * inferred from output.
+ * is skipped — Escape means the human is already looking. `agent_start` clears the flag
+ * (the work resumed), and `ui_prompt_start` covers a blocking confirm/select, which is a
+ * directly-reported "blocked" rather than one inferred from output.
  *
- * Fail-safe by construction: a notification is cosmetic, so every path swallows its error
- * rather than surfacing an extension failure into the session. pi defers work requested
+ * Fail-safe by construction: both surfaces are cosmetic, so every path swallows its error
+ * instead of surfacing an extension failure into the session. pi defers work requested
  * from these handlers until all settled handlers finish, so dispatch cannot re-enter.
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
+/** Silences the PUSH only: the window flag is silent already, so it stays on. */
 const MUTE = process.env.PI_SETTLE_NOTIFY === "0";
 /** Test seam: replaces the transport entirely, so the suite never fires a real toast. */
 const TEST_CMD = process.env.SETTLE_NOTIFY_CMD;
+
+/** `tmux set-window-option` names this pane's window; a no-op outside tmux. */
+const FLAG = "@pi_waiting";
 
 /** A PowerShell single-quoted literal: `'` doubles, and nothing else is interpretable. */
 function psQuote(s: string): string {
@@ -59,6 +67,20 @@ async function notify(pi: ExtensionAPI, title: string, body: string): Promise<vo
   }
 }
 
+/** Raise or clear the window flag; outside tmux there is no window to mark. */
+async function flag(pi: ExtensionAPI, on: boolean): Promise<void> {
+  const pane = process.env.TMUX_PANE;
+  if (!process.env.TMUX || !pane) return;
+  const args = on
+    ? ["set-window-option", "-t", pane, FLAG, "1"]
+    : ["set-window-option", "-u", "-t", pane, FLAG];
+  try {
+    await pi.exec("tmux", args, { timeout: 4000 });
+  } catch {
+    // Cosmetic.
+  }
+}
+
 /** `repo/branch`, so a push is actionable; falls back to the directory name. */
 async function label(pi: ExtensionAPI, cwd: string): Promise<string> {
   try {
@@ -73,11 +95,10 @@ async function label(pi: ExtensionAPI, cwd: string): Promise<string> {
 
 /** True when this pane is one the attached client is actually looking at. */
 async function focused(pi: ExtensionAPI): Promise<boolean> {
-  if (!process.env.TMUX || !process.env.TMUX_PANE) return false;
+  const pane = process.env.TMUX_PANE;
+  if (!process.env.TMUX || !pane) return false;
   try {
-    const r = await pi.exec("tmux", ["display-message", "-p", "-t", process.env.TMUX_PANE, "#{pane_active}#{window_active}"], {
-      timeout: 4000,
-    });
+    const r = await pi.exec("tmux", ["display-message", "-p", "-t", pane, "#{pane_active}#{window_active}"], { timeout: 4000 });
     return String(r.stdout ?? "").trim() === "11";
   } catch {
     return false;
@@ -85,12 +106,16 @@ async function focused(pi: ExtensionAPI): Promise<boolean> {
 }
 
 export default function settleNotify(pi: ExtensionAPI): void {
-  if (MUTE) return;
-
   const fire = async (cwd: string, what: string): Promise<void> => {
+    await flag(pi, true);
+    if (MUTE) return; // the bar stays honest; only the popup is muted
     if (await focused(pi)) return;
     await notify(pi, await label(pi, cwd), what);
   };
+
+  pi.on("agent_start", async () => {
+    await flag(pi, false);
+  });
 
   pi.on("agent_settled", async (event, ctx) => {
     if (event.aborted) return;

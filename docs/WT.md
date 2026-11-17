@@ -63,10 +63,16 @@ Agent state comes from worktrunk's pi extension (`wt config plugins pi install`,
 writes the host-local `~/.pi/agent/extensions/worktrunk.ts`): `🤖` while working, in
 `wt list`.
 
-The desktop push is separate and pi-native: `agent/extensions/settle-notify.ts` notifies
-when an agent settles or blocks, so a workstream that finishes while you are looking
-elsewhere says so. `PI_SETTLE_NOTIFY=0` mutes it. It is the one behaviour worth keeping
-from the old tmux tap — the tmux status bar itself still carries no agent state.
+The desktop push and the tmux bar flag are pi-native: `agent/extensions/settle-notify.ts`
+notifies when an agent settles or blocks, and raises `@pi_waiting` on that window so the
+window list shows `!` — cleared as soon as you look, so it reads as an inbox rather than a
+log. `PI_SETTLE_NOTIFY=0` mutes the push only; the bar is silent already.
+
+`C-w` is the cross-repo view: every worktree under `$WT_SRC` (`~/src`; `$PWT_SRC` is the
+historical name and is still honoured), one row each with its agent marker, a `git status`
+preview, and `enter` opening a window there. It reads `wt list` in each repo, so it keeps
+no state of its own, and `wt-all --list` prints the same rows for a script. It opens a
+window, never an agent: `creds pi -c` in that shell is what starts one.
 
 ## Installing on a host
 

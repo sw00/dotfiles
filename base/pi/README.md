@@ -444,7 +444,10 @@ are NOT tracked here, and the shared core must stay free of references to them.
 (`agent_settled`, skipped when the run was aborted) or blocks on a prompt
 (`ui_prompt_start`). Title is `repo/branch`; nothing is pushed for the pane you are
 looking at. macOS `osascript`, a zero-dep WinRT toast on WSL, `notify-send` otherwise.
-`PI_SETTLE_NOTIFY=0` mutes it; `SETTLE_NOTIFY_CMD` replaces the transport for tests.
+It also raises `@pi_waiting` on the pane's window for the tmux bar to render as `!`,
+cleared when the window is looked at or a new run starts.
+`PI_SETTLE_NOTIFY=0` mutes the push (the bar is unaffected); `SETTLE_NOTIFY_CMD` replaces
+the transport for tests.
 
 ## model-switch
 

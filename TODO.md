@@ -272,15 +272,14 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   Worktrees, cleanup and branch integration went to `wt` (`docs/WT.md`), so what remains
   workmux-only is prompt injection and a cross-repo dashboard. Revisit only if manual
   bookkeeping costs >10 min/week, or if >=3 parallel mutating agents per repo become
-  routine. **Three gaps the pwt→wt move accepted; the first is now CLOSED:**
-  (1) *no desktop push when an agent settles* — CLOSED by
-  `base/pi/.pi/agent/extensions/settle-notify.ts` (notifies on `agent_settled` and on a
-  blocking prompt, mute with `PI_SETTLE_NOTIFY=0`); it is ~60 lines, not the 40 estimated,
-  because the WSL toast and the focus probe came with it;
-  (2) *no cross-repo view* — `wt list` is per-repo, and the old `C-w` panel spanned
-  everything under `PWT_SRC`; (3) *no in-window "wants a human" flag* — the tmux status
-  bar used to carry `!` from the same tap, and now shows no agent state at all. If
-  revisited:
+  routine. **All three gaps the pwt→wt move accepted are now closed:**
+  (1) *no desktop push when an agent settles* — `base/pi/.pi/agent/extensions/settle-notify.ts`
+  notifies on `agent_settled` and on a blocking prompt (`PI_SETTLE_NOTIFY=0` mutes);
+  (2) *no cross-repo view* — `C-w` runs `~/bin/wt-all`, which merges `wt list` across every
+  repo under the source root and opens a window at the chosen worktree;
+  (3) *no in-window "wants a human" flag* — the bar renders `@pi_waiting`, raised by the same
+  extension and cleared on focus or when work resumes.
+  What remains genuinely workmux-only is prompt injection. If revisited:
   `mise use -g github:raine/workmux` (prebuilt binary — no rust toolchain, no
   Brewfile/check.sh parity work), mbpm3 first, window mode, and it must displace
   tmux-window-name plus its `libtmux` Python dependency to be net-negative surface. Rejected outright: herdr, which replaces tmux rather than
