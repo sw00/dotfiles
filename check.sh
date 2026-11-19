@@ -852,6 +852,15 @@ MISE_CFG="$DOTFILES/base/mise/.config/mise/config.toml"
 check "mise: config.toml exists in base/mise stow package" \
     test -f "$MISE_CFG"
 
+# The non-comment assignment lines of one tool's table. A key written after a
+# table header belongs to THAT table in TOML, so this is the whole entry — which
+# is what lets the assertions below tell "python sets a postinstall" from "some
+# postinstall sits somewhere in the file".
+_table_block() {
+    awk -v hdr="$1" '/^\[/ { tbl = ($0 == hdr); next }
+         tbl && !/^[[:space:]]*(#|$)/' "$MISE_CFG"
+}
+
 check_has "mise: neovim is managed by mise (not snap/apt)" \
     'neovim' "$MISE_CFG"
 
@@ -861,8 +870,33 @@ check_has "mise: fzf is managed by mise" \
 check_has "mise: node runtime is declared" \
     'node' "$MISE_CFG"
 
-check_has "mise: python runtime is declared" \
-    'python' "$MISE_CFG"
+# The declaration SITE is what is asserted, not the string: a broken pin or an
+# entry moved under another tool's table header still greps. python is a table (not
+# `python = "3.12.13"`) because it carries a postinstall, so its keys are matched
+# inside that table — a `postinstall` floating under some other tool is not one.
+check_has "mise: python runtime is declared as a tool table" \
+    '^\[tools\.python\]$' "$MISE_CFG"
+check_has "mise: python is pinned to an exact x.y.z" \
+    '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' <(_table_block '[tools.python]')
+# That postinstall is the only thing installing the interpreter's shared package
+# list (libtmux, for tmux-window-name), so it must not vanish silently.
+check_has "mise: python carries the postinstall that installs its package list" \
+    '^postinstall[[:space:]]*=[[:space:]]*"python -m pip install -r ~/\.config/mise/default-python-packages"$' \
+    <(_table_block '[tools.python]')
+
+# mise deprecates `{python,node}.default_packages_file` (warned from 2026.11,
+# removed in 2027.11.0): python carries a tool-level postinstall, node needs no
+# package list (every global npm tool is an npm: entry). Tombstoned in the global
+# config AND in every host layer (~/.mise.toml is a live mise config too).
+# `grep -q` must answer "no match" (1) and nothing else: 0 is the setting coming
+# back, 2 an unreadable file that would otherwise read as clean.
+_mise_configs=("$MISE_CFG")
+for _f in "$DOTFILES"/hosts/*/mise/.mise.toml; do
+    [[ -e "$_f" ]] && _mise_configs+=("$_f")
+done
+check "mise: the deprecated default_packages_file settings never come back" \
+    bash -c 'for f; do grep -q "default_packages_file" "$f"; [ $? -eq 1 ] || exit 1; done' \
+    _ "${_mise_configs[@]}"
 
 check_has "mise: tmux is managed by mise (not apt/brew)" \
     '^tmux ' "$MISE_CFG"
@@ -881,8 +915,7 @@ check_has "mise: lf managed by mise (ubi backend)" \
 # review). `latest` here would move it silently on the next `mise upgrade`, which is
 # why the pin is matched as x.y.z specifically rather than as "a version string".
 _pig_table_block() {
-    awk '/^\[/ { tbl = ($0 == "[tools.\"ubi:MichaelKinsy/PiG\"]"); next }
-         tbl && !/^[[:space:]]*(#|$)/' "$MISE_CFG"
+    _table_block '[tools."ubi:MichaelKinsy/PiG"]'
 }
 check_has "mise: PiG is declared as a ubi table entry" \
     '^\[tools\."ubi:MichaelKinsy/PiG"\]$' "$MISE_CFG"
