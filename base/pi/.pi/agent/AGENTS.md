@@ -22,6 +22,13 @@ standard (pi, Claude Code, Codex all read it) — never `.pi/skills/`. Follow th
 spec: `SKILL.md` with `name`/`description` frontmatter, progressive disclosure,
 paths relative to the skill directory.
 
+User-scope skills (every project) live in `~/.agents/skills`, installed with
+`npx -y skills@latest add <source> -s <name> -g -a pi --copy -y`. They are copied,
+not linked, and they run with full agent permissions — read one before you trust
+it. Provenance is the host-local `~/.agents/.skill-lock.json` (source + commit
+per skill); `check.sh` fails on a directory with no lock entry and no Paseo
+owner, and the pinned commit is what makes the set reproducible.
+
 ## Process safety
 
 Before killing a process, walk the ancestry from `$$`: if the target is your own
