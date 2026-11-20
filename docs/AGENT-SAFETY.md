@@ -34,13 +34,35 @@ is the mapping it implies.
 | L0 | No credential is exported at shell startup. `creds <cmd>` loads them for one command, in that command's own process tree, and nothing else forwards them. | `base/fish/.config/fish/config.fish:4-26` (`creds`) | If `source secrets/env.fish` comes back → `check.sh` fails: a static pin on startup files (`check.sh:3170`) plus a behavioural login-shell probe printing names only, just below it |
 | L1 | git-crypt at rest; `.githooks/pre-commit` names the offending path, never the matched text | `git` (`core.hooksPath`), `.githooks/pre-commit:74-77` | Bypassed with `--no-verify` → the L3 project rulebook blocks that invocation (`check.sh:3090` requires a blocked fixture per rule) |
 | L2 | Infra gate: `extensions/infra-safety.ts` + `lib/{mutation-guard,classify,infra-tables}.ts`; **plus** the secret-path gate `lib/secret-paths.ts` on the file tools | `tool_call` on both shell tools — one constant, `SHELL_TOOLS = ["bash", "hypa_shell"]`, and one predicate, `isShellCall` (`lib/mutation-guard.ts`), so the handler and `/check`'s read-only gate (`modes/index.ts:235`) cannot drift apart. Resets to locked on `session_start`. Arm with `/infra-arm` or the `infra_mode` tool. When armed, a mutation needs `ctx.ui.confirm` showing the whole command; with no UI it is blocked rather than auto-approved. A second `tool_call` handler gates the FILE tools by path (`FILE_PATH_TOOLS` = read/grep/find/edit/write + the `hypa_*` mirrors): a path resolving under a directory named `secrets` is denied outright — no mode, no confirm | An unknown verb while locked is blocked, i.e. it fails closed. Hook not loaded → `infra_mode` is absent from the tool list and nothing notices at runtime: `check.sh` asserts the files and their shape (`:4829`, `:4831`, `:4836`), never a live session. A hook that loads but is inert is UNVERIFIED — no check probes it. The secret-path half is driven at the decision boundary (`check.sh`'s `safety: L2 denies hypa_read of secrets/env.fish, allows secrets/leak-patterns` calls the same `secretPathBlock` the hook returns), which is as far as a check can go without a live session |
-| L3 | cc-safety-net: exact npm package declared in settings `packages` (`npm:cc-safety-net@2.7.14`). User config stowed from `base/cc-safety-net`, project rulebook in `.cc-safety-net/`, every rulebook ref pinned to a 40-hex commit. | Its own pi extension hooking `bash` plus the declared `hypa_shell` (probe B, §3) | Package absent → the layer is gone without notice → `check.sh` host assertions: stow link (`:4960`), installed version matches the pin (`:4974`), library denies `git reset --hard` and allows `ls` (`:4984`) |
+| L3 | cc-safety-net: exact npm package declared in settings `packages` (`npm:cc-safety-net@2.8.1`). User config stowed from `base/cc-safety-net`, project rulebook in `.cc-safety-net/`, every rulebook ref pinned to a 40-hex commit. | Its own pi extension hooking `bash` plus the declared `hypa_shell` (probe B, §3) | Package absent → the layer is gone without notice → `check.sh` host assertions: stow link (`:4960`), installed version matches the pin (`:4974`), library denies `git reset --hard` and allows `ls` (`:4984`) |
 | L4 | Publish guard: `extensions/publish-guard.ts` + `lib/publish-scan.ts` | `tool_call` on shell tools running a publish verb (gh/glab) and on `fetch_content`/`web_search` | Scanner unavailable → blocks (fails closed). It never echoes the match |
 | L5 | Feedback | `check.sh`, `pi-smoke.sh`, `docs/PROMPT-EVAL.md` | A skip reported as green (PRINCIPLES §What counts as a defect) |
 
 Composition: if any layer blocks, the call is blocked, and no layer can loosen
 another. Modes only tighten: `/check` forces L2 locked and clears every armed
 status (`modes/index.ts:204-207`), and `/change` never arms it.
+
+Four independent `tool_call` handlers see each shell call: L2's command gate,
+L3's own hook (the npm package registers `pi.on("tool_call")` through its
+minified adapter, so grepping the installed dist for `pi.on` does not find it —
+grepping for `tool_call` does), L4's publish gate, and `/check`'s read-only
+allowlist (`modes/index.ts:243`), which is a gate in its own right. L2's
+file-path handler is NOT one of them: it gates the file tools and is blind to
+shell commands by design. Three more extensions in the same list also subscribe
+(`@hypabolic/pi-hypa` for the shell tools, `pi-web-access` when web search is
+enabled, `pi-claude-bridge` for its own reasons).
+
+Nothing in the harness orders them, and `pi-hypa` is the one that makes order
+matter: it REPLACES `event.input.command` for `bash` before later handlers see
+it, so a guard that reads the raw field and one that reads the rewritten field
+are judging different strings. The pi docs (`extensions.md`) describe a
+sequential preflight whose block return stops the call; they do not promise an
+order or a first-wins rule, so the only safe assumption is that every layer is
+independently sound. `/check`'s non-check branch re-adds every registered tool
+(`pi.setActiveTools(getAllTools())`, `modes/index.ts:180`), which is why
+`no-powershell.ts` prunes per turn — the one ordering dependency the tree
+documents, and the reason a cross-layer rule belongs here rather than in a
+comment inside one file.
 
 What L2 matches is the command string **plus the bodies of the shell scripts that
 string names** (`expandScripts`, `lib/classify.ts`) — and nothing else. No

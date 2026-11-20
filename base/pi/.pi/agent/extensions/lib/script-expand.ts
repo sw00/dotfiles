@@ -196,7 +196,9 @@ interface ScriptCtx {
  *  bare `*`/`(*)`/`[[:space:]]` is a case pattern or a regex fragment, and `\[`
  *  is an escaped literal. None of those expand to a command name. */
 function hasExpansion(word: string): boolean {
-  if (!word || /^["']/.test(word)) return false; // a quoted word never expands
+  // Only a SINGLE-quoted word cannot expand: `$(…)` and backticks run inside
+  // double quotes, so exempting them hid every assembly written the obvious way.
+  if (!word || word.startsWith("'")) return false;
   if (/\$\(|`|[<>]\(|\$\{/.test(word)) return true; // substitution / parameter expansion
   const bare = word.replace(/\\./g, "_"); // an escaped metacharacter is a literal
   // Brace expansion carries a comma or a range: `{a,b}`, `{1..5}`.
@@ -212,6 +214,24 @@ function hasExpansion(word: string): boolean {
 function rawCommandWord(rawSegment: string): string | null {
   const rawWords = rawSegment.trim().split(/\s+/).filter(Boolean);
   return rawWords[commandPosition(rawWords)] ?? null;
+}
+
+/** A runner's inline-code payload (`bash -c …`, `sh --command …`) as text, with
+ *  the surrounding quote pair removed: the shell that ran the segment already
+ *  consumed those quotes, so what the child shell expands is the text inside.
+ *  Walks the RAW segment, because normalizeCommand flattens `$(…)` into separate
+ *  words and the assembly is exactly what has to stay visible. */
+function inlinePayload(rawSegment: string): string | null {
+  const rawWords = rawSegment.trim().split(/\s+/);
+  const cmdAt = commandPosition(rawWords);
+  const first = cmdAt >= 0 ? rawWords[cmdAt] : undefined;
+  const cmd = first === undefined ? "" : baseName(unquote(first));
+  if (!SCRIPT_RUNNERS.has(cmd)) return null;
+  const flagAt = rawWords.findIndex((w, i) => i > cmdAt && INLINE_CODE_FLAGS.has(unquote(w)));
+  if (flagAt < 0) return null;
+  const rest = rawWords.slice(flagAt + 1).join(" ").trim();
+  if (rest.length === 0) return null;
+  return rest.replace(/^(["'])([\s\S]*)\1$/, "$2");
 }
 
 /** Index of the command xargs runs, past its own flags and their values. */
@@ -420,6 +440,21 @@ function collectScripts(command: string, ctx: ScriptCtx): void {
     const rawWord = rawCommandWord(rawSegment);
     if (!lookupLed && rawWord && hasExpansion(rawWord)) {
       recordUnknown(scoped, `${rawWord}: command word built by shell expansion, cannot resolve what runs`);
+      continue;
+    }
+    // `bash -c "$(echo ter)raform destroy"`: the assembled name lives in the
+    // payload, which the `-c` branch below never walks (it stops at the flag) and
+    // `findInvocations` only ever sees as raw text, so `ter)raform` never
+    // reassembles. The payload IS a script, so walk it as one — same
+    // commandPosition/lead-word handling (`sudo`, `x=1`, `/bin/bash`), same
+    // substitution refusal, and nested `-c` payloads recurse.
+    const payload = inlinePayload(rawSegment);
+    if (payload !== null) {
+      // Same depth: a `-c` payload is the command line, not a body read from a
+      // file, so an unknown inside it stays a BLOCK (recordUnknown downgrades to
+      // a note only below depth 0). The text strictly shrinks each level, so
+      // nested `-c` recursion terminates.
+      collectScripts(payload, scoped);
       continue;
     }
     collectFromWords(words, scoped);

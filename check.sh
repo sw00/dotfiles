@@ -2284,6 +2284,51 @@ pkgs = json.load(open(sys.argv[1])).get("packages") or []
 hits = [p for p in pkgs if p.startswith("npm:cc-safety-net")]
 sys.exit(0 if len(hits) == 1 and re.fullmatch(r"npm:cc-safety-net@[0-9]+\.[0-9]+\.[0-9]+", hits[0]) else 1)
 ' "$_PI_SETTINGS_TEMPLATE"
+# The same reasoning now covers EVERY package: a floating `npm:` entry, or a `git:`
+# source with no ref, moves code (and, for ponytail, prompt text) into every
+# session with no reviewable diff. The pin is the review gate; the version bump is
+# the commit.
+check "pi settings: every package is pinned (semver, or a 40-hex git ref)" \
+    python3 -c '
+import json, re, sys
+pkgs = json.load(open(sys.argv[1])).get("packages") or []
+bad = []
+for p in pkgs:
+    if p.startswith("npm:"):
+        if not re.fullmatch(r"npm:(@[^/]+/)?[^@]+@[0-9]+\.[0-9]+\.[0-9]+", p):
+            bad.append(p)
+    elif p.startswith("git:"):
+        if not re.search(r"@[0-9a-f]{40}$", p):
+            bad.append(p)
+    else:
+        bad.append(p)
+if bad:
+    sys.stderr.write("unpinned package(s): " + ", ".join(bad) + chr(10))
+    sys.exit(1)
+' "$_PI_SETTINGS_TEMPLATE"
+# User-scope agent skills have two provenance classes and both must be visible:
+# the skills manager records what it installed (source + commit per skill) in
+# ~/.agents/.skill-lock.json, and the Paseo app ships its own. Anything else on
+# disk is unmanaged drift — a hand-copied skill that no update path replaces and
+# no diff ever reviews. Host-local: skipped where the directory is absent (CI).
+check "agents: every user-scope skill has a recorded source (lock or app)" \
+    bash -c "if [ ! -d \"\$HOME/.agents/skills\" ]; then exit 77; fi; python3 -c \"
+import json, os, sys
+root = os.path.join(os.environ['HOME'], '.agents', 'skills')
+dirs = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)))
+try:
+    locked = json.load(open(os.path.join(os.environ['HOME'], '.agents', '.skill-lock.json'))).get('skills', {})
+except OSError:
+    locked = {}
+# Paseo ships its own skills and records nothing here; anything ELSE without a
+# lock entry is a hand copy no update path replaces.
+bad = [d for d in dirs if d not in locked and not d.startswith('paseo')]
+if bad:
+    sys.stderr.write('unmanaged skill dir(s): ' + ', '.join(bad) + chr(10))
+    sys.exit(1)
+\"" || { rc=$?; if [ "$rc" -eq 77 ]; then
+    _skip "agents: every user-scope skill has a recorded source (lock or app)" \
+        "no ~/.agents/skills on this host"; else _fail "agents: every user-scope skill has a recorded source (lock or app)"; fi; }
 # PIG_USE_PI_DIRS travels with the shared dir, so a value here would make the
 # ROLLBACK binary (upstream pi, and pi-bolt) carry a PiG-only key. It belongs in
 # conf.d/pig.fish, where it applies to the shell that launches either harness.

@@ -83,6 +83,23 @@ const cases: Array<[string, string]> = [
   ["gcloud pubsub topics publish my-topic --message hi", "BLOCK(mutation)"],
 
   // parsing robustness
+
+  // A command word assembled inside an inline payload: the `-c` branch stops at
+  // the flag and findInvocations only ever sees raw text, so `ter)raform` used to
+  // reassemble into nothing and the mutation was invisible. The payload is now
+  // walked as the command line it is (same depth, so an unknown still blocks).
+  ['bash -c "$(echo ter)raform destroy"', "BLOCK(unknown)"],
+  ['bash -c "`echo ter`raform destroy"', "BLOCK(unknown)"],
+  // Reached through a wrapper: the same walk resolves `/bin/bash` and lead words.
+  ['/bin/bash -c "$(echo ter)raform destroy"', "BLOCK(unknown)"],
+  ['sudo bash -c "$(echo ter)raform destroy"', "BLOCK(unknown)"],
+  ['bash -c "sudo $(echo ter)raform destroy"', "BLOCK(unknown)"],
+  // An expansion at command position is refused inside a payload exactly as it is
+  // at the top level — `bash -c "$(date)"` runs a command nobody can name.
+  ['bash -c "$(date)"', "BLOCK(unknown)"],
+  // A single-quoted payload passes through the outer shell unexpanded and holds
+  // no command word the walk can assemble.
+  ["bash -c 'echo hi'", "not-cloud"],
   ["echo $(aws ec2 terminate-instances --instance-ids i-1)", "BLOCK(mutation)"],
   ["aws foo list --force delete-item", "BLOCK(mutation)"],
   ["/usr/local/bin/aws s3 rb s3://bucket", "BLOCK(mutation)"],
