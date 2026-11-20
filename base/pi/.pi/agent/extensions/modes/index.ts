@@ -39,13 +39,16 @@ Birds-eye problem-space thinking with the user: problem statements, domain mappi
 
 const SIMPLE_READ = new Set([
   // file inspection & search
-  "cat", "head", "tail", "less", "more", "grep", "rg", "find", "fd", "ls", "pwd", "tree",
-  "file", "stat", "wc", "du", "diff", "comm", "sort", "uniq", "column", "cut", "paste", "tr",
+  "cat", "head", "tail", "less", "more", "grep", "rg", "fd", "ls", "pwd", "tree",
+  "file", "stat", "wc", "du", "diff", "comm", "uniq", "column", "cut", "paste", "tr",
   "jq", "yq", "strings", "nm", "objdump", "readelf", "ldd",
   // path & text helpers
   "basename", "dirname", "realpath", "readlink", "echo", "printf", "seq", "test", "true", "false",
   // system info
-  "df", "free", "ps", "top", "htop", "env", "printenv", "id", "whoami", "uname", "date", "uptime",
+  // `env`, `find` and `sort` are deliberately absent: all three run or write
+  // (`env <cmd>`, `find -delete`/`-exec`, `sort -o <file>`), which makes a
+  // read-only allowlist that contains them decorative.
+  "df", "free", "ps", "top", "htop", "printenv", "id", "whoami", "uname", "date", "uptime",
   "hostname", "which", "type", "whereis", "man", "lscpu", "lsmem", "lsblk", "lsusb", "lspci", "vmstat",
   "iostat", "nproc", "getent", "journalctl",
   // network reads
@@ -99,10 +102,17 @@ function checkBashAllowed(command: string): string | null {
   }
 
   const guarded = guardedNames();
-  const segments = command.split(/&&|\|\||[;|]/).map((s) => s.trim()).filter(Boolean);
+  // Newlines and a bare `&` split like any other separator: `ls⏎rm -rf x` and
+  // `ls & rm -rf x` are two commands, and only the first word of a segment is
+  // classified. The lookarounds keep `2>&1` and `&>file` in one segment (the
+  // `>` check below still blocks the latter). Quote-blind like the rest of this
+  // gate, so a `&` inside a quoted argument over-blocks — the safe side.
+  const segments = command.split(/&&|\|\||(?<!>)&(?!>)|[;|\n]/).map((s) => s.trim()).filter(Boolean);
 
   for (const seg of segments) {
-    if (/`|\$\(/.test(seg)) return `command substitution is blocked in check mode (read-only).`;
+    // `<(cmd)` / `>(cmd)` run a command and hand back a path: process substitution
+    // is a command runner like `$(…)`, and `cat <(rm -rf x)` has an allowlisted head.
+    if (/`|\$\(|[<>]\(/.test(seg)) return `command substitution is blocked in check mode (read-only).`;
 
     // strip leading env assignments (FOO=bar cmd …)
     const stripped = seg.replace(/^(?:\w+=\S+\s+)+/, "");
@@ -151,13 +161,13 @@ export default function (pi: ExtensionAPI) {
 
   // Toolset is a pure function of mode: check drops edit/write, domain mode
   // tools (e.g. infra_mode), and anything that can write *indirectly*. Guards
-  // are force-locked and cannot be opened from within check.
-  // Two denylist entries exist because they hand write access to another
-  // process: `subagent` can spawn the write-capable `worker` (delegation is a
-  // second write path no matter how the worker's shell is named, and check
-  // mode's own prompt already says not to delegate), and `AskClaude` accepts
-  // `mode: "full"`. Renaming AskClaude via `askClaude.name` still slips past
-  // this; `allowFullMode: false` is the backstop.
+  // are force-locked and cannot be opened from within check. `subagent` is
+  // hidden because it hands write access to another process: it can spawn the
+  // write-capable `worker`, and delegation is a second write path no matter how
+  // the worker's shell is named (check mode's own prompt already says not to
+  // delegate). `AskClaude` accepts `mode: "full"`; the askclaude package is NOT
+  // installed today, so that entry is a no-op kept ahead of the install
+  // (`allowFullMode: false` in claude-bridge.json is the backstop).
   const CHECK_HIDDEN_TOOLS = new Set(["edit", "write", "AskClaude", "subagent"]);
   const applyToolGate = (m: Mode) => {
     const all = pi.getAllTools().map((t) => t.name);

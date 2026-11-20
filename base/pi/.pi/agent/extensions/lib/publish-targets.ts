@@ -652,16 +652,25 @@ function resolveCli(
 /**
  * `bash -c "gh pr create …"` hides the whole invocation inside one quoted
  * token, so the walk above cannot see an argument position. Look one quoting
- * level inside, and only when that token STARTS with the CLI — so prose that
- * merely mentions `gh pr create` (a body quoting a command) is still not a
- * publish we claim to see. Recursion is quote-bounded.
+ * level inside when the CLI heads the payload *or heads any command in it* —
+ * `sh -c "cd x && gh pr create …"` is code. Prose that merely names the verb in
+ * argument position stays prose, though a payload that separates sentences with
+ * `;` can still over-collect: fail-safe, and cheaper than a nested parse.
+ * Recursion is quote-bounded.
+ *
+ * shortcut: only a segment HEAD is inspected, so a payload that reaches the CLI
+ * through another runner (`bash -c "env bash -c 'gh pr create …'"`) is still
+ * missed; upgrade to a real nested parse if that shape shows up in practice.
  */
 function nestedTargets(tokens: Token[]): PublishTargets | null {
+  const segmentHead = (segment: string): string => {
+    const inner = tokenizeCommand(segment);
+    return inner[0] ? baseName(inner[0].value) : "";
+  };
   for (const tok of tokens) {
     if (!tok.quoted || tok.value.length === 0) continue;
-    const inner = tokenizeCommand(tok.value);
-    const first = inner[0] ? baseName(inner[0].value) : "";
-    if (first !== "gh" && first !== "glab") continue;
+    const heads = tok.value.split(/&&|\|\||[;|&\n]/).map(segmentHead);
+    if (!heads.some((h) => h === "gh" || h === "glab")) continue;
     const nested = publishTargets(tok.value);
     if (nested) return nested;
   }

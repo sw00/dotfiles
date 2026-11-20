@@ -1,6 +1,6 @@
 {
   "defaultProvider": "opencode-go",
-  "defaultModel": "opencode-go/deepseek-v4.1-flash",
+  "defaultModel": "deepseek-v4.1-flash",
   "hideThinkingBlock": true,
   "defaultThinkingLevel": "high",
   "enabledModels": [
@@ -29,11 +29,12 @@
     "-builtin:usage"
   ],
   "packages": [
-    "npm:pi-claude-bridge",
-    "npm:@hypabolic/pi-hypa",
-    "npm:pi-web-access",
-    "npm:@tmustier/pi-usage-extension",
-    "npm:cc-safety-net@2.7.14"
+    "npm:pi-claude-bridge@0.13.0",
+    "npm:@hypabolic/pi-hypa@1.2.0",
+    "npm:pi-web-access@0.48.0",
+    "npm:@tmustier/pi-usage-extension@0.10.2",
+    "npm:cc-safety-net@2.8.1",
+    "git:github.com/DietrichGebert/ponytail@96608e078b2d5ea607c5c3b8b5a54d1c1fba6846"
   ],
   "theme": "dark"
 }

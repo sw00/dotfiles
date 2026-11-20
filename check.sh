@@ -1681,7 +1681,7 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # a case that silently stopped running cannot be laundered through a green summary.
 # Re-pin a count only when the test file gained cases deliberately.
 _TS_PIN_MUTATION_GUARD=36
-_TS_PIN_PUBLISH_SCAN=26
+_TS_PIN_PUBLISH_SCAN=27
 _TS_PIN_PUBLISH_GUARD=15
 # L2's file-tool half: the secret-path predicate and the tool list it gates.
 _TS_PIN_SECRET_PATHS=13
@@ -1951,7 +1951,10 @@ check_not "pi models: orphaned kimi OpenRouter twin removed" \
 check "pi: daily driver is one id (settings, worker agent, web-search summary)" \
     bash -c "python3 -c \"
 import json, sys
-d = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.desired.json'))['defaultModel']
+d = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.desired.json'))
+# `defaultModel` is bare by contract (settings.md): a qualified id there is
+# ignored at startup, so this pairing is what the checked-in default MEANS.
+d = d.get('defaultProvider', '') + '/' + d['defaultModel']
 w = json.load(open('$DOTFILES/base/pi/.pi/web-search.json'))['summaryModel']
 m = None
 for line in open('$DOTFILES/base/pi/.pi/agent/agents/worker.md'):
@@ -1983,7 +1986,8 @@ for prov, entry in pf.items():
         sys.exit(1)
     twins.add(to)
 default = s.get('defaultModel', '')
-if default.split('/')[0] in twins:
+qualified = s.get('defaultProvider', '') + '/' + default
+if qualified.split('/')[0] in twins:
     sys.stderr.write('defaultModel %r is a fallback twin, not a primary\\n' % default)
     sys.exit(1)
 \"" 

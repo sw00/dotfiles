@@ -151,6 +151,20 @@ test("nested shell wrapper is still recognised, prose that merely names the verb
   assert.equal(publishTargets('echo "please run gh pr create --body-file x.md"'), null);
 });
 
+test("a nested script whose CLI is not the first word is still a publish", () => {
+  // Regression: the payload used to be opened only when it STARTED with the
+  // CLI, so `bash -c "echo hi; gh pr create --body-file f"` passed unscanned
+  // (the body file was never read).
+  assert.deepEqual(publishTargets('bash -c "echo hi; gh pr create --body-file notes.md"')?.files, [
+    "notes.md",
+  ]);
+  assert.notEqual(publishTargets('sh -c "cd /x && glab mr create -t t"'), null);
+  // The verb in argument position is still prose, not code.
+  assert.equal(publishTargets('echo "please run gh pr create --body-file x.md"'), null);
+  // Accepted over-collection: a `;` inside quoted prose heads a segment.
+  assert.deepEqual(publishTargets('echo "done; gh pr create --body-file x.md"')?.files, ["x.md"]);
+});
+
 test("bare path-shaped tokens become candidates, not required files", () => {
   const t = publishTargets("gh gist create body.md --desc x");
   assert.deepEqual(t?.files, []);

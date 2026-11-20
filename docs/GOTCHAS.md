@@ -233,6 +233,15 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
 
 ## General
 
+- **A third-party installer can drop a live extension into `~/.pi/agent/extensions/` that no
+  repo surface knows about.** `wt config plugins pi install` wrote `worktrunk.ts` there
+  (mode 0600, not a stow symlink, untracked, unchanged by any `check.sh` run), and pi loads
+  every `*.ts` in that directory — so the file is live with zero review, and a fresh
+  machine silently lacks the `wt list` activity markers. Same class as any `pi install` of
+  a package that writes an extension file beside the stowed ones. Rule: `git status` in the
+  agent dir is the review gate for that directory, and the pin list in
+  `settings.desired.json` is what a new host actually gets.
+
 - **Backticks inside a double-quoted `git commit -m "…"` are command substitution.**
   A message containing `` `runs` `` executed `runs` and left a hole in the commit body
   (`sh: runs: command not found`, noticed only by reading the log). Write the message to
