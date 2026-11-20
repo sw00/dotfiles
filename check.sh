@@ -1550,6 +1550,36 @@ _brew_declared() {
         | grep -oE '^brew "[^"]+"' | cut -d'"' -f2 | sort -u
 }
 
+check "brew: nothing in migrate_app_trim's list is also declared in a Brewfile" \
+    python3 -c '
+import re, sys
+boot = open(sys.argv[1]).read()
+m = re.search(r"local trimmed=\((.*?)\)", boot, re.S)
+if not m:
+    sys.stderr.write("cannot find the trimmed array in bootstrap.sh\n")
+    sys.exit(1)
+trimmed = set(m.group(1).split())
+declared = set()
+for path in sys.argv[2:]:
+    try:
+        text = open(path).read()
+    except OSError:
+        continue                      # host Brewfile absent (CI / another host)
+    for line in text.splitlines():
+        mm = re.match(r"\s*(?:cask|brew) \"([^\"]+)\"", line)
+        if mm:
+            declared.add(mm.group(1).lower())
+both = sorted(trimmed & declared)
+if both:
+    sys.stderr.write("trimmed AND declared: " + ", ".join(both) + chr(10))
+    sys.exit(1)
+' "$DOTFILES/bootstrap.sh" "$BREW_BASE" "$BREW_HOST"
+
+# Behavior, not just the list: the migration must actually uninstall the app its
+# declaration was dropped for, or a superseded 640 MB client lingers unpatched.
+check_has "bootstrap.sh: removes the superseded WhatsApp app (mas 310633997)" \
+    'mas uninstall 310633997' "$DOTFILES/bootstrap.sh"
+
 # Does either mise config declare this tool? BOTH forms count: the key form
 # (`foo = "1.0"`) and the table form (`[tools.foo]`) that btop and navi use when
 # they need an os restriction. Missing the table form was a real blind spot when

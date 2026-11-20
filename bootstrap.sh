@@ -335,9 +335,12 @@ migrate_app_trim() {
     # stay on disk. Delete those by hand if unwanted.
     local trimmed=(
         gpg-suite httpie-desktop calibre zotero
-        caffeine mouseless appcleaner rectangle libreoffice
+        mouseless appcleaner rectangle libreoffice
         megasync dbeaver-community docker-desktop
     )
+    # caffeine is deliberately absent: it is declared in the host Brewfile again,
+    # and a trimmed cask that is also declared is installed by brew bundle and
+    # uninstalled here on every run. See hosts/mbpm3/brew/.Brewfile-host.
     local cask
     for cask in "${trimmed[@]}"; do
         if brew list --cask "$cask" >/dev/null 2>&1; then
@@ -354,6 +357,14 @@ migrate_app_trim() {
         log "removing stale megasync LaunchAgent"
         launchctl bootout "gui/$(id -u)/mega.mac.megaupdater" >/dev/null 2>&1 || true
         rm -f "$mega_agent"
+    fi
+
+    # WhatsApp Messenger was superseded by ZapFast (cask in Brewfile-base, MSI on
+    # Windows), so its `mas` line left the host Brewfile and nothing updates it
+    # any more. Remove the app; its chat data stays on disk (no user data here).
+    if command -v mas >/dev/null 2>&1 && mas list 2>/dev/null | grep -q '^310633997 '; then
+        log "uninstalling superseded WhatsApp Messenger (mas 310633997)"
+        mas uninstall 310633997 || warn "could not uninstall WhatsApp — remove it manually"
     fi
 
     # colima (installed by Brewfile-host just now): finish the Docker Desktop

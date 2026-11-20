@@ -7,6 +7,12 @@ brew "ffmpeg"    # Audio/video processing
 # ── Desktop apps ──────────────────────────────────────────────────────────────
 cask "audacity"
 cask "bruno"
+# Caffeine also sits in bootstrap.sh's migrate_app_trim() trimmed list (the
+# 2026-07 lean pass removed it). Declaring it here means it has to be out of that
+# array — otherwise every bootstrap installs it and then uninstalls it again.
+# Host-scoped on purpose: only this Mac needs a keep-awake utility, and it has no
+# winget counterpart, so it does not belong in Brewfile-base's parity table.
+cask "caffeine"             # keep-awake utility
 cask "discord"
 cask "freelens"
 cask "linear"
@@ -51,4 +57,5 @@ brew "telnet"               # nc is not equivalent; small and occasionally neede
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
 mas "Pixelmator", id: 407_963_104
-mas "WhatsApp Messenger", id: 310_633_997
+# WhatsApp Messenger (mas id 310_633_997) removed — ZapFast supersedes it
+# (cask "zapfast" in Brewfile-base, pinned MSI in os/wsl/up.sh).

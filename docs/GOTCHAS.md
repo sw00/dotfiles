@@ -233,6 +233,17 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
 
 ## General
 
+- **User-scope agent skills are copied, unpinned content that runs with full agent permissions.**
+  They live in `~/.agents/skills` (every project), installed with
+  `npx -y skills@latest add <source> -s <name> -g -a pi --copy -y`; the source may be an
+  npm/github ref or a docs URL, and the installed files are copies, so an update never shows
+  as a diff. Provenance is the host-local `~/.agents/.skill-lock.json` (source + commit per
+  skill): `check.sh` fails on a directory with no lock entry and no Paseo owner, but nothing
+  reviews what a skill SAYS — read it before you trust it. Two sources currently disagree on
+  freshness: `skills@latest update -g` reports "up to date" while the same skills sit at two
+  different commits in the lock, so treat the lock as the record and `add` (not `update`) as
+  the way to move a pin. `archify` is the outlier — 18M and a node binary, not prompt text.
+
 - **A third-party installer can drop a live extension into `~/.pi/agent/extensions/` that no
   repo surface knows about.** `wt config plugins pi install` wrote `worktrunk.ts` there
   (mode 0600, not a stow symlink, untracked, unchanged by any `check.sh` run), and pi loads
