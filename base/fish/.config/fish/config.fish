@@ -67,7 +67,11 @@ end
 # ── GPG agent ─────────────────────────────────────────────────────────────────
 # GPG_TTY must be exported to all shells (including non-interactive) so that
 # gpg can find the terminal for passphrase prompts started by git/scripts.
-set -gx GPG_TTY (tty)
+# Only with a controlling terminal: elsewhere `tty` prints "not a tty", which
+# would become the exported value and break pinentry.
+if test -t 0
+    set -gx GPG_TTY (tty)
+end
 
 # ── Interactive shell only ────────────────────────────────────────────────────
 status --is-interactive; or return
@@ -97,6 +101,3 @@ alias vim nvim
 if functions -q _fzf_search_directory
     bind \ct _fzf_search_directory
 end
-
-# Pi
-fish_add_path "$HOME/.local/bin"

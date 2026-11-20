@@ -105,6 +105,14 @@ normalize_hostname() {
 # Priority: DOTFILES_KEY env > $1 positional > TTY read > empty (abort).
 # Returns the key path on stdout, or empty string if none found.
 _resolve_gitcrypt_key() {
+    # A set-but-broken DOTFILES_KEY is reported where a human will see it, but it
+    # does not veto a valid positional path: the env var is the first PREFERENCE,
+    # not the only allowed source (see the priority list above).
+    local _bad_env=""
+    if [[ -n "${DOTFILES_KEY:-}" ]] && { [[ ! -f "$DOTFILES_KEY" ]] || [[ ! -r "$DOTFILES_KEY" ]]; }; then
+        _bad_env="$DOTFILES_KEY"
+    fi
+
     # 1. DOTFILES_KEY environment variable
     if [[ -n "${DOTFILES_KEY:-}" ]] && [[ -f "$DOTFILES_KEY" ]]; then
         echo "$DOTFILES_KEY"
@@ -127,7 +135,11 @@ _resolve_gitcrypt_key() {
         fi
     fi
 
-    # 4. No key found
+    # 4. No key found. A bad DOTFILES_KEY is named here, once, because it is the
+    # usual reason a machine that worked yesterday now finds no key at all.
+    if [[ -n "$_bad_env" ]]; then
+        warn "DOTFILES_KEY is set but is not a readable file: $_bad_env"
+    fi
     return 1
 }
 
@@ -229,6 +241,22 @@ _install_system_packages() {
 _ensure_wsl_conf() {
     local src="$DOTFILES/os/wsl/windows/wsl.conf"
     [[ -f "$src" ]] || { warn "wsl.conf not found at $src — skipping"; return 0; }
+    if sudo test -f /etc/wsl.conf; then
+        if [[ "$(sudo cat /etc/wsl.conf)" == "$(cat "$src")" ]]; then
+            log "/etc/wsl.conf unchanged"
+            return 0
+        fi
+        local bak
+        bak="/etc/wsl.conf.bak-$(date +%Y-%m-%d)"
+        # Keep the FIRST backup of the day: a second differing run would otherwise
+        # overwrite the hand-tuned original with the copy this script installed.
+        if ! sudo test -e "$bak"; then
+            sudo cp -f /etc/wsl.conf "$bak"
+            warn "/etc/wsl.conf differed from $src — backed up to $bak"
+        else
+            warn "/etc/wsl.conf differed from $src — original already saved at $bak"
+        fi
+    fi
     log "installing /etc/wsl.conf"
     sudo cp -f "$src" /etc/wsl.conf
 }
@@ -596,18 +624,23 @@ ensure_tmux_plugins() {
     local plugins_dir="$HOME/.config/tmux/plugins"
     mkdir -p "$plugins_dir"
 
-    declare -A plugins=(
-        [tmux-resurrect]="https://github.com/tmux-plugins/tmux-resurrect"
-        [tmux-window-name]="https://github.com/ofirgall/tmux-window-name"
+    # "name url" pairs — indexed array, not associative: stock macOS bash is 3.2
+    # and rejects `declare -A`.
+    local plugins=(
+        "tmux-resurrect https://github.com/tmux-plugins/tmux-resurrect"
+        "tmux-window-name https://github.com/ofirgall/tmux-window-name"
     )
 
-    for name in "${!plugins[@]}"; do
-        local dir="$plugins_dir/$name"
+    local entry name url dir
+    for entry in "${plugins[@]}"; do
+        name="${entry%% *}"
+        url="${entry#* }"
+        dir="$plugins_dir/$name"
         if [[ -d "$dir" ]]; then
             log "tmux plugin already installed: $name"
         else
             log "cloning tmux plugin: $name"
-            git clone --depth=1 "${plugins[$name]}" "$dir"
+            git clone --depth=1 "$url" "$dir"
         fi
     done
 }
@@ -908,9 +941,14 @@ stow_dir() {
     local _dry_out
     _dry_out=$(stow -n --no-folding -d "$parent" -t "$HOME" "${pkgs[@]}" 2>&1 || true)
 
+    # Which stow versions reach this branch:
+    #   stow < 2.4.1 (Debian apt ships 2.3.1) — YES. Its wording is
+    #     "existing target is neither a link nor a directory: <target>".
+    #   stow >= 2.4.1 — NO. It words the same conflict "cannot stow ... over
+    #     existing target ...", which preflight (_sim_stow) treats as fatal and
+    #     aborts on before stow_dir ever runs. Both wordings are still parsed
+    #     below because older stow keeps this branch live.
     local _plain
-    # stow < 2.4.1: "existing target is neither a link nor a directory: <target>"
-    # stow 2.4.1+: "cannot stow <source> over existing target <target> since neither a link nor a directory"
     _plain=$(printf '%s\n' "$_dry_out" \
         | grep -oE '(existing target is neither a link nor a directory: |cannot stow .+ over existing target ).+' \
         | sed -E 's/(existing target is neither a link nor a directory: |cannot stow .+ over existing target )//' \

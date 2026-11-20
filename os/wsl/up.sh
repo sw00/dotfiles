@@ -281,14 +281,23 @@ if [[ -f "$VSCODIUM_SRC/settings.json" ]]; then
     # Substitute __WIN_LOCALAPPDATA__ with the real Windows path (backslash-
     # escaped for JSON).  Python is used to avoid bash/sed backslash hell.
     WIN_LOCALAPPDATA_WIN=$(cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')
+    # __WSL_DISTRO__ is the terminal profile's wsl.exe -d value.  WSL_DISTRO_NAME
+    # is set inside WSL; unset means keep the old hardcoded name loudly rather
+    # than shipping an empty -d.
+    WSL_DISTRO="${WSL_DISTRO_NAME:-}"
+    if [[ -z "$WSL_DISTRO" ]]; then
+        warn "WSL_DISTRO_NAME unset — VSCodium terminal profile falls back to Ubuntu-24.04"
+        WSL_DISTRO="Ubuntu-24.04"
+    fi
     python3 - "$VSCODIUM_SRC/settings.json" "$VSCODIUM_WIN/settings.json" \
-              "$WIN_LOCALAPPDATA_WIN" << 'PYEOF'
+              "$WIN_LOCALAPPDATA_WIN" "$WSL_DISTRO" << 'PYEOF'
 import sys
-src, dst, win_path = sys.argv[1], sys.argv[2], sys.argv[3]
+src, dst, win_path, distro = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 # JSON requires backslashes doubled; win_path arrives with single backslashes.
 json_path = win_path.replace('\\', '\\\\')
 with open(src) as f:
     content = f.read()
+content = content.replace('__WSL_DISTRO__', distro)
 with open(dst, 'w') as f:
     f.write(content.replace('__WIN_LOCALAPPDATA__', json_path))
 PYEOF
@@ -434,6 +443,18 @@ if [[ -r "$HOME/.ssh/id_rsa" ]]; then
     log "syncing SSH keys+config → $SSH_WIN (best-effort)"
     mkdir -p "$SSH_WIN"
     cp -f "$DOTFILES/base/ssh/.ssh/config" "$SSH_WIN/config"
+    # Keep a hand-added Host file (%USERPROFILE%\.ssh\config.d\<host>): the
+    # straight rm -rf below used to destroy it on every re-run.
+    SSH_BAK="$SSH_WIN/config.d.bak-$(date +%F)"
+    if [[ -d "$SSH_WIN/config.d" ]] && [[ -n "$(ls -A "$SSH_WIN/config.d")" ]]; then
+        # cp -rn (no-clobber) into a shared dir: a same-day re-run must not
+        # replace the hand-edited original it already rescued with the copy this
+        # script installed on the previous run. -r not -a: DrvFS does not keep
+        # ownership/xattrs, and the adjacent copies use -r for the same reason.
+        mkdir -p "$SSH_BAK"
+        cp -rn "$SSH_WIN/config.d/." "$SSH_BAK/"
+        log "kept previous Windows ssh config.d → $SSH_BAK (existing files left alone)"
+    fi
     rm -rf "$SSH_WIN/config.d"
     cp -r "$DOTFILES/base/ssh/.ssh/config.d" "$SSH_WIN/config.d"
     # -L follows the secrets/*_rsa symlinks into dotfiles/secrets (git-crypt).

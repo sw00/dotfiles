@@ -3,8 +3,9 @@
 # Only surface tmux sessions and hand-configured sessions when `sesh list`
 # is called without extra flags.  Omitting "zoxide" here does NOT exclude it
 # from the list — zoxide results still appear but are shown last, after the
-# sources you care about.  The real filtering happens in the tmux C-o binding,
-# which uses `zoxide query -l --base-dir ~/src` to scope results to ~/src/.
+# sources you care about.  The real filtering lives elsewhere now: C-o is a
+# sessions-only switcher (`sesh list -t | grep -Fxv`, tmux.conf), and the
+# ~/src zoxide scoping is done by C-f via base/tmux/bin/repo-list.
 sort_order = ["tmux", "config", "zoxide"]
 
 # Apply a default startup command to every repo under ~/src/.

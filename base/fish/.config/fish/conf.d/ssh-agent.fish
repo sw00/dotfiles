@@ -40,6 +40,15 @@ end
 # ssh-agent's stdout. Disown it so fish does not warn about an active job
 # when the shell exits. </dev/null so the daemon does not hold the pane's
 # tty as its stdin.
+# The probe above returned 2, so nothing is listening: the file is a crashed
+# agent's leftover and ssh-agent refuses to bind an existing path — without this
+# the shell exports a dead socket and every ssh silently asks for a passphrase.
+# Re-probe first: two shells starting together (tmux-resurrect restoring panes)
+# can both see 2, and the later one must not unlink the agent the earlier one
+# just started. Residual race: a bind that happens between this test and the rm.
+if not ssh-add -l >/dev/null 2>&1
+    rm -f "$AUTH_SOCK"
+end
 ssh-agent -a "$AUTH_SOCK" -D </dev/null &>/dev/null &
 disown
 set -gx SSH_AUTH_SOCK "$AUTH_SOCK"

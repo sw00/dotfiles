@@ -2,14 +2,18 @@
 # Sourced automatically by Fish via conf.d on all platforms;
 # guards below ensure it only takes effect on WSL.
 
-string match -qi '*microsoft*' (uname -r 2>/dev/null); or return
+# Replaces the old `string match -qi '*microsoft*' (uname -r)` probe, which
+# forked uname on every shell on every platform. WSL sets WSL_DISTRO_NAME.
+set -q WSL_DISTRO_NAME; or return
 
 # Resolve %LOCALAPPDATA% to a WSL path and cache it as a universal variable
 # so cmd.exe is only invoked once (first fish session ever on this machine).
 # Universal variables persist in ~/.config/fish/fish_variables across sessions.
-if command -q cmd.exe; and not set -q WIN_LOCALAPPDATA
-    set -Ux WIN_LOCALAPPDATA \
-        (wslpath (cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | string trim))
+# Only a non-empty result is cached: an empty value is still "set" to fish, so
+# caching one would pin a broken path for every future session.
+if command -q cmd.exe; and test -z "$WIN_LOCALAPPDATA"
+    set -l _localappdata (wslpath (cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | string trim) 2>/dev/null)
+    test -n "$_localappdata"; and set -Ux WIN_LOCALAPPDATA $_localappdata
 end
 
 # Clipboard: bridge to the Windows clipboard

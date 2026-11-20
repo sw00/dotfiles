@@ -77,8 +77,11 @@ function tt --description "TokenTelemetry on-demand control"
             __tt_ensure_data_dir
             __tt_ensure_images
             echo "→ starting TokenTelemetry…"
-            __tt_compose up --detach --wait
-            set -l fp $frontend_port
+            if not __tt_compose up --detach --wait
+                echo "✗ TokenTelemetry failed to start — run: tt logs" >&2
+                return 1
+            end
+            set -l fp (grep -E '^TT_FRONTEND_PORT=' "$HOME/.config/tokentelemetry/env.tt" | string split -m1 = | string trim)[2]
             test -z "$fp" && set fp 13000
             echo "✓ TokenTelemetry running → http://localhost:$fp"
 
@@ -88,7 +91,10 @@ function tt --description "TokenTelemetry on-demand control"
 
         case restart
             __tt_compose down
-            __tt_compose up --detach --wait
+            if not __tt_compose up --detach --wait
+                echo "✗ TokenTelemetry failed to restart — run: tt logs" >&2
+                return 1
+            end
             echo "✓ TokenTelemetry restarted"
 
         case logs
@@ -120,13 +126,18 @@ function tt --description "TokenTelemetry on-demand control"
             set -l frontend_digest (__tt_docker image inspect "$frontend_image" --format '{{index .RepoDigests 0}}' | string replace -r '.*@' '')
 
             echo "→ recording new digests in env.tt"
-            command sed -i '' -E "s/(TT_BACKEND_IMAGE=.*@)sha256:[0-9a-f]+/\1sha256:$backend_digest/" "$env_file"
-            command sed -i '' -E "s/(TT_FRONTEND_IMAGE=.*@)sha256:[0-9a-f]+/\1sha256:$frontend_digest/" "$env_file"
+            set -l env_text (string replace -r '(TT_BACKEND_IMAGE=.*@)sha256:[0-9a-f]+' "\$1$backend_digest" <"$env_file" \
+                | string replace -r '(TT_FRONTEND_IMAGE=.*@)sha256:[0-9a-f]+' "\$1$frontend_digest" \
+                | string collect)
+            printf '%s\n' "$env_text" >"$env_file"
 
             echo "✓ digests updated — commit env.tt to pin across machines"
             echo "→ recreating containers with new images…"
             __tt_compose down
-            __tt_compose up --detach --wait
+            if not __tt_compose up --detach --wait
+                echo "✗ TokenTelemetry failed to restart on the new images — run: tt logs" >&2
+                return 1
+            end
             echo "✓ TokenTelemetry updated and restarted"
 
         case help ''

@@ -3807,6 +3807,87 @@ PY
 check "fish: every cross-file __helper is autoloadable (one function per file)" \
     test -z "$_autoload_bad"
 
+# ══════════════════════════════════════════════════════════════════════════════
+# FIX PINS — one per finding from the 2026-11-20 repo audit. Each pin fails if
+# the fix is reverted, and names the failure it prevents.
+# ══════════════════════════════════════════════════════════════════════════════
+section "Audit fixes (2026-11-20)"
+
+# A fresh Mac runs `bash bootstrap.sh` with /bin/bash 3.2, where a bash-4
+# associative array is a parse-time crash halfway through a privileged run.
+check_not "bootstrap.sh: no bash-4 associative arrays (fresh macOS has bash 3.2)" \
+    '^[[:space:]]*declare -A' "$DOTFILES/bootstrap.sh"
+# A key path the user named but that cannot be read must be an error, not a
+# silent fall-through to the interactive prompt.
+check_has "bootstrap.sh: a set-but-unreadable DOTFILES_KEY is reported" \
+    'DOTFILES_KEY is set but is not a readable file' "$DOTFILES/bootstrap.sh"
+# /etc/wsl.conf is root-owned and hand-tuned on real machines: keep the old one.
+check_has "bootstrap.sh: /etc/wsl.conf is backed up before it is replaced" \
+    'wsl.conf.bak-' "$DOTFILES/bootstrap.sh"
+
+# The Windows-side SSH dir is shared with the Windows user; never wipe it.
+check_has "up.sh: rescues a hand-edited Windows ssh config.d before the copy" \
+    'config.d.bak-' "$DOTFILES/os/wsl/up.sh"
+# A renamed/imported WSL distro must not leave a dead default terminal profile.
+check_has "up.sh: VSCodium profile distro comes from WSL_DISTRO_NAME" \
+    'WSL_DISTRO_NAME' "$DOTFILES/os/wsl/up.sh"
+check_has "vscodium settings: WSL terminal profile is a placeholder, not a distro" \
+    '__WSL_DISTRO__' "$DOTFILES/os/wsl/windows/vscodium/settings.json"
+
+# `^\+` alone matched the '+++ b/<path>' header, so a clean file whose NAME held a
+# stem was blocked. Start the scan at the first hunk header instead.
+check "pre-commit: leak scan starts at the hunk header (no filename hit)" \
+    grep -qF "sed -n '/^@@/,\$p'" "$DOTFILES/.githooks/pre-commit"
+
+# A crashed agent leaves its socket file behind; ssh-agent then refuses to bind
+# and the dead path gets exported, silently breaking every ssh.
+check_has "ssh-agent.fish: a proven-dead socket is removed before starting" \
+    'rm -f "\$AUTH_SOCK"' "$DOTFILES/base/fish/.config/fish/conf.d/ssh-agent.fish"
+# Without a controlling terminal `tty` prints 'not a tty', and that became GPG_TTY.
+check_has "config.fish: GPG_TTY is only set when a terminal is attached" \
+    'if test -t 0' "$DOTFILES/base/fish/.config/fish/config.fish"
+check "config.fish: GPG_TTY is not exported unconditionally" bash -c \
+    '! grep -qE "^set -gx GPG_TTY" "$1"' _ "$DOTFILES/base/fish/.config/fish/config.fish"
+
+# `sed -i ''` is BSD-only: on GNU sed the digest rewrite never ran, yet the
+# function still printed 'digests updated'.
+check_not "tt.fish: no BSD-only in-place sed (GNU sed silently no-ops)" \
+    "sed -i ''" "$DOTFILES/base/fish/.config/fish/functions/tt.fish"
+# Pin the REWRITE, not any `string replace` (the digest *extraction* already used
+# one before this fix, so matching that would pass on a revert). grep -F: the
+# pattern is fish source, not a regex.
+check "tt.fish: digests are rewritten fish-natively, not by sed" \
+    grep -qF "string replace -r '(TT_BACKEND_IMAGE=" "$DOTFILES/base/fish/.config/fish/functions/tt.fish"
+# $frontend_port was defined nowhere, so `tt up` always printed 13000.
+check_not "tt.fish: no undefined frontend_port variable" \
+    'set -l fp \$frontend_port' "$DOTFILES/base/fish/.config/fish/functions/tt.fish"
+# A failed compose printed a green tick.
+check_has "tt.fish: a failed compose call is reported, not celebrated" \
+    'if not __tt_compose' "$DOTFILES/base/fish/.config/fish/functions/tt.fish"
+
+# fish treats an empty value as set, so an early failed lookup poisoned the cache.
+check_has "wsl.fish: the Windows path cache only stores a non-empty result" \
+    'test -n "\$_localappdata"' "$DOTFILES/base/fish/.config/fish/conf.d/wsl.fish"
+check_has "wsl.fish: the WSL guard does not fork uname on every shell" \
+    'set -q WSL_DISTRO_NAME' "$DOTFILES/base/fish/.config/fish/conf.d/wsl.fish"
+
+# pipefail + a grep that matched nothing killed the whole status script; the
+# substring filter also hid real addresses like 192.168.127.5.
+check_not "tmux-status: the address filter is not a substring match" \
+    "grep -vE '127|172'" "$DOTFILES/base/tmux/bin/tmux-status"
+# The runtime smoke check cannot see the Linux branch on a Mac; pin the guard that
+# makes an all-filtered list a blank segment instead of a failure.
+check "tmux-status: an all-filtered address list does not fail the segment" \
+    grep -qF '|| true' "$DOTFILES/base/tmux/bin/tmux-status"
+# Dead binding: C-a last-window replaced it three lines later.
+check_not "tmux.conf: no dead C-a send-prefix binding" \
+    '^bind C-a send-prefix$' "$DOTFILES/base/tmux/.config/tmux/tmux.conf"
+check_has "tmux.conf: send-prefix is still reachable on its own key" \
+    'a send-prefix' "$DOTFILES/base/tmux/.config/tmux/tmux.conf"
+# The comment pointed at a binding that no longer does that job.
+check_not "sesh.toml: the comment does not claim C-o does zoxide filtering" \
+    'zoxide query -l --base-dir' "$DOTFILES/base/sesh/.config/sesh/sesh.toml"
+
 # SUMMARY
 # =============================================================================
 printf '\n%b%s%b\n' "$(_c "$BLD")" \
