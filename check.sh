@@ -2341,8 +2341,12 @@ if bad:
 # ~/.agents/.skill-lock.json, and the Paseo app ships its own. Anything else on
 # disk is unmanaged drift — a hand-copied skill that no update path replaces and
 # no diff ever reviews. Host-local: skipped where the directory is absent (CI).
-check "agents: every user-scope skill has a recorded source (lock or app)" \
-    bash -c "if [ ! -d \"\$HOME/.agents/skills\" ]; then exit 77; fi; python3 -c \"
+_AGENTS_SKILLS_NAME="agents: every user-scope skill has a recorded source (lock or app)"
+if [ ! -d "$HOME/.agents/skills" ]; then
+    # No user-scope skills on this host (CI image): say so, do not report a pass.
+    _skip "$_AGENTS_SKILLS_NAME" "no ~/.agents/skills on this host"
+else
+    check "$_AGENTS_SKILLS_NAME" bash -c "python3 -c \"
 import json, os, sys
 root = os.path.join(os.environ['HOME'], '.agents', 'skills')
 dirs = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)))
@@ -2356,9 +2360,8 @@ bad = [d for d in dirs if d not in locked and not d.startswith('paseo')]
 if bad:
     sys.stderr.write('unmanaged skill dir(s): ' + ', '.join(bad) + chr(10))
     sys.exit(1)
-\"" || { rc=$?; if [ "$rc" -eq 77 ]; then
-    _skip "agents: every user-scope skill has a recorded source (lock or app)" \
-        "no ~/.agents/skills on this host"; else _fail "agents: every user-scope skill has a recorded source (lock or app)"; fi; }
+\""
+fi
 # PIG_USE_PI_DIRS travels with the shared dir, so a value here would make the
 # ROLLBACK binary (upstream pi, and pi-bolt) carry a PiG-only key. It belongs in
 # conf.d/pig.fish, where it applies to the shell that launches either harness.

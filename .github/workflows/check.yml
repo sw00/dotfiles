@@ -33,5 +33,16 @@ jobs:
           sudo ln -sf /opt/nvim-linux-x86_64/bin/nvim /usr/local/bin/nvim
           nvim --version | head -1
 
+      # The pi extension suites (base/pi/.pi/agent/extensions/lib) run under
+      # `node --experimental-strip-types`, which needs Node >= 22.6. Relying on
+      # whatever the runner image ships failed the five pinned suite counts, so
+      # pin the runtime here instead of hoping.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Run check.sh
-        run: bash check.sh
+        run: |
+          node --version
+          bash check.sh
