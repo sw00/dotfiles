@@ -82,14 +82,6 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   Scrubbing transcripts is not reliable; rotation is the remedy, and the
   `~/bin/web-search-key` getter picks a rotated value up on the next search with no
   restart.
-- [ ] **`web-search.json:firecrawlApiKey` is a dangling reference (measured
-  2026-11-21).** It names `$EYES_SHIM_TOKEN`, which is defined in no readable config
-  (not `secrets/env.fish`, not the work store's `.env.local.example`), and its
-  `firecrawlBaseUrl` (`http://192.168.88.104:8181`) refuses TCP from this host — so
-  Firecrawl is unusable in every session, not just Paseo. Decide: delete the three
-  `firecrawl*` keys (fetch then degrades to readability), or store the token and route
-  it through `~/bin/web-search-key` like the search keys. `web_search` is unaffected —
-  `allowedProviders` is brave/exa.
 - [ ] **`creds` has the locked-store gap that `web-search-key` now guards (measured
   2026-11-21).** `test -r` passes on git-crypt ciphertext, so `creds <cmd>` sources
   binary as fish and silently sets nothing; the getter refuses on the `GITCRYPT` header

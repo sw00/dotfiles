@@ -327,6 +327,12 @@ reaches the tool, so a failure shows only as `… credential resolution failed:
 command-failed`: run `~/bin/web-search-key BRAVE_SEARCH_API_KEY` by hand to see why
 (git-crypt locked, fish missing, empty value).
 
+`firecrawlApiKey` is host-scoped on purpose: it names `$EYES_SHIM_TOKEN`, a token owned
+by a LAN-only rendering service that is firewall-scoped to one host. That host's session
+wrapper exports it; anywhere else it is unresolved *by design*, so `fetch_content` logs
+one credential failure and falls back to the built-in extractors. Do not move it into `secrets/env.fish` or add it to the getter's allowlist:
+that would be a second copy of a token owned elsewhere, with no drift guard of its own.
+
 The fallback covers named failure kinds only — `quota | transient | network |
 invalid-response | empty` (the last is a successful search with no results). A
 Brave `auth`, `credential`, `invalid-request`, `config` or `aborted` failure
