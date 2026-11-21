@@ -390,7 +390,11 @@ migrate_app_trim() {
     # WhatsApp Messenger was superseded by ZapFast (cask in Brewfile-base, MSI on
     # Windows), so its `mas` line left the host Brewfile and nothing updates it
     # any more. Remove the app; its chat data stays on disk (no user data here).
-    if command -v mas >/dev/null 2>&1 && mas list 2>/dev/null | grep -q '^310633997 '; then
+    # `mas list` indents every line (" 310633997 WhatsApp (26.45.75)"), so the id
+    # has to be matched as a whole whitespace-delimited field — a line-anchored
+    # pattern silently never matches, which is how this migration first shipped
+    # as a no-op.
+    if command -v mas >/dev/null 2>&1 && mas list 2>/dev/null | grep -qE '(^|[[:space:]])310633997([[:space:]]|$)'; then
         log "uninstalling superseded WhatsApp Messenger (mas 310633997)"
         mas uninstall 310633997 || warn "could not uninstall WhatsApp — remove it manually"
     fi

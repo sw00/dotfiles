@@ -1576,9 +1576,14 @@ if both:
 ' "$DOTFILES/bootstrap.sh" "$BREW_BASE" "$BREW_HOST"
 
 # Behavior, not just the list: the migration must actually uninstall the app its
-# declaration was dropped for, or a superseded 640 MB client lingers unpatched.
+# declaration was dropped for, or a superseded client lingers unpatched.
 check_has "bootstrap.sh: removes the superseded WhatsApp app (mas 310633997)" \
     'mas uninstall 310633997' "$DOTFILES/bootstrap.sh"
+# ...and the guard around it must match `mas list`, which INDENTS every line. The
+# first version was line-anchored and silently never ran. Pin the exact expression
+# (literal grep: it is shell source, not a regex) so a revert fails here.
+check "bootstrap.sh: the mas guard tolerates the indent mas list prints" \
+    grep -qF '(^|[[:space:]])310633997([[:space:]]|$)' "$DOTFILES/bootstrap.sh"
 
 # Does either mise config declare this tool? BOTH forms count: the key form
 # (`foo = "1.0"`) and the table form (`[tools.foo]`) that btop and navi use when
