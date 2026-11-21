@@ -314,7 +314,7 @@ prompt, not a tool gate.
 
 ## Web search
 
-**Brave Search, falling back to Exa**, via `pi-web-access` 0.47.0. Config at
+**Brave Search, falling back to Exa**, via `pi-web-access` 0.48.0. Config at
 `~/.pi/web-search.json` (`base/pi/.pi/web-search.json`): a `searchRouting` route
 `brave → exa`, the `auto-summary` workflow (no browser curator), summaries
 drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys resolve
@@ -327,13 +327,12 @@ reaches the tool, so a failure shows only as `… credential resolution failed:
 command-failed`: run `~/bin/web-search-key BRAVE_SEARCH_API_KEY` by hand to see why
 (git-crypt locked, fish missing, empty value).
 
-`firecrawlApiKey` is host-scoped on purpose: it names `$EYES_SHIM_TOKEN`, a token owned
-by a LAN-only rendering service that is firewall-scoped to one host. That host's session
-wrapper exports it; anywhere else it is unresolved *by design*, so `fetch_content` logs
-one credential failure and falls back to the built-in extractors. Do not move it into `secrets/env.fish` or add it to the getter's allowlist:
-that would be a second copy of a token owned elsewhere, with no drift guard of its own.
+The Firecrawl/Eyes fetch path was removed 2026-11-21: measured on pi-web-access 0.48.0,
+its SSRF guard rejects a LAN `firecrawlBaseUrl` without `ssrf.allowRanges`, so this config
+could reach no host. Re-entry needs a host-level override for `web-search.json` (it is one
+stowed symlink — GOTCHAS) plus `ssrf.allowRanges`, not a base edit.
 
-The fallback covers named failure kinds only — `quota | transient | network |
+The search route's fallback covers named failure kinds only — `quota | transient | network |
 invalid-response | empty` (the last is a successful search with no results). A
 Brave `auth`, `credential`, `invalid-request`, `config` or `aborted` failure
 stops the route; `fallbackOn` does not accept those kinds, and an unresolvable

@@ -1904,6 +1904,12 @@ for field in ('braveBaseUrl', 'exaBaseUrl'):
         sys.exit(1)
 \""
 
+# Removed 2026-11-21: measured on pi-web-access 0.48.0, its SSRF guard rejects a LAN
+# `firecrawlBaseUrl` without `ssrf.allowRanges`. Re-entry needs a host-level override for
+# web-search.json (one stowed symlink — GOTCHAS) plus that range, not a base edit.
+check_not "pi: no firecrawl* fetch shim in web-search.json (Eyes shim, removed 2026-11-21)" \
+    '[Ff]irecrawl' "$DOTFILES/base/pi/.pi/web-search.json"
+
 # The getter that pin names: one key per call, for pi-web-access' `!command` credential
 # form (docs/AGENT-SAFETY.md §5). Static half here, behaviour on a sandboxed HOME below.
 _WSEARCH_KEY="$DOTFILES/base/pi/bin/web-search-key"

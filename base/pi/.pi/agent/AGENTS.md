@@ -10,10 +10,9 @@ concept, not the internal project name.
 ## Web retrieval routing
 
 `web_search` for discovery — queries, comparisons, recency-sensitive research.
-`fetch_content` for a known URL; JS-heavy pages may render through the
-Eyes/Firecrawl service, so let its bounded retry work before giving up. An empty
-fetch result means bot-blocking: report it, do not retry. Pass `auth: true` only
-on an explicit user request with a known profile.
+`fetch_content` for a known URL. An empty fetch result means bot-blocking: report
+it, do not retry. Pass `auth: true` only on an explicit user request with a known
+profile.
 
 ## Agent skills location
 
