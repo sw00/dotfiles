@@ -176,6 +176,23 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 
 ## Deferred — judgment, not blocked
 
+- [ ] **nono rollout: steps 5–9 (2026-11-21).** Steps 1–4 are staged in this commit
+  (pin, no-telemetry config, tracked profile, `check.sh` + spec rows). Still open, in
+  order: (5) a live sandboxed `pi -p` — the kernel must deny `secrets/env.fish` while
+  model, subagent and network still work; iterate grants from the denial messages.
+  The tracked profile denies only the MAIN `~/dotfiles/secrets/**`; a linked worktree
+  carries its own decrypted `secrets/`, so step 5 MUST prove a worktree path too.
+  `workdir.access readwrite` also means step 8 must refuse `$HOME` as cwd.
+  (6) `command_policies` for `~/bin/web-search-key` with `fs_read` on the store; the
+  big unknown is whether mediation catches pi-web-access's absolute-path `!command`
+  exec — if it misses, stop and escalate, do NOT widen the grant. (7) a narrower
+  hand-rolled claude command policy (`keychain_access: "read"`, `fs_read: ["~/.claude"]`)
+  and a bridge-ask probe. (8) Paseo wiring INSIDE `base/paseo/bin/paseo-agent-env`
+  after direnv resolution, fail-open when nono is absent, keeping the
+  `paseo-agent-env` pin and its fixtures green (step 8; do not cite line numbers,
+  they drift). (9) GOTCHAS/TODO knock-offs, `reviewer`, signed commit. Network
+  stays allow-by-default and local audit is a second plaintext store until decided.
+
 - [ ] **Bridge notice claims are stale for 0.13.0 (2026-11-21).** `base/pi/README.md`
   now frames `provider.plan` + `askClaude.enabled` as a legacy guard, but
   `check.sh:2028-2032` (comment and assertion name) and `docs/GOTCHAS.md:91` still

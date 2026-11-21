@@ -310,8 +310,8 @@ stow_begin
 # the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
 # base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
 # are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
-check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry claude worktrunk paseo" \
-    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh claude worktrunk paseo
+check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry claude worktrunk paseo nono" \
+    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh claude worktrunk paseo nono
 stow_end
 
 # Claude Code's defaults are the origin of the "🤖 Generated with [Claude Code]"
@@ -935,6 +935,54 @@ check "mise: the PiG entry holds exactly version + exe (no key nested in it)" \
     test "$(_pig_table_block | wc -l | tr -d ' ')" = 2
 check_not "mise: the PiG pin never reappears in the floating key form" \
     '"ubi:MichaelKinsy/PiG"[[:space:]]*=[[:space:]]*"latest"' "$MISE_CFG"
+
+# ── nono (§8-admitted kernel FS boundary) ───────────────────────────────────
+# Admitted 2026-11-21 with one condition: the telemetry opt-outs stay declared
+# (docs/AGENT-SAFETY.md §8, §3 probe H). `ubi:` is deprecated in mise 2027.1.0, so
+# the registry's `github:` backend owns it. An exact pin is load-bearing: a version
+# move under the boundary is a safety change, not a tool refresh.
+_nono_table_block() {
+    _table_block '[tools."github:nolabs-ai/nono"]'
+}
+check_has "mise: nono declared as a github table entry" \
+    '^\[tools\."github:nolabs-ai/nono"\]$' "$MISE_CFG"
+check_has "mise: the nono pin is an exact x.y.z" \
+    '^version[[:space:]]*=[[:space:]]*"[0-9]+\.[0-9]+\.[0-9]+"$' <(_nono_table_block)
+check_not "mise: the nono pin never floats on latest" \
+    'latest' <(_nono_table_block)
+check_not "mise: ubi:nolabs-ai/nono is tombstoned (deprecated backend)" \
+    'ubi:nolabs-ai/nono' "$MISE_CFG"
+
+_NCFG="$DOTFILES/base/nono/.config/nono/config.toml"
+_NPROF="$DOTFILES/base/nono/.config/nono/profiles/agent.json"
+check "nono: telemetry opt-out config exists" test -f "$_NCFG"
+check_has "nono: update checks and pack hints opt-out declared (check = false)" \
+    '^check[[:space:]]*=[[:space:]]*false$' "$_NCFG"
+check_not "nono: update check never re-enabled in the tracked config" \
+    '^check[[:space:]]*=[[:space:]]*true' "$_NCFG"
+check "nono: profile exists" test -f "$_NPROF"
+check_has "nono: profile extends default" \
+    '"extends"[[:space:]]*:[[:space:]]*"default"' "$_NPROF"
+check "nono: profile denies the MAIN personal secret store path in filesystem.deny" \
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if any("dotfiles/secrets" in p for p in d.get("filesystem",{}).get("deny",[])) else 1)' "$_NPROF"
+check_has "bootstrap: stow_dir includes nono" \
+    'stow_dir.*DOTFILES/base.*nono' "$DOTFILES/bootstrap.sh"
+if command -v nono >/dev/null 2>&1; then
+    # --strict pins the canonical schema (no legacy keys). NONO_NO_UPDATE_CHECK=1
+    # keeps the suite's own probe from writing update-check.json on a host whose
+    # base/nono package has not been stowed yet — the check must not cause the
+    # telemetry it guards.
+    check "nono: the tracked profile validates (strict)" \
+        env NONO_NO_UPDATE_CHECK=1 nono profile validate "$_NPROF" --strict
+    check "nono: sandbox support is live on this host" \
+        env NONO_NO_UPDATE_CHECK=1 nono setup --check-only
+else
+    _skip "nono: the tracked profile validates" \
+        "nono is not on PATH (mise install; pin is github:nolabs-ai/nono)"
+    _skip "nono: sandbox support is live on this host" \
+        "nono is not on PATH (mise install; pin is github:nolabs-ai/nono)"
+fi
+
 # gitleaks backs the publish guard (class c: a credential riding out inside a
 # `gh pr create --body`). The guard fails CLOSED when it cannot find a scanner, so
 # this declaration is what keeps every publish and web call from blocking — and the

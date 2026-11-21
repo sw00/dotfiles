@@ -27,6 +27,21 @@ is the mapping it implies.
 | a | infra mutation | L2 locked/armed gate | L3 for the destructive subset (no kubectl rulebook exists) | argument-position false positives (§4) |
 | f | silent wrongness | L5 feedback (`check.sh`, `pi-smoke.sh`, `PROMPT-EVAL`) | — | not a hook's job |
 
+**Admitted 2026-11-21 — nono 0.82.0, declared, not attached, conditionally.** The
+§8 six-point admission test passed with one condition: nono is *not* telemetry-free
+out of the box. `update_check.rs` starts a background request on every command
+except `run`/`shell`/`wrap`, writes an installation UUID to
+`~/.local/state/nono/update-check.json`, and sends `X-Nono-UUID` on registry
+requests; `pack_update_hint.rs` hits the pack registry. Both are gated by ONE
+predicate: `update_check_opted_out()`, which `[updates] check = false` in the
+stowed `base/nono/.config/nono/config.toml` makes true. Audit delivery and the
+`profile_ref` product-analytics label need an explicit `nono platform login`,
+which this setup never runs. `NONO_NO_*` env vars are optional defence in depth,
+not declared here. `check.sh` pins the opt-out and tombstones the deprecated
+`ubi:` backend. **This is a declaration, not a layer:** the boundary is attached to
+no launch path yet (steps 5–8 are in `TODO.md`), so no session is sandboxed and
+class (b)'s shell-read surface is unchanged. Measured control: §3 probe H.
+
 ## 2. Layers
 
 | L | What | Attachment | Failure mode → detection |
@@ -288,6 +303,40 @@ open item in `TODO.md`), and §5's web-search entry says in as many words that t
 is agent-readable by *content read* — the allowlist there governs what `pi-web-access`
 pulls unattended, not what an agent can reach.
 
+**Probe H — nono's kernel deny and its telemetry surface, measured the hard way
+(2026-11-21).** On macOS 26.7.1 with nono 0.82.0: `nono run --allow-cwd --block-net
+-- /bin/cat ~/dotfiles/README.md` → exit 1 `Operation not permitted`, `Sandbox denial:
+1 path blocked`, `Fix flags: --read-file ...`; the positive control `--read ~/dotfiles` →
+exit 0, with nono still reporting "deny 1 sensitive path kept blocked inside your
+grants". `/private/tmp/nono-smoke/outside/probe.txt` was readable with only
+`--allow-cwd` — temp dirs are in the default system/group paths, so a temp probe is
+NOT a test of the deny. `FOO=bar nono run --allow-cwd -- printenv FOO` → `bar` (env is
+inherited by default). `nono why --path ~/dotfiles/secrets/env.fish` → `DENIED /
+path_not_granted` without opening the file; `nono why --command ~/bin/web-search-key`
+→ `DENIED / command_policy_unavailable: queries require a profile context`.
+The first opt-out probe was a NULL TEST and was discarded: `nono run` never starts
+the update check (`startup_runtime.rs::allows_pre_exec_update_check` excludes
+`run`/`shell`/`wrap`), so an unchanged `update-check.json` mtime proved nothing.
+Re-run with a command that does start the check, `nono setup --check-only`, and a
+control, all against isolated `XDG_STATE_HOME` so the real state dir is untouched:
+
+| Case | Config | Result |
+| --- | --- | --- |
+| A | stowed `base/nono/.config/nono/config.toml` (`check = false`) | no `update-check.json` in the real state dir |
+| B | isolated `XDG_CONFIG_HOME` with no config | `/tmp/nono-control/state/nono/update-check.json` created |
+| C | isolated `XDG_CONFIG_HOME` holding `check = false` | no `update-check.json` in that state dir |
+
+B is the control that makes C meaningful; A uses the real state dir, so A alone
+could not distinguish "no check ran" from "the file already existed". Source:
+`update_check.rs` `start_background_check()` / `update_check_opted_out()`;
+`pack_update_hint.rs` `is_opted_out()` delegates to the same predicate, so the one
+line closes both. Enrollment (`nono platform login`) is the only remaining path to
+audit delivery and the `profile_ref` analytics label; it is never invoked. No real
+`~/.config/nono/config.toml` was created before the stow, because `stow_dir`
+(`bootstrap.sh:960-967`) `rm -f`s any conflicting plain file with only a `warn`;
+`_sim_stow` does not list `nono`, so `_stow_preflight` would not have caught it
+(GOTCHAS:30). The stow write-through audit is recorded in GOTCHAS.
+
 ## 4. Accepted costs
 
 1. L3 still denies an armed, human-confirmed `terraform destroy`,
@@ -318,6 +367,17 @@ pulls unattended, not what an agent can reach.
    three — the payload lives somewhere L2 cannot see (a non-shell interpreter, or a
    file with no claim to being a script).
 6. The plaintext session store is kept 90 days (decision D3).
+7. **nono residuals (accepted 2026-11-21).** Network egress stays allow-by-default
+   inside the sandbox: `--allow-domain` is proxy-based, not kernel-based, and Node 22's
+   fetch may ignore `HTTP_PROXY`. Local audit files under `~/.local/state/nono/audit/`
+   are a second plaintext store (command text; redaction is "not a complete secret
+   detector") — `--no-audit` drops it at the cost of losing the evidence layer. The
+   `update-check.json` identifier written by the pre-opt-out probes is inert once the
+   opt-out is pinned but is NOT deleted by the opt-out (upstream test asserts this);
+   it was removed by hand on this host on 2026-11-21 and is re-created only if a
+   future host runs a check-starting command before the config is stowed. The probe
+   runs also left `~/.local/state/nono/audit/` and `sessions/` on this host; they are
+   host-local scratch, not tracked, and are covered by the audit-store item above.
 
 ## 5. Settled policy questions
 
@@ -444,15 +504,33 @@ PiG prints `<pig>+<pi>` (e.g. `0.7.0+1.5.0`); ZoroSpace prints a bare `1.5.0`.
 | pi-hypa | tokens and latency (replace mode) | settings `packages` | `pi update --extensions` |
 | cc-safety-net | L3 | exact npm (`2.7.14`) | `agents-update` |
 | gitleaks | L4 corpus | mise `latest` (`aqua:gitleaks/gitleaks`) | `mise upgrade` |
+| nono | kernel FS boundary (declared, not attached; admitted conditionally) | exact, `github:` (`0.82.0`, `base/mise/.config/mise/config.toml`) | deliberate `mise upgrade --bump`, paired with the smoke pass |
 
 Admission test for a safety dependency — all six, no exceptions:
 
 - popular and maintained;
 - MIT or Apache, no field-of-use rider;
 - zero transitive dependencies if it runs in-process;
-- no telemetry;
+- no telemetry **as configured** (the tool's out-of-box default is not the test;
+  the declared configuration is);
 - installable by declaration (no installer that rewrites agent config);
 - denies on error.
+
+**nono's 2026-11-21 admission, criterion by criterion.** Popular and maintained:
+`nolabs-ai/nono`, Apache-2.0, active CI and 0.82.0 release. Zero transitive deps in
+process: it is a standalone Rust binary, not an in-process library. Installable by
+declaration: a mise `github:` table entry, no installer that edits agent config.
+Denies on error: the default-deny filesystem measured in §3 probe H. Telemetry is the
+ONE conditional criterion, and it is not met by the out-of-box default: `check = false`
+makes `update_check_opted_out()` true, which disables the background update request,
+suppresses the persistent `X-Nono-UUID` identifier, and (per
+`pack_update_hint.rs::is_opted_out`) disables the pack-registry hint as well.
+`check.sh` pins that line and tombstones `ubi:nolabs-ai/nono`, so the condition cannot
+rot silently. The stowed config is authoritative: a launchd-started Paseo daemon
+inherits no shell environment, so env-var opt-outs cannot be relied on. `NONO_NO_*`
+variables are optional defence in depth for interactive shells and are not declared
+here. Audit delivery needs an explicit `nono platform login`, which stays unused.
+Measured with a control: §3 probe H.
 
 Rejected 2026-11-16: dcg — licence rider, `pi-dcg` fails **open** by default,
 install telemetry, and `dcg install` rewrites hook configs. Three of the six, and

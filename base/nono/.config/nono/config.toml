@@ -1,0 +1,9 @@
+# nono's only host-side config. The background update check and the pack-update
+# hint are the network calls nono makes on its own; `check = false` disables both
+# (pack_update_hint.rs::is_opted_out delegates to the same predicate) and suppresses
+# the persistent X-Nono-UUID identifier. Audit delivery and the profile_ref analytics
+# label need an explicit `nono platform login`, which this setup never runs.
+# This config is authoritative: a launchd-started Paseo daemon inherits no shell env.
+# Measured with a control (docs/AGENT-SAFETY.md §3 probe H).
+[updates]
+check = false

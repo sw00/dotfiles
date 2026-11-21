@@ -120,6 +120,12 @@ os = ["linux"]
 version = "0.7.0"
 exe = "pig"
 
+# nono is the kernel FS boundary admitted under §8 on 2026-11-21 (docs/AGENT-SAFETY.md).
+# `ubi:` is deprecated in mise 2027.1.0, so the registry's `github:` backend owns it.
+# Exact pin: a version move under the boundary is a safety change, not a tool refresh.
+[tools."github:nolabs-ai/nono"]
+version = "0.82.0"
+
 # Uncomment when needed on a project:
 # go     = "latest"
 # rust   = "latest"

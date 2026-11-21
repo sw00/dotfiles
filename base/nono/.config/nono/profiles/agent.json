@@ -1,0 +1,24 @@
+{
+  "extends": "default",
+  "meta": {
+    "name": "agent"
+  },
+  "groups": {
+    "include": []
+  },
+  "workdir": {
+    "access": "readwrite"
+  },
+  "filesystem": {
+    "allow": [
+      "~/.pi"
+    ],
+    "read": [
+      "@git:toplevel",
+      "~/bin"
+    ],
+    "deny": [
+      "~/dotfiles/secrets/**"
+    ]
+  }
+}
