@@ -21,7 +21,7 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { getGuards, isShellCall } from "../lib/mutation-guard.ts";
+import { getGuards, isShellCall } from "../../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
 

@@ -29,10 +29,10 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { createMutationGuard, execForContext } from "./lib/mutation-guard.ts";
-import type { ToolConfig } from "./lib/classify.ts";
-import { AWS, AZ, GCLOUD, KUBECTL, TERRAFORM } from "./lib/infra-tables.ts";
-import { secretPathBlock } from "./lib/secret-paths.ts";
+import { createMutationGuard, execForContext } from "../lib/mutation-guard.ts";
+import type { ToolConfig } from "../lib/classify.ts";
+import { AWS, AZ, GCLOUD, KUBECTL, TERRAFORM } from "../lib/infra-tables.ts";
+import { secretPathBlock } from "../lib/secret-paths.ts";
 
 // KUBECTL's getContext (live current-context, shown in confirm prompts) is
 // pi-wired via execForContext, so it can't live in the pi-free tables module.

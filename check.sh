@@ -1952,7 +1952,7 @@ check "pi: claude-bridge.json suppresses the first-run notice write-back" \
 # stays active unless named: AskClaude can be handed full mode, and subagent
 # can spawn the write-capable worker.
 check_has "pi: /check mode hides indirect write paths (AskClaude, subagent)" \
-    '"edit", "write", "AskClaude", "subagent"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+    '"edit", "write", "AskClaude", "subagent"' "$DOTFILES/base/pi/.pi/agent/extensions/optional/modes/index.ts"
 
 # kimi left the roster (2 cycle entries) and /chat's model pin. One of the two
 # entries (`opencode-go/kimi-k2.6`) no longer existed, so every pi start warned
@@ -1964,15 +1964,15 @@ check_not "pi settings: kimi removed from the cycle set" \
 # repriced whenever the request carries pi's harness system prompt, which every
 # normal session does — a direct pin 400s on every chat turn.
 check_has "pi modes: /chat pins the bridge model" \
-    'provider: "claude-bridge", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+    'provider: "claude-bridge", id: "claude-sonnet-5-5"' "$DOTFILES/base/pi/.pi/agent/extensions/optional/modes/index.ts"
 
 # ...and the negative: a second, direct pin added alongside the bridge one would
 # otherwise slip through the check above.
 check_not "pi modes: no direct anthropic model pin" \
-    'provider: "anthropic"' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+    'provider: "anthropic"' "$DOTFILES/base/pi/.pi/agent/extensions/optional/modes/index.ts"
 
 check_not "pi modes: /chat no longer pins a kimi model" \
-    'kimi' "$DOTFILES/base/pi/.pi/agent/extensions/modes/index.ts"
+    'kimi' "$DOTFILES/base/pi/.pi/agent/extensions/optional/modes/index.ts"
 
 # The OpenRouter kimi twin existed to mirror the roster's kimi entry; with the
 # primary gone it was an orphan hanging off nothing.
@@ -2299,9 +2299,26 @@ check_not "pi settings: template declares no lastChangelogVersion (per-host stat
 # Parsed, NOT grepped: the string appearing anywhere would satisfy a text pin, and
 # what matters is that `extensions` holds EXACTLY this decision (an added entry is a
 # second disable the template did not intend).
-check "pi settings: the template's extensions list is exactly [-builtin:usage]" \
-    python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("extensions") == ["-builtin:usage"] else 1)' \
+# The two load entries are the OPTIONAL axis. pi discovers only extensions/*.ts and
+# extensions/*/index.ts, so moving infra-safety + modes under extensions/optional/
+# made them opt-in: this list is how a laptop opts in, and the agentbox profile is
+# how an appliance opts out. Paths are agentDir-relative because pi resolves them
+# against ~/.pi/agent itself (and persists them in that form).
+check "pi settings: the template's extensions list is exactly [-builtin:usage + the optional axis]" \
+    python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("extensions") == ["-builtin:usage", "extensions/optional/infra-safety.ts", "extensions/optional/modes"] else 1)' \
     "$_PI_SETTINGS_TEMPLATE"
+# ...and each of those load entries must resolve. pi drops a missing path with NO
+# diagnostic, so a typo or a second move would silently remove L2 and /check from
+# every host that applies this template. Stow puts base/pi/.pi/agent AT ~/.pi/agent,
+# so this is a faithful model of pi's own resolution, and it runs in CI.
+check "pi settings: every extensions entry resolves inside the agent dir" \
+    python3 -c 'import json,os,sys
+tpl, agent = sys.argv[1], sys.argv[2]
+missing = [e for e in (json.load(open(tpl)).get("extensions") or [])
+           if not e.startswith("-") and not os.path.exists(os.path.join(agent, e))]
+if missing:
+    sys.stderr.write("unresolved extensions entries: %r\n" % (missing,)); sys.exit(1)' \
+    "$_PI_SETTINGS_TEMPLATE" "$DOTFILES/base/pi/.pi/agent"
 # The package half is the load-bearing one: it guards the REJECTED alternative
 # (dropping the npm package and relying on bolt's undocumented builtin, which would
 # remove /usage under `pi-use pi`), and nothing else asserts it.
@@ -3518,10 +3535,19 @@ check_has "safety: L2 declares SHELL_TOOLS once, in lib/shell-tools.ts" \
 check_has "safety: the gate re-exports the shared declaration" \
     'SHELL_TOOLS' "$_EXT/lib/mutation-guard.ts"
 _sh_only=$(grep -rlE 'isToolCallEventType\([[:space:]]*["'"'"']hypa_shell' \
-    "$_EXT"/*.ts "$_EXT"/modes/*.ts 2>/dev/null || true)
+    "$_EXT"/*.ts "$_EXT"/optional/*.ts "$_EXT"/optional/modes/*.ts 2>/dev/null || true)
 [[ -n "$_sh_only" ]] && printf '      %s\n' "$_sh_only"
 check "safety: L2 gates no tool name only (no hook hard-codes hypa_shell)" \
     test -z "$_sh_only"
+# The optional axis is one DIRECTORY, because that is how a downstream appliance
+# strips it: `rm -rf extensions/optional`. A root-level extension importing from
+# optional/ would leave that appliance holding a file whose import it deleted — the
+# startup-crash class, in a form no appliance-side list can see.
+_opt_imported=$(grep -rnE "(from|import)[[:space:]]*\(?[[:space:]]*['\"]\./optional/" \
+    "$_EXT"/*.ts 2>/dev/null || true)
+[[ -n "$_opt_imported" ]] && printf '      %s\n' "$_opt_imported"
+check "pi extensions: nothing in the required core imports from optional/" \
+    test -z "$_opt_imported"
 # 4e: a script body is inspected, not its filename — `sh /tmp/probeA.sh` was the
 # measured bypass, and an unreadable/oversize body classifies as unknown (blocked).
 check_has "safety: L2 inspects shell script bodies (expandScripts, 4e)" \
@@ -3535,7 +3561,7 @@ check_has "safety: L2 inspects shell script bodies (expandScripts, 4e)" \
 # file tool and no shell tool, the pure suite runs with a pinned count, and the
 # decision is driven end to end (deny the credential store, allow the corpus).
 check "safety: L2 wires the secret-path gate to the FILE tools only" bash -c '
-    ext="$1/infra-safety.ts"; mod="$1/lib/secret-paths.ts"
+    ext="$1/optional/infra-safety.ts"; mod="$1/lib/secret-paths.ts"
     grep -q "secretPathBlock(event.toolName" "$ext" || exit 1
     for t in read hypa_read grep hypa_grep find hypa_find edit write; do
         grep -qE "^  \"$t\",\$" "$mod" || exit 1

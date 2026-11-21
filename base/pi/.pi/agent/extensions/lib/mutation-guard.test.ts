@@ -459,14 +459,14 @@ test("4a: the shared declaration is pi-free and answers both tool names", () => 
 });
 
 test("4a: no hook hard-codes the hypa_shell tool name", () => {
-  for (const rel of ["./mutation-guard.ts", "../infra-safety.ts", "../modes/index.ts"]) {
+  for (const rel of ["./mutation-guard.ts", "../optional/infra-safety.ts", "../optional/modes/index.ts"]) {
     assert.doesNotMatch(
       SRC(rel),
       /isToolCallEventType\(\s*["'](?:hypa_shell|bash)["']/,
       `${rel} still gates a hard-coded shell tool name`,
     );
   }
-  assert.match(SRC("../modes/index.ts"), /isShellCall|SHELL_TOOLS/, "modes' read-only gate must use SHELL_TOOLS");
+  assert.match(SRC("../optional/modes/index.ts"), /isShellCall|SHELL_TOOLS/, "modes' read-only gate must use SHELL_TOOLS");
 });
 
 // ── 4c: the confirm prompt never truncates ────────────��───────────

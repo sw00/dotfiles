@@ -261,8 +261,11 @@ example pi ships, from the active release — nothing to re-vendor on upgrade).
 
 ## Modes
 
-`agent/extensions/modes/index.ts` — `/chat`, `/check`, `/change` (or Ctrl+Alt+M
-to cycle). These are the only slash commands; `/plan` and `/review` were removed
+`agent/extensions/optional/modes/index.ts` — `/chat`, `/check`, `/change` (or Ctrl+Alt+M
+to cycle). It lives under `optional/` on purpose: pi discovers only
+`extensions/*.ts` and `extensions/*/index.ts`, so the modes are opt-in through the
+settings template, while a downstream appliance opts out by deleting one
+directory. These are the only slash commands; `/plan` and `/review` were removed
 as redundant (the escalation ladder handles oracle/reviewer autonomously in
 `/change` mode). Mode persists across session resume; a per-mode reminder is
 injected each turn and filtered when stale.
@@ -416,9 +419,10 @@ is exercised by `check.sh` to prevent regressions.
     ├── agents/                  oracle, worker, reviewer, navigator, driver
     └── extensions/
         ├── subagent/            delegation tool (loads pi's shipped example)
-        ├── modes/               /chat /check /change
+        ├── optional/            NOT auto-loaded; enabled by the settings template,
+        │   ├── modes/           /chat /check /change   stripped by the appliance
+        │   └── infra-safety.ts  infra CLI mutation guard (wires infra-tables)
         ├── model-switch.ts      /use /cycle /models + rate-limit auto-fallback
-        ├── infra-safety.ts      infra CLI mutation guard (wires infra-tables)
         ├── no-powershell.ts     prunes the win32-only `powershell` builtin on non-Windows hosts
         └── lib/
             ├── mutation-guard.*  shared locked/armed engine (+ node --test)
