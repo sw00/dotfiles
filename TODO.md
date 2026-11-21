@@ -182,6 +182,14 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 
 ## Deferred — judgment, not blocked
 
+- [ ] **Paseo agent credentials: one residual (2026-11-21).** Decided: the `pi` and
+  `claude` providers launch through `~/bin/paseo-agent-env`. Its scope is the agent's
+  SOURCE repo, meaning the nearest `.envrc` strictly below `$HOME`. The trust prefix is
+  added separately. Rationale is in `docs/AGENT-SAFETY.md` §5. Residual: a repo whose own
+  `.envrc` does not `source_env` the workspace one gets nothing from it. `make doctor`
+  already names that exception; the launcher reproduces direnv's nearest-`.envrc` rule
+  and does not paper over it.
+
 - [ ] **`extensions` is template-owned, unlike `packages` (2026-11-05).** The
   template now carries `"extensions": ["-builtin:usage"]`, and `pi-settings-apply`
   is template-wins for every key except `packages` — so a `pi-bolt config` toggle

@@ -53,6 +53,18 @@
       },
       "muse": {
         "enabled": false
+      },
+      "pi": {
+        "command": [
+          "/Users/sett/bin/paseo-agent-env",
+          "/Users/sett/.local/bin/pi"
+        ]
+      },
+      "claude": {
+        "command": [
+          "/Users/sett/bin/paseo-agent-env",
+          "/Users/sett/.local/bin/claude"
+        ]
       }
     },
     "metadataGeneration": {

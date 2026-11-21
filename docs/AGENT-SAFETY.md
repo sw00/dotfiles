@@ -343,6 +343,21 @@ at startup" now holds for workstreams too and can be quoted without an asterisk.
 cost is a typed word per launch and a restart after a token rotation; the benefit is
 that an idle window is clean, and that no code carries the values.
 
+**Settled 2026-11-21 — the work store is a named, scoped exception, and Paseo agents get
+exactly that scope.** `/Users/sett/src/lelapa/.envrc` (generated, outside any repo) says
+so itself: everything below `/Users/sett/src/lelapa`, agent sessions included, inherits
+the work credentials. That is direnv's scope, not a startup export, and it is the only
+one. The Paseo daemon starts under launchd with no direnv hook, so its agents had no
+scope at all and their MCP `${VAR}` headers failed. `~/bin/paseo-agent-env`
+(`base/paseo/bin/paseo-agent-env`, wired as the `pi` and `claude` provider `command` in
+`hosts/mbpm3/paseo/.paseo/config.json`) is the daemon-side twin of that hook. It resolves
+the agent's source checkout through git, takes the nearest `.envrc` strictly below
+`$HOME`, and runs the harness under `direnv exec` there, or bare if there is none. It
+never allows an `.envrc` and sets no variable of its own. So L0's "no asterisk" holds for
+the dotfiles store, where nothing reaches an agent until `creds`. For the work store it
+is scoped, not global: a `~/dotfiles` or `~/src/personal` agent gets nothing, wherever
+its worktree lives. `check.sh` proves both directions on a fixture (§Paseo).
+
 ## 6. Harness, no lock-in, rollback
 
 PiG (`MichaelKinsy/PiG`) is the intended default `pi`, set with `pi-use pig`.

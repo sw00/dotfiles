@@ -310,8 +310,8 @@ stow_begin
 # the same target file (gpg-agent.conf). gnupg is now stowed per-OS only.
 # base/bash removed: .profile is stock Ubuntu boilerplate; PATH additions
 # are handled by fish_add_path. Not stowing avoids conflicts on fresh machines.
-check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry claude worktrunk" \
-    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh claude worktrunk
+check_stow "base: git nvim ssh fish tmux alacritty mise pi sesh tokentelemetry claude worktrunk paseo" \
+    "$DOTFILES/base" git nvim ssh fish tmux alacritty mise pi sesh claude worktrunk paseo
 stow_end
 
 # Claude Code's defaults are the origin of the "🤖 Generated with [Claude Code]"
@@ -3311,6 +3311,63 @@ if host in ("127.0.0.1", "0.0.0.0", "localhost", "::1"):
 if host not in (d.get("hostnames") or []):
     sys.exit("daemon.listen host %r is missing from daemon.hostnames %r" % (host, d.get("hostnames")))
 ' "$_PASEO_CFG"
+
+# The daemon starts under launchd with no direnv hook, so both enabled harnesses launch
+# through paseo-agent-env, which hands an agent the .envrc scope of its SOURCE repo and
+# no wider (docs/AGENT-SAFETY.md §5, 2026-11-21). A provider without it either fails MCP
+# auth or, under a blanket `direnv exec`, leaks the work credentials into ~/dotfiles.
+_PAE="$DOTFILES/base/paseo/bin/paseo-agent-env"
+check "paseo: pi and claude both launch through ~/bin/paseo-agent-env" \
+    python3 -c '
+import json, sys
+p = json.load(open(sys.argv[1]))["agents"]["providers"]
+for name in ("pi", "claude"):
+    cmd = p.get(name, {}).get("command") or []
+    if cmd[:1] != ["/Users/sett/bin/paseo-agent-env"] or len(cmd) < 2:
+        sys.exit("%s.command does not start with the launcher: %r" % (name, cmd))
+' "$_PASEO_CFG"
+check "paseo-agent-env: is executable (Paseo execs it directly)" test -x "$_PAE"
+# No .sh suffix, so the shellcheck pass over every script never sees it.
+check "paseo-agent-env: parses (sh -n)" sh -n "$_PAE"
+check_full "paseo-agent-env: shellcheck clean as POSIX sh" shellcheck -S warning -s sh "$_PAE"
+
+# Behaviour, on a sandboxed HOME with a stub direnv first on PATH (the real one needs an
+# allow, and the mise shim breaks under a fake HOME — GOTCHAS). The stub sources the
+# directory's .envrc and execs, which is all the launcher asks of direnv. The layout is
+# the real one in miniature: a work repo under a workspace .envrc, a linked worktree of
+# it under .paseo/worktrees with no .envrc above it, a personal repo with none, and a
+# $HOME/.envrc that must never count. Physical paths, or macOS's /var alias hides HOME.
+_pae_d=$(cd "$(mktemp -d)" && pwd -P)
+_pae_h="$_pae_d/home"
+_pae_bin="$_pae_d/stub"
+mkdir -p "$_pae_bin" "$_pae_h/work/repo" "$_pae_h/personal/repo" "$_pae_h/.paseo/worktrees/x"
+printf '#!/bin/sh\n[ "$1" = exec ] || exit 64\nd=$2; shift 2\nset -a; . "$d/.envrc"; set +a\nexec "$@"\n' \
+    > "$_pae_bin/direnv"
+printf '#!/bin/sh\nfor a in "$@"; do printf "%%s\\n" "$a"; done\n' > "$_pae_bin/fakebin"
+chmod +x "$_pae_bin/direnv" "$_pae_bin/fakebin"
+printf 'export PAE_MARK=work\n' > "$_pae_h/work/.envrc"
+printf 'export PAE_MARK=home\n' > "$_pae_h/.envrc"
+HOME="$_pae_h" git init -q -b main "$_pae_h/work/repo"
+HOME="$_pae_h" git -C "$_pae_h/work/repo" -c commit.gpgsign=false -c user.email=c@example.invalid \
+    -c user.name=c commit -q --allow-empty -m init
+HOME="$_pae_h" git -C "$_pae_h/work/repo" worktree add -q "$_pae_h/.paseo/worktrees/x/slug" -b slug
+HOME="$_pae_h" git init -q -b main "$_pae_h/personal/repo"
+# $1 = directory the agent starts in, $2 = HOME, $3 = stub dir, $4 = launcher, $5 = value
+# PAE_MARK must have ("" = absent), $6 = optional PASEO_AGENT_CWD.
+_pae_mark='out=$(cd "$1" && env -i HOME="$2" PATH="$3:/usr/bin:/bin" ${6:+PASEO_AGENT_CWD="$6"} \
+        "$4" sh -c "printf %s \"\${PAE_MARK-}\"") && test "$out" = "$5"'
+check "paseo-agent-env: a Paseo worktree of a work repo gets the work .envrc" \
+    bash -c "$_pae_mark" _ "$_pae_h/.paseo/worktrees/x/slug" "$_pae_h" "$_pae_bin" "$_PAE" work
+check "paseo-agent-env: a repo with no .envrc below \$HOME gets nothing (\$HOME's own ignored)" \
+    bash -c "$_pae_mark" _ "$_pae_h/personal/repo" "$_pae_h" "$_pae_bin" "$_PAE" ""
+check "paseo-agent-env: PASEO_AGENT_CWD, not the daemon's cwd, decides the scope" \
+    bash -c "$_pae_mark" _ "$_pae_h/personal/repo" "$_pae_h" "$_pae_bin" "$_PAE" work \
+    "$_pae_h/.paseo/worktrees/x/slug"
+check "paseo-agent-env: argv reaches the harness intact" \
+    bash -c 'out=$(cd "$1" && env -i HOME="$2" PATH="$3:/usr/bin:/bin" "$4" "$3/fakebin" --version "a b") &&
+        test "$out" = "$(printf -- "--version\na b")"' \
+    _ "$_pae_h/.paseo/worktrees/x/slug" "$_pae_h" "$_pae_bin" "$_PAE"
+rm -rf "$_pae_d"
 
 # Paseo installs its agent skills into ~/.agents/skills/ and records what it owns
 # in .paseo-managed-files.json beside them, then rewrites those files on update;

@@ -31,6 +31,12 @@ point is always an interactive fish shell:
 A running agent keeps the environment it started with, so a rotated token needs pi
 restarted (`C-c`, `creds pi -c` again).
 
+Division of labour: `wt` owns interactive workstreams at `<repo>/__worktrees/<branch>`;
+Paseo owns daemon and PR worktrees at `~/.paseo/worktrees`. `~/bin/paseo-agent-env` gives
+a Paseo agent the direnv scope a `wt` shell gets from its hook. It resolves the source
+checkout, so where a worktree lives never decides its credentials (`docs/AGENT-SAFETY.md`
+§5, 2026-11-21).
+
 ## Two rules
 
 - **Never `wt remove --force`.** The installable version (0.81.0) has no

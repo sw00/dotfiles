@@ -1,0 +1,66 @@
+#!/bin/sh
+# Paseo provider launcher: give a daemon-launched agent the direnv scope its SOURCE
+# repo would give an interactive shell, and nothing wider.
+#
+# The Paseo daemon is started by launchd, so no direnv hook ever ran in its environment
+# and every agent it spawns inherits none — MCP `${VAR}` headers then fail to resolve.
+# A blanket `direnv exec ~/src/lelapa` would fix that by handing the work credentials to
+# every agent on the host, ~/dotfiles included; docs/AGENT-SAFETY.md §5 forbids that.
+# So the scope is decided by the agent's source checkout, never by where its worktree
+# lives (~/.paseo/worktrees/… has no .envrc above it): a worktree of a lelapa repo gets
+# the lelapa .envrc, a worktree of ~/dotfiles gets nothing. docs/WT.md has the split.
+#
+# Narrowing only: anything that goes wrong short of a blocked .envrc runs the command
+# bare. It never runs `direnv allow`, and it sets no variable of its own
+# (PIG_USE_PI_DIRS belongs to conf.d/pig.fish; a second writer is a second truth).
+set -eu
+
+# A bare `exec` with no operands is a no-op and would fall through to direnv.
+[ "$#" -gt 0 ] || { echo "usage: paseo-agent-env <command> [args...]" >&2; exit 2; }
+
+cwd=${PASEO_AGENT_CWD:-$PWD}
+
+# Absolute git on purpose: the daemon's PATH is whatever launchd gave it. The common
+# dir of a linked worktree is the source checkout's .git, so its parent is the source.
+if common=$(/usr/bin/git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null); then
+    src=$(dirname "$common")
+else
+    src=$cwd
+fi
+src=$(cd "$src" 2>/dev/null && pwd -P) || exec "$@"
+
+# Physical paths on both sides, or a /var → /private/var style alias hides the match.
+home=$(cd "${HOME:-/nonexistent}" 2>/dev/null && pwd -P) || home=
+[ -n "$home" ] && [ "$home" != / ] || exec "$@"
+
+# Strictly below $HOME: $HOME itself would be a global .envrc by another name.
+envrc_dir=
+dir=$src
+while :; do
+    case $dir in
+        "$home"/*) ;;
+        *) break ;;
+    esac
+    if [ -f "$dir/.envrc" ]; then
+        envrc_dir=$dir
+        break
+    fi
+    dir=$(dirname "$dir")
+done
+[ -n "$envrc_dir" ] || exec "$@"
+
+direnv="$home/.local/share/mise/shims/direnv"
+if [ ! -x "$direnv" ]; then
+    direnv=$(command -v direnv 2>/dev/null) || {
+        echo "paseo-agent-env: direnv not found; starting without $envrc_dir/.envrc" >&2
+        exec "$@"
+    }
+fi
+
+# direnv exec refuses a blocked .envrc and exits without running the command, which is
+# the loud failure we want; the quiet probe exists only to add the line naming the fix.
+# direnv's own error still reaches stderr from the real exec below.
+if ! "$direnv" exec "$envrc_dir" true >/dev/null 2>&1; then
+    echo "paseo-agent-env: direnv could not load $envrc_dir/.envrc; if it is blocked: direnv allow $envrc_dir" >&2
+fi
+exec "$direnv" exec "$envrc_dir" "$@"
