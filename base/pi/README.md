@@ -319,9 +319,10 @@ prompt, not a tool gate.
 `brave → exa`, the `auto-summary` workflow (no browser curator), summaries
 drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys resolve
 per search through `~/bin/web-search-key`, which sources `secrets/env.fish` (git-crypt'd)
-in a short-lived `fish` child and emits exactly `BRAVE_SEARCH_API_KEY` or
+in a short-lived `fish` child and emits the value of exactly `BRAVE_SEARCH_API_KEY` or
 `EXA_SEARCH_API_KEY` and nothing else, so the repo holds no credential and search works
-without `creds` — Paseo agents included (AGENT-SAFETY §5). The getter's own stderr never
+without `creds` — Paseo agents included, measured (AGENT-SAFETY §5). The getter's own
+stderr never
 reaches the tool, so a failure shows only as `… credential resolution failed:
 command-failed`: run `~/bin/web-search-key BRAVE_SEARCH_API_KEY` by hand to see why
 (git-crypt locked, fish missing, empty value).

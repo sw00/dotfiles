@@ -373,14 +373,16 @@ its worktree lives. `check.sh` proves both directions on a fixture (§Paseo).
 
 **Settled 2026-11-21 — web search is the one named exception for the dotfiles store.**
 `pi-web-access` resolves each key per call through `~/bin/web-search-key`
-(`base/pi/bin/web-search-key`, measured against the package version installed that day:
-`!command` is package-internal and nothing in this repo pins it), which prints exactly
+(`base/pi/bin/web-search-key`; the package measured here is `pi-web-access` 0.48.0, and
+nothing in this repo pins `!command`'s semantics — that is package-internal), which
+emits the value of exactly
 `BRAVE_SEARCH_API_KEY` or `EXA_SEARCH_API_KEY` — nothing else, ever — out of
 `secrets/env.fish`; `base/pi/.pi/web-search.json` names it as
-`!~/bin/web-search-key <NAME>`. The value goes from that command's stdout into one HTTP
-request: the harness's environment never holds it and no child of the agent inherits it —
-the only process that does is a short-lived `fish` child whose sole output is the value.
-L0 is therefore unchanged, and a rotated key takes effect on the next search with no
+`!~/bin/web-search-key <NAME>`. The value goes from that command's stdout into one
+request to the configured API origin: the harness's environment never holds it and no
+child of the agent inherits it — it is held only by the short-lived getter and its `fish`
+child, both spawned by pi-web-access. L0 is therefore unchanged, and a rotated key takes
+effect on the next search with no
 restart. That is what makes `web_search` the same in a Paseo agent, a plain terminal and a
 `creds` shell, on any repo — the launch path stops being part of the mechanism, which no
 env-forwarding twin achieves. The cost, stated plainly: the

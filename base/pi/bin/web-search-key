@@ -5,11 +5,12 @@
 # Why: a bare `$NAME` there can only resolve from the environment, and AGENT-SAFETY L0
 # keeps credentials out of the environment — so search worked only in a shell started
 # with `creds`, and never under Paseo. A `!command` value is resolved per call by
-# pi-web-access itself, so the launch path stops mattering. The key reaches one HTTP
-# request: it is never in the harness's environment, never in any process the agent
-# spawns, and never in an MCP server. The one process that does hold it is the short-lived
-# `fish` child below, whose sole output is the value. Rotation is live, too — the config
-# string is cached per process, the command is not.
+# pi-web-access itself, so the launch path stops mattering. The key reaches one request
+# to the configured API origin (re-sent on same-origin redirects, stripped cross-origin):
+# it is never in the harness's environment, never in any process the agent spawns, and
+# never in an MCP server. It is held only by the short-lived getter and its `fish` child,
+# both spawned by pi-web-access. Rotation is live, too — the config string is cached per
+# process, the command is not.
 #
 # The allowlist is the whole exception (docs/AGENT-SAFETY.md §5): two names out of the
 # one store `creds` owns. It bounds what pi-web-access pulls unattended, on every

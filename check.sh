@@ -1915,7 +1915,10 @@ check_full "web-search-key: shellcheck clean as POSIX sh" shellcheck -S warning 
 # than the happy path. Every value here is fake and invented; nothing reads the real
 # store. The third variable IS in the fixture store and off the allowlist — a fixture
 # with only allowlisted names proves nothing about the allowlist.
-_wsk_d=$(mktemp -d)
+_wsk_d=$(mktemp -d) || {
+    echo "mktemp failed; the fixture writes fake stores under it" >&2
+    exit 1
+}
 _wsk_h="$_wsk_d/home"
 mkdir -p "$_wsk_h/dotfiles/secrets" "$_wsk_d/locked/dotfiles/secrets" "$_wsk_d/sparse/dotfiles/secrets"
 printf '%s\n' 'set -gx BRAVE_SEARCH_API_KEY fake-brave' 'set -gx EXA_SEARCH_API_KEY fake-exa' \
@@ -1931,6 +1934,13 @@ printf '\0GITCRYPT\0\n' >"$_wsk_d/locked/dotfiles/secrets/env.fish"
 printf 'set -gx BRAVE_SEARCH_API_KEY fake-leaked\n' >>"$_wsk_d/locked/dotfiles/secrets/env.fish"
 check_full "web-search-key: a store variable off the allowlist is refused" \
     bash -c 'HOME="$1" "$2" OTHER_TOKEN >/dev/null 2>&1; [ $? -eq 2 ]' _ "$_wsk_h" "$_WSEARCH_KEY"
+# The header refusal names itself on stderr before fish is ever consulted, so this case
+# runs ungated — and it is the only assertion that can fail if the header guard is
+# deleted (fish refuses NUL of its own accord, so the outcome-only case below stays
+# green without it).
+check_full "web-search-key: a locked store says so, before fish is consulted" \
+    bash -c 'HOME="$1" "$2" BRAVE_SEARCH_API_KEY 2>&1 >/dev/null | grep -q "git-crypt locked"' \
+    _ "$_wsk_d/locked" "$_WSEARCH_KEY"
 # Everything below has to reach fish, so on a host without it the getter fails for the
 # wrong reason and an `[ -z "$out" ] && [ "$st" -ne 0 ]` shape would pass regardless of
 # the guard under test. Gated, not merely skipped into a shared `if`.
@@ -1953,10 +1963,16 @@ if command -v fish >/dev/null 2>&1; then
         bash -c '[ "$(env -i HOME="$1" PATH=/usr/bin:/bin "$2" EXA_SEARCH_API_KEY)" = fake-exa ]' \
         _ "$_wsk_h" "$_WSEARCH_KEY"
 else
-    _skip "web-search-key: a git-crypt-locked store hands out nothing" "fish is not installed"
-    _skip "web-search-key: an allowlisted name the store does not define is refused" "fish is not installed"
-    _skip "web-search-key: an allowlisted name prints exactly its value" "fish is not installed"
-    _skip "web-search-key: finds fish with a PATH that has no Homebrew" "fish is not installed"
+    # Fast mode already counted these four as deferred (`check_full` -> `_defer`); printing
+    # them as skipped-with-needs would double-count and misreport why.
+    if _full; then
+        _skip "web-search-key: a git-crypt-locked store hands out nothing" "fish is not installed"
+        _skip "web-search-key: an allowlisted name the store does not define is refused" "fish is not installed"
+        _skip "web-search-key: an allowlisted name prints exactly its value" "fish is not installed"
+        _skip "web-search-key: finds fish with a PATH that has no Homebrew" "fish is not installed"
+    else
+        _defer 4
+    fi
 fi
 rm -rf "$_wsk_d"
 
