@@ -171,8 +171,9 @@ extensions, and under PiG in shared mode that grant is exactly the same one —
 
 | Model | Role | Rationale |
 |------|-------|-----------|
-| `opencode-go/deepseek-v4.1-flash` | Daily driver / worker (default) | Fast, economical Go-quota use and a strong fit for routine coding work; the only one of the two DeepSeek Flashes that takes images |
+| `opencode-go/deepseek-v4.1-flash` | Daily driver / worker / pairing driver (default) | Fast, economical Go-quota use and a strong fit for routine coding work; the only one of the two DeepSeek Flashes that takes images |
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
+| `opencode-go/glm-5.3-flash` | Pairing navigator | Scout-and-direction work is read-only probing plus one step of planning, so the navigator rides the cheaper GLM Flash; its context window is overridden to 500k in `models.json` on purpose — a scout that reads a handful of files has no use for the full 1M and a shorter transcript is less diluted by its own tool output |
 | `opencode-go/claude-haiku-5-5` | Reviewer | Fast, subscription-backed review path; won the Haiku-vs-GLM-Flash trial |
 | `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
 | `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model |
@@ -348,7 +349,7 @@ rule in `agent/AGENTS.md` applies to it exactly as to any other engine.
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
 | Exa (keyed API) | — | Per privacy policy: queries train models | No ZDR here — Enterprise-only, enabled per team |
-| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker subagent, web-search summaries), `glm-5.3` (oracle), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker and pairing-driver subagents, web-search summaries), `glm-5.3` (oracle), `glm-5.3-flash` (pairing navigator), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 
@@ -412,7 +413,7 @@ is exercised by `check.sh` to prevent regressions.
     ├── claude-bridge.json       Claude Code bridge provider + AskClaude config
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
-    ├── agents/                  oracle, reviewer
+    ├── agents/                  oracle, worker, reviewer, navigator, driver
     └── extensions/
         ├── subagent/            delegation tool (loads pi's shipped example)
         ├── modes/               /chat /check /change

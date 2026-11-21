@@ -2,7 +2,8 @@
   "providers": {
     "opencode-go": {
       "modelOverrides": {
-        "deepseek-v4.1-flash": { "contextWindow": 420000, "maxTokens": 32768 }
+        "deepseek-v4.1-flash": { "contextWindow": 420000, "maxTokens": 32768 },
+        "glm-5.3-flash": { "contextWindow": 500000 }
       }
     },
     "openrouter": {
