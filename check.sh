@@ -1862,8 +1862,15 @@ if cd is not None and not (isinstance(cd, int) and cd > 0):
 # over `searchRouting`, and the curator's provider picker writes that scalar back
 # through the stowed symlink into this tracked file — dirtying the repo AND
 # silently disabling the route. So assert the ABSENCE, not just the route, or
-# that footgun ships green. The key half is structural too: both API keys must
-# stay env references, because this repo is public.
+# that footgun ships green. The key half is a policy pin (docs/AGENT-SAFETY.md §5):
+# each key is one `!` getter call naming the store variable, because this repo is
+# public and a value must never reach this file. Pinned EXACTLY rather than "either
+# form": a revert to a `$NAME` env reference would otherwise ship green and re-break
+# every session that never ran `creds`. The base URLs are pinned absent because they
+# decide where the key is sent, and a `!` getter would carry it there as happily. The
+# env channel (`BRAVE_BASE_URL`/`EXA_BASE_URL`, utils.ts resolveApiBaseUrl) outranks
+# config and is out of scope here: it belongs to the launching environment, which no
+# agent sets for its own parent.
 check "pi: web-search routes brave -> exa with no scalar provider" \
     bash -c "python3 -c \"
 import json, sys
@@ -1885,17 +1892,73 @@ allowed = set((ws.get('webSearch') or {}).get('allowedProviders') or [])
 if not {'brave', 'exa'} <= allowed:
     sys.stderr.write('webSearch.allowedProviders must allow brave and exa: %r\\n' % (sorted(allowed),))
     sys.exit(1)
-for field in ('braveApiKey', 'exaApiKey'):
-    body = str(ws.get(field, ''))
-    body = body[1:] if body.startswith(chr(36)) else ''
-    if body.startswith(chr(36)):
-        body = ''
-    if body.startswith('{') and body.endswith('}'):
-        body = body[1:-1]
-    if not body.isidentifier():
-        sys.stderr.write('%s must be one env reference (NAME or {NAME}), not a literal or the literal-value escape\n' % (field,))
+want = {'braveApiKey': '!~/bin/web-search-key BRAVE_SEARCH_API_KEY',
+        'exaApiKey': '!~/bin/web-search-key EXA_SEARCH_API_KEY'}
+for field, accepted in want.items():
+    if str(ws.get(field, '')) != accepted:
+        sys.stderr.write('%s must be exactly %r (a value never reaches this file)\n' % (field, accepted))
+        sys.exit(1)
+for field in ('braveBaseUrl', 'exaBaseUrl'):
+    if field in ws:
+        sys.stderr.write('%s would redirect the key; it must be absent\n' % (field,))
         sys.exit(1)
 \""
+
+# The getter that pin names: one key per call, for pi-web-access' `!command` credential
+# form (docs/AGENT-SAFETY.md §5). Static half here, behaviour on a sandboxed HOME below.
+_WSEARCH_KEY="$DOTFILES/base/pi/bin/web-search-key"
+check "web-search-key: is executable (pi-web-access execs it directly)" test -x "$_WSEARCH_KEY"
+check "web-search-key: parses (sh -n)" sh -n "$_WSEARCH_KEY"
+check_full "web-search-key: shellcheck clean as POSIX sh" shellcheck -S warning -s sh "$_WSEARCH_KEY"
+
+# Behaviour, on a sandboxed HOME: this is a credential path, so the refusal matters more
+# than the happy path. Every value here is fake and invented; nothing reads the real
+# store. The third variable IS in the fixture store and off the allowlist — a fixture
+# with only allowlisted names proves nothing about the allowlist.
+_wsk_d=$(mktemp -d)
+_wsk_h="$_wsk_d/home"
+mkdir -p "$_wsk_h/dotfiles/secrets" "$_wsk_d/locked/dotfiles/secrets" "$_wsk_d/sparse/dotfiles/secrets"
+printf '%s\n' 'set -gx BRAVE_SEARCH_API_KEY fake-brave' 'set -gx EXA_SEARCH_API_KEY fake-exa' \
+    'set -gx OTHER_TOKEN fake-other' >"$_wsk_h/dotfiles/secrets/env.fish"
+printf '%s\n' 'set -gx BRAVE_SEARCH_API_KEY fake-brave' >"$_wsk_d/sparse/dotfiles/secrets/env.fish"
+# git-crypt ciphertext is READABLE, so a lock is only detectable by its magic — the same
+# one the L0 probe above relies on. This asserts the OUTCOME (nothing is handed out), not
+# which guard fired: measured 2026-11-21, fish refuses a NUL-bearing file outright, so
+# disabling the header test still ends in the empty-result guard. The header test is
+# defence in depth (an interpreter never parses those bytes) and is deliberately not
+# asserted as the mechanism; the empty-result guard gets its own case just below.
+printf '\0GITCRYPT\0\n' >"$_wsk_d/locked/dotfiles/secrets/env.fish"
+printf 'set -gx BRAVE_SEARCH_API_KEY fake-leaked\n' >>"$_wsk_d/locked/dotfiles/secrets/env.fish"
+check_full "web-search-key: a store variable off the allowlist is refused" \
+    bash -c 'HOME="$1" "$2" OTHER_TOKEN >/dev/null 2>&1; [ $? -eq 2 ]' _ "$_wsk_h" "$_WSEARCH_KEY"
+# Everything below has to reach fish, so on a host without it the getter fails for the
+# wrong reason and an `[ -z "$out" ] && [ "$st" -ne 0 ]` shape would pass regardless of
+# the guard under test. Gated, not merely skipped into a shared `if`.
+if command -v fish >/dev/null 2>&1; then
+    check_full "web-search-key: a git-crypt-locked store hands out nothing" \
+        bash -c 'out=$(HOME="$1" "$2" BRAVE_SEARCH_API_KEY 2>/dev/null); st=$?; [ -z "$out" ] && [ "$st" -ne 0 ]' \
+        _ "$_wsk_d/locked" "$_WSEARCH_KEY"
+    # Allowlisted, but the store defines no such value — the guard a locked store falls
+    # through to, so it is asserted directly. Delete the empty-result check and this goes
+    # green while handing out an empty key: the failure becomes "search gets nothing".
+    check_full "web-search-key: an allowlisted name the store does not define is refused" \
+        bash -c 'out=$(HOME="$1" "$2" EXA_SEARCH_API_KEY 2>/dev/null); st=$?; [ -z "$out" ] && [ "$st" -ne 0 ]' \
+        _ "$_wsk_d/sparse" "$_WSEARCH_KEY"
+    check_full "web-search-key: an allowlisted name prints exactly its value" \
+        bash -c '[ "$(HOME="$1" "$2" BRAVE_SEARCH_API_KEY)" = fake-brave ]' _ "$_wsk_h" "$_WSEARCH_KEY"
+    # The daemon's PATH need not carry Homebrew, and the bug this fixes lives on the
+    # daemon path: the absolute-path fallback is the mechanism, so it is worth asserting.
+    # Not the same case in CI — there fish is on /usr/bin, already on the test's PATH.
+    check_full "web-search-key: finds fish with a PATH that has no Homebrew" \
+        bash -c '[ "$(env -i HOME="$1" PATH=/usr/bin:/bin "$2" EXA_SEARCH_API_KEY)" = fake-exa ]' \
+        _ "$_wsk_h" "$_WSEARCH_KEY"
+else
+    _skip "web-search-key: a git-crypt-locked store hands out nothing" "fish is not installed"
+    _skip "web-search-key: an allowlisted name the store does not define is refused" "fish is not installed"
+    _skip "web-search-key: an allowlisted name prints exactly its value" "fish is not installed"
+    _skip "web-search-key: finds fish with a PATH that has no Homebrew" "fish is not installed"
+fi
+rm -rf "$_wsk_d"
 
 # The route is a privacy statement before it is a configuration, and the claim
 # that matters is the NEGATIVE one: Exa's ZDR is an Enterprise-only feature

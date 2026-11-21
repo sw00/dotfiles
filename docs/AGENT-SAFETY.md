@@ -21,7 +21,7 @@ is the mapping it implies.
 
 | Rank | Class | Primary | Secondary | Residual (accepted) |
 |---|---|---|---|---|
-| b | secret exfiltration | L0 env hygiene; L3 secret-file rules; L2 secret-path gate on the file tools (`lib/secret-paths.ts`) | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); indirection *inside* an inlined script body (§2.1b); a symlink that points into `secrets/` (the gate resolves lexically, §2.1a) |
+| b | secret exfiltration | L0 env hygiene; L3 secret-file rules; L2 secret-path gate on the file tools (`lib/secret-paths.ts`) | L2 read-verb + secret-noun = high-risk (`disclosesSecret`, `lib/classify.ts`); L4 scans outbound web-tool inputs | non-shell interpreters; an executed file with no shell shebang and no `.sh` suffix (§2.1b); indirection *inside* an inlined script body (§2.1b); a symlink that points into `secrets/` (the gate resolves lexically, §2.1a); a repo-root search that walks into `secrets/` (there is no `secrets` path to match, §3 probe G); **a harness that is not pi carries none of L2–L4** (Claude Code under Paseo, measured 2026-11-21) |
 | c | credential in a published artifact | L4 publish guard | L1 pre-commit (this repo, staged files) | channels other than gh/glab/web tools |
 | e | irreversible remote ops | L3 rulebooks (deny) | L2 (locked default; armed = human confirm) | ops neither table names |
 | a | infra mutation | L2 locked/armed gate | L3 for the destructive subset (no kubectl rulebook exists) | argument-position false positives (§4) |
@@ -276,6 +276,18 @@ Side observation, same date: a `hypa_shell` call whose only sin was carrying the
 payload inside a `printf` argument was blocked live. That is residual 4 seen from the
 other side — literal CLI names anywhere in an argument list are classified.
 
+**Probe G — the personal store's shell-read surface, measured the hard way
+(2026-11-21).** Two pi sessions reviewing the same change each ran a repo-root search
+for the two key *names*; each walked into `secrets/env.fish` and printed both values into
+its transcript. The first was a Claude Code agent under Paseo, which carries none of
+L2–L4 at all; the second was an `oracle` subagent under pi, so the layers were attached
+and still did not stop it: L2's secret-path gate keys on a tool's `path` argument, and a
+repo-root search has no `secrets` path to match (§2.1a — the gate is lexical, by design),
+while L3 permits the shell read (probe E). Consequence: both keys are being rotated (an
+open item in `TODO.md`), and §5's web-search entry says in as many words that the store
+is agent-readable by *content read* — the allowlist there governs what `pi-web-access`
+pulls unattended, not what an agent can reach.
+
 ## 4. Accepted costs
 
 1. L3 still denies an armed, human-confirmed `terraform destroy`,
@@ -354,9 +366,34 @@ scope at all and their MCP `${VAR}` headers failed. `~/bin/paseo-agent-env`
 the agent's source checkout through git, takes the nearest `.envrc` strictly below
 `$HOME`, and runs the harness under `direnv exec` there, or bare if there is none. It
 never allows an `.envrc` and sets no variable of its own. So L0's "no asterisk" holds for
-the dotfiles store, where nothing reaches an agent until `creds`. For the work store it
+the dotfiles store, where nothing reaches an agent until `creds` — the two web-search
+keys named in the next entry are its one exception. For the work store it
 is scoped, not global: a `~/dotfiles` or `~/src/personal` agent gets nothing, wherever
 its worktree lives. `check.sh` proves both directions on a fixture (§Paseo).
+
+**Settled 2026-11-21 — web search is the one named exception for the dotfiles store.**
+`pi-web-access` resolves each key per call through `~/bin/web-search-key`
+(`base/pi/bin/web-search-key`, measured against the package version installed that day:
+`!command` is package-internal and nothing in this repo pins it), which prints exactly
+`BRAVE_SEARCH_API_KEY` or `EXA_SEARCH_API_KEY` — nothing else, ever — out of
+`secrets/env.fish`; `base/pi/.pi/web-search.json` names it as
+`!~/bin/web-search-key <NAME>`. The value goes from that command's stdout into one HTTP
+request: the harness's environment never holds it and no child of the agent inherits it —
+the only process that does is a short-lived `fish` child whose sole output is the value.
+L0 is therefore unchanged, and a rotated key takes effect on the next search with no
+restart. That is what makes `web_search` the same in a Paseo agent, a plain terminal and a
+`creds` shell, on any repo — the launch path stops being part of the mechanism, which no
+env-forwarding twin achieves. The cost, stated plainly: the
+store is plaintext in an unlocked working tree and any agent can read it by *content*
+(2026-11-16; measured the hard way on this date, §3 probe G), so the allowlist is not a
+boundary against the agent — it bounds what `pi-web-access` pulls unattended, on every
+search, outside every `tool_call` gate. Widening it is an amendment to this entry, not a
+config tweak; `check.sh` pins the two names, both config strings, and the absence of a
+`braveBaseUrl`/`exaBaseUrl` override in that file. The env channel outranks it there
+(`BRAVE_BASE_URL`/`EXA_BASE_URL`) and is out of this pin's reach: it belongs to whatever
+launched the harness, and the launcher sets neither.
+The getter's stderr never reaches the harness (`command-failed` is all an agent sees),
+so diagnosing it means running `~/bin/web-search-key <NAME>` by hand.
 
 ## 6. Harness, no lock-in, rollback
 

@@ -1,0 +1,66 @@
+#!/bin/sh
+# web-search-key — print one personal search provider key for pi-web-access' `!command`
+# credential form in ~/.pi/web-search.json.
+#
+# Why: a bare `$NAME` there can only resolve from the environment, and AGENT-SAFETY L0
+# keeps credentials out of the environment — so search worked only in a shell started
+# with `creds`, and never under Paseo. A `!command` value is resolved per call by
+# pi-web-access itself, so the launch path stops mattering. The key reaches one HTTP
+# request: it is never in the harness's environment, never in any process the agent
+# spawns, and never in an MCP server. The one process that does hold it is the short-lived
+# `fish` child below, whose sole output is the value. Rotation is live, too — the config
+# string is cached per process, the command is not.
+#
+# The allowlist is the whole exception (docs/AGENT-SAFETY.md §5): two names out of the
+# one store `creds` owns. It bounds what pi-web-access pulls unattended, on every
+# search. It is NOT a boundary against the agent, which can already shell-read that
+# store; do not cite it as one.
+#
+# Diagnostics go to stderr and never carry a value. pi-web-access keeps only the failure
+# category (`command-empty`, `command-failed`), so run this by hand to see why.
+set -eu
+
+case ${1-} in
+    BRAVE_SEARCH_API_KEY|EXA_SEARCH_API_KEY) name=$1 ;;
+    *)
+        echo "web-search-key: refusing '${1-}' (allowlisted: BRAVE_SEARCH_API_KEY, EXA_SEARCH_API_KEY)" >&2
+        exit 2
+        ;;
+esac
+
+store=$HOME/dotfiles/secrets/env.fish   # the path `creds` uses (base/fish config.fish)
+[ -f "$store" ] || {
+    echo "web-search-key: no $store" >&2
+    exit 1
+}
+# A locked store is readable ciphertext, so refuse it BEFORE sourcing anything: fish is
+# never handed binary as code. Same magic the L0 probe in check.sh relies on.
+if head -c 16 "$store" 2>/dev/null | grep -aq GITCRYPT; then
+    echo "web-search-key: $store is git-crypt locked (git-crypt unlock)" >&2
+    exit 1
+fi
+
+# fish interprets that file, and the daemon's PATH need not carry Homebrew, so fall back
+# to the usual install locations rather than trusting PATH alone.
+fish=$(command -v fish 2>/dev/null) || fish=
+for candidate in /opt/homebrew/bin/fish /usr/local/bin/fish /usr/bin/fish; do
+    if [ -z "$fish" ] && [ -x "$candidate" ]; then
+        fish=$candidate
+    fi
+done
+[ -n "$fish" ] || {
+    echo "web-search-key: fish not found; it interprets $store" >&2
+    exit 1
+}
+
+# A child fish sources the store and prints the one value: nothing is exported to this
+# process, let alone to the caller. `$$name` is fish variable indirection.
+key=$("$fish" --no-config -c 'source $argv[1] >/dev/null 2>&1; printf %s $$argv[2]' -- "$store" "$name")
+# Empty covers a store that defines no such value and ciphertext that slipped past the
+# header test; either way there is no key to hand out, so this fails closed.
+[ -n "$key" ] || {
+    echo "web-search-key: $name is empty (locked store, or not in $store)" >&2
+    exit 1
+}
+
+printf %s "$key"

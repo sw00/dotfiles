@@ -317,9 +317,14 @@ prompt, not a tool gate.
 **Brave Search, falling back to Exa**, via `pi-web-access` 0.47.0. Config at
 `~/.pi/web-search.json` (`base/pi/.pi/web-search.json`): a `searchRouting` route
 `brave → exa`, the `auto-summary` workflow (no browser curator), summaries
-drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys
-resolve through `$BRAVE_SEARCH_API_KEY` and `$EXA_SEARCH_API_KEY`
-(`secrets/env.fish`, git-crypt'd), so the repo holds no credential.
+drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys resolve
+per search through `~/bin/web-search-key`, which sources `secrets/env.fish` (git-crypt'd)
+in a short-lived `fish` child and emits exactly `BRAVE_SEARCH_API_KEY` or
+`EXA_SEARCH_API_KEY` and nothing else, so the repo holds no credential and search works
+without `creds` — Paseo agents included (AGENT-SAFETY §5). The getter's own stderr never
+reaches the tool, so a failure shows only as `… credential resolution failed:
+command-failed`: run `~/bin/web-search-key BRAVE_SEARCH_API_KEY` by hand to see why
+(git-crypt locked, fish missing, empty value).
 
 The fallback covers named failure kinds only — `quota | transient | network |
 invalid-response | empty` (the last is a successful search with no results). A
