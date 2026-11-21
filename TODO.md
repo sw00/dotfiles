@@ -76,12 +76,6 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 - [ ] **`secrets/env.fish` is uncommitted** (git-crypt'd, 930→1143 bytes): left
   for the owner to review and commit with the repo unlocked. Never bundle it with
   code commits.
-- [ ] **Rotate `BRAVE_SEARCH_API_KEY` and `EXA_SEARCH_API_KEY` (owner, agreed
-  2026-11-21).** Two agent transcripts hold both values in plaintext: a repo-root search
-  for the key names walked into `secrets/env.fish` (docs/AGENT-SAFETY.md §3 probe G).
-  Scrubbing transcripts is not reliable; rotation is the remedy, and the
-  `~/bin/web-search-key` getter picks a rotated value up on the next search with no
-  restart.
 - [ ] **`creds` has the locked-store gap that `web-search-key` now guards (measured
   2026-11-21).** `test -r` passes on git-crypt ciphertext, so `creds <cmd>` sources
   binary as fish and silently sets nothing; the getter refuses on the `GITCRYPT` header
