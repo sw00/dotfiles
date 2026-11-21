@@ -4,6 +4,12 @@ Minimal model roster for the [pi](https://pi.dev) coding agent: each model
 has a distinct role; escalation is driven by uncertainty, not failure counters.
 Three explicit modes shape each session. Stows to `~/.pi/`.
 
+## Harness roles
+
+Terminal and Paseo run agentic coding work; Claude Desktop is the frontier
+advisor for strategy, design and Workspace/Notion productivity; Jan is local
+conversational pairing — advice, quick research, design sparring, cheatsheets.
+
 ## Installation
 
 pi installs itself with its **own managed installer** — deliberately not via
@@ -182,8 +188,7 @@ extensions, and under PiG in shared mode that grant is exactly the same one —
 
 OpenRouter PAYG models remain manual-only and are not part of the curated
 cycle. Experimental `*-exp` models are also excluded from the
-normal roster. Web summarisation uses the daily-driver model unless explicitly
-changed.
+normal roster. Web summaries, when requested, use the daily-driver model.
 
 ## Claude Code bridge
 
@@ -208,14 +213,15 @@ mise is transparent to the bridge.
 - `provider.plan` — `"pro"` (default); `"max"` unlocks Opus 4.6's 1M window.
 - `provider.strictMcpConfig: true` — blocks `~/.claude.json` / `.mcp.json` MCP
   servers inside bridge turns.
-- `askClaude.enabled: true` + `allowFullMode: false` — the opt-in delegation
-  tool, read-only by default, for when another provider gets stuck. `/check`
-  also hides it (it can otherwise be given `mode: "full"`).
+- `askClaude.enabled: false` — AskClaude is a separate, uninstalled package;
+  `true` makes the bridge warn once per pi process. `allowFullMode: false` is the
+  backstop if AskClaude is installed; `/check` hides the tool (it can be given
+  `mode: "full"`).
 
-Both `provider.plan` and `askClaude.enabled` are set explicitly on purpose: the
-bridge's one-time "settings live here" notice only fires when one is unset, and
-recording it would write `startupNoticeShown` through the stowed symlink and
-dirty this repo.
+Both `provider.plan` and `askClaude.enabled` stay declared as a legacy guard:
+older bridge releases wrote a one-time `startupNoticeShown` flag through the
+stowed symlink when either key was unset. `check.sh` still pins both keys;
+installed 0.13.0 no longer has that write path.
 
 Context windows follow what the bridge has *measured*, not what pi-ai declares:
 Opus 5.5 and Sonnet 5.5 are served at 1M through the `[1m]` suffix, Haiku 5.5 at
@@ -316,8 +322,9 @@ prompt, not a tool gate.
 
 **Brave Search, falling back to Exa**, via `pi-web-access` 0.48.0. Config at
 `~/.pi/web-search.json` (`base/pi/.pi/web-search.json`): a `searchRouting` route
-`brave → exa`, the `auto-summary` workflow (no browser curator), summaries
-drafted by Flash, and `webSearch.allowedProviders: ["brave", "exa"]`. Keys resolve
+`brave → exa`, the `none` workflow (bounded raw results, no curator, no summary
+model call), and `webSearch.allowedProviders: ["brave", "exa"]`. `summaryModel`
+stays pinned by `check.sh` for curator summaries on demand. Keys resolve
 per search through `~/bin/web-search-key`, which sources `secrets/env.fish` (git-crypt'd)
 in a short-lived `fish` child and emits the value of exactly `BRAVE_SEARCH_API_KEY` or
 `EXA_SEARCH_API_KEY` and nothing else, so the repo holds no credential and search works
@@ -363,7 +370,7 @@ rule in `agent/AGENTS.md` applies to it exactly as to any other engine.
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
 | Exa (keyed API) | — | Per privacy policy: queries train models | No ZDR here — Enterprise-only, enabled per team |
-| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker and pairing-driver subagents, web-search summaries), `glm-5.3` (oracle), `glm-5.3-flash` (pairing navigator), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker and pairing-driver subagents, on-demand web-search summaries), `glm-5.3` (oracle), `glm-5.3-flash` (pairing navigator), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 

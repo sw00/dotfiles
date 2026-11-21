@@ -176,6 +176,16 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
 
 ## Deferred — judgment, not blocked
 
+- [ ] **Bridge notice claims are stale for 0.13.0 (2026-11-21).** `base/pi/README.md`
+  now frames `provider.plan` + `askClaude.enabled` as a legacy guard, but
+  `check.sh:2028-2032` (comment and assertion name) and `docs/GOTCHAS.md:91` still
+  say the bridge writes `startupNoticeShown` in the present tense. Installed
+  `pi-claude-bridge` 0.13.0 has no such write path; `src/config.ts` only reads the
+  config. Reword those three sites together when next touching them; the assertion
+  itself (both keys present) stays. Separately, pi-web-access's `/curator` calls
+  `saveConfig({ workflow })`, which writes through the stowed `web-search.json`
+  with no `check.sh` guard — same write-back class, worth a pin.
+
 - [ ] **Paseo agent credentials: one residual (2026-11-21).** Decided: the `pi` and
   `claude` providers launch through `~/bin/paseo-agent-env`. Its scope is the agent's
   SOURCE repo, meaning the nearest `.envrc` strictly below `$HOME`. The trust prefix is

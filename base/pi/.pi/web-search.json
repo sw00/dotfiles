@@ -8,6 +8,6 @@
   },
   "braveApiKey": "!~/bin/web-search-key BRAVE_SEARCH_API_KEY",
   "exaApiKey": "!~/bin/web-search-key EXA_SEARCH_API_KEY",
-  "workflow": "auto-summary",
+  "workflow": "none",
   "summaryModel": "opencode-go/deepseek-v4.1-flash"
 }
