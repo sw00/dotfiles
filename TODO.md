@@ -77,16 +77,6 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   for the owner to review and commit with the repo unlocked. Never bundle it with
   code commits.
 
-## Open — pi config guards
-
-- [ ] **`check.sh` roster pin test matches substrings, so a prefix id hides a
-  deleted row.** The test is `if m not in readme`, so adding the pairing
-  navigator's row (`opencode-go/glm-5.3-flash`) now satisfies the oracle's pin
-  (`opencode-go/glm-5.3`) by substring: delete the Oracle row and the guard
-  still passes (`check.sh:2043`). Fix: match the backticked id (`` `m` ``) or the
-  row prefix in the check. **Not fixed with the pairing change on purpose** — `check.sh` carries
-  unrelated uncommitted work at the time, so the tightening belongs with it.
-
 ## Open — active bug
 
 - [x] **`pwt` hook test is nondeterministic (found 2026-10-23, same session it

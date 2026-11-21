@@ -2031,16 +2031,20 @@ if qualified.split('/')[0] in twins:
 # swapped in an agent file but not reflected in the README — or a row left
 # pointing at a model nobody pins — is the drift class the deepseek-v4/v4.1
 # split thrived in.
+# Matched as a BACKTICKED id, not a bare substring. A bare `m not in readme`
+# was satisfied by the longer id of a related row: once `opencode-go/glm-5.3-flash`
+# gained a roster row, deleting the oracle's `opencode-go/glm-5.3` row still passed.
 check "pi: every agent model pin is documented in the README roster" \
     bash -c "python3 -c \"
 import glob, sys
+tick = chr(96)
 readme = open('$DOTFILES/base/pi/README.md').read()
 missing = []
 for f in sorted(glob.glob('$DOTFILES/base/pi/.pi/agent/agents/*.md')):
     for line in open(f):
         if line.startswith('model: '):
             m = line[len('model: '):].strip()
-            if m not in readme:
+            if tick + m + tick not in readme:
                 missing.append(f.split('/')[-1] + ' -> ' + m)
             break
 if missing:
