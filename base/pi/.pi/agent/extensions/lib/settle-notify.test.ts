@@ -145,6 +145,35 @@ test("a new run clears the flag (work resumed)", async () => {
   }
 });
 
+test("the WSL transport never puts the text into PowerShell source", async () => {
+  const prev = process.env.WSL_DISTRO_NAME;
+  process.env.WSL_DISTRO_NAME = "Ubuntu";
+  // The darwin branch is tested first, so the WSL path needs a non-darwin platform.
+  const platform = Object.getOwnPropertyDescriptor(process, "platform")!;
+  Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+  try {
+    // Both quote flavours git allows in a branch name; PowerShell accepts the curly one.
+    const curly = "x’; calc; ‘";
+    const plain = "'; calc; '";
+    const { handlers, calls } = harness({ git: `${curly}\n/tmp/${plain}` });
+    await handlers.get("agent_settled")!({ aborted: false }, ctx);
+    const push = pushes(calls).at(-1) ?? [];
+    const script = push.at(-1) ?? "";
+    assert.equal(push[0], "powershell.exe");
+    for (const hostile of [curly, plain]) {
+      assert.ok(!script.includes(hostile), `the text is not script source: ${hostile}`);
+    }
+    const nodes = [...script.matchAll(/FromBase64String\('([A-Za-z0-9+/=]*)'\)/g)].map((m) => m[1]);
+    assert.equal(nodes.length, 2, "one decode per text node, never the text inline");
+    const [title, body] = nodes.map((b) => Buffer.from(b, "base64").toString("utf8"));
+    assert.deepEqual([title, body], [`${plain}/${curly}`, "settled — waiting on you"]);
+  } finally {
+    Object.defineProperty(process, "platform", platform);
+    if (prev === undefined) delete process.env.WSL_DISTRO_NAME;
+    else process.env.WSL_DISTRO_NAME = prev;
+  }
+});
+
 test("outside tmux there is no window to flag", async () => {
   const { handlers, calls } = harness();
   await handlers.get("agent_settled")!({ aborted: false }, ctx);

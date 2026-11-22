@@ -39,7 +39,7 @@ import { execFile } from "node:child_process";
 import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
-import { publishTargets, scan, type LeakScan } from "./lib/publish-scan.ts";
+import { isGitCryptLocked, publishTargets, scan, type LeakScan } from "./lib/publish-scan.ts";
 import { SHELL_TOOL_SET } from "./lib/shell-tools.ts";
 
 /** Web tools publish their arguments; these are the fields that leave the host. */
@@ -90,8 +90,6 @@ interface Targets {
   unresolved: string[];
   /** Relative file references in a command that runs cd/pushd — a block. */
   cwdRelative: string[];
-  /** "unknown": a gh/glab write we could not classify, still a target. */
-  scope: "known" | "unknown";
 }
 
 export default function (pi: ExtensionAPI) {
@@ -128,8 +126,8 @@ export function createOnToolCall(overrides: Partial<GuardOptions> = {}) {
     try {
       if (targets.unresolved.length > 0) {
         return blocked(
-          `publish-guard: blocked — the command publishes the output of a command substitution ` +
-            `(${targets.unresolved[0]}) that cannot be scanned. Put the text in a file and pass it with ` +
+          `publish-guard: blocked — the command publishes text that cannot be scanned ` +
+            `(${targets.unresolved[0]}). Put the text in a file and pass it with ` +
             `--body-file / --notes-file / --input (or @file) instead.`,
         );
       }
@@ -163,6 +161,9 @@ export function createOnToolCall(overrides: Partial<GuardOptions> = {}) {
         }
         parts.push(read.text);
       }
+      // A candidate is a heuristic, not a named file: a version tag like `v1.0.0`
+      // is path-shaped but is not a file, so a failed read here is still ignored
+      // — blocking on it would refuse ordinary `gh release create v1.0.0` calls.
       for (const path of targets.candidates) {
         const read = readText(path, ctx.cwd);
         if (!("error" in read)) parts.push(read.text);
@@ -204,7 +205,6 @@ function targetsFor(toolName: string, input: Record<string, unknown>): Targets |
       candidates: t.candidates,
       unresolved: t.unresolved,
       cwdRelative: t.cwdRelative,
-      scope: t.scope,
     };
   }
 
@@ -225,7 +225,6 @@ function targetsFor(toolName: string, input: Record<string, unknown>): Targets |
     candidates: [],
     unresolved: [],
     cwdRelative: [],
-    scope: "known",
   };
 }
 
@@ -260,7 +259,7 @@ function readSecrets(opts: GuardOptions): { text: string } | { error: string } {
   } catch {
     return { error: `${SECRETS_LABEL} could not be read (git-crypt locked?)` };
   }
-  if (text.slice(0, 16).includes("GITCRYPT")) {
+  if (isGitCryptLocked(text)) {
     return { error: `${SECRETS_LABEL} is git-crypt locked` };
   }
   return { text };

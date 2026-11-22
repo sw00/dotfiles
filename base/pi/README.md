@@ -282,7 +282,10 @@ injected each turn and filtered when stale.
 | `check` | read-only (edit/write/subagent off, domain mode tools hidden, bash allowlisted) | worker | pair-troubleshooting; **user** is the escalation target, no delegation |
 | `chat` | unrestricted | `claude-bridge/claude-sonnet-5-5` | conceptual altitude; no changes unless asked |
 
-Toolset is a pure function of the mode (stateless — no snapshot/restore).
+Toolset stays a function of the mode only: entering `check` removes just the names
+in `CHECK_HIDDEN_TOOLS` from whatever is active, and leaving it re-adds just those
+names, so a tool another extension pruned is never resurrected. The one asymmetry:
+a hide-listed tool that was already pruned before `/check` comes back on `/change`.
 In check mode, domain mode tools (e.g. `infra_mode`) are also removed since
 every guard is force-locked and cannot be opened from within check.
 Entering `/chat` switches to `claude-bridge/claude-sonnet-5-5` and restores the
@@ -542,7 +545,10 @@ What remains sticky is a twin recorded in a *session* — by a hop, or by a
    back to the primary. The cooldown prevents mid-turn yanks back to a
    still-rate-limited primary (thrash) and misreading stream errors that
    arrive as a committed 200. The two directions have independent 2s
-   throttles, so a recovery can never suppress the next fallback.
+   throttles, so a recovery can never suppress the next fallback. The
+   rate-limit `session_start` re-probe applies the same `shouldReprobePrimary`
+   provenance gate as 1, so an explicit `--model <twin>` is the user's choice on
+   both paths rather than the one that happened to be written first.
 
 ## Tests
 

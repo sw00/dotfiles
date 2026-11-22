@@ -113,8 +113,8 @@ test("W14 `-F` on a gh publish verb is a body FILE, not an API field", () => {
     ["gh release edit v1 -F notes.md", "notes.md"],
     ["gh -R org/repo pr create -F notes.md", "notes.md"],
     ["glab mr create -F notes.md", "notes.md"],
-    // An unrecognised flag before the group leaves scope `unknown`, but the
-    // verb still resolved: the file is read rather than published unscanned.
+    // An unrecognised flag before the group does not hide the verb: the file
+    // is read rather than published unscanned.
     ["gh -X pr create -F notes.md", "notes.md"],
   ]) {
     const t = publishTargets(cmd);
@@ -165,13 +165,99 @@ test("a nested script whose CLI is not the first word is still a publish", () =>
   assert.deepEqual(publishTargets('echo "done; gh pr create --body-file x.md"')?.files, ["x.md"]);
 });
 
-test("bare path-shaped tokens become candidates, not required files", () => {
+test("bare path-shaped tokens are candidates, but a verb's own positional is a file", () => {
+  // `gh gist create <file…>` publishes its bare arguments — no flag names them,
+  // so as a candidate it was merely scanned and a planted secret went out.
   const t = publishTargets("gh gist create body.md --desc x");
-  assert.deepEqual(t?.files, []);
-  assert.deepEqual(t?.candidates, ["body.md"]);
+  assert.deepEqual(t?.files, ["body.md"]);
+  assert.deepEqual(t?.candidates, []);
   // Quoted prose that happens to look like a path stays a candidate only.
   const q = publishTargets('gh pr create --body "see docs/foo.md"');
   assert.deepEqual(q?.files, []);
+});
+
+test("A a verb's own positionals are files; the shapes no reader can resolve are unresolved", () => {
+  assert.deepEqual(publishTargets("gh gist create notes.md")?.files, ["notes.md"]);
+  // gist reads STDIN when no file is named.
+  assert.deepEqual(publishTargets("gh gist create")?.unresolved, ["stdin"]);
+  assert.deepEqual(publishTargets("printenv TOKEN | gh gist create")?.unresolved, ["stdin"]);
+  // A bare `-` is stdin, and a glob is expanded by the shell, not by us.
+  assert.deepEqual(publishTargets("gh gist create -")?.unresolved, ["stdin"]);
+  assert.deepEqual(publishTargets("gh gist create config/*")?.unresolved, ["a glob argument"]);
+  // `release upload <tag> <files…>`: positional 0 is the tag, not a file.
+  assert.deepEqual(publishTargets("gh release upload v1 tag/dist/asset.zip")?.files, [
+    "tag/dist/asset.zip",
+  ]);
+  // …and with no asset at all it publishes nothing local: a usage error, never
+  // stdin (so it is not reported as an unscannable payload).
+  assert.deepEqual(publishTargets("gh release upload v1")?.unresolved, []);
+  assert.deepEqual(publishTargets("gh gist edit abc123 notes.md")?.files, ["notes.md"]);
+  // A process substitution resolves like `$(…)`, or it is refused.
+  assert.deepEqual(publishTargets("gh gist create <(printenv MY_TOKEN)")?.vars, ["MY_TOKEN"]);
+  assert.deepEqual(publishTargets("gh gist create <(date)")?.unresolved, ["<(…)"]);
+});
+
+test("a bare positional that is not path-shaped is still a required file", () => {
+  // `gist create notes.md id_rsa` published only notes.md: the key file is not
+  // path-shaped, so the positional loop dropped it and it went out unscanned.
+  assert.deepEqual(publishTargets("gh gist create notes.md id_rsa")?.files, ["notes.md", "id_rsa"]);
+});
+
+test("release create and glab release upload publish their own positionals", () => {
+  // Positional 0 is the tag on both; a glob is the shell's, so it is unresolved.
+  assert.deepEqual(publishTargets("gh release create v1 secrets/*")?.unresolved, ["a glob argument"]);
+  assert.deepEqual(publishTargets("glab release upload v1 dist/*")?.unresolved, ["a glob argument"]);
+  assert.deepEqual(publishTargets("glab release upload v1 id_rsa")?.files, ["id_rsa"]);
+  assert.deepEqual(publishTargets("gh release create v1 app.zip --notes hi")?.files, ["app.zip"]);
+  assert.deepEqual(publishTargets("gh release create v1 --notes-file n.md")?.files, ["n.md"]);
+  // Every verb in the table refuses a glob instead of dropping it.
+  for (const cmd of [
+    "gh gist create config/*",
+    "gh gist edit abc123 config/*",
+    "gh release upload v1 config/*",
+    "gh release create v1 config/*",
+    "glab release upload v1 config/*",
+  ]) {
+    assert.deepEqual(publishTargets(cmd)?.unresolved, ["a glob argument"], cmd);
+  }
+});
+
+test("A an attached -Fvalue and a backslash-continued flag line are still read", () => {
+  assert.deepEqual(publishTargets("gh pr create -Fnotes.md")?.files, ["notes.md"]);
+  assert.deepEqual(publishTargets("gh pr create -F notes.md")?.files, ["notes.md"]);
+  // `\`+newline joins the line: the flag must not become "\n--body-file".
+  assert.deepEqual(publishTargets("gh pr create \\\n  --body-file creds.md")?.files, ["creds.md"]);
+  // A newline on its own still separates commands.
+  assert.equal(publishTargets("git status\ngh pr view 1"), null);
+});
+
+test("a quoted attached -Fvalue splits like the unquoted form", () => {
+  // The shell hands gh the same argv either way, so quote state must not hide
+  // the split — both forms used to yield no file at all.
+  assert.deepEqual(publishTargets('gh issue create -F"secret.txt" -t x')?.files, ["secret.txt"]);
+  assert.deepEqual(publishTargets("gh issue create -F'secret.txt' -t x")?.files, ["secret.txt"]);
+  // A quoted short value containing whitespace is prose, not a flag pair.
+  assert.deepEqual(publishTargets('gh pr create --body "-Foo bar"')?.files, []);
+});
+
+// ── a flag's value is an argument, not a payload ──────────────────────────────
+
+test("a flag's VALUE is never a file, and gh's file flag splits even with spaces", () => {
+  // The quoted value of `-F` is still an attached value: one argv pair.
+  assert.deepEqual(publishTargets('gh pr create -F"my notes.md"')?.files, ["my notes.md"]);
+  assert.deepEqual(publishTargets('gh issue create -F"my notes.md" -t x')?.files, ["my notes.md"]);
+  // A path-shaped value of a value-taking flag is not a positional payload.
+  assert.deepEqual(
+    publishTargets("gh release create v1 --notes-start-tag v0.9 --generate-notes")?.files,
+    [],
+  );
+  assert.deepEqual(publishTargets("gh release create v1 --discussion-category General")?.files, []);
+  // …and a value that starts with `-` is not an attached short flag.
+  assert.deepEqual(publishTargets("gh issue comment 1 --body '-Fixed'")?.files, []);
+  assert.deepEqual(publishTargets("gh issue comment 1 --body '-Fixed'")?.unresolved, []);
+  // `gist edit -a` ADDS a file: its content is published, so it must be read.
+  assert.deepEqual(publishTargets("gh gist edit ID -a dump.txt")?.files, ["dump.txt"]);
+  assert.deepEqual(publishTargets("gh gist edit ID --add=dump.txt")?.files, ["dump.txt"]);
 });
 
 // ── B8: flags before the group, and the verb families a write can use ────────
@@ -208,17 +294,13 @@ test("B8 close-with-comment, gist edit, release upload are publishes", () => {
 test("B8 an unrecognised gh write fails closed instead of being skipped", () => {
   const unknownVerb = publishTargets("gh pr synergize 12");
   assert.ok(unknownVerb, "unknown verb must still be a target");
-  assert.equal(unknownVerb.scope, "unknown");
 
   const unknownGroup = publishTargets("gh frobnicate --flag");
   assert.ok(unknownGroup, "unknown group must still be a target");
-  assert.equal(unknownGroup.scope, "unknown");
 
-  // Unknown scope still extracts what it can see, so the whole command is scanned.
+  // Still extracts what it can see, so the whole command is scanned.
   assert.deepEqual(publishTargets("gh frobnicate -F body=@body.md")?.files, ["body.md"]);
   assert.deepEqual(publishTargets("gh frobnicate --body $TOKEN")?.vars, ["TOKEN"]);
-  // A recognised publish says so.
-  assert.equal(publishTargets("gh pr create --body hi")?.scope, "known");
 });
 
 // ── B9: substitution output must be resolvable, or we refuse ─────────────────
@@ -278,7 +360,6 @@ test("planted secret in a --body-file is caught, reason never echoes it", () => 
   const verdict = scan(text, ENV_FISH, CLEAN)!;
 
   assert.ok(verdict, "expected a verdict");
-  assert.equal(verdict.label, "value of $GITHUB_TOKEN");
   assert.ok(verdict.reason.includes(PLANTED) === false, "reason must not contain the secret");
   assert.equal(
     verdict.reason,
@@ -289,11 +370,13 @@ test("planted secret in a --body-file is caught, reason never echoes it", () => 
 test("planted secret behind a $NAME expansion is caught", () => {
   // The wiring appends process.env[$NAME] to the scanned text — expansion would
   // otherwise be invisible to a literal scan.
-  const known = [{ name: "$GITHUB_TOKEN", value: PLANTED }];
   const text = 'gh pr create --body "$GITHUB_TOKEN"\n' + PLANTED;
-  const verdict = scan(text, known, CLEAN)!;
+  const verdict = scan(text, `set -gx GITHUB_TOKEN '${PLANTED}'`, CLEAN)!;
   assert.ok(verdict);
-  assert.equal(verdict.label, "value of $GITHUB_TOKEN");
+  assert.equal(
+    verdict.reason,
+    "publish-guard: blocked — outgoing text matches value of $GITHUB_TOKEN. Remove it; do not repeat it.",
+  );
   assert.ok(!verdict.reason.includes(PLANTED));
 });
 
@@ -301,11 +384,10 @@ test("a clean publish passes both halves", () => {
   assert.equal(scan("gh pr create --title fix --body 'normal prose'", ENV_FISH, CLEAN), null);
 });
 
-test("gitleaks rule id is the label; the matched value is never in the reason", () => {
+test("gitleaks rule id names the block reason; the matched value is never in it", () => {
   const leaks: LeakScan = { kind: "ok", ruleIds: ["github-pat"] };
   const verdict = scan("gh pr create --body-file n.md\nghp_PLANTEDSHAPEDVALUE", ENV_FISH, leaks)!;
   assert.ok(verdict);
-  assert.equal(verdict.label, "github-pat");
   assert.equal(
     verdict.reason,
     "publish-guard: blocked — outgoing text matches github-pat. Remove it; do not repeat it.",
@@ -317,7 +399,7 @@ test("scanner error and timeout both fail CLOSED", () => {
     const leaks: LeakScan = { kind: "error", detail };
     const verdict = scan("gh pr create --body 'harmless'", ENV_FISH, leaks)!;
     assert.ok(verdict, `${detail}: must block`);
-    assert.equal(verdict.failClosed, true, `${detail}: fail-closed flag`);
+    assert.match(verdict.reason, /could not be scanned/, `${detail}: blocked as a scan failure`);
     assert.match(verdict.reason, /^publish-guard: blocked — /);
     assert.ok(!verdict.reason.includes(PLANTED), "reason never echoes a secret");
   }
@@ -325,10 +407,10 @@ test("scanner error and timeout both fail CLOSED", () => {
 
 test("short and placeholder values never match", () => {
   const known = [
-    { name: "SHORT", value: "abc" }, // < 12 chars
-    { name: "TEMPLATE", value: "<your-token-here>" },
-    { name: "FILLER", value: "xxxxxxxxxxxx" },
-  ];
+    "set -gx SHORT 'abc'", // < 12 chars
+    "set -gx TEMPLATE '<your-token-here>'",
+    "set -gx FILLER 'xxxxxxxxxxxx'",
+  ].join("\n");
   assert.equal(scan("prose abc <your-token-here> xxxxxxxxxxxx", known, CLEAN), null);
 });
 

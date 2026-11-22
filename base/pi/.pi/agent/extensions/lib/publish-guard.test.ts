@@ -208,6 +208,27 @@ test("a relative file behind cd/pushd blocks", async () => {
   assert.ok(!res.reason.includes("notes.md"), "reason must not echo the supplied path");
 });
 
+test("a relative gist file behind cd blocks instead of reading this session's copy", async () => {
+  const cwd = workdir();
+  file(cwd, "notes.md", "harmless local prose");
+  const res = await guard({ gitleaksBin: CLEAN_BIN() })("bash", { command: "cd /other && gh gist create notes.md" }, cwd);
+  assert.ok(res, "expected a block");
+  assert.match(res.reason, /relative path/);
+});
+
+test("an oversized gist/release positional blocks instead of publishing it unscanned", async () => {
+  const cwd = workdir();
+  file(cwd, "app.zip", "a".repeat(2_100_000));
+  const res = await guard({ gitleaksBin: CLEAN_BIN() })(
+    "bash",
+    { command: "gh release upload v1.0.0 app.zip" },
+    cwd,
+  );
+  assert.ok(res, "a file too large to scan must not be published silently");
+  assert.match(res.reason, /too large to scan/);
+  assert.ok(!res.reason.includes("app.zip"), "reason must not echo the supplied path");
+});
+
 // ── the block result shape the harness consumes ─────────────────────────────
 
 test("blocked() has exactly the shape pi's tool_call hook expects", async () => {

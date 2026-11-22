@@ -6,9 +6,9 @@
  * process.platform === "win32"). Worse, when it sits in the active tool set
  * without native grep/find/ls, the system-prompt builder emits a "Use
  * PowerShell for file operations..." guideline — actively misleading on
- * macOS/Linux/WSL. The modes extension's tool gate re-adds it on every mode
- * switch (setActiveTools(getAllTools())), so the prune must run per turn,
- * not once at startup: before_agent_start fires after any re-add and before
+ * macOS/Linux/WSL. The modes extension's tool gate re-adds a hidden tool on every
+ * mode switch (only its own hide-list), so the prune must run per turn, not once
+ * at startup: before_agent_start fires after any re-add and before
  * the request's system prompt / tool definitions are built.
  *
  * This file is only the pi wiring; the pure filter (and its unit tests) live

@@ -130,6 +130,12 @@ const cases: Array<[string, string]> = [
   ["kubectl rollout history deployment/foo", "allow"],
   ["kubectl rollout restart deployment/foo", "BLOCK(mutation)"],
   ["kubectl rollout undo deployment/foo", "BLOCK(mutation)"],
+  // A global flag's value can be the WORD `get`, putting the real two-word
+  // group verb at tokens 2/3. Only a group pair is looked for past token 1, so
+  // the bare token 2 of `kubectl get pods delete` stays a resource name.
+  ["kubectl -n get rollout restart deploy/x", "BLOCK(mutation)"],
+  ["kubectl -n get config use-context prod", "BLOCK(mutation)"],
+  ["kubectl get pods delete", "allow"],
 
   // kubectl high-risk tier
   ["kubectl exec -it my-pod -- /bin/bash", "BLOCK(high-risk)"],
@@ -212,6 +218,12 @@ const cases: Array<[string, string]> = [
   ["kubectl get secret,cm -A", "BLOCK(high-risk)"],
   ["aws ssm get-parameter --with-decryption --name /db/pw", "BLOCK(high-risk)"],
   ["aws ssm get-parameters --names /db/pw", "BLOCK(high-risk)"],
+  // the two sibling SSM reads that return decrypted SecureStrings too — the
+  // plural `get-parameters` was gated, these two were not
+  ["aws ssm get-parameters-by-path --path /prod --with-decryption", "BLOCK(high-risk)"],
+  ["aws ssm get-parameter-history --name /prod/db --with-decryption", "BLOCK(high-risk)"],
+  // …and without the flag they stay ordinary config reads
+  ["aws ssm get-parameters-by-path --path /prod", "allow"],
   ["aws sts get-session-token", "BLOCK(high-risk)"],
   ["aws sts get-federation-token", "BLOCK(high-risk)"],
   ["aws eks get-token --cluster-name c", "BLOCK(high-risk)"],
@@ -231,6 +243,14 @@ const cases: Array<[string, string]> = [
   ["kubectl -n prod delete pod x", "BLOCK(mutation)"],
   ["terraform -var x=y destroy -auto-approve", "BLOCK(high-risk)"],
   ["kubectl -n prod get pods", "allow"],
+  // …and the flag's VALUE can itself be a verb: `-n get` is a namespace named
+  // `get`, so token 0 is a known read verb and the real one sits in token 1
+  ["kubectl -n get delete deploy api", "BLOCK(mutation)"],
+  // …but only the WHOLE token is compared: a resource name whose root word is a
+  // mutation verb is not a verb, so these reads must stay reads.
+  ["kubectl logs label-studio-0", "allow"],
+  ["kubectl describe patch-svc", "allow"],
+  ["kubectl get create-user", "allow"],
 
   // 4e — inline shell payloads and script files are classified too
   ['bash -c "kubectl delete pod x"', "BLOCK(mutation)"],

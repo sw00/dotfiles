@@ -156,6 +156,15 @@ write_state() {
     mv -f "$tmp" "$state_file"
 }
 
+# Same rename trick as write_state, for the link: `ln -sfn` unlinks and then
+# creates, so an interrupt between the two leaves `pi` missing altogether. The
+# temp name is a sibling, i.e. the same filesystem, so `mv -f` is an atomic rename.
+flip_link() {
+    link_tmp=$pi_link.tmp.$$
+    ln -sfn "$1" "$link_tmp"
+    mv -f "$link_tmp" "$pi_link"
+}
+
 # Never clobber something that is not our symlink: a real file at that path is
 # somebody else's install, not a variant to flip.
 require_our_link() {
@@ -168,7 +177,7 @@ set_upstream() {
     [ -x "$HOME/.pi/agent/bin/pi" ] \
         || die "upstream launcher $HOME/.pi/agent/bin/pi is missing — run pi.dev's install.sh"
     require_our_link
-    ln -sfn "$upstream_target" "$pi_link"
+    flip_link "$upstream_target"
     write_state pi
     echo "pi-use: pi -> upstream (managed install)"
 }
@@ -182,14 +191,14 @@ set_bolt() {
     #     ../install.sh, so that sibling file has to exist.
     [ -e "$bin_dir/pi-bolt" ] \
         || die "$bin_dir/pi-bolt is missing — curl -fsSL https://pi-bolt.opensec.in/install.sh | PIBOLT_YES=1 sh"
-    resolved=$(readlink -f "$bin_dir/pi-bolt") || die "cannot resolve $bin_dir/pi-bolt"
+    resolved=$(resolve_binary "$bin_dir/pi-bolt") || die "cannot resolve $bin_dir/pi-bolt"
     [ -x "$resolved" ] || die "$resolved is not executable"
     if [ ! -f "${resolved%/*}/../install.sh" ] \
         && [ ! -f "${resolved%/*}/examples/extensions/subagent/index.ts" ]; then
         die "unrecognised pi-bolt layout at $resolved — expected the release tree from the curl installer, or npm's launcher plus ../install.sh"
     fi
     require_our_link
-    ln -sfn "$bolt_target" "$pi_link"
+    flip_link "$bolt_target"
     write_state bolt
     echo "pi-use: pi -> pi-bolt (running pi sessions keep their binary; new ones use bolt)"
 }
@@ -239,7 +248,7 @@ set_pig() {
     # would dangle and leave `pi` unrunnable, and a shim target works only under the
     # PATH that owns it. It is a plain binary, not a launcher, so an absolute target
     # is safe here — unlike bolt, which resolves itself.
-    ln -sfn "$pig_bin" "$pi_link"
+    flip_link "$pig_bin"
     write_state pig
     printf 'pi-use: pi -> pig (PiG %s, %s)\n' "$ver" "$pig_bin"
     printf 'pi-use:   shared tree: %s (settings, auth, trust, sessions, extensions)\n' "$HOME/.pi/agent"
@@ -298,6 +307,13 @@ show_status() {
         || die "drift: $pi_link is not a pi-use symlink — fix with: pi-use pi | pi-use bolt"
     if [ -n "$want" ] && [ "$want" != "$have" ]; then
         die "drift: choice was $want but the link says $have (install.sh or bootstrap reset it?) — fix with: pi-use $want"
+    fi
+    # A link can be present and still dead: set_pig links the RESOLVED versioned
+    # binary, so a mise/ubi upgrade or prune takes the target away while the link
+    # text still reads pig — and every check above is about the text. `-e` on its
+    # own cannot tell "no link" from "dead link"; `-L` does.
+    if { [ -e "$pi_link" ] || [ -L "$pi_link" ]; } && [ ! -e "$pi_link" ]; then
+        die "drift: $pi_link -> ${target:-MISSING} is a dangling link — the target is gone (mise/ubi upgrade or prune?) — fix with: pi-use pi | pi-use bolt | pi-use pig"
     fi
 }
 

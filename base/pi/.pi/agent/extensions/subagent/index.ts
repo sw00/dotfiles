@@ -7,12 +7,15 @@
 // installed release at load time keeps this file version-matched by
 // construction, which is what the pin-and-compare ritual was approximating.
 //
-// Why not a package or a pinned path: `pi install` discovers extensions only
-// through a package manifest or a conventional `extensions/` dir, and the
-// example has neither; a path pinned to `releases/<version>/…` is deleted by
-// pi's own release pruning on the next self-update (it keeps only the active and
-// running releases), so it would dangle silently.  Details, and what breaks if
-// pi changes its layout, are in docs/GOTCHAS.md under "pi".
+// Why a version file at all: neither the ExtensionAPI nor the environment names
+// the release that is running (the launcher exports only PI_MANAGED_INSTALL_ROOT,
+// the install root). So the release directory is taken from the running script's
+// own path when that points into `install/releases/<version>/` (upstream pi, incl.
+// the `pi update`-while-running case), falling back to the managed install's
+// `current-version`. A compiled variant (pi-bolt) has no such path, so it falls
+// back — it may then load a newer example than it was built from; that is kept
+// deliberately, because both sides are pi's own released code and vendoring a
+// copy drifts worse (see the header above).
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -28,7 +31,8 @@ async function loadExample(): Promise<Factory> {
 	const versionPath = join(INSTALL_ROOT, "current-version");
 	let target = versionPath;
 	try {
-		const version = readFileSync(versionPath, "utf8").trim();
+		const running = /[\\/]install[\\/]releases[\\/]([^\\/]+)[\\/]/.exec(process.argv[1] ?? "")?.[1];
+		const version = running ?? readFileSync(versionPath, "utf8").trim();
 		target = join(INSTALL_ROOT, "releases", version, EXAMPLE_REL);
 		const mod = (await import(target)) as { default?: unknown };
 		if (typeof mod.default !== "function") {

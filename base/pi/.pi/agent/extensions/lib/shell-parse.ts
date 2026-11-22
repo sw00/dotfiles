@@ -103,6 +103,15 @@ function tokenText(word: string): string {
 }
 
 /**
+ * Split a raw command into the segments the shell runs. The lookarounds keep a
+ * redirection in the segment it belongs to (`2>&1`, `&>file`) instead of
+ * splitting it into two fake commands.
+ */
+export function splitSegments(command: string): string[] {
+  return command.split(/&&|\|\||(?<!>)&(?!>)|[;|\n]/);
+}
+
+/**
  * Find every configured-CLI invocation. Splits on shell separators AND
  * newlines, handles command substitution, absolute paths, and multiple
  * CLIs per segment (e.g. `aws ... $(kubectl delete ...)`). Keeps all
@@ -114,7 +123,7 @@ export function findInvocations(command: string, cliNames: Set<string>): Invocat
 
   // Split the RAW text: normalizeCommand flattens `$(…)`/backticks to spaces, so
   // the substitution has to be visible when deciding what the segment is.
-  for (const rawSegment of command.split(/[|;&\n\r]+/)) {
+  for (const rawSegment of splitSegments(command)) {
     const words = normalizeCommand(rawSegment).trim().split(/\s+/).filter(Boolean);
     // `which aws` names aws, it does not run it. But the exemption is only
     // honest when the segment really is just a lookup: a substitution inside

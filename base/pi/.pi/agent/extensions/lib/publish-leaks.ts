@@ -33,6 +33,13 @@ function unquoteFish(raw: string): string {
   return body.replace(/\\(['"\\$])/g, "$1");
 }
 
+/** True for a git-crypt LOCKED file — ciphertext, not the plaintext store: the
+ *  magic header, or the NUL bytes of a binary file. One definition, because the
+ *  wiring blocks on it and the parser below must not read it as values. */
+export function isGitCryptLocked(text: string): boolean {
+  return text.slice(0, 16).includes("GITCRYPT") || text.includes("\u0000");
+}
+
 /**
  * Parse credential values out of secrets/env.fish text.
  *
@@ -41,8 +48,7 @@ function unquoteFish(raw: string): string {
  * exact-value half ran.
  */
 export function parseSecretValues(envFileText: string): KnownValue[] {
-  const head = envFileText.slice(0, 16);
-  if (head.includes("GITCRYPT") || envFileText.includes("\u0000")) return []; // ciphertext
+  if (isGitCryptLocked(envFileText)) return []; // ciphertext
   const out: KnownValue[] = [];
   for (const line of envFileText.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -64,13 +70,8 @@ export type LeakScan =
   | { kind: "error"; detail: string };
 
 export interface ScanVerdict {
-  /** `<ruleId>` or `value of $NAME` — never the matched secret. */
-  label: string;
   /** Ready-to-return block reason; the template lives with the decision in
    *  ./publish-scan.ts so the "never echo the secret" property is unit-tested
    *  rather than re-implemented. */
   reason: string;
-  /** True when the scanner could not run and we blocked on that instead of on
-   *  a match (fail-closed). */
-  failClosed?: boolean;
 }

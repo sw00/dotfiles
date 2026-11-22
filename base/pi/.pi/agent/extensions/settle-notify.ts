@@ -29,9 +29,13 @@ const TEST_CMD = process.env.SETTLE_NOTIFY_CMD;
 /** `tmux set-window-option` names this pane's window; a no-op outside tmux. */
 const FLAG = "@pi_waiting";
 
-/** A PowerShell single-quoted literal: `'` doubles, and nothing else is interpretable. */
-function psQuote(s: string): string {
-  return `'${s.replace(/'/g, "''")}'`;
+/**
+ * Free text reaches PowerShell as UTF-8 base64, decoded there: base64 has no quote
+ * characters, and PowerShell also treats `’`/`‘` as single quotes, so a branch name
+ * could otherwise close the literal and run commands on the Windows host.
+ */
+function psText(s: string): string {
+  return `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(s, "utf8").toString("base64")}'))`;
 }
 
 /** Zero-dep WinRT toast; no wslu, no wsl-notify-send. `'pi'` is the app id shown. */
@@ -40,13 +44,16 @@ function wslToast(title: string, body: string): string {
     "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null",
     "$x = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)",
     "$t = $x.GetElementsByTagName('text')",
-    `$t.Item(0).AppendChild($x.CreateTextNode(${psQuote(title)})) > $null`,
-    `$t.Item(1).AppendChild($x.CreateTextNode(${psQuote(body)})) > $null`,
+    `$t.Item(0).AppendChild($x.CreateTextNode(${psText(title)})) > $null`,
+    `$t.Item(1).AppendChild($x.CreateTextNode(${psText(body)})) > $null`,
     "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('pi').Show([Windows.UI.Notifications.ToastNotification]::new($x))",
   ].join("\n");
 }
 
-/** Every transport takes the text as ARGV, never as script source. */
+/**
+ * On the WSL path the text is base64 inside the script, so no character of it can close a
+ * literal or start a statement; every other transport passes it as ARGV.
+ */
 async function notify(pi: ExtensionAPI, title: string, body: string): Promise<void> {
   try {
     if (TEST_CMD) {

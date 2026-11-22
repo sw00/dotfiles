@@ -21,6 +21,8 @@
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { checkModeBlock } from "../../lib/check-mode.ts";
+import type { CheckModeDomain } from "../../lib/check-mode.ts";
 import { getGuards, isShellCall } from "../../lib/mutation-guard.ts";
 
 type Mode = "change" | "check" | "chat";
@@ -35,56 +37,7 @@ Pair-troubleshooting with the user (an expert, in the loop). Understand, don't c
 const CHAT_PROMPT = `[CHAT MODE — conceptual]
 Birds-eye problem-space thinking with the user: problem statements, domain mapping, trade-offs, options. Tools are unrestricted but do not change anything unless explicitly asked. Prefer research and discussion over action; deliver insight and, when asked, plans.]`;
 
-// ── read-only shell classification (check mode) ───────────────────
-
-const SIMPLE_READ = new Set([
-  // file inspection & search
-  "cat", "head", "tail", "less", "more", "grep", "rg", "fd", "ls", "pwd", "tree",
-  "file", "stat", "wc", "du", "diff", "comm", "uniq", "column", "cut", "paste", "tr",
-  "jq", "yq", "strings", "nm", "objdump", "readelf", "ldd",
-  // path & text helpers
-  "basename", "dirname", "realpath", "readlink", "echo", "printf", "seq", "test", "true", "false",
-  // system info
-  // `env`, `find` and `sort` are deliberately absent: all three run or write
-  // (`env <cmd>`, `find -delete`/`-exec`, `sort -o <file>`), which makes a
-  // read-only allowlist that contains them decorative.
-  "df", "free", "ps", "top", "htop", "printenv", "id", "whoami", "uname", "date", "uptime",
-  "hostname", "which", "type", "whereis", "man", "lscpu", "lsmem", "lsblk", "lsusb", "lspci", "vmstat",
-  "iostat", "nproc", "getent", "journalctl",
-  // network reads
-  "ping", "dig", "nslookup", "host", "traceroute", "ss", "netstat", "ifconfig",
-]);
-
-const GIT_READ = new Set([
-  "status", "log", "diff", "show", "branch", "blame", "remote", "rev-parse", "ls-files",
-  "describe", "shortlog", "reflog", "grep", "ls-remote", "whatchanged", "count-objects",
-]);
-
-const SUBCOMMAND_READ: Record<string, Set<string> | ((t: string[]) => boolean)> = {
-  git: (t) => {
-    const sub = t[1] ?? "";
-    if (GIT_READ.has(sub)) return true;
-    if (sub === "stash") return t[2] === "list";
-    if (sub === "tag") return t.length === 2 || t[2] === "-l" || t[2] === "--list";
-    if (sub === "config") return t.includes("--get") || t.includes("-l") || t.includes("--list");
-    return false;
-  },
-  docker: (t) => {
-    if (t[1] === "compose") return ["ps", "logs", "config", "top", "images"].includes(t[2] ?? "");
-    return ["ps", "images", "logs", "inspect", "stats", "top", "version", "info"].includes(t[1] ?? "");
-  },
-  systemctl: new Set(["status", "list-units", "list-timers", "is-active", "is-enabled", "show", "cat"]),
-  npm: new Set(["list", "ls", "outdated", "view", "info", "--version"]),
-  pip: new Set(["show", "list", "--version"]),
-  pip3: new Set(["show", "list", "--version"]),
-  apt: new Set(["list", "show", "policy", "--version"]),
-  "apt-cache": new Set(["show", "policy", "search"]),
-  dpkg: new Set(["-l", "-s", "--list", "--status", "--version"]),
-  gh: new Set(["status", "view", "list", "search", "diff"]),
-  snap: new Set(["list", "info", "--version"]),
-  flatpak: new Set(["list", "info"]),
-  mise: new Set(["ls", "list", "current", "which", "registry", "--version"]),
-};
+// ── read-only shell adapter (check mode) ──────────────────────────
 
 function guardedNames(): Set<string> {
   const names = new Set<string>();
@@ -92,61 +45,14 @@ function guardedNames(): Set<string> {
   return names;
 }
 
-/** Returns a block reason, or null if the command is read-only-safe. */
-function checkBashAllowed(command: string): string | null {
-  // Domain-guarded CLIs (aws, kubectl, terraform, …): defer to the guard's
-  // own verb tables — single source of truth for infra read/mutation.
-  for (const guard of getGuards().values()) {
-    const issues = guard.checkCommand(command);
-    if (issues.length) return issues.join(" ") + " (check mode)";
-  }
-
-  const guarded = guardedNames();
-  // Newlines and a bare `&` split like any other separator: `ls⏎rm -rf x` and
-  // `ls & rm -rf x` are two commands, and only the first word of a segment is
-  // classified. The lookarounds keep `2>&1` and `&>file` in one segment (the
-  // `>` check below still blocks the latter). Quote-blind like the rest of this
-  // gate, so a `&` inside a quoted argument over-blocks — the safe side.
-  const segments = command.split(/&&|\|\||(?<!>)&(?!>)|[;|\n]/).map((s) => s.trim()).filter(Boolean);
-
-  for (const seg of segments) {
-    // `<(cmd)` / `>(cmd)` run a command and hand back a path: process substitution
-    // is a command runner like `$(…)`, and `cat <(rm -rf x)` has an allowlisted head.
-    if (/`|\$\(|[<>]\(/.test(seg)) return `command substitution is blocked in check mode (read-only).`;
-
-    // strip leading env assignments (FOO=bar cmd …)
-    const stripped = seg.replace(/^(?:\w+=\S+\s+)+/, "");
-
-    // output redirection mutates files; allow fd redirects and /dev/null
-    const noBenignRedir = stripped.replace(/\d?>&\d/g, "").replace(/\d?>\s*\/dev\/null/g, "");
-    if (noBenignRedir.includes(">")) return `output redirection is blocked in check mode (read-only).`;
-
-    const tokens = stripped.split(/\s+/);
-    const cmd = tokens[0];
-    // `command -v <cli>` / `command -V <cli>` only look the name up; they never
-    // run it. (`command <cli>` does run it, so it stays un-allowlisted.)
-    if (cmd === "command" && (tokens[1] === "-v" || tokens[1] === "-V")) continue;
-    if (guarded.has(cmd)) continue; // already vetted by the domain guard above
-    if (SIMPLE_READ.has(cmd)) continue;
-
-    if (cmd === "curl" || cmd === "wget") {
-      if (/-X\s*(POST|PUT|DELETE|PATCH)\b|--data|\s-d\s|--upload-file|-T\s|-F\s|--post-data|--post-file|--method/.test(stripped)) {
-        return `${cmd} with upload/mutation flags is blocked in check mode (read-only).`;
-      }
-      continue;
-    }
-
-    const rule = SUBCOMMAND_READ[cmd];
-    if (rule) {
-      const ok = typeof rule === "function" ? rule(tokens) : rule.has(tokens[1] ?? "");
-      if (ok) continue;
-      return `${cmd} ${tokens[1] ?? ""}: only read-only ${cmd} subcommands are allowed in check mode.`;
-    }
-
-    return `${cmd}: not allowlisted in check mode (read-only). Switch to /change for mutations, or ask the user.`;
-  }
-  return null;
-}
+/** The classifier itself is pi-free in ../../lib/check-mode.ts, because a test
+ *  cannot import this file (../lib/mutation-guard.ts pulls in pi-ai/typebox).
+ *  Domain guards come first — their verb tables are the single source of truth
+ *  for infra verbs — and everything else falls through to the read-only list. */
+const checkDomain = (): CheckModeDomain => ({
+  issues: (c) => [...getGuards().values()].flatMap((g) => g.checkCommand(c)),
+  cliNames: guardedNames(),
+});
 
 // ── extension ─────────────────────────────────────────────────────
 
@@ -169,15 +75,19 @@ export default function (pi: ExtensionAPI) {
   // installed today, so that entry is a no-op kept ahead of the install
   // (`allowFullMode: false` in claude-bridge.json is the backstop).
   const CHECK_HIDDEN_TOOLS = new Set(["edit", "write", "AskClaude", "subagent"]);
+  const domainModeTools = () => new Set([...getGuards().values()].map((g) => `${g.domain}_mode`));
   const applyToolGate = (m: Mode) => {
-    const all = pi.getAllTools().map((t) => t.name);
+    // Remove-only on entry; on exit re-add only what WE hide, never the whole
+    // tool list. getAllTools() is safe here because the filter is this module's
+    // own hide-list: a tool another extension pruned (see no-powershell.ts) is
+    // not `hidden`, so it is never re-added — and unlike a snapshot of what we
+    // dropped, this survives a /reload rebuilding the active list.
+    const hidden = (t: string) => CHECK_HIDDEN_TOOLS.has(t) || domainModeTools().has(t);
+    const active = pi.getActiveTools();
     if (m === "check") {
-      const domainModeTools = new Set(
-        [...getGuards().values()].map((g) => `${g.domain}_mode`)
-      );
-      pi.setActiveTools(all.filter((t) => !CHECK_HIDDEN_TOOLS.has(t) && !domainModeTools.has(t)));
+      pi.setActiveTools(active.filter((t) => !hidden(t)));
     } else {
-      pi.setActiveTools(all);
+      pi.setActiveTools([...active, ...pi.getAllTools().map((t) => t.name).filter((t) => hidden(t) && !active.includes(t))]);
     }
   };
 
@@ -244,7 +154,7 @@ export default function (pi: ExtensionAPI) {
     if (mode !== "check") return;
     if (!isShellCall(event)) return;
     const command = event.input.command;
-    const reason = checkBashAllowed(command);
+    const reason = checkModeBlock(command, checkDomain());
     if (reason) return { block: true, reason };
   });
 

@@ -66,7 +66,7 @@ export type Classification =
 
 import { findInvocations, hasDryRun, hasHelpFlag } from "./shell-parse.ts";
 import type { Invocation } from "./shell-parse.ts";
-import { expandScripts as expandScriptBodies } from "./script-expand.ts";
+import { expandScripts } from "./script-expand.ts";
 import type { ReadFile, ScriptExpansion } from "./script-expand.ts";
 
 export * from "./shell-parse.ts";
@@ -75,13 +75,10 @@ export { SCRIPT_MAX_BYTES, writeTargets } from "./script-expand.ts";
 
 /**
  * Inline the bodies of every shell script this command executes, so
- * classification sees what the script does rather than its filename. The walk
- * itself lives in ./script-expand.ts; this entry point stays in this module
- * because importers address it here.
+ * classification sees what the script does rather than its filename. Defined in
+ * ./script-expand.ts; re-exported here because importers address it here.
  */
-export function expandScripts(command: string, readFile: ReadFile): ScriptExpansion {
-  return expandScriptBodies(command, readFile);
-}
+export { expandScripts };
 
 // ── classification ───────────────────────────────────────────────
 
@@ -187,6 +184,30 @@ export function classify(tool: ToolConfig, tokens: string[], flags: string[] = [
     }
   }
   const verbCandidates = verb === first ? [verb] : [verb, first];
+
+  // A global flag's VALUE can itself be a verb: `kubectl -n get delete deploy
+  // api` is a namespace named `get`, so token 0 is a known read verb and the
+  // real verb is token 1 — the read path below took it and the delete passed a
+  // locked gate. Only token 1 is considered (that is the exact artifact of one
+  // flag consuming the verb slot); a resource name further along must not block
+  // `kubectl get <resource> <name>`. Exact membership only: a ROOT match here
+  // made the resource name a verb (`kubectl logs label-studio-0` reads as
+  // `label`), blocking benign reads.
+  if (lower[1] && (isHighRiskVerb(tool, lower[1]) || tool.mutation.has(lower[1]))) {
+    return { kind: "mutation", highRisk: isHighRiskVerb(tool, lower[1]) };
+  }
+  // The flag's value can be a word that reads as a verb too: `kubectl -n get
+  // rollout restart deploy/x` leaves `get` in token 1, so the real two-word
+  // verb is the group pair 2/3 (`config use-context` in the same shape). Only
+  // group pairs are looked for past token 1 — a lone token 2 is never a verb,
+  // so `kubectl get pods delete` stays a read.
+  for (let k = 1; k + 1 < lower.length; k++) {
+    if (!tool.groupPrefixes?.has(lower[k])) continue;
+    const cand = `${lower[k]} ${lower[k + 1]}`;
+    if (isHighRiskVerb(tool, cand) || tool.mutation.has(cand)) {
+      return { kind: "mutation", highRisk: isHighRiskVerb(tool, cand) };
+    }
+  }
 
   if (tool.alwaysRead?.has(verb)) return { kind: "read" };
   if (isHighRiskVerb(tool, verb) || isHighRiskVerb(tool, first)) return { kind: "mutation", highRisk: true };

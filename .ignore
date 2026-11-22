@@ -1,0 +1,5 @@
+# Not a .gitignore — nothing here changes tracking or `git add`.
+# It exists so a path-less recursive search (ripgrep/fd: `grep`/`find` from the
+# repo root) does not walk into the credential store. Explicit paths still work:
+# ignore rules do not apply to a path named on the command line.
+secrets/

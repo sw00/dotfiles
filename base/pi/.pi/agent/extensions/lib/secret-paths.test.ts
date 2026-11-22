@@ -59,6 +59,18 @@ test(".. does not escape the check, and escaping it is not a false positive", ()
   assert.equal(isSecretPath("secrets/../base/fish/config.fish", cwd), false, "a path that leaves secrets/ is not secret");
 });
 
+test("a leading @ is stripped the way pi strips it, so it cannot smuggle a secret path past", () => {
+  // pi strips one leading `@` before opening a file (core/tools/path-utils.js,
+  // stripAtPrefix: true). A gate that does not strip it sees a component `@secrets`
+  // and allows the read of the real `secrets/` file.
+  assert.equal(isSecretPath("@secrets/env.fish", cwd), true, "the measured bypass");
+  const call = secretPathBlock("hypa_read", { path: "@secrets/env.fish" }, cwd);
+  assert.ok(call, "expected a block for the @-prefixed form");
+  assert.match(call.reason, /@secrets\/env\.fish/, "the reason echoes the path as typed");
+  assert.equal(isSecretPath("@secrets/leak-patterns", cwd), false, "the allowlist survives the strip");
+  assert.equal(secretPathBlock("read", { path: "@README.md" }, cwd), null, "@ on an ordinary path is not a block");
+});
+
 // ── allow: the two things that must keep working ─────────────────────────────
 
 test("allows the scanners' identifier corpus (secrets/leak-patterns)", () => {

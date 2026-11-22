@@ -88,6 +88,10 @@ export const AWS: ToolConfig = {
   // Read verbs that disclose material only with the flag that asks for it.
   highRiskFlags: [
     { verb: "get-parameter", flags: ["--with-decryption"] },
+    // Same disclosure, different shapes: a by-path query and the history of a
+    // parameter both return the value once --with-decryption asks for it.
+    { verb: "get-parameters-by-path", flags: ["--with-decryption"] },
+    { verb: "get-parameter-history", flags: ["--with-decryption"] },
   ],
   // Nouns whose content is a credential. A read verb aimed at one of these is
   // high-risk even when the verb's root sits in the read set.

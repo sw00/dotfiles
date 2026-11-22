@@ -12,15 +12,20 @@
  * is invisible, so the caller must block and point at `--body-file`. A relative
  * file reference in a command that also runs `cd`/`pushd` is `cwdRelative`: it
  * would read a different file than this session's cwd resolves to.
+ *
+ * A verb whose OWN arguments are the payload (`gist create`, `release upload`)
+ * contributes those positionals as `files` — no flag names them — and the shapes
+ * no reader can resolve (no file at all ⇒ stdin, a bare `-`, a glob) are
+ * `unresolved`, so they block instead of being published unscanned.
  */
 
 // ── publish targets ──────────────────────────────────────────────────────────
 
 /** What a publishing command will actually send. `files` are explicitly
- *  referenced and are therefore fail-closed: the wiring must read them (or
- *  block). `candidates` are path-shaped bare tokens — read and scanned when
- *  they happen to be a readable regular file, ignored otherwise (never a block
- *  on their own). */
+ *  referenced — by a flag, or as the verb's own positional — and are therefore
+ *  fail-closed: the wiring must read them (or block). `candidates` are
+ *  path-shaped bare tokens — read and scanned when they happen to be a readable
+ *  regular file, ignored otherwise (never a block on their own). */
 export interface PublishTargets {
   files: string[];
   /** Aligned with `files`: the flag or form that named each one (`--body-file`,
@@ -29,17 +34,14 @@ export interface PublishTargets {
   sources: string[];
   vars: string[];
   candidates: string[];
-  /** Substitutions whose output could not be resolved to the files/vars they
-   *  read (`$(date)`, `$(curl …)`, an unterminated `$(`). Non-empty ⇒ the caller
-   *  BLOCKS: the published text is invisible to the scan. */
+  /** Text being published that could not be resolved to the files/vars it reads:
+   *  a substitution (`$(date)`, `<(curl …)`, an unterminated `$(`), or a
+   *  positional the shell decides (stdin, a bare `-`, a glob). Non-empty ⇒ the
+   *  caller BLOCKS: the published text is invisible to the scan. */
   unresolved: string[];
   /** Relative file references in a command that also runs `cd`/`pushd`: the
    *  path resolves against the new directory, not the session cwd. */
   cwdRelative: string[];
-  /** `known` — a publish verb we recognise. `unknown` — a gh/glab invocation we
-   *  cannot classify, kept as a target so an unrecognised write is scanned
-   *  (whole command) instead of being skipped. */
-  scope: "known" | "unknown";
 }
 
 interface CliGroup {
@@ -126,6 +128,23 @@ const BODY_FILE_FIELD_FLAGS = new Set([
   "glab:issue:create", "glab:issue:update", "glab:issue:note", "glab:issue:comment",
   "glab:release:create", "glab:release:edit",
 ]);
+/** Verbs whose own bare arguments are the published payload, and the index of
+ *  the first positional that names a FILE: `gh gist create <file…>`,
+ *  `gh release upload <tag> <file…>`, `gh gist edit <id> [<file>]`. Nothing
+ *  flags these paths, so they are required files rather than candidates.
+ *  `stdin` marks the ONE verb that falls back to stdin when it is given no file:
+ *  `gist create`. `release upload v1` (no asset) is a usage error, not stdin. */
+const FILE_POSITIONALS: Record<string, { first: number; stdin?: boolean }> = {
+  "gh:gist:create": { first: 0, stdin: true },
+  "gh:release:upload": { first: 1 },
+  // `release create <tag> [<files>…]` publishes its assets like upload, but a
+  // tag with no assets publishes no local file — never stdin.
+  "gh:release:create": { first: 1 },
+  "glab:release:upload": { first: 1 },
+  // `gist edit <id>` with no filename edits the gist in place: nothing local is
+  // published, so a missing filename there is not stdin.
+  "gh:gist:edit": { first: 1 },
+};
 /** Text-carrying flags: their presence turns a `conditional` verb into a publish. */
 const TEXT_FLAGS = new Set([
   ...BODY_FILE_FLAGS,
@@ -140,6 +159,14 @@ const GLOBAL_VALUE_FLAGS = new Set([
 ]);
 /** Global flags that consume nothing, so nothing is skipped after them. */
 const GLOBAL_BOOLEAN_FLAGS = new Set(["-h", "--help", "-v", "--version", "--verbose", "--debug", "--prompt", "--no-color"]);
+/** Flags whose NEXT token is their value, never a flag and never a payload: a
+ *  token in that position stays one argument (`--body '-Fixed'` must not split
+ *  into `-F`+`ixed`) and is never read as a positional file. */
+const VALUE_FLAGS = new Set([
+  "--body", "-b", "--title", "-t", "--notes", "-n", "--desc", "-d",
+  "--add", "-a", "--remove", "-r", "--filename", "-F",
+  "--notes-start-tag", "--discussion-category", "--tag", "--target",
+]);
 /** Commands that move the working directory mid-command. */
 const DIR_CHANGE = new Set(["cd", "pushd"]);
 
@@ -208,6 +235,12 @@ function tokenizeCommand(cmd: string): Token[] {
       continue;
     }
     if (ch === "\\" && i + 1 < cmd.length) {
+      // `\`+newline is a line continuation: it joins the lines, and the newline
+      // is not part of the token (`--body-file` must not become "\n--body-file").
+      if (cmd[i + 1] === "\n") {
+        i++;
+        continue;
+      }
       raw += ch + cmd[i + 1];
       value += cmd[i + 1];
       quoted = true;
@@ -222,7 +255,35 @@ function tokenizeCommand(cmd: string): Token[] {
     value += ch;
   }
   flush();
-  return out;
+  // `-Fnotes.md` is a flag with an attached value, not a long flag name: split
+  // it so the flag walk sees the two arguments the shell would. Quote state is
+  // not consulted — `-F"notes.md"` is the same argv as `-Fnotes.md` — and a
+  // value sitting behind a value-taking flag (`--body "-Foo bar"`) is never
+  // split, because it is an argument the flag already consumed.
+  const out2: Token[] = [];
+  /** The previous token is a value-taking flag, so this one is its VALUE. */
+  let afterValueFlag = false;
+  for (const t of out) {
+    if (afterValueFlag) {
+      out2.push(t);
+      afterValueFlag = false;
+      continue;
+    }
+    const isFlag = /^-[^-]/.test(t.value);
+    // …but `-F` (gh's body-file) keeps its split even when the attached value
+    // carries whitespace (`-F"my notes.md"` is the same argv as `-Fmy notes.md`).
+    // Every other short flag keeps the whitespace exemption. (`--foo` never
+    // splits.) Only uppercase `-F`: gh's lowercase `-f` is a `key=value` field.
+    const fileFlag = isFlag && t.value[1] === "F";
+    if (t.value.length > 2 && (fileFlag || (isFlag && !/\s/.test(t.value)))) {
+      out2.push({ raw: t.raw.slice(0, 2), value: t.value.slice(0, 2), quoted: false });
+      out2.push({ raw: t.raw.slice(2), value: t.value.slice(2), quoted: false });
+      continue;
+    }
+    out2.push(t);
+    afterValueFlag = !t.value.includes("=") && VALUE_FLAGS.has(flagName(t.value));
+  }
+  return out2;
 }
 
 function baseName(token: string): string {
@@ -281,12 +342,17 @@ function scanSubstitutions(cmd: string): SubstScan {
       mode = mode === "double" ? "plain" : "double";
       continue;
     }
-    if (ch !== "`" && !(ch === "$" && cmd[i + 1] === "(")) continue;
+    // `$(…)` and the process substitutions `<(…)`/`>(…)` all publish the output
+    // of a command; `<(…)` reaches us as a /dev/fd path that no reader resolves.
+    const paren =
+      cmd[i + 1] === "(" && (ch === "$" || (mode === "plain" && (ch === "<" || ch === ">")));
+    if (ch !== "`" && !paren) continue;
 
     const backtick = ch === "`";
+    const open = backtick ? "`" : `${ch}(`; // `$(` `<(` `>(`
     const close = backtick ? closeBacktick(cmd, i + 1) : closeParen(cmd, i + 2);
     if (close < 0) {
-      unresolved.push(backtick ? "`…`" : "$(…)");
+      unresolved.push(backtick ? "`…`" : `${open}…)`);
       break;
     }
     const body = unescapeSubstitution(cmd.slice(backtick ? i + 1 : i + 2, close));
@@ -295,7 +361,7 @@ function scanSubstitutions(cmd: string): SubstScan {
       for (const f of resolved.files) if (!files.includes(f)) files.push(f);
       for (const v of resolved.vars) if (!vars.includes(v)) vars.push(v);
     } else {
-      unresolved.push(backtick ? "`…`" : "$(…)");
+      unresolved.push(backtick ? "`…`" : `${open}…)`);
     }
     i = close;
   }
@@ -466,43 +532,51 @@ function stripAt(value: string): string | null {
  * Recognise a publishing command and extract what it will send.
  *
  * Returns null only for commands that cannot publish at all (`git push`, `ls`,
- * `gh pr view`, …). A gh/glab invocation we cannot classify comes back with
- * `scope: "unknown"` — a target, so a write we do not know about is scanned
- * instead of being skipped.
- *   files        — explicitly referenced files whose content is published
+ * `gh pr view`, …). A gh/glab invocation we cannot classify is still a target,
+ * so a write we do not know about is scanned instead of being skipped.
+ *   files        — explicit files whose content is published: a flag's value, or
+ *                  the verb's own positional (`gh gist create <file…>`)
  *   sources      — the flag/form that named each file (aligned with `files`)
  *   vars         — $NAME variables the command expands
  *   candidates   — path-shaped bare tokens (scan when readable, else ignore)
- *   unresolved   — substitutions whose output is invisible (⇒ block)
+ *   unresolved   — published text no reader can resolve (⇒ block)
  *   cwdRelative  — relative file references in a command that runs cd/pushd
  */
 export function publishTargets(cmd: string): PublishTargets | null {
   const tokens = tokenizeCommand(cmd);
   const textFlag = tokens.some((t) => TEXT_FLAGS.has(flagName(t.value)));
 
-  let scope: PublishTargets["scope"] | null = null;
+  let resolvedCli = false;
   // `<cli>:<group>:<verb>` of the invocation we recognised, because a flag's
   // meaning can depend on the verb (`-F`).
   let publishKey: string | null = null;
+  /** Index of the verb token, so its own positionals can be read. */
+  let publishVerbIndex = -1;
   for (let i = 0; i < tokens.length; i++) {
     const cli = baseName(tokens[i].value);
     const groups = cli === "gh" ? GITHUB_GROUPS : cli === "glab" ? GITLAB_GROUPS : null;
     if (!groups) continue;
     const resolved = resolveCli(tokens, i, groups, cli === "gh", textFlag);
     if (resolved.verdict === "publish") {
-      scope = "known";
-      if (resolved.group && resolved.verb) publishKey = `${cli}:${resolved.group}:${resolved.verb}`;
+      resolvedCli = true;
+      if (resolved.group && resolved.verb) {
+        publishKey = `${cli}:${resolved.group}:${resolved.verb}`;
+        publishVerbIndex = resolved.verbIndex ?? -1;
+      }
       break;
     }
-    if (resolved.verdict === "unknown" && scope === null) {
-      scope = "unknown";
+    if (resolved.verdict === "unknown" && !resolvedCli) {
+      resolvedCli = true;
       // An unrecognised pre-group flag does not make the verb unreadable: the
       // group/verb still resolved, so `-F` keeps its file meaning (fail-closed).
-      if (resolved.group && resolved.verb) publishKey = `${cli}:${resolved.group}:${resolved.verb}`;
+      if (resolved.group && resolved.verb) {
+        publishKey = `${cli}:${resolved.group}:${resolved.verb}`;
+        publishVerbIndex = resolved.verbIndex ?? -1;
+      }
     }
   }
 
-  if (scope === null) return nestedTargets(tokens);
+  if (!resolvedCli) return nestedTargets(tokens);
 
   const files: string[] = [];
   const sources: string[] = [];
@@ -536,11 +610,18 @@ export function publishTargets(cmd: string): PublishTargets | null {
     const eq = tok.value.indexOf("=");
     const name = eq > 0 ? tok.value.slice(0, eq) : tok.value;
     const inlineValue = eq > 0 ? tok.value.slice(eq + 1) : null;
-    const takesValue = BODY_FILE_FLAGS.has(name) || FIELD_FLAGS.has(name);
+    // `gh gist edit -a <file>` ADDS the file to the gist: its content is
+    // published, so it must be read (fail-closed), not merely scanned.
+    const addFlag = (name === "-a" || name === "--add") && publishKey === "gh:gist:edit";
+    const takesValue = addFlag || BODY_FILE_FLAGS.has(name) || FIELD_FLAGS.has(name);
     if (!takesValue) continue;
     const value = inlineValue ?? tokens[i + 1]?.value ?? null;
     if (inlineValue === null && value !== null) i++; // consumed the value token
 
+    if (addFlag) {
+      addFile(value, name);
+      continue;
+    }
     if (BODY_FILE_FLAGS.has(name)) {
       addFile(value ? (stripAt(value) ?? value) : null, name);
       continue;
@@ -567,14 +648,53 @@ export function publishTargets(cmd: string): PublishTargets | null {
   const subst = scanSubstitutions(cmd);
   for (const p of subst.files) addFile(p, "a command substitution");
 
+  // The verb's own positionals (`gh gist create <file…>`, `gh release upload
+  // <tag> <file…>`): no flag names these paths, so nothing above sees them.
+  const unresolved = [...subst.unresolved];
+  const positional = publishKey === null ? undefined : FILE_POSITIONALS[publishKey];
+  if (positional && publishVerbIndex >= 0) {
+    let named = 0;
+    for (let i = publishVerbIndex + 1, pos = 0; i < tokens.length; i++) {
+      const v = tokens[i].value;
+      if (v.length === 0) continue;
+      if (v === "-") {
+        unresolved.push("stdin"); // a bare `-` is stdin, not a path
+        continue;
+      }
+      if (v.startsWith("-")) {
+        const name = flagName(v);
+        const takesNext =
+          !v.includes("=") &&
+          (GLOBAL_VALUE_FLAGS.has(v) ||
+            BODY_FILE_FLAGS.has(name) ||
+            FIELD_FLAGS.has(name) ||
+            VALUE_FLAGS.has(name));
+        if (takesNext) i++; // the flag's own value is not a payload
+        continue;
+      }
+      if (pos++ < positional.first) continue; // `release upload <tag> …`
+      if (/[*?[]/.test(v)) unresolved.push("a glob argument");
+      else {
+        // Path-shaped or not, a positional here is a required file: skipping a
+        // word like `id_rsa` published it unscanned (`gist create a.md id_rsa`).
+        addFile(v, "a positional argument");
+        named++;
+      }
+    }
+    // No file to read: `gist create` falls back to stdin. `release upload`
+    // with no asset is a usage error and says so, instead of claiming stdin.
+    if (positional.stdin && named === 0 && unresolved.length === 0 && subst.files.length === 0 && subst.vars.length === 0) {
+      unresolved.push("stdin");
+    }
+  }
+
   return {
     files,
     sources,
     vars: dedupe([...varRefs(cmd), ...subst.vars]),
     candidates,
-    unresolved: subst.unresolved,
+    unresolved: dedupe(unresolved),
     cwdRelative: changesDirectory(tokens) ? files.filter(isRelativePath) : [],
-    scope,
   };
 }
 
@@ -591,6 +711,8 @@ interface CliResolution {
   /** The group/verb the arguments belong to, when both were resolved. */
   group?: string;
   verb?: string;
+  /** Index of the verb token, so the caller can read the verb's positionals. */
+  verbIndex?: number;
 }
 
 function resolveCli(
@@ -602,10 +724,11 @@ function resolveCli(
 ): CliResolution {
   let group: string | undefined;
   let verb: string | undefined;
+  let verbIndex: number | undefined;
   let unknownFlag = false;
   /** Every exit names the group/verb it resolved, so a verb-dependent flag
    *  (`-F`) can be read correctly by the caller. */
-  const out = (verdict: CliResolution["verdict"]): CliResolution => ({ verdict, group, verb });
+  const out = (verdict: CliResolution["verdict"]): CliResolution => ({ verdict, group, verb, verbIndex });
 
   for (let j = start + 1; j < tokens.length; j++) {
     const v = tokens[j].value;
@@ -625,6 +748,7 @@ function resolveCli(
     }
     if (verb === undefined) {
       verb = v;
+      verbIndex = j;
       break;
     }
   }

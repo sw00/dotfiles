@@ -1764,12 +1764,18 @@ check_not "pi: model-switch has no mid-sentence (?:^|\s) anchor (false-positive 
 # a case that silently stopped running cannot be laundered through a green summary.
 # Re-pin a count only when the test file gained cases deliberately.
 _TS_PIN_MUTATION_GUARD=36
-_TS_PIN_PUBLISH_SCAN=27
-_TS_PIN_PUBLISH_GUARD=15
+_TS_PIN_PUBLISH_SCAN=33
+_TS_PIN_PUBLISH_GUARD=17
 # L2's file-tool half: the secret-path predicate and the tool list it gates.
-_TS_PIN_SECRET_PATHS=13
+_TS_PIN_SECRET_PATHS=14
 # Dispatch-only: the extension is driven by a fake `pi`, so no case sends a real push.
-_TS_PIN_SETTLE_NOTIFY=9
+_TS_PIN_SETTLE_NOTIFY=10
+# /check's read-only allowlist: the decision logic lives in lib/ so it is drivable
+# without the harness (modes/index.ts imports typebox, which lib/ cannot resolve).
+_TS_PIN_CHECK_MODE=52
+# The fallback WIRING (event ordering, provenance, the down-provider latch) — the
+# pure helpers were tested while the handlers that own the bugs were not.
+_TS_PIN_MODEL_SWITCH=3
 _ts_suite_count() {  # <test file in lib/> <expected pass count>
     local file="$1" want="$2" out pass tests failed skipped
     out=$(cd "$DOTFILES/base/pi/.pi/agent/extensions" \
@@ -1799,6 +1805,11 @@ if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
         'agent_before_settle' "$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts"
     check_has "pi: the provider hop can never loop on itself" \
         'entry.to === provider' "$DOTFILES/base/pi/.pi/agent/extensions/lib/provider-fallback.ts"
+# Both recoveries must ask the same provenance question: an explicit `--model` on
+# this invocation is the user's choice, not a leftover twin to undo. The rate-limit
+# handler checked only in-process state, so a fresh process re-probed anyway.
+check "pi: both fallback recoveries honour an explicit --model" \
+    bash -c "[[ \$(grep -c 'shouldReprobePrimary({' '$DOTFILES/base/pi/.pi/agent/extensions/model-switch.ts') -eq 2 ]]"
     if _full; then
         check "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
             _ts_suite_count mutation-guard.test.ts "$_TS_PIN_MUTATION_GUARD"
@@ -1815,8 +1826,18 @@ if [[ "$_CAN_STRIP_TS" -eq 1 ]]; then
         # counted: the pure-core suite passing is not evidence that the hook blocks.
         check "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
             _ts_suite_count publish-guard.test.ts "$_TS_PIN_PUBLISH_GUARD"
+        # /check is the mode that must not write. Its allowlist is decision logic
+        # (fd/uniq/yq/tree removed, git branch/remote/reflog list-only, no env-prefix
+        # strip, curl without -o), so a case per escape is what keeps it honest.
+        check "pi: check-mode allowlist suite passes $_TS_PIN_CHECK_MODE/$_TS_PIN_CHECK_MODE (count pinned)" \
+            _ts_suite_count check-mode.test.ts "$_TS_PIN_CHECK_MODE"
+        # The two session_start recoveries must ask the same provenance question and
+        # a hop that failed must not latch its provider down: both were wrong and
+        # no test covered the wiring that owned them.
+        check "pi: model-switch wiring suite passes $_TS_PIN_MODEL_SWITCH/$_TS_PIN_MODEL_SWITCH (count pinned)" \
+            _ts_suite_count model-switch.test.ts "$_TS_PIN_MODEL_SWITCH"
     else
-        _defer 3
+        _defer 6
     fi
 else
     _skip "pi: mutation-guard suite passes $_TS_PIN_MUTATION_GUARD/$_TS_PIN_MUTATION_GUARD (count pinned)" \
@@ -1826,6 +1847,10 @@ else
     # Same gap, same reason: without this line the wiring suite vanished silently
     # on every host whose node cannot strip types.
     _skip "pi: publish-guard wiring suite passes $_TS_PIN_PUBLISH_GUARD/$_TS_PIN_PUBLISH_GUARD (count pinned)" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+    _skip "pi: check-mode allowlist suite passes $_TS_PIN_CHECK_MODE/$_TS_PIN_CHECK_MODE (count pinned)" \
+        "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
+    _skip "pi: model-switch wiring suite passes $_TS_PIN_MODEL_SWITCH/$_TS_PIN_MODEL_SWITCH (count pinned)" \
         "node build lacks --experimental-strip-types TS support (need v23+ or TS-compiled build)"
 fi
 
@@ -1858,6 +1883,16 @@ fi
 
 check "pi: edit-guardian test lives in lib/ (never auto-loaded as an extension)" \
     bash -c "! ls '$DOTFILES/base/pi/.pi/agent/extensions'/*.test.ts >/dev/null 2>&1"
+
+# A path-less recursive search (pi's grep/find with no path — i.e. how a repo is
+# usually searched) walks the worktree, and `secrets/*` is git-tracked, so no ignore
+# rule excluded it: measured, a bare `grep GITHUB_TOKEN` from the repo root printed
+# the token. ripgrep and fd honour `.ignore`, so one line there closes the shape
+# without the L2 gate having to deny every bare `grep` (which would make the repo
+# unsearchable). Deliberately NOT `.gitignore`: these files stay tracked and
+# addable, and an explicit path is still searched (ignore rules skip only the walk).
+check "pi: a path-less search cannot walk into the credential store" \
+    bash -c "grep -qx 'secrets/' '$DOTFILES/.ignore'"
 
 # Free-tier model guard: OpenCode Go's free models are suffixed with -free and
 # train on data. The shared-core Pi config must not route prompts or web-search
@@ -2827,6 +2862,16 @@ case $(command -v wt 2>/dev/null) in
     ""|/mnt/*) ;;
     *) wt --version >/dev/null 2>&1 && _wt_usable=1 ;;
 esac
+# Both fixtures below run the binary under a SCRATCH HOME (that is the point: no user
+# worktrunk config). A mise shim resolves WHICH version from $HOME, so there it answers
+# "wt is not a valid shim" while `wt --version` passes under the real HOME — the fixture
+# then creates nothing and two checks fail for a reason that has nothing to do with wt.
+# Resolve the real binary once, the way pi-use does, and run that.
+_wt_bin=$(command -v wt 2>/dev/null || true)
+if [ "$_wt_usable" = 1 ] && command -v mise >/dev/null 2>&1; then
+    _wt_real=$(mise which wt 2>/dev/null | tail -1)
+    [ -n "$_wt_real" ] && [ -x "$_wt_real" ] && _wt_bin=$_wt_real
+fi
 if _full && [ "$_wt_usable" = 1 ]; then
     _wt_h="$_wt_d/home"
     _wt_r="$_wt_h/repo"
@@ -2839,7 +2884,7 @@ if _full && [ "$_wt_usable" = 1 ]; then
     git -C "$_wt_r" -c commit.gpgsign=false -c user.email=c@example.invalid \
         -c user.name=c commit -qm init
     ( cd "$_wt_r" && HOME="$_wt_h" XDG_CONFIG_HOME="$_wt_h/.config" \
-        wt switch --create demo --base @ --no-cd </dev/null >/dev/null 2>&1 )
+        "$_wt_bin" switch --create demo --base @ --no-cd </dev/null >/dev/null 2>&1 )
     check "wt: the binary creates __worktrees/demo (precondition for the next check)" \
         test -d "$_wt_r/__worktrees/demo"
     _wt_ok=0
@@ -2875,8 +2920,8 @@ check_has "settle-notify: covers a blocking prompt too" \
 check_has "settle-notify: an explicit mute switch exists" 'PI_SETTLE_NOTIFY' "$_SN"
 check_has "settle-notify: has a transport seam, so the suite sends no real push" \
     'SETTLE_NOTIFY_CMD' "$_SN"
-check_has "settle-notify: PowerShell text is a doubled single-quoted literal" \
-    "replace\(/'/g" "$_SN"
+check_has "settle-notify: PowerShell text is base64, never script source" \
+    'FromBase64String' "$_SN"
 check_not "settle-notify: stays deployment-agnostic in the shared core" \
     'pwt|dotfiles' "$_SN"
 check_has "settle-notify: documented in the pi README" 'settle-notify' \
@@ -2932,7 +2977,7 @@ if _full && command -v wt >/dev/null 2>&1 && wt --version >/dev/null 2>&1 && com
         git -C "$_wta_d/$_wta_r" -c commit.gpgsign=false -c user.email=c@example.invalid \
             -c user.name=c commit -qm init
         ( cd "$_wta_d/$_wta_r" && HOME="$_wta_d/home" XDG_CONFIG_HOME="$_wta_d/home/.config" \
-            wt switch --create "$_wta_r-ws" --base @ --no-cd >/dev/null 2>&1 )
+            "$_wt_bin" switch --create "$_wta_r-ws" --base @ --no-cd >/dev/null 2>&1 )
     done
     _wta_out=$(WT_SRC="$_wta_d" "$_WTA" --list 2>/dev/null)
     check "wt-all: merges a worktree from every repo under the source root" bash -c \
@@ -3175,7 +3220,9 @@ check_has "bootstrap: ensure_pi honours a deliberate pi-bolt flip" \
 # target dangles and leaves `pi` unrunnable. Both halves of that contract are
 # asserted, plus a behavioural flip under a throwaway HOME below.
 check_has "pi-use: pig links the resolved binary, not the same-dir name" \
-    'ln -sfn "\$pig_bin"' "$_PI_USE"
+    'flip_link "\$pig_bin"' "$_PI_USE"
+check_has "pi-use: the link is swapped by rename, so it is never absent mid-flip" \
+    'mv -f "\$link_tmp"' "$_PI_USE"
 check_has "pi-use: recognises an absolute pig link target as the pig variant" \
     'is_pig_target' "$_PI_USE"
 
@@ -3688,7 +3735,9 @@ check "pi extensions: nothing in the required core imports from optional/" \
 # 4e: a script body is inspected, not its filename — `sh /tmp/probeA.sh` was the
 # measured bypass, and an unreadable/oversize body classifies as unknown (blocked).
 check_has "safety: L2 inspects shell script bodies (expandScripts, 4e)" \
-    '^export function expandScripts' "$_EXT/lib/classify.ts"
+    '^export { expandScripts }' "$_EXT/lib/classify.ts"
+check_has "safety: the script walk itself lives in script-expand.ts (4e)" \
+    '^export function expandScripts' "$_EXT/lib/script-expand.ts"
 
 # L2's second half — the secret-path gate (owner decision 2026-11-16, spec §2.1a,
 # §5). Probe E measured the gap: L3 allows `hypa_read` of secrets/env.fish, because

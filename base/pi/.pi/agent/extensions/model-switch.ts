@@ -534,13 +534,16 @@ export default function (pi: ExtensionAPI) {
     }
     inProgress = true;
     pendingHopTwinId = `${hop.to}/${hop.id}`.toLowerCase(); // our own hop, not a user pick
-    downProviders.add(cur.provider);
     try {
       const ok = await pi.setModel(twin);
       if (!ok) {
         ctx.ui.notify(`No usable auth for ${hop.to} — leaving model unchanged`, "error");
         return;
       }
+      // Only a hop that actually happened marks the provider down: a failed
+      // setModel leaves the session ON the primary, and latching it down here
+      // would block the 2xx recovery below for the rest of the process.
+      downProviders.add(cur.provider);
       hopArmed = true; // one forced continuation, for the non-retryable shapes
       ctx.ui.notify(
         `Provider ${cur.provider} unavailable — model → ${hop.to}/${hop.id} (metered twin)`,
@@ -648,6 +651,10 @@ export default function (pi: ExtensionAPI) {
 
     const primary = parseId(primaryId);
     if (!primary || !isAuthed(primary, ctx)) return; // primary still unavailable
+    // Same provenance gate as the provider-fallback handler above: an explicit
+    // `--model <twin>` on this invocation is the user's own choice, not a hop
+    // that this session restored from its branch.
+    if (!shouldReprobePrimary({ current: curId, ...branchModelFacts(ctx) })) return;
 
     inProgress = true;
     lastRecoveryAt = Date.now();

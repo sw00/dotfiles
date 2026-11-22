@@ -34,6 +34,15 @@
  * decision is made on the path as typed. A caller that cares about symlinks
  * must `realpath` before asking. `ls` is not gated either, by design: it
  * returns names, not contents.
+ *
+ * The other boundary is a call with NO path: `grep`/`find` then search the cwd
+ * recursively, which walks into `secrets/` without ever naming it. That is
+ * closed for this repo by the `.ignore` at the repo root (ripgrep and fd both
+ * honour it, and it is not a `.gitignore`, so nothing about tracking changes),
+ * NOT by this gate — the gate stays lexical and path-based. `hypa_grep` /
+ * `hypa_find` are covered only if pi-hypa's replacements honour ignore files;
+ * that is UNVERIFIED. A directory containing a `secrets/` dir and no `.ignore`
+ * is still open to a path-less recursive search.
  */
 
 import { homedir } from "node:os";
@@ -124,7 +133,10 @@ export function isSecretPath(path: string, cwd: string): boolean {
  *
  * Absent/unparseable input is NOT a block — a file tool with no path is not
  * this check's business, and inventing a deny there would break calls that
- * merely omit the default-cwd argument.
+ * merely omit the default-cwd argument. (A path-less `grep`/`find` searches the
+ * cwd recursively instead; for this repo the `.ignore` at the root keeps it out
+ * of `secrets/` — see the header. This gate does not, and deliberately does not
+ * start, gating that.)
  */
 export function secretPathBlock(
   toolName: string,
@@ -160,9 +172,15 @@ function label(path: string): string {
   return flat.length > MAX_LABEL ? `${flat.slice(0, MAX_LABEL)}…` : flat;
 }
 
-/** `~/x` and `~x`-free forms, without touching the filesystem. */
+/** `@`-prefix, `~/x` and `~x`-free forms, without touching the filesystem. */
 function expandHome(path: string): string {
-  if (path === "~") return homedir();
-  if (path.startsWith("~/") || path.startsWith("~\\")) return resolve(homedir(), path.slice(2));
-  return path;
+  // pi strips one leading `@` before it opens a file (path-utils.js,
+  // stripAtPrefix: true), so the gate must strip it too: `@secrets/env.fish` is
+  // the same file as `secrets/env.fish` and would otherwise read as `@secrets`.
+  // A bare `@` becomes the empty path, which resolves to the cwd — not secret,
+  // and not a crash.
+  const unwrapped = path.startsWith("@") ? path.slice(1) : path;
+  if (unwrapped === "~") return homedir();
+  if (unwrapped.startsWith("~/") || unwrapped.startsWith("~\\")) return resolve(homedir(), unwrapped.slice(2));
+  return unwrapped;
 }
