@@ -2262,12 +2262,13 @@ check "pi: APPEND_SYSTEM.md within its word budget ($_append_words/500)" \
 # the always-on total 63 words HIGHER than before the exercise. Per-layer budgets, not
 # one total: each layer has a different owner and growth rate, and a total cap would
 # make project knowledge outbid global rules.
-# Global AGENTS' recorded target is 138 words (TODO "prompt-slim watch"); this freezes
-# it at 185 until that trim happens, so the 43-word gap stays visible instead of being
-# blessed. A bump must name the incident behind it, same rule as APPEND.
+# Global AGENTS' recorded target was 138 words (TODO "prompt-slim watch"). The
+# 2026-11-23 trim closed that gap by compressing four sections rather than deleting
+# any, so the cap now sits at the target it was frozen above. A bump must name the
+# incident behind it, same rule as APPEND.
 _global_agents_words=$(wc -w < "$DOTFILES/base/pi/.pi/agent/AGENTS.md" | tr -d ' ')
-check "pi: global AGENTS.md within its word budget ($_global_agents_words/185)" \
-    test "$_global_agents_words" -le 185
+check "pi: global AGENTS.md within its word budget ($_global_agents_words/138)" \
+    test "$_global_agents_words" -le 138
 _repo_agents_words=$(wc -w < "$DOTFILES/AGENTS.md" | tr -d ' ')
 # 2026-11-23 (polling): a 24h session on glm-5.3 spent 7.5h asleep inside model
 # turns — 156 `sleep` calls, $10.65 of polling, 42 cold re-entries at $0.157 each
