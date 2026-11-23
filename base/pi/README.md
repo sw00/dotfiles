@@ -435,6 +435,7 @@ is exercised by `check.sh` to prevent regressions.
     ├── AGENTS.md                global rules (web search hygiene)
     ├── APPEND_SYSTEM.md         escalation ladder (always-on; keep lean)
     ├── agents/                  oracle, worker, reviewer, navigator, driver
+    ├── prompts/                 /second-opinion  (user-typed only; never model-invoked)
     └── extensions/
         ├── subagent/            delegation tool (loads pi's shipped example)
         ├── optional/            NOT auto-loaded; enabled by the settings template,
