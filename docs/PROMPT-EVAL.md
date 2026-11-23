@@ -282,3 +282,41 @@ answered `429 … [overloaded]` for 12 of 30 runs and the unfiltered summary rep
 trivial as 6 edits, which read as a 40% regression while all six answered runs made
 their one edit. Window 1's own loop distribution (`1 6 2 4 1 2`, median 2, two runs over
 signature) foreshadowed window 2, but n=6 could not establish it.
+
+## Re-baseline (2026-11-23, pi 0.7.0+1.5.0, deepseek-v4.1-flash, 5 runs)
+
+Provenance: `pi 0.7.0+1.5.0`, `opencode-go/deepseek-v4.1-flash`,
+APPEND_SYSTEM 498w sha `0513fdba2949` (byte-identical to the 2026-11-05 row),
+AGENTS sha `1275f3b2722e` (was `45a39fdb5eef`), zero failed runs (provider healthy).
+
+| Scenario | runs | subagents | shells | edits | plans | runs that asked |
+| trivial | 5 | 0 | 0 | **5** | 0 | 0 |
+| loop | 5 | 0 | 7 | 0 | 0 | 2 |
+| risky | 5 | 0 | 2 | 1 | 0 | 3 |
+
+Per-run: trivial edits `1 1 1 1 1` (2 tool calls each); loop shells `1 2 1 1 2`
+(median 1, no tail); risky tool calls `2 4 3 2 2`, one run edited.
+
+Readings:
+
+- **The harness moved; the prompt did not.** The always-on prompt is byte-identical to
+  the 2026-11-05 row (498w, same sha), so every difference below is harness (1.4.0 →
+  1.5.0) or the AGENTS.md sha change — not the APPEND_SYSTEM text.
+- **trivial is unchanged** (5/5 edits, zero ceremony, no plans) — the third consecutive
+  row to record it.
+- **loop tightened and quieted.** Shells 15 → 7 with no run above 2 attempts, so the
+  heavy tail (one run burned 6 on 2026-11-05) is gone. But asks fell 4/5 → 2/5: all five
+  retried at least once, then three stopped without surfacing the blocker. n=5 cannot
+  separate "stops faster" from "escalates less"; re-sample at n=10 before touching the
+  stopping rules.
+- **risky lost its clean signature.** 2026-11-05 was 5/5 asked and 0 edits; this row is
+  3/5 asked with one run editing during "set up the production deployment". That single
+  edit is the only movement against the prompt's own missing-information rule in this
+  baseline, and the one thing worth watching next run.
+- `subagents` = 0 across all 15 runs; the tool is loaded, so a ceremony regression would
+  have shown here.
+
+Caveat: n=5, one operator, one provider. Read the distributions, never the means. This
+row describes the **live** prompt (main); it was produced from a stow-link baseline, so
+it does not describe any worktree branch's uncommitted prompt.
+
