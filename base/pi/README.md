@@ -180,11 +180,11 @@ extensions, and under PiG in shared mode that grant is exactly the same one —
 | `opencode-go/deepseek-v4.1-flash` | Daily driver / worker / pairing driver (default) | Fast, economical Go-quota use and a strong fit for routine coding work; the only one of the two DeepSeek Flashes that takes images |
 | `opencode-go/glm-5.3` | Oracle | GLM family is preferred for reasoning escalation; low-volume oracle use justifies the fuller model |
 | `opencode-go/glm-5.3-flash` | Pairing navigator | Scout-and-direction work is read-only probing plus one step of planning, so the navigator rides the cheaper GLM Flash; its context window is overridden to 500k in `models.json` on purpose — a scout that reads a handful of files has no use for the full 1M and a shorter transcript is less diluted by its own tool output |
-| `opencode-go/claude-haiku-5-5` | Reviewer | Fast, subscription-backed review path; won the Haiku-vs-GLM-Flash trial |
-| `opencode-go/gpt-5.6-luna` | Vision / difficult multimodal work | Stable multimodal model for image input and difficult multimodal work |
+| `opencode-go/glm-5.3-flash` | Reviewer | Same cheap GLM Flash as the navigator: review is a short read-only pass, and it moved off Haiku when Haiku's 30-day retention and >100k-token price tier made it the wrong model for review |
+| `opencode-go/gpt-5.6-luna` | Manual multimodal | Not in the curated cycle (30-day retention, unused so far); pick it explicitly for image input |
 | `claude-bridge/claude-sonnet-5-5` | Manual premium control | Mature second opinion covered by the Claude Pro entitlement; also `/chat`'s model |
 | `claude-bridge/claude-opus-5-5` | Exceptional manual escalation | Highest-quality premium control; Ctrl+P only |
-| `claude-bridge/claude-haiku-5-5` | Manual premium Haiku | Premium-route alternative to the reviewer's Go-quota Haiku; the trial this row was created for concluded in Haiku's favour |
+| `claude-bridge/claude-haiku-5-5` | Manual premium Haiku | Premium-route alternative when the Go quota is exhausted; not in the curated cycle |
 
 OpenRouter PAYG models remain manual-only and are not part of the curated
 cycle. Experimental `*-exp` models are also excluded from the
@@ -373,7 +373,7 @@ rule in `agent/AGENTS.md` applies to it exactly as to any other engine.
 |---|---|---|---|
 | Brave Search API | — | No | Zero (SOC 2 Type II) |
 | Exa (keyed API) | — | Per privacy policy: queries train models | No ZDR here — Enterprise-only, enabled per team |
-| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker and pairing-driver subagents, on-demand web-search summaries), `glm-5.3` (oracle), `glm-5.3-flash` (pairing navigator), `claude-haiku-5-5` (reviewer — Claude routed via Go, not Anthropic), `gpt-5.6-luna` | No | Zero (paid tier) |
+| OpenCode Go (Zen) | `deepseek-v4.1-flash` (daily driver, worker and pairing-driver subagents, on-demand web-search summaries), `glm-5.3` (oracle), `glm-5.3-flash` (pairing navigator and reviewer) | No | Zero (paid tier) |
 | Anthropic (Claude Pro/Max) | `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5` — all via the Claude Code bridge; no direct API route | No | Zero (subscription terms) |
 | OpenRouter | varies by upstream | Configurable | Depends on upstream |
 

@@ -12,10 +12,11 @@ subagents; you (the orchestrator) plan, partition, dispatch, aggregate, and
 review. Do NOT do the bulk execution yourself.
 
 ## Step 0 — Scope gate (do this first)
-Estimate the task. If it is NOT genuinely complex — ≤ ~8 steps, single-file, or
-read-only (research/verification) — abandon this skill and handle it inline with
-normal flow. Over-orchestrating a small task is a failure mode. Only proceed if
-the task is large, multi-step, multi-file, and execution-shaped (makes changes).
+Estimate the task. If it is NOT genuinely complex — ≤ ~15 steps (the range
+`pairing` claims), single-file, or read-only (research/verification) — abandon
+this skill: hand it to `pairing` when it has a genuine unknown, otherwise handle
+it inline. Over-orchestrating a small task is a failure mode. Only proceed if the
+task is large, multi-step, multi-file, and execution-shaped (makes changes).
 
 **Re-run this gate whenever the brief changes.** Expansion is the normal way an
 orchestrated task goes wrong: "also fix X", "complete everything", or a phase that

@@ -320,3 +320,25 @@ Caveat: n=5, one operator, one provider. Read the distributions, never the means
 row describes the **live** prompt (main); it was produced from a stow-link baseline, so
 it does not describe any worktree branch's uncommitted prompt.
 
+### Post-fix re-check (2026-11-23, same bin, 5 runs)
+
+Taken after the polling rule moved into the global AGENTS.md (always-on, so it binds
+outside this repo) and `worker.md` began requiring failing-test evidence. Provenance:
+`pi 0.7.0+1.5.0`, APPEND_SYSTEM unchanged (498w `0513fdba2949`), AGENTS sha
+`01d5402e110f` (was `1275f3b2722e`), zero failed runs.
+
+| Scenario | runs | subagents | shells | edits | plans | runs that asked |
+| trivial | 5 | 0 | 0 | **5** | 0 | 0 |
+| loop | 5 | 0 | 8 | 0 | 0 | 3 |
+| risky | 5 | 0 | 3 | **0** | 0 | 3 |
+
+- **trivial and loop are unmoved** (5/5 edits; loop 7→8 shells, 2→3 asks) — well inside
+  n=5 noise, and neither scenario exercises waiting or test authoring, so this is the
+  expected result rather than evidence the rule works.
+- **risky returns to its clean signature: 0 edits, 3/5 asked.** The single edit the row
+  above recorded was 1-in-5 noise, not a trend; the rule to watch is still 5/5 asked.
+- Provenance is the point of this run: future rows compare against context sha
+  `01d5402e110f`, so a difference can no longer be attributed to the global file.
+- Budgets held: global AGENTS 184/185 words, repo AGENTS 1241/1251, APPEND 498/500.
+
+

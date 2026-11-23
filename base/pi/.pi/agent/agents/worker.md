@@ -32,6 +32,9 @@ to the orchestrator is a success; a silent loop is a failure.
 
 ### Verification
 - Commands run + results. State PASS/FAIL per check.
+- For every new or changed test: the command showing it FAILS without the fix
+  (revert it, break the fixture, comment it out) and the failing output verbatim.
+  A test that passes both before and after proves nothing.
 
 ### Blockers (if any)
 - The specific question or what you need, with the error/observation.

@@ -83,10 +83,9 @@ paths live in `docs/TILING.md` — read it before changing either config.
 - Parallel agent workstreams: `wt switch --create <branch>`, then `creds pi -c` in
   that shell; `wt list` for state, `wt remove` to finish. Read `docs/WT.md`
   before changing wt's config or `~/bin/wt-exclude`.
-- Waiting on a status change or long-running process: one blocking call with a long
-  `timeoutMs` (`gh run watch --exit-status`, `gh pr checks --watch`), never a
-  `sleep`-and-check loop, and never park a wait in a session running a
-  high-reasoning or expensive model — `docs/POLLING.md`.
+- Waiting on a status change or long-running process: the always-on rule in
+  `base/pi/.pi/agent/AGENTS.md` applies (one blocking call, no `sleep` loop, not on
+  an expensive model); measured costs and watcher recipes are in `docs/POLLING.md`.
 - Multi-file behaviour changes: `reviewer` on the diff before committing; prove each
   new test fails on the unfixed code; re-read any contract doc against the final diff,
   last. Fixture commits pass `git -c commit.gpgsign=false` — a locked signing agent
