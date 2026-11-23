@@ -2096,17 +2096,26 @@ if training.lower().startswith('no'):
 # pi-claude-auth → pi-claude-bridge migration. pi-claude-auth copied Claude
 # Code's Keychain credential into pi's anthropic auth.json slot and re-synced it
 # every 5 minutes, so pi and the claude CLI rotated the same refresh token.
-# Route B: the bridge serves the premium roster, inheriting Claude Code's own
-# auth. pi's native `/login` route is third-party-repriced and keeps no
-# credential (docs/GOTCHAS.md), so nothing here may pin `anthropic/*`.
+# Route B: the bridge inherits Claude Code's own auth and stays INSTALLED for
+# deliberate `--model claude-bridge/...` escalation, but the curated picker is
+# opencode-go only. pi's native `/login` route is third-party-repriced and keeps
+# no credential (docs/GOTCHAS.md), so an `anthropic/*` pin here would 400 or
+# bill extra usage.
 check_not "pi settings: pi-claude-auth package removed (migrated to claude-bridge)" \
     'pi-claude-auth' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
 check_has "pi settings: claude-bridge declared as a package" \
     'npm:pi-claude-bridge' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
 
-check_has "pi settings: premium roster routes through claude-bridge" \
-    'claude-bridge/claude-opus-5-5' "$DOTFILES/base/pi/.pi/agent/settings.desired.json"
+check "pi settings: curated picker is opencode-go only (bridge is explicit escalation)" \
+    bash -c "python3 -c \"
+import json, sys
+s = json.load(open('$DOTFILES/base/pi/.pi/agent/settings.desired.json'))
+bad = [m for m in s.get('enabledModels', []) if not m.startswith('opencode-go/')]
+if bad:
+    sys.stderr.write('non-Go entries in enabledModels: %r\\n' % (bad,))
+    sys.exit(1)
+\""
 
 # pi-claude-bridge records `startupNoticeShown` in claude-bridge.json the first
 # time it shows its settings notice — writing through the stowed symlink and
@@ -2260,8 +2269,12 @@ _global_agents_words=$(wc -w < "$DOTFILES/base/pi/.pi/agent/AGENTS.md" | tr -d '
 check "pi: global AGENTS.md within its word budget ($_global_agents_words/185)" \
     test "$_global_agents_words" -le 185
 _repo_agents_words=$(wc -w < "$DOTFILES/AGENTS.md" | tr -d ' ')
-check "repo AGENTS.md within its word budget ($_repo_agents_words/1200)" \
-    test "$_repo_agents_words" -le 1200
+# 2026-11-23 (polling): a 24h session on glm-5.3 spent 7.5h asleep inside model
+# turns — 156 `sleep` calls, $10.65 of polling, 42 cold re-entries at $0.157 each
+# against $0.019 warm. The rule has to be always-on; detail moved to
+# docs/POLLING.md to keep the bullet to one line. 1200 -> 1251.
+check "repo AGENTS.md within its word budget ($_repo_agents_words/1251)" \
+    test "$_repo_agents_words" -le 1251
 # =============================================================================
 section "Neovim smoke test"
 

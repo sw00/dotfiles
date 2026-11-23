@@ -83,6 +83,10 @@ paths live in `docs/TILING.md` — read it before changing either config.
 - Parallel agent workstreams: `wt switch --create <branch>`, then `creds pi -c` in
   that shell; `wt list` for state, `wt remove` to finish. Read `docs/WT.md`
   before changing wt's config or `~/bin/wt-exclude`.
+- Waiting on a status change or long-running process: one blocking call with a long
+  `timeoutMs` (`gh run watch --exit-status`, `gh pr checks --watch`), never a
+  `sleep`-and-check loop, and never park a wait in a session running a
+  high-reasoning or expensive model — `docs/POLLING.md`.
 - Multi-file behaviour changes: `reviewer` on the diff before committing; prove each
   new test fails on the unfixed code; re-read any contract doc against the final diff,
   last. Fixture commits pass `git -c commit.gpgsign=false` — a locked signing agent
@@ -130,6 +134,7 @@ A plan's only required header is `> **Status:** draft | in-progress | landed (<c
 **Gotchas** (things that went wrong, with fixes): `docs/GOTCHAS.md`
 **How changes are made here** (principles): `docs/PRINCIPLES.md`
 **Tiling WM keybinding table**: `docs/TILING.md`
+**Waiting on CI or long-running processes** (measured cache TTLs): `docs/POLLING.md`
 **Worktrees and workstreams (`wt`)**: `docs/WT.md`
 **Pending work**: `TODO.md`
 **Before changing provisioning behaviour** (`bootstrap.sh`, `check.sh`, `os/wsl/up.sh`):

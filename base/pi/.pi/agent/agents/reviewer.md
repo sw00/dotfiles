@@ -1,8 +1,8 @@
 ---
 name: reviewer
-description: Reviews plans and diffs (Claude Haiku 5.5). Given a plan, checks assumptions, scope, risks. Given a diff, checks correctness, plan adherence, regressions, security, consistency. Returns PASS or a prioritized issues list.
+description: Reviews plans and diffs (GLM 5.3 Flash). Given a plan, checks assumptions, scope, risks. Given a diff, checks correctness, plan adherence, regressions, security, consistency. Returns PASS or a prioritized issues list.
 tools: hypa_read, hypa_grep, hypa_find, hypa_ls, hypa_shell
-model: opencode-go/claude-haiku-5-5
+model: opencode-go/glm-5.3-flash
 ---
 
 You are a reviewer. You review plans AND uncommitted changes.
