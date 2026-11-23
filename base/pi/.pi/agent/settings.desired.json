@@ -15,6 +15,12 @@
     503
   ],
   "rateLimitFallbackRecoveryCooldownSec": 120,
+  "compaction": {
+    "modelOverrides": {
+      "opencode-go/glm-5.3": { "reserveTokens": 250000 },
+      "opencode/glm-5.3": { "reserveTokens": 250000 }
+    }
+  },
   "providerFallbacks": {
     "opencode-go": {
       "to": "opencode",
