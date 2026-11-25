@@ -361,8 +361,11 @@ check_stow "os/macos: brew gnupg" \
     "$DOTFILES/os/macos" brew gnupg
 
 stow_layer "$DOTFILES/os/macos" brew gnupg
-check_stow "hosts/mbpm3: alacritty brew fish key_remap mise aerospace paseo" \
-    "$DOTFILES/hosts/mbpm3" alacritty brew fish key_remap mise aerospace paseo
+# No `fish` in this layer: hosts/mbpm3/fish held nothing but the retired work
+# tooling (2026-11-25), so the package went with it and mbpm3 now inherits base
+# fish alone. Stow errors with "does not contain package fish" if it is listed.
+check_stow "hosts/mbpm3: alacritty brew key_remap mise aerospace paseo" \
+    "$DOTFILES/hosts/mbpm3" alacritty brew key_remap mise aerospace paseo
 stow_end
 
 # ── WSL stack: base → os/linux → os/wsl ───
@@ -1319,54 +1322,28 @@ check_has "winget.txt: zapfast documented as up.sh-seeded (no winget ID)" \
 check_not "winget.txt: zapfast not listed as a winget ID (no manifest exists)" \
     '^[^#]*[Zz]ap[Ff]ast' "$DOTFILES/os/wsl/windows/winget.txt"
 
-# Rev 4: the mbpm3 work.fish conf.d fragment was deleted — it carried a work
-# target abbreviation in cleartext. Work tooling stays mbpm3-exclusive (see the
-# mise tests above); what replaced it stores no identifier at all, discovering
-# its targets from the tools' own config at runtime.
-check "hosts/mbpm3: work conf.d fragment removed (target names must not be public)" \
-    bash -c "! test -e '$DOTFILES/hosts/mbpm3/fish/.config/fish/conf.d/work.fish'"
-
-for _wf in work-login work-status; do
-    check "hosts/mbpm3: $_wf function present" \
-        test -f "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
-
-    check "hosts/mbpm3: $_wf parses" \
-        fish -n "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/$_wf.fish"
+# Rev 6: work tooling is not in this repo at all. Rev 4 deleted the conf.d
+# fragment (it carried a work target in cleartext); the functions that replaced
+# it were a personal copy of the workbench's scripts/auth.sh, which needs that
+# repo's AWS config and env anyway. They now live there as `make auth-status` /
+# `make auth-login` / `auth` (see the workbench README). Those six files were the
+# whole of the hosts/mbpm3/fish package, so the package is gone too and left the
+# layered stow list above. This asserts ABSENCE of the paths, not of the
+# directory: a reintroduced copy would drift from the one under test, and this
+# suite would then be guarding the wrong file. Work tooling stays mbpm3-exclusive
+# (see the mise tests above) and stores no identifier, discovering targets from
+# the tools' own config at runtime.
+for _wf in \
+    conf.d/work.fish \
+    functions/work-login.fish \
+    functions/work-status.fish \
+    functions/__work_aws_sso_profile.fish \
+    functions/__work_fly_targets.fish \
+    functions/__work_exec_contexts.fish
+do
+    check "hosts/mbpm3: retired work tooling absent ($_wf)" \
+        bash -c "! test -e '$DOTFILES/hosts/mbpm3/fish/.config/fish/$_wf'"
 done
-
-# The probe helpers must be their OWN files. fish autoloads a function only from
-# a file NAMED after it, so while these lived inside work-status.fish, work-login
-# called them as unknown commands in any shell where work-status had not run —
-# and because work-login's gates treat an empty probe as "nothing to do", it
-# reported success while probing nothing (user hit this 2026-10-20). `functions -q`
-# triggers the same autoload path a call would, without running anything.
-_work_fn_dir="$DOTFILES/hosts/mbpm3/fish/.config/fish/functions"
-for _wf in __work_aws_sso_profile __work_fly_targets __work_exec_contexts; do
-    check "hosts/mbpm3: $_wf has its own file" \
-        test -f "$_work_fn_dir/$_wf.fish"
-
-    check "hosts/mbpm3: $_wf parses" \
-        fish -n "$_work_fn_dir/$_wf.fish"
-
-    check "hosts/mbpm3: $_wf autoloads in a fresh fish" \
-        fish -N -c "set fish_function_path '$_work_fn_dir'; functions -q $_wf"
-done
-
-# Rev 5: az joined the work toolchain. Assert the wiring rather than just the
-# presence of the word, so the two functions cannot drift apart: work-login must
-# offer az by default, and both must probe it the same way — otherwise one
-# reports ready while the other re-logs in on every run.
-check "hosts/mbpm3: work-login defaults include az" \
-    grep -q 'set want aws az k8s argocd fly' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
-
-check "hosts/mbpm3: work-login has an az case" \
-    grep -qE '^[[:space:]]+case az$' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
-
-check "hosts/mbpm3: work-login probes az with account show" \
-    grep -q 'az account show' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-login.fish"
-
-check "hosts/mbpm3: work-status probes az with account show" \
-    grep -q 'az account show' "$DOTFILES/hosts/mbpm3/fish/.config/fish/functions/work-status.fish"
 
 # Shape-level leak scan over every tracked file outside secrets/. The pattern is
 # written with bracket classes so this file does not contain the contiguous
@@ -4058,8 +4035,9 @@ check "fish: no own function, conf.d or completion file is untracked or ignored 
 
 # fish autoloads a function ONLY from a file named after it. A helper defined
 # inside another function's file is therefore an unknown command until that file
-# happens to be sourced — how work-login called three helpers that existed only
-# after work-status had run in the same shell, silently probing nothing. Any
+# happens to be sourced — how the (since retired, now workbench/scripts/auth.sh)
+# work-login called three helpers that existed only after work-status had run in
+# the same shell, silently probing nothing. Any
 # `__helper` a functions/ file calls must be defined in that file, or have its own
 # <helper>.fish somewhere in a functions dir.
 _autoload_bad="$(python3 - "$DOTFILES" <<'PY'

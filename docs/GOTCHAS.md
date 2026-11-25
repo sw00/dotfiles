@@ -329,7 +329,8 @@ inside those bullets are NOT current; the surviving contracts are `docs/WT.md` a
   `stow --restow --no-folding -d base -t ~ fish`. No test can catch it: the repo copy
   is fine, only the `$HOME` link is missing.
 - **fish autoloads a function only from a file NAMED after it.** Three probe helpers
-  (`__work_aws_sso_profile`, `__work_fly_targets`, `__work_exec_contexts`) lived inside
+  (the work tooling's `__work_*`; retired 2026-11-25 — it lives in
+  `workbench/scripts/auth.sh` now, which has no autoload trap) lived inside
   `work-status.fish`, so `work-login` resolved them to "Unknown command" in any shell
   where `work-status` had not already run — the same shell worked, a fresh terminal did
   not. It stayed hidden because `work-login`'s gates treat an empty probe as "nothing to
