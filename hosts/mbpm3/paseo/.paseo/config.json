@@ -22,7 +22,7 @@
         "provider": "pi",
         "model": "opencode-go/deepseek-v4.1-flash",
         "thinkingOptionId": "high",
-        "notes": "Use as primary orchestrator, parent agent"
+        "notes": "Preferred default in every slot, not just the parent one: my entrypoint for most tasks and the default worker for delegated children. It is an orchestrator only because it is my usual entrypoint, not a reason to exclude it from worker work. Escalate to a stronger model (oracle) only when complexity, uncertainty, or blast radius is high; for medium tasks that benefit from tight feedback, pair it with a navigator instead of escalating."
       }
     ],
     "cors": {
