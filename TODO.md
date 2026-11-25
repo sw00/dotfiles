@@ -293,8 +293,11 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   own config is verified working without it. Revoke the key in Argo CD once a day
   or two has passed without anything breaking.
 
-- [ ] **Work-laptop login friction (2026-10-19).** `work-login` / `work-status`
-  (in the mbpm3 host package) re-auth idempotently. Remaining, in order of value:
+- [ ] **Work-laptop login friction (2026-10-19; moved 2026-11-25).** The fish
+  `work-login` / `work-status` pair went to the workbench as `scripts/auth.sh`
+  (`make auth-status` / `make auth-login` / `auth`, which also refreshes the
+  kubectl session a kubeconfig context mints from — read-only roles only). This
+  repo keeps no copy. Remaining, in order of value:
   surface `work-status` in the tmux status bar so a lapsed session is visible
   before it bites; find out the org's IAM Identity Center session duration (the
   AWS refresh token re-mints hourly, but the sign-in session is what forces a
