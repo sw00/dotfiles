@@ -18,7 +18,6 @@ zoxide      = "latest"
 direnv      = "latest"
 shellcheck  = "latest"
 shfmt       = "latest"   # shell formatter — pairs with shellcheck (aqua:mvdan/sh)
-pre-commit  = "latest"
 lazygit     = "latest"
 git-lfs     = "latest"
 
@@ -43,9 +42,9 @@ k9s      = "latest"
 kubectx  = "latest"
 kubens   = "latest"
 lnav     = "latest"
-tflint   = "latest"   # terraform linter (aqua:terraform-linters/tflint)
 # Deployment/infra tools are work-laptop specific:
-# see hosts/mbpm3/mise/.mise.toml for helm, kubeseal, crane, kustomize, argocd, opentofu
+# see hosts/mbpm3/mise/.mise.toml for helm, crane, kustomize, k3d, awscli, azure,
+# pdm, oc, gcloud — and workbench's .mise.toml for argocd/opentofu (team-activated)
 
 # ── Language runtimes ─────────────────────────────────────────────────────────
 # Pin to a minor, let mise pick the patch. Update intentionally.
@@ -72,20 +71,17 @@ bitwarden = "latest"
 # themselves instead (ensure_pi/ensure_claude in bootstrap.sh, which also keep
 # them on latest); check.sh fails if either entry reappears here.  Do not re-add.
 "npm:tokscale" = "latest"
-"pipx:cerebrium" = "latest"
+"pipx:visidata" = "latest"   # TUI data wrangler (CSV/JSON viewer) — audit-promoted to declared
 # terravision has no registry entry under its bare name; the pipx backend is how
 # it is actually installed, so it has to be spelled out.
 "pipx:terravision" = "latest"
 "pipx:python-dotenv" = "latest"
-# hf (Hugging Face Hub CLI) has no mise registry entry; the pipx backend is how
-# it is installed, so it is spelled out. Replaces the brew "hf" cask-formula.
-"pipx:huggingface_hub" = "latest"
 "ubi:rikorose/DeepFilterNet" = "latest"
 "npm:ccusage" = "latest"
 # Two tools are deliberately uv-managed, NOT mise entries (no registry/aqua
 # entry; uv owns their venvs): `uv tool list` → repowise, skills-ref.
 # Update via `uv tool upgrade --all`. Recorded so audits don't re-flag them.
-"aqua:grafana/gcx" = "latest"
+# (gcx, cerebrium, huggingface_hub moved to workbench's toolchain 2026-11 — work tools.)
 # gitleaks backs the publish guard (class c: a credential riding out inside a
 # `gh pr create --body`). The guard fails CLOSED when it cannot find a scanner,
 # so this entry is load-bearing: without it every publish and web call blocks

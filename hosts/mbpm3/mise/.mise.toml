@@ -15,11 +15,10 @@
 
 [tools]
 helm       = "latest"
-kubeseal   = "latest"
 crane      = "latest"          # container registry ops (aqua:google/go-containerregistry)
 kustomize  = "latest"
-argocd     = "latest"
-opentofu   = "latest"
+# kubeseal removed 2026-11 — superseded by External Secrets Operator.
+# argocd/opentofu moved to workbench's .mise.toml (team-activated toolchain).
 # stern/kail removed 2026-11: replaced by the kubectl plugin system. fly removed:
 # workbench-managed (scripts/fly-install.sh, server-matched — not a host tool).
 k3d        = "latest"          # local k3s clusters (was: asdf)
