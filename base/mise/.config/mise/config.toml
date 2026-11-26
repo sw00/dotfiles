@@ -32,6 +32,11 @@ tmux              = "latest"
 "ubi:gokcehan/lf"      = "latest"
 mutagen          = "latest"   # two-way file sync over SSH (aqua:mutagen-io/mutagen)
 
+# ── Documents / reporting ────────────────────────────────────────────────────
+# Agent-authored reports → PDF. One-pager pipeline: styled HTML → Brave headless
+# --print-to-pdf; typeset reports → pandoc --pdf-engine=typst or native typst.
+typst = "latest"           # single static binary (Rust; aqua:typst/typst)
+
 # ── Devops — everyday k8s navigation ─────────────────────────────────────────
 kubectl  = "latest"
 k9s      = "latest"
