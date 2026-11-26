@@ -1322,6 +1322,25 @@ check_has "winget.txt: zapfast documented as up.sh-seeded (no winget ID)" \
 check_not "winget.txt: zapfast not listed as a winget ID (no manifest exists)" \
     '^[^#]*[Zz]ap[Ff]ast' "$DOTFILES/os/wsl/windows/winget.txt"
 
+# MeetingReminder is tapless on macOS (GitHub-release DMG only; brew refuses a
+# tap dir that isn't its own git repo, so the seed lives in bootstrap.sh, not a
+# Brewfile). Guard the same two things the ZapFast guards do: the Brewfile
+# stays comment-only, and the bootstrap block keeps its version+sha256 pair.
+check_not "Brewfile-host: meetingreminder not a cask (tapless - seeded by bootstrap)" \
+    '^[^#]*cask "meetingreminder"' "$DOTFILES/hosts/mbpm3/brew/.Brewfile-host"
+
+_MR_SH=$(mktemp)
+awk '/^ensure_meeting_reminder/,/^}$/' "$DOTFILES/bootstrap.sh" > "$_MR_SH"
+
+check_has "bootstrap: meetingreminder seeds a pinned DMG (release URL built from the pin)" \
+    'meeting-reminder/releases/download/v\$version' "$_MR_SH"
+
+check "bootstrap: meetingreminder pins one version + one sha256 together" \
+    bash -c '[ "$(grep -cE "^    local (version|sha256)=" "$1")" -eq 2 ]' \
+    _ "$_MR_SH"
+
+rm -f "$_MR_SH"
+
 # Rev 6: work tooling is not in this repo at all. Rev 4 deleted the conf.d
 # fragment (it carried a work target in cleartext); the functions that replaced
 # it were a personal copy of the workbench's scripts/auth.sh, which needs that

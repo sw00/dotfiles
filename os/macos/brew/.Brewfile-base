@@ -55,6 +55,8 @@ cask "vscodium"         # editor — canonical extensions list: os/wsl/windows/v
 tap "crmne/tap"
 cask "zapfast"
 cask "firefox@developer-edition"  # secondary browser (parity with winget)
+# No winget twin — one-off mac utility, kept out of the parity table.
+cask "appcleaner"           # app uninstaller for stray-app cleanup
 
 # ── Tiling window manager ─────────────────────────────────────────────────────
 # AeroSpace is the primary WM on all macs (matches komorebi on Windows) and

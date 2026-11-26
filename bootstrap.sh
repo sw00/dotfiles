@@ -361,10 +361,12 @@ migrate_app_trim() {
     # Note: user data is intentionally NOT removed — Zotero's library, Docker
     # Desktop's VM disk (~/Library/Containers/com.docker.docker), and app prefs
     # stay on disk. Delete those by hand if unwanted.
+    # appcleaner and dbeaver-community were re-adopted later (Brewfile-base /
+    # Brewfile-host, 2026-11 audit) and left this list, like caffeine above.
     local trimmed=(
         gpg-suite httpie-desktop calibre zotero
-        mouseless appcleaner rectangle libreoffice
-        megasync dbeaver-community docker-desktop
+        mouseless rectangle libreoffice
+        megasync docker-desktop
     )
     # caffeine is deliberately absent: it is declared in the host Brewfile again,
     # and a trimmed cask that is also declared is installed by brew bundle and
@@ -619,6 +621,51 @@ ensure_flameshot_quarantine() {
         log "stripping com.apple.quarantine from Flameshot.app (unnotarized build)"
         xattr -dr com.apple.quarantine "$app" || warn "could not strip quarantine from $app"
     fi
+}
+
+ensure_meeting_reminder() {
+    # MeetingReminder (github.com/adamswbrown/meeting-reminder) ships GitHub
+    # release DMGs only — no cask, no tap (brew rejects a tap dir that isn't
+    # its own git repo, so a dotfiles-hosted tap is out). Same shape as the
+    # ZapFast MSI block in os/wsl/up.sh: pinned version, sha256 verified
+    # before install, idempotent. Unlike ZapFast there is NO self-updater, so
+    # this pin IS the upgrade path: bump version+sha256 together (a check.sh
+    # guard asserts the pair). Seed failure warns, never aborts bootstrap.
+    local version="3.6.1"
+    local sha256="a5fa80a29dc5d28054d489ee4eb684be7e945465c31c33e63eeac8312aa15679"
+    local app="/Applications/MeetingReminder.app"
+    local installed
+    installed=$(defaults read "$app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null)
+    if [[ "$installed" == "$version" ]]; then
+        log "MeetingReminder $version already installed - skipping"
+        return 0
+    fi
+    [[ -n "$installed" ]] && log "MeetingReminder $installed -> upgrading to $version"
+
+    local dmg="MeetingReminder-$version.dmg"
+    local url="https://github.com/adamswbrown/meeting-reminder/releases/download/v$version/$dmg"
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    log "downloading MeetingReminder $version"
+    curl -fsSL "$url" -o "$tmpdir/$dmg" \
+        || { warn "MeetingReminder download failed - install manually from $url"; rm -rf "$tmpdir"; return 0; }
+    echo "$sha256  $tmpdir/$dmg" | shasum -a 256 -c - >/dev/null \
+        || { warn "sha256 mismatch for $dmg - not installing"; rm -rf "$tmpdir"; return 0; }
+
+    local mnt
+    mnt=$(mktemp -d)
+    if ! hdiutil attach "$tmpdir/$dmg" -nobrowse -quiet -mountpoint "$mnt"; then
+        warn "could not mount $dmg"
+        rm -rf "$tmpdir" "$mnt"
+        return 0
+    fi
+    rm -rf "$app"   # old install is user-owned (DMG drag/cp); rm keeps cp clean
+    cp -R "$mnt/MeetingReminder.app" /Applications/ \
+        || warn "could not copy MeetingReminder.app into /Applications"
+    hdiutil detach "$mnt" -quiet
+    rm -rf "$tmpdir"
+    xattr -dr com.apple.quarantine "$app" 2>/dev/null   # defensive, Flameshot-style
+    log "MeetingReminder $version installed"
 }
 
 ensure_tmux_plugins() {
@@ -1298,6 +1345,7 @@ main() {
             ensure_homebrew_bundle
             migrate_app_trim
             ensure_flameshot_quarantine
+            ensure_meeting_reminder
             ensure_vscodium_extensions
             ensure_fisher
             ensure_mise

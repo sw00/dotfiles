@@ -77,8 +77,14 @@ bitwarden = "latest"
 # it is actually installed, so it has to be spelled out.
 "pipx:terravision" = "latest"
 "pipx:python-dotenv" = "latest"
+# hf (Hugging Face Hub CLI) has no mise registry entry; the pipx backend is how
+# it is installed, so it is spelled out. Replaces the brew "hf" cask-formula.
+"pipx:huggingface_hub" = "latest"
 "ubi:rikorose/DeepFilterNet" = "latest"
 "npm:ccusage" = "latest"
+# Two tools are deliberately uv-managed, NOT mise entries (no registry/aqua
+# entry; uv owns their venvs): `uv tool list` → repowise, skills-ref.
+# Update via `uv tool upgrade --all`. Recorded so audits don't re-flag them.
 "aqua:grafana/gcx" = "latest"
 # gitleaks backs the publish guard (class c: a credential riding out inside a
 # `gh pr create --body`). The guard fails CLOSED when it cannot find a scanner,

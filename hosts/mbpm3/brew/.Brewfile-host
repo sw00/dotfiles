@@ -45,14 +45,27 @@ cask "microsoft-outlook"    # Work mail — teams was declared without it, an ov
 cask "windows-app"          # Microsoft RDP client (work)
 cask "openusage"            # AI usage tracker (the desktop app; the CLI form is separate)
 cask "monokle"              # Kubernetes config UI
+cask "zoom"                 # work meetings — used ~weekly; auto_updates (tier 3)
+cask "dbeaver-community"    # DB client — used monthly; was dmg-installed, bundle --adopt owns it
+# Tailscale is deliberately NOT the cask: installed via the standalone pkg
+# (com.tailscale.ipn.macsys — root-owned /usr/local/bin/tailscale shim), which
+# self-updates. Same self-managed class as Claude.app. Recorded so the audit
+# doesn't re-flag it.
+# Claude desktop app is deliberately NOT casked: same self-managed class as the
+# pi/claude CLIs (its updater owns /Applications/Claude.app). Recorded here so
+# the quarterly audit doesn't re-flag it as unowned.
+# MeetingReminder (github.com/adamswbrown/meeting-reminder) is tapless too:
+# no cask exists and brew rejects a dotfiles-hosted tap dir, so
+# bootstrap.sh's ensure_meeting_reminder seeds the pinned, sha256-verified
+# release DMG (and is the upgrade path — the app has no self-updater).
+# check.sh guards the pin pair and keeps this file cask-free for it.
 
 # ── CLI tools with no mise backend ────────────────────────────────────────────
 # No mise registry entry and no usable ubi release, so brew owns them. Declared
 # only after the audit found them installed-and-undeclared — declared HERE rather
 # than in Brewfile-base so as not to imply a Linux/ensure_system_tools twin.
-brew "goaccess"             # web log analyzer
-brew "inframap"             # terraform/state graph generator
-brew "hf"                   # Hugging Face CLI (a Python tool, no registry entry)
+# goaccess replaced by lnav (mise, aqua:tstack/lnav); inframap deleted —
+# project-level tool, belongs in the work repo's mise config, not here.
 brew "telnet"               # nc is not equivalent; small and occasionally needed
 
 # ── Mac App Store ─────────────────────────────────────────────────────────────
