@@ -20,17 +20,10 @@ crane      = "latest"          # container registry ops (aqua:google/go-containe
 kustomize  = "latest"
 argocd     = "latest"
 opentofu   = "latest"
-stern      = "latest"          # k8s log tailing (was: asdf)
-"ubi:boz/kail" = "latest"     # k8s log tailer — in daily use. Moved off Homebrew's
-                               # boz/repo tap: that tap is untrusted, so brew
-                               # refuses to even load the formula and it could
-                               # never be upgraded there. ubi gives it one owner.
+# stern/kail removed 2026-11: replaced by the kubectl plugin system. fly removed:
+# workbench-managed (scripts/fly-install.sh, server-matched — not a host tool).
 k3d        = "latest"          # local k3s clusters (was: asdf)
 awscli     = "latest"          # AWS CLI (was: asdf)
-fly        = "8.3.0"           # Concourse CLI — PINNED to the server's API version.
-                               # Do NOT float this: mise's `latest` runs ahead of
-                               # the server, and fly refuses to talk to a
-                               # mismatched API. Bump only when the server does.
 azure      = "latest"          # resolves to pipx:azure-cli
 pdm        = "latest"          # resolves to pipx:pdm
 

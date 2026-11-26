@@ -1506,10 +1506,12 @@ else
     ' bash "$DOTFILES"
 fi
 
-# fly refuses to talk to a mismatched server API, so its version must be pinned
-# rather than floated on mise's `latest`.
-check_has "hosts/mbpm3: fly pinned to the server API version" \
-    '^fly[[:space:]]*= "8\.3\.0"' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
+# fly moved to workbench (2026-11): scripts/fly-install.sh downloads it
+# server-matched by construction, which replaces the pin — a stale host pin
+# would shadow the server-matched copy. Tombstone: never re-declare it in a
+# mise config; if this check fires, a fly line crept back.
+check_not "hosts/mbpm3: fly absent from mise configs (workbench owns it)" \
+    '^fly[[:space:]]*=' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
 
 check_not "hosts/mbpm3: fly not floating on latest" \
     '^fly[[:space:]]*= "latest"' "$DOTFILES/hosts/mbpm3/mise/.mise.toml"
