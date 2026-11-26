@@ -329,3 +329,10 @@ Landed on `safety/pigg-mvs` (`e2cb4f3`, refactor `1b286c5`); spec is
   refactor for style.
 - tmux config, aerospace/komorebi parity, mise tiering, and the check.sh
   stow-integrity suite are the strong core; keep.
+## Open — home config inventory leftovers (2026-11-26 audit)
+
+- [ ] Deferred imports, selected but not yet done: btop.conf and htoprc
+      (new base packages plus check.sh stow lists), flameshot.ini to
+      os/macos/flameshot (savePath is platform-forced).
+- Rejected after audit: lnav (stock samples), neofetch (stock dump), rnnoise
+  (binary asset), opencode (config gone, likely retired). gh done (base/git).
